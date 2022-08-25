@@ -1,0 +1,59 @@
+# ParaView_Vignettes
+
+## What is ParaView
+ParaView is an open-source, multi-platform data analysis and visualization application. ParaView users can quickly build visualizations to analyze their data using qualitative and quantitative techniques. The data exploration can be done interactively in 3D or programmatically using ParaView’s batch processing capabilities.
+
+ParaView was developed to analyze extremely large datasets using distributed memory computing resources. KVL provides ParaView server installs on Ibex and Shaheen to facilitate large scale distributed visualizations. The ParaView server running on Ibex and Shaheen may be used in a headless batch processing mode, however to use the GUI only Ibex is supported.
+
+
+
+## Overview of ParaView at KAUST
+There are essentially two ways to use ParaView at KAUST:
+1. Interactivelly
+    1. KAUST IT Remote workstations: [Remote Workstations](https://myws.kaust.edu.sa/)
+    2. Locally on your laptop or desktop. Kaust IT installs ParaView as a module on KAUST Ubuntu systems. Otherwise you can download a binary from Kitware: [ParaView](https://www.paraview.org/download/)
+    3. Client/Server mode: a GUI client runs on your local machine and the data is processed on KAUST HPC resources. 
+2. Batch mode: a python script is executed either locally or on KAUST HPC resources.
+
+
+### Using ParaView Interactively on Ibex
+It is possible to run a local ParaView client to display and interact with your data while the ParaView server runs in an Ibex batch job, allowing interactive analysis of very large data sets. You will obtain the best performance by running the ParaView client on your local computer and running the server on Ibex with the same version of ParaView. It is highly recommended to check the available ParaView versions using ```module avail paraview``` on the system you plan to connect ParaView to.
+
+***WARNING***: Using a different version of ParaView than what is available on IBEX will most likely fail. 
+
+***WARNING***: For macOS clients, it is necessary to install XQuartz (X11) to get a command prompt in which you will securely enter your credentials.
+
+***WARNING***: For Windows clients, it is necessary to install PuTTY to create an ssh connection in step 2.
+
+After local installation you must give ParaView the relevant server information to be able to connect to KAUST systems (comparable to VisIt's system of host
+profiles). The following provides an example of doing so. Although several methods may be used, the one described should work in most cases.
+* Step 1: Save the following servers.pvsc file to your local computer: ibex_server OR for Windows ibex_server_windows
+* Step 2: Start ParaView and then select ```File/Connect``` to begin.
+* Step 3: Import Servers: Click Load Servers button and find the servers.pvsc file .
+
+After successfully completing the above steps, you should now be able to connect to Ibex.
+
+
+### Remote GUI Usage
+After setting up and installing ParaView, you can connect to KAUST systems remotely to visualize your data interactively through ParaView's GUI.
+1. Go to File -> Connect and select Ibex (provided it was successfully imported.
+2. Click on Connect and change the values in the Connection Options box.
+    1. A dialog box follows, in which you must enter in your username the number of nodes to reserve and a duration to reserve them for. This is also where you can also select which CPU or GPU partition to use.
+    2. It is recommended to use the CPU partition only, as the GPU partitions are VERY busy. To do this select "Node Group: CPU".
+3. When you click OK, a windows command prompt or ``xterm`` pops up. In this window enter your credentials at the login prompt.
+4. When your job reaches the top of the queue, the main window will be returned to your control. At this point you are connected and can open files that reside
+there and visualize them interactively.
+
+
+### Creating a Python Trace for Batch Processing
+One of the most convenient tools available in the GUI is the ability to convert (or "trace") interactive actions in ParaView to Python code. Users that repeat
+a sequence of actions in ParaView to visualize their data may find the Trace tool useful. The Trace tool creates a Python script that reflects most actions
+taken in ParaView, which then can be used by either PvPython or PvBatch (ParaView's Python interfaces) to accomplish the same actions.
+
+To start tracing from the GUI, click on Tools -> Start Trace. An options window will pop up and prompt for specific Trace settings other than the default. Upon
+starting the trace, any time you modify properties, create filters, open files, and hit Apply, etc., your actions will be translated into Python syntax. Once
+you are finished tracing the actions you want to script, click Tools -> Stop Trace. A Python script should then be displayed to you and can be saved.
+
+
+### For more information on ParaView
+[Documentation](https://docs.paraview.org/en/latest/index.html)
