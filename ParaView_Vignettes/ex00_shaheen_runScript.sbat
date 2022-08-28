@@ -1,0 +1,21 @@
+#!/bin/bash
+#
+# KAUST Visualization Vignettes
+#
+# Author: James Kress, <james.kress@kaust.edu.sa>
+# Copyright KAUST
+#
+#SBATCH --account=k1033
+#SBATCH --job-name=test
+#SBATCH --output=pvtest.%j.out
+#SBATCH --error=pvtest.%j.err
+#SBATCH --partition=workq
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=10:00
+
+# load the paraview environment
+module load paraview
+HINT_FLAG="--hint=nomultithread"
+
+srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex00_pvConeStat.py 

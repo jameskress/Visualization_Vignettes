@@ -8,8 +8,10 @@ ParaView was developed to analyze extremely large datasets using distributed mem
 
 ## Repo Organization
 This subfolder is organized as follows:
-- ``ibexParaView`` folder contains example scripts of running ParaView with ``pvbatch`` and ``pvpython``
-- ``shaheenParaView`` folder contains example scripts of running ParaView with ``pvbatch`` and ``pvpython``
+- ``ex*.py`` various example scripts showing the use of ParaView from python
+- ``ex*_shaheen_runScript.sbat`` Shaheen batch scripts showing how to run ParaView with ``pvbatch``
+- ``ex*_ibex_runScript.sbat`` Ibex batch scripts showing how to run ParaView with ``pvbatch``
+- ``createParaViewMovie.sh`` Script to generate a movie from images generated with ParaView
 - Information on ParaView and how to use it on KAUST computing resources is given below
 
 
@@ -40,15 +42,21 @@ profiles). The following provides an example of doing so. Although several metho
 After successfully completing the above steps, you should now be able to connect to Ibex.
 
 
-### Remote GUI Usage
+#### Remote GUI Usage
 After setting up and installing ParaView, you can connect to KAUST systems remotely to visualize your data interactively through ParaView's GUI.
-1. Go to ``File/Connect`` and select Ibex (provided it was successfully imported.
+1. Go to ``File/Connect`` and select Ibex (provided it was successfully imported).
 2. Click on ``Connect`` and change the values in the Connection Options box.
     1. A dialog box follows, in which you must enter in your username the number of nodes to reserve and a duration to reserve them for. This is also where you can also select which CPU or GPU partition to use.
     2. It is recommended to use the CPU partition only, as the GPU partitions are VERY busy. To do this select **Node Group: CPU**.
 3. When you click OK, a windows command prompt or ``xterm`` pops up. In this window enter your credentials at the login prompt.
 4. When your job reaches the top of the queue, the main window will be returned to your control. At this point you are connected and can open files that reside
 there and visualize them interactively.
+
+
+### Using ParaView Interactively on Shaheen II
+Shaheen II does not currently allow for ``client/server`` connections with ParaView. Therefore, you should just use ``pvbatch`` with a python script on Shaheen. 
+
+We expect to be able to use ``client/server`` mode on the upcoming Shaheen III system. 
 
 
 ### Creating a Python Trace for Batch Processing
@@ -61,7 +69,7 @@ starting the trace, any time you modify properties, create filters, open files, 
 you are finished tracing the actions you want to script, click ``Tools/Stop Trace``. A Python script should then be displayed to you and can be saved.
 
 
-### Difference between ``pvbath`` and ``pvpython``
+### Difference between ``pvbatch`` and ``pvpython``
 ParaView comes with two command line programs that execute Python scripts: ``pvpython`` and ``pvbatch``. They are similar to the ``python`` executable that comes with Python distributions in that they accept Python scripts either from the command line or from a file and they feed the scripts to the Python interpreter.
 
 The difference between ``pvpython`` and ``pvbatch`` is subtle and has to do with the way they establish the visualization service. ``pvpython`` is roughly equivalent to the paraview client GUI with the GUI replaced with the Python interpreter. It is a serial application that connects to a ParaView server (which can be either builtin or remote).
@@ -70,6 +78,26 @@ The difference between ``pvpython`` and ``pvbatch`` is subtle and has to do with
 
 In general, you should use ``pvpython`` if you will be using the interpreter interactively and ``pvbatch`` if you are running in parallel.
 
+These examples will only use ``pvbatch``, if you want to interactively use ParaView from the command line you can start ``pvpython`` and interact with the interpreter in the same way as these example scipts. 
+
 
 ### For more information on ParaView
 [Documentation](https://docs.paraview.org/en/latest/index.html)
+
+
+## How to Run Examples in This Repo
+
+### ex*.py
+1. Log on to either Ibex or Shaheen
+2. Clone this repo in your scratch directory
+    1. Shaheen
+    2. Ibex
+3. From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
+    1. Shaheen: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+    2. Ibex: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+4. 
+
+### createParaViewMovie.sh
+1. This script will in general work with any sequence of **png** files, but in this repo is only used for test ``ex02_pvAnimation.py``
+2. After ``ex02_pvAnimation.py`` is run, you will have a sequence of png files, simply run ``bash createParaViewMovie.sh`` and a movie will be saved
+3. If desired you can change the framerate, encoding, etc. in the script to suit your needs
