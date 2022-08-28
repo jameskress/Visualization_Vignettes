@@ -40,28 +40,16 @@ After successfully completing the above steps, you should now be able to connect
 
 
 #### Remote GUI Usage
-After setting up and installing ParaView, you can connect to KAUST systems remotely to visualize your data interactively through ParaView's GUI.
-1. Go to ``File/Connect`` and select Ibex (provided it was successfully imported).
-2. Click on ``Connect`` and change the values in the Connection Options box.
-    1. A dialog box follows, in which you must enter in your username the number of nodes to reserve and a duration to reserve them for. This is also where you can also select which CPU or GPU partition to use.
-    2. It is recommended to use the CPU partition only, as the GPU partitions are VERY busy. To do this select **Node Group: CPU**.
-3. When you click OK, a windows command prompt or ``xterm`` pops up. In this window enter your credentials at the login prompt.
-4. When your job reaches the top of the queue, the main window will be returned to your control. At this point you are connected and can open files that reside
-there and visualize them interactively.
-
-
 Once you have VisIt installed and set up on your local computer:
 
 -  Open VisIt on your local computer.
 -  Go to: "File→Open file" or click the "Open" button on the GUI.
--  Click the "Host" dropdown menu on the "File open" window that popped
-   up and choose "Ibex".
+-  Click the "Host" dropdown menu on the "File open" window that popped up and choose "Ibex".
 -  This will prompt you for your Ibex password, unless you have passwordless ssh setup.
 -  Navigate to the appropriate file.
--  Once you choose a file, you will be prompted for the number of nodes
-   and processors you would like to use.
--  Once specified, the server side of VisIt will be launched, and you
-   can interact with your data.
+-  Once you choose a file, you will be prompted for the number of nodes and processors you would like to use.
+-  Once specified, the server side of VisIt will be launched, and you can interact with your data (after the job launches and reaches to top of the Ibex queue).
+
 
 ### Using VisIt Interactively on Shaheen II
 Shaheen II does not currently allow for ``client/server`` connections with VisIt. Therefore, you should just use ``batch`` mode with a python script on Shaheen. 
