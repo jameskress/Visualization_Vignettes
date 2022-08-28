@@ -10,8 +10,9 @@ VisIt was developed to analyze extremely large datasets using distributed memory
 
 ## Repo Organization
 This subfolder is organized as follows:
-- ``ibexVisIt`` folder contains example scripts of running VisIt in ``batch`` and ``interactive python`` modes
-- ``shaheenVisIt`` folder contains example scripts of running VisIt ``batch`` and ``interactive python`` modes
+- ``ex*.py`` various example scripts showing the use of VisIt from python
+- ``ex*_shaheen_runScript.sbat`` Shaheen batch scripts showing how to run VisIt in ``batch``
+- ``ex*_ibex_runScript.sbat`` Ibex batch scripts showing how to run VisIt in ``batch``
 - ``createVisItMovie.sh`` is a script to generate a movie from images generated with VisIt
 - Information on VisIt and how to use it on KAUST computing resources is given below
 
@@ -69,24 +70,30 @@ We expect to be able to use ``client/server`` mode on the upcoming Shaheen III s
 
 
 ### Creating a Python Trace for Batch Processing
-One of the most convenient tools available in the GUI is the ability to convert (or "trace") interactive actions in ParaView to Python code. Users that repeat
-a sequence of actions in ParaView to visualize their data may find the Trace tool useful. The Trace tool creates a Python script that reflects most actions
-taken in ParaView, which then can be used by either PvPython or PvBatch (ParaView's Python interfaces) to accomplish the same actions.
+One of the most convenient tools available in the GUI is the ability to convert (or "trace") interactive actions in VisIt to Python code. Users that repeat
+a sequence of actions in VisIt to visualize their data may find the Trace tool useful. The Trace tool creates a Python script that reflects most actions
+taken in VisIt, which then can be used in batch mode to accomplish the same actions on Ibex or Shaheen.
 
-To start tracing from the GUI, click on ``Tools/Start Trace``. An options window will pop up and prompt for specific Trace settings other than the default. Upon
-starting the trace, any time you modify properties, create filters, open files, and hit Apply, etc., your actions will be translated into Python syntax. Once
-you are finished tracing the actions you want to script, click ``Tools/Stop Trace``. A Python script should then be displayed to you and can be saved.
-
-
-### Difference between ``pvbatch`` and ``pvpython``
-ParaView comes with two command line programs that execute Python scripts: ``pvpython`` and ``pvbatch``. They are similar to the ``python`` executable that comes with Python distributions in that they accept Python scripts either from the command line or from a file and they feed the scripts to the Python interpreter.
-
-The difference between ``pvpython`` and ``pvbatch`` is subtle and has to do with the way they establish the visualization service. ``pvpython`` is roughly equivalent to the paraview client GUI with the GUI replaced with the Python interpreter. It is a serial application that connects to a ParaView server (which can be either builtin or remote).
-
-``pvbatch`` is roughly equivalent to ``pvserver`` except that commands are taken from a Python script rather than from a socket connection to a ParaView client. It is a parallel application that can be launched with mpirun (assuming it was compiled with MPI), but it cannot connect to another server; it is its own server. 
-
-In general, you should use ``pvpython`` if you will be using the interpreter interactively and ``pvbatch`` if you are running in parallel.
+To start tracing from the GUI, click on ``Controls/Command``. An options window will pop up, at the top there will be a ``record`` button. Hit ``Record`` to start the trace, any time you modify properties, create filters, open files, etc., your actions will be translated into Python syntax. Once you are finished tracing the actions you want to script, click ``Stop``. A Python script should then be displayed to you and can be saved.
 
 
 ### For more information on VisIt
 [Documentation](https://visit-sphinx-github-user-manual.readthedocs.io/en/develop/index.html)
+
+
+## How to Run Examples in This Repo
+
+### ex*.py
+1. Log on to either Ibex or Shaheen
+2. Clone this repo in your scratch directory
+    1. Shaheen
+    2. Ibex
+3. From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
+    1. Shaheen: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+    2. Ibex: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+4. 
+
+### createVisItMovie.sh
+1. This script will in general work with any sequence of **png** files, but in this repo is only used for test ``ex02_visitAnimation.py``
+2. After ``ex02_visitAnimation.py`` is run, you will have a sequence of png files, simply run ``bash createVisItMovie.sh`` and a movie will be saved
+3. If desired you can change the framerate, encoding, etc. in the script to suit your needs

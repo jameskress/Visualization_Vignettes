@@ -1,6 +1,8 @@
 #
 # KAUST Visualization Vignettes
-#     ParaView example script
+#
+# Author: James Kress, <james.kress@kaust.edu.sa>
+# Copyright KAUST
 #
 import sys
 from paraview.simple import *
