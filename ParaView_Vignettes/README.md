@@ -91,13 +91,17 @@ These examples will only use ``pvbatch``, if you want to interactively use ParaV
 1. Log on to either Ibex (<username>@glogin.ibex.kaust.edu.sa) or Shaheen (<username>@shaheen.hpc.kaust.edu.sa)
 2. Clone this repo in your scratch directory
     1. Ibex:
-        * cd /ibex/scratch/<username>
-        * git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git
+        * ``cd /ibex/scratch/<username>``
+        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
     2. Shaheen
+        * ``cd /scratch/<username>``
+        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
 3. From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
-    1. Shaheen: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
-    2. Ibex: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
-4. 
+    1. Ibex: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+    2. Shaheen: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+4. View the output messages from the tests: ``cat ex*_ibex_<job_number>.out``
+5. View images from tests that write images: ``xdg-open *.png``
+
 
 ### createParaViewMovie.sh
 1. This script will in general work with any sequence of **png** files, but in this repo is only used for test ``ex02_pvAnimation.py``

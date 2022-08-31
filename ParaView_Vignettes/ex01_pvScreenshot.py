@@ -19,6 +19,6 @@ renderView1.ViewSize = [2048, 2048]
 
 # show data in view
 cone1Display = Show(cone, renderView1)
-SaveScreenshot("pvtest.png")
+SaveScreenshot("ex01_pvScreenshot.png")
 
 print("\nFinished ParaView example script\n")

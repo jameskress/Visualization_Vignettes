@@ -8,6 +8,14 @@ import sys
 
 print("Running VisIt example script: ", sys.argv[0], "\n")
 
+# Open the compute engine
+OpenComputeEngine("localhost",("-l", "mpirun",
+                               "-p", "batch",
+                               "-nn", sys.argv[1],
+                               "-np", sys.argv[2],
+                               "-t", sys.argv[3]))
+
+
 # Open file and add basic plot
 OpenDatabase("localhost:../data/noise.silo", 0)
 AddPlot("Pseudocolor", "hardyglobal", 1, 0)

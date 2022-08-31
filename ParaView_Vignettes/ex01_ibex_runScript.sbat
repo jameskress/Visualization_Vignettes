@@ -8,12 +8,12 @@
 #SBATCH -N 1
 #SBATCH --ntasks-per-node=1
 #SBATCH --partition=batch
-#SBATCH -J ex00_paraview
-#SBATCH -o ex00_paraview.%J.out
-#SBATCH -e ex00_paraview.%J.out
+#SBATCH -J ex01_paraview
+#SBATCH -o ex01_paraview.%J.out
+#SBATCH -e ex01_paraview.%J.out
 #SBATCH --time=00:05:00
 
 # load the paraview environment
 source MODULES.sh
 
-mpirun -np 1 `(which pvbatch)` --force-offscreen-rendering ./ex00_pvConeStat.py
+mpirun -np 1 `(which pvbatch)` --force-offscreen-rendering ./ex01_pvScreenshot.py

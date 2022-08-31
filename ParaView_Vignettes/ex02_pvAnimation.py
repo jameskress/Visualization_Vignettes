@@ -217,7 +217,7 @@ renderView1.CameraViewUp = [0.034049744214794064, -0.7291798571869401, -0.683474
 renderView1.CameraParallelScale = 0.8651599216465272
 
 # save animation
-SaveAnimation('pv_png_sequence.png', renderView1, ImageResolution=[4054, 2536],
+SaveAnimation('ex02_pv_png_sequence.png', renderView1, ImageResolution=[4054, 2536],
     FrameWindow=[0, 99])
 
 # layout/tab size in pixels
@@ -229,7 +229,7 @@ renderView1.CameraViewUp = [0.034049744214794064, -0.7291798571869401, -0.683474
 renderView1.CameraParallelScale = 0.8651599216465272
 
 # save animation
-SaveAnimation('pv_animation_movie.avi', renderView1, ImageResolution=[4052, 2536],
+SaveAnimation('ex02_pv_animation_movie.avi', renderView1, ImageResolution=[4052, 2536],
     FrameRate=10,
     FrameWindow=[0, 99])
 
