@@ -1,0 +1,21 @@
+#!/bin/bash
+#
+# KAUST Visualization Vignettes
+#
+# Author: James Kress, <james.kress@kaust.edu.sa>
+# Copyright KAUST
+#
+#SBATCH -N 1
+#SBATCH --ntasks-per-node=1
+#SBATCH --partition=batch
+#SBATCH -J ex00_paraview
+#SBATCH -o ex00_paraview.%J.out
+#SBATCH -e ex00_paraview.%J.err
+#SBATCH --mail-user=kressjm@kaust.edu.sa
+#SBATCH --mail-type=ALL
+#SBATCH --time=00:10:00
+
+# load the paraview environment
+source MODULES.sh
+
+mpirun `(which pvbatch)` --force-offscreen-rendering ./ex00_pvConeStat.py 

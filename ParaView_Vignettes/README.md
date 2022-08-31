@@ -88,10 +88,12 @@ These examples will only use ``pvbatch``, if you want to interactively use ParaV
 ## How to Run Examples in This Repo
 
 ### ex*.py
-1. Log on to either Ibex or Shaheen
+1. Log on to either Ibex (<username>@glogin.ibex.kaust.edu.sa) or Shaheen (<username>@shaheen.hpc.kaust.edu.sa)
 2. Clone this repo in your scratch directory
-    1. Shaheen
-    2. Ibex
+    1. Ibex:
+        * cd /ibex/scratch/<username>
+        * git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git
+    2. Shaheen
 3. From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
     1. Shaheen: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
     2. Ibex: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
