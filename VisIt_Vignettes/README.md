@@ -83,7 +83,9 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
         * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
 3. From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
     1. Ibex: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
-    2. Shaheen: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+    2. Shaheen: 
+        * Edit each Shaheen batch script by adding your account: ``vim ex*_shaheen_runScribt.sbat`` , and replace ``--account=<##>`` with your account
+        * ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
 4. View the output messages from the tests: ``cat ex*_ibex_<job_number>.out``
 5. View images from tests that write images: ``xdg-open *.png``
 

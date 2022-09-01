@@ -11,11 +11,18 @@ from visit_utils import *
 print("Running VisIt example script: ", sys.argv[0], "\n")
 
 # Open the compute engine
-OpenComputeEngine("localhost",("-l", "mpirun",
-                               "-p", "batch",
-                               "-nn", sys.argv[1],
-                               "-np", sys.argv[2],
-                               "-t", sys.argv[3]))
+if sys.argv[4] == "shaheen":
+    OpenComputeEngine("localhost",("-l", "srun",
+                                   "-N", sys.argv[1],
+                                   "-n", sys.argv[2],
+                                   "-t", sys.argv[3]))
+
+else:
+    OpenComputeEngine("localhost",("-l", "mpirun",
+                                   "-p", "batch",
+                                   "-nn", sys.argv[1],
+                                   "-np", sys.argv[2],
+                                   "-t", sys.argv[3]))
 
 def fly(): 
     # set basic save options

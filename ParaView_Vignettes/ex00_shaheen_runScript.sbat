@@ -5,17 +5,18 @@
 # Author: James Kress, <james.kress@kaust.edu.sa>
 # Copyright KAUST
 #
-#SBATCH --account=k1033
+#SBATCH --account=<##>
 #SBATCH --job-name=test
-#SBATCH --output=pvtest.%j.out
-#SBATCH --error=pvtest.%j.err
+#SBATCH --output=ex00_shaheen.%j.out
+#SBATCH --error=ex00.shaheen.%j.out
 #SBATCH --partition=workq
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=10:00
 
 # load the paraview environment
-module load paraview
+source MODULES.sh
+
 HINT_FLAG="--hint=nomultithread"
 
 srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex00_pvConeStat.py 

@@ -7,16 +7,14 @@
 #
 #SBATCH --account=<##>
 #SBATCH --job-name=test
-#SBATCH --output=ex02_shaheen.%j.out
-#SBATCH --error=ex02.shaheen.%j.out
+#SBATCH --output=ex00.shaheen.%j.out
+#SBATCH --error=ex00.shaheen.%j.out
 #SBATCH --partition=workq
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=10:00
 
-# load the paraview environment
+# load the visit environment
 source MODULES.sh
 
-HINT_FLAG="--hint=nomultithread"
-
-srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex02_pvAnimation.py
+`(which visit)` -nowin -cli -s ex00_visitQuery.py

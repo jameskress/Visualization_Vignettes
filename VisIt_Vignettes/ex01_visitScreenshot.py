@@ -6,14 +6,21 @@
 #
 import sys
 
-print("Running VisIt example script: ", sys.argv[0], "\n")
+print("Running VisIt example script: ", sys.argv[0:], "\n")
 
 # Open the compute engine
-OpenComputeEngine("localhost",("-l", "mpirun",
-                               "-p", "batch",
-                               "-nn", sys.argv[1],
-                               "-np", sys.argv[2],
-                               "-t", sys.argv[3]))
+if sys.argv[4] == "shaheen":
+    OpenComputeEngine("localhost",("-l", "srun",
+                                   "-nn", sys.argv[1],
+                                   "-np", sys.argv[2],
+                                   "-t", sys.argv[3]))
+
+else:
+    OpenComputeEngine("localhost",("-l", "mpirun",
+                                   "-p", "batch",
+                                   "-nn", sys.argv[1],
+                                   "-np", sys.argv[2],
+                                   "-t", sys.argv[3]))
 
 
 # Open file and add basic plot
