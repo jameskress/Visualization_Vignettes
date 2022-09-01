@@ -16,17 +16,17 @@ mkdir movie
 
 echo "    -Linking '.png' files"
 
+cd movie
 x=1
-for i in *.png; do
+for i in ../*.png; do
 	counter=$(printf %03d $x)
-	ln "$i" movie/img"$counter".png
+	ln -s "$i" img"$counter".png
 	x=$(($x+1))
 done
 
 echo "    -Generating movie file"
-cd movie
 rm -rf out.mov
-ffmpeg -framerate 10 -i img%03d.png -vcodec qtrle out.mov
+ffmpeg -framerate 10 -i img%03d.png -vcodec libx264 -crf 28 out.mp4
 echo "Scirpt complete!"
 
 #END ALL
