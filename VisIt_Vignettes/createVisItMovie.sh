@@ -26,7 +26,7 @@ done
 
 echo "    -Generating movie file"
 rm -rf out.mov
-ffmpeg -framerate 10 -i img%03d.png -vcodec libx264 -crf 28 out.mp4
+ffmpeg -f image2 -framerate 12 -i img%03d.png -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic out.mp4
 echo "Scirpt complete!"
 
 #END ALL
