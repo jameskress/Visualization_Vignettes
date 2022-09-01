@@ -8,9 +8,9 @@
 #SBATCH -N 1
 #SBATCH --ntasks-per-node=1
 #SBATCH --partition=batch
-#SBATCH -J ex01_paraview
-#SBATCH -o ex01_paraview.%J.out
-#SBATCH -e ex01_paraview.%J.out
+#SBATCH -J ex01.ibex
+#SBATCH -o ex01.ibex.%J.out
+#SBATCH -e ex01.ibex.%J.out
 #SBATCH --time=00:05:00
 
 # load the paraview environment

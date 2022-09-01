@@ -8,9 +8,9 @@
 #SBATCH -N 1
 #SBATCH --ntasks-per-node=6
 #SBATCH --partition=batch
-#SBATCH -J ex02_visit
-#SBATCH -o ex02_visit.%J.out
-#SBATCH -e ex02_visit.%J.out
+#SBATCH -J ex02.ibex
+#SBATCH -o ex02.ibex.%J.out
+#SBATCH -e ex02.ibex.%J.out
 #SBATCH --time=00:08:00
 
 

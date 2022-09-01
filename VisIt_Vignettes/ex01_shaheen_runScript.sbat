@@ -6,7 +6,7 @@
 # Copyright KAUST
 #
 #SBATCH --account=<##>
-#SBATCH --job-name=test
+#SBATCH --job-name=ex01.shaheen
 #SBATCH --output=ex01.shaheen.%j.out
 #SBATCH --error=ex01.shaheen.%j.out
 #SBATCH --partition=workq

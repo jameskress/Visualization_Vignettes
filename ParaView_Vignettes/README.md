@@ -98,10 +98,12 @@ These examples will only use ``pvbatch``, if you want to interactively use ParaV
         * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
 3. From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
     1. Ibex: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
-    2. Shaheen: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+    2. Shaheen: 
+        * Edit each Shaheen batch script by adding your account: ``vim ex*_shaheen_runScribt.sbat`` , and replace ``--account=<##>`` with your account
+        * ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
 4. View the output messages from the tests: 
-    1. Ibex: ``cat ex*_ibex_<job_number>.out``
-    2. Shaheen: ``cat ex*_shaheen_<job_number>.out``
+    1. Ibex: ``cat ex*.ibex_<job_number>.out``
+    2. Shaheen: ``cat ex*.shaheen_<job_number>.out``
 5. View images from tests that write images: 
     1. Ibex: ``xdg-open *.png``
     2. Shaheen ``eog .``
