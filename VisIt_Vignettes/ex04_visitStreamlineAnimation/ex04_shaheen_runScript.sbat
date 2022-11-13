@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+# KAUST Visualization Vignettes
+#
+# Author: James Kress, <james.kress@kaust.edu.sa>
+# Copyright KAUST
+#
+#SBATCH --account=<##>
+#SBATCH --job-name=ex02.shaheen
+#SBATCH --output=ex02.shaheen.%j.out
+#SBATCH --error=ex02.shaheen.%j.out
+#SBATCH --partition=workq
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=3
+#SBATCH --time=12:00
+
+# set script vars
+_nodes=1
+_ntasks=3
+_time=00:12:00
+
+# load the visit environment
+source ../MODULES.sh
+
+`(which visit)` -nowin -cli -s ex04_visitStreamlineAnimation.py $_nodes $_ntasks $_time "shaheen"

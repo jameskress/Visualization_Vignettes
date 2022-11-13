@@ -73,25 +73,41 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
 ## How to Run Examples in This Repo
 
 ### ex*.py
-1. Log on to either Ibex (<username>@ilogin.ibex.kaust.edu.sa) or Shaheen (<username>@shaheen.hpc.kaust.edu.sa)
-2. Clone this repo in your scratch directory
-    1. Ibex:
+1. Run scripts locally or log on to either Ibex (<username>@ilogin.ibex.kaust.edu.sa) or Shaheen (<username>@shaheen.hpc.kaust.edu.sa)
+2. Clone this repo
+    1. Locally wherever you like
+        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
+    2. Ibex scratch:
         * ``cd /ibex/scratch/<username>``
         * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
-    2. Shaheen
+    3. Shaheen scratch
         * ``cd /scratch/<username>``
         * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
-3. From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
-    1. Ibex: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
-    2. Shaheen: 
-        * Edit each Shaheen batch script by adding your account: ``vim ex*_shaheen_runScribt.sbat`` , and replace ``--account=<##>`` with your account
-        * ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+3. Run the example locally or on one of the clusters
+    1. Locally: 
+        1. We can run the *.py script directly on the command line, not using a batch script
+            * ``./visit -nowin -cli -s <path to the python script to run>``
+        2. We can run the script live in the VisIt interface
+            * Open the VisIt "command" window
+            * Past the following: 
+                ``import os
+                  from os.path import join as pjoin
+                  scripts_dir = "<path to>/KAUST_Visualization_Vignettes/VisIt_Vignettes"
+                  Source(pjoin(scripts_dir,"<name of the python script>"))``
+            * Click "Execute"
+    2. Clusters: From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
+        1. Ibex: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+        2. Shaheen: 
+            * Edit each Shaheen batch script by adding your account: ``vim ex*_shaheen_runScribt.sbat`` , and replace ``--account=<##>`` with your account
+            * ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
 4. View the output messages from the tests: 
-    1. Ibex: ``cat ex*.ibex.<job_number>.out``
-    2. Shaheen: ``cat ex*.shaheen_<job_number>.out``
-5. View images from tests that write images: 
-    1. Ibex: ``xdg-open *.png``
-    2. Shaheen ``eog .``
+    1. Locally: the output will print live to the terminal while running
+    2. Ibex: ``cat ex*.ibex.<job_number>.out``
+    3. Shaheen: ``cat ex*.shaheen_<job_number>.out``
+5. View images from tests that write images:
+    1. Locally: use your preferred image viewer 
+    2. Ibex: ``xdg-open *.png``
+    3. Shaheen ``eog .``
 
 
 ### createVisItMovie.sh

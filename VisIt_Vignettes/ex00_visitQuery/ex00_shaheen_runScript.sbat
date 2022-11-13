@@ -15,6 +15,6 @@
 #SBATCH --time=10:00
 
 # load the visit environment
-source MODULES.sh
+source ../MODULES.sh
 
 `(which visit)` -nowin -cli -s ex00_visitQuery.py

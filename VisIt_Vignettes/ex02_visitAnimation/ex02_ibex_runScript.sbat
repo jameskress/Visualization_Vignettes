@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+# KAUST Visualization Vignettes
+#
+# Author: James Kress, <james.kress@kaust.edu.sa>
+# Copyright KAUST
+#
+#SBATCH -N 1
+#SBATCH --ntasks-per-node=6
+#SBATCH --partition=batch
+#SBATCH -J ex02.ibex
+#SBATCH -o ex02.ibex.%J.out
+#SBATCH -e ex02.ibex.%J.out
+#SBATCH --time=00:08:00
+
+
+# set script vars
+_nodes=1
+_ntasks=6
+_time=00:05:00
+
+# load the paraview environment
+source ../MODULES.sh
+
+`(which visit)` -nowin -cli -s ex02_visitAnimation.py $_nodes $_ntasks $_time "ibex"

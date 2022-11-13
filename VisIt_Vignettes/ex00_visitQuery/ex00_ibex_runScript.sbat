@@ -14,6 +14,6 @@
 #SBATCH --time=00:05:00
 
 # load the paraview environment
-source MODULES.sh
+source ../MODULES.sh
 
 `(which visit)` -nowin -cli -s ex00_visitQuery.py   
