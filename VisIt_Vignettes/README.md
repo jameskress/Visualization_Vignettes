@@ -55,6 +55,11 @@ Once you have VisIt installed and set up on your local computer:
 ### Using VisIt Interactively on Shaheen II
 Shaheen II does not currently allow for ``client/server`` connections with VisIt. Therefore, you should just use ``batch`` mode with a python script on Shaheen. 
 
+To access VisIt on Shaheen do the following:
+* ``module use /sw/vis/xc40.modules``
+* ``module load VisIt``
+
+
 We expect to be able to use ``client/server`` mode on the upcoming Shaheen III system. 
 
 
@@ -83,7 +88,13 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
     3. Shaheen scratch
         * ``cd /scratch/<username>``
         * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
-3. Run the example locally or on one of the clusters
+3. If using a cluster load the VisIt module file
+    1. Ibex
+        * ``module load visit``
+    2. Shaheen
+        * ``module use /sw/vis/xc40.modules``
+        * ``module load VisIt``
+4. Run the example locally or on one of the clusters
     1. Locally: 
         1. We can run the *.py script directly on the command line, not using a batch script
             * ``./visit -nowin -cli -s <path to the python script to run>``
@@ -100,11 +111,11 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
         2. Shaheen: 
             * Edit each Shaheen batch script by adding your account: ``vim ex*_shaheen_runScribt.sbat`` , and replace ``--account=<##>`` with your account
             * ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
-4. View the output messages from the tests: 
+5. View the output messages from the tests: 
     1. Locally: the output will print live to the terminal while running
     2. Ibex: ``cat ex*.ibex.<job_number>.out``
     3. Shaheen: ``cat ex*.shaheen_<job_number>.out``
-5. View images from tests that write images:
+6. View images from tests that write images:
     1. Locally: use your preferred image viewer 
     2. Ibex: ``xdg-open *.png``
     3. Shaheen ``eog .``
