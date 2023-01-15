@@ -56,6 +56,10 @@ there and visualize them interactively.
 ### Using ParaView Interactively on Shaheen II
 Shaheen II does not currently allow for ``client/server`` connections with ParaView. Therefore, you should just use ``pvbatch`` with a python script on Shaheen. 
 
+To access ParaView on Shaheen do the following:
+* ``module use /sw/vis/xc40.modules``
+* ``module load ParaView``
+
 We expect to be able to use ``client/server`` mode on the upcoming Shaheen III system. 
 
 
@@ -96,15 +100,21 @@ These examples will only use ``pvbatch``, if you want to interactively use ParaV
     2. Shaheen
         * ``cd /scratch/<username>``
         * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
-3. From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
-    1. Ibex: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
-    2. Shaheen: 
+3. Load the ParaView module file
+    1. Ibex:
+        * ``module load paraview``
+    2. Shaheen
+        * ``module use /sw/vis/xc40.modules``
+        * ``module load ParaView``
+4. From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
+    1. Ibex: ``sbatch ex*_ibex_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+    2. Shaheen:
         * Edit each Shaheen batch script by adding your account: ``vim ex*_shaheen_runScribt.sbat`` , and replace ``--account=<##>`` with your account
         * ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
-4. View the output messages from the tests: 
+5. View the output messages from the tests: 
     1. Ibex: ``cat ex*.ibex_<job_number>.out``
     2. Shaheen: ``cat ex*.shaheen_<job_number>.out``
-5. View images from tests that write images: 
+6. View images from tests that write images: 
     1. Ibex: ``xdg-open *.png``
     2. Shaheen ``eog .``
 
