@@ -10,19 +10,22 @@ from visit_utils import *
 
 print("Running VisIt example script: ", sys.argv[0], "\n")
 
-# Open the compute engine
-if sys.argv[4] == "shaheen":
+# Open the compute engine if running on cluster
+if len(sys.argv)  < 4:
+    print("Running script locally, not launching a batch job\n")
+elif sys.argv[4] == "shaheen":
     OpenComputeEngine("localhost",("-l", "srun",
-                                   "-N", sys.argv[1],
-                                   "-n", sys.argv[2],
+                                   "-nn", sys.argv[1],
+                                   "-np", sys.argv[2],
                                    "-t", sys.argv[3]))
 
-else:
+elif sys.argv[4] == "ibex":
     OpenComputeEngine("localhost",("-l", "mpirun",
                                    "-p", "batch",
                                    "-nn", sys.argv[1],
                                    "-np", sys.argv[2],
                                    "-t", sys.argv[3]))
+
 
 def fly(): 
     # set basic save options
@@ -31,15 +34,19 @@ def fly():
     # The 'family' option controls if visit automatically adds a frame number to 
     # the rendered files. 
     swatts.family = 0
-
     # select PNG as the output file format
     swatts.format = swatts.PNG 
-
     # set the width of the output image
     swatts.width = 2048 
-
     # set the height of the output image
     swatts.height = 1784
+    # change where images are saved
+    cwd = os.getcwd()
+    saveDir = cwd + "/output"
+    os.mkdir(saveDir)
+    swatts.outputToCurrentDirectory = 0
+    swatts.outputDirectory = saveDir
+    
     
     # Create the control points for the views.
     c0 = View3DAttributes()
@@ -129,7 +136,7 @@ def fly():
 
 
 # Open file and add basic plot
-OpenDatabase("localhost:../data/noise.silo", 0)
+OpenDatabase("localhost:../../data/noise.silo", 0)
 AddPlot("Pseudocolor", "hardyglobal", 1, 0)
 PseudocolorAtts = PseudocolorAttributes()
 PseudocolorAtts.colorTableName = "hot_desaturated"
@@ -156,7 +163,7 @@ fly()
 #  Duplicating the frames allows you to slow the pace of the movie to something reasonable.
 #
 ################
-input_pattern = "ex02_visit_%04d.png"
+input_pattern = "output/ex02_visit_%04d.png"
 output_movie = "ex02_visit.mp4"
 encoding.encode(input_pattern,output_movie,fdup=4)
 

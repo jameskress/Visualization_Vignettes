@@ -19,7 +19,7 @@ _nodes=1
 _ntasks=6
 _time=00:05:00
 
-# load the paraview environment
-source MODULES.sh
+# load the visit environment
+source ../MODULES.sh
 
 `(which visit)` -nowin -cli -s ex02_visitAnimation.py $_nodes $_ntasks $_time "ibex"
