@@ -8,8 +8,26 @@ import sys
 
 print("Running VisIt example script: ", sys.argv[0], "\n")
 
+
+# Open the compute engine if running on cluster
+if len(sys.argv)  < 4:
+    print("Running script locally, not launching a batch job\n")
+elif sys.argv[4] == "shaheen":
+    OpenComputeEngine("localhost",("-l", "srun",
+                                   "-nn", sys.argv[1],
+                                   "-np", sys.argv[2],
+                                   "-t", sys.argv[3]))
+
+elif sys.argv[4] == "ibex":
+    OpenComputeEngine("localhost",("-l", "mpirun",
+                                   "-p", "batch",
+                                   "-nn", sys.argv[1],
+                                   "-np", sys.argv[2],
+                                   "-t", sys.argv[3]))
+
+
 # Open file and add basic plot
-OpenDatabase("localhost:../data/noise.silo", 0)
+OpenDatabase("localhost:../../data/noise.silo", 0)
 AddPlot("Pseudocolor", "hardyglobal", 1, 0)
 DrawPlots()
 
