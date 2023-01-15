@@ -6,9 +6,9 @@
 # Copyright KAUST
 #
 #SBATCH --account=<##>
-#SBATCH --job-name=ex03.shaheen
-#SBATCH --output=ex03.shaheen.%j.out
-#SBATCH --error=ex03.shaheen.%j.out
+#SBATCH --job-name=ex05.shaheen
+#SBATCH --output=ex05.shaheen.%j.out
+#SBATCH --error=ex05.shaheen.%j.out
 #SBATCH --partition=workq
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=3
@@ -22,4 +22,4 @@ _time=00:12:00
 # load the visit environment
 source ../MODULES.sh
 
-`(which visit)` -nowin -cli -s ex03_visitIsosurfaceAnimation.py $_nodes $_ntasks $_time "shaheen"
+`(which visit)` -nowin -cli -s ex05_visitAdvancedMovieMaking.py $_nodes $_ntasks $_time "shaheen"

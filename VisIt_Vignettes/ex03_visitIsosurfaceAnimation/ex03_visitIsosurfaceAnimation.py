@@ -54,6 +54,13 @@ swatts.format = swatts.PNG
 swatts.width = 2048 
 # set the height of the output image
 swatts.height = 1784
+# change where images are saved
+cwd = os.getcwd()
+saveDir = cwd + "/output"
+os.mkdir(saveDir)
+swatts.outputToCurrentDirectory = 0
+swatts.outputDirectory = saveDir
+
 
 for i in range(35):
     iso_atts.contourValue = (2 + 0.1*i)
@@ -80,7 +87,7 @@ for i in range(35):
 #  Duplicating the frames allows you to slow the pace of the movie to something reasonable.
 #
 ################
-input_pattern = "ex03_visit_%04d.png"
+input_pattern = "output/ex03_visit_%04d.png"
 output_movie = "ex03_visit.mp4"
 encoding.encode(input_pattern,output_movie,fdup=4)
 

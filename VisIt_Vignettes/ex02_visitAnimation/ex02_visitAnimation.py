@@ -34,15 +34,19 @@ def fly():
     # The 'family' option controls if visit automatically adds a frame number to 
     # the rendered files. 
     swatts.family = 0
-
     # select PNG as the output file format
     swatts.format = swatts.PNG 
-
     # set the width of the output image
     swatts.width = 2048 
-
     # set the height of the output image
     swatts.height = 1784
+    # change where images are saved
+    cwd = os.getcwd()
+    saveDir = cwd + "/output"
+    os.mkdir(saveDir)
+    swatts.outputToCurrentDirectory = 0
+    swatts.outputDirectory = saveDir
+    
     
     # Create the control points for the views.
     c0 = View3DAttributes()
@@ -159,7 +163,7 @@ fly()
 #  Duplicating the frames allows you to slow the pace of the movie to something reasonable.
 #
 ################
-input_pattern = "ex02_visit_%04d.png"
+input_pattern = "output/ex02_visit_%04d.png"
 output_movie = "ex02_visit.mp4"
 encoding.encode(input_pattern,output_movie,fdup=4)
 
