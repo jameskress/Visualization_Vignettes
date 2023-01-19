@@ -6,6 +6,14 @@
 # Copyright KAUST
 #
 
+#SBATCH -N 2
+#SBATCH --ntasks-per-node=2
+#SBATCH --partition=batch
+#SBATCH -J ex05.ibex
+#SBATCH -o ex05.ibex.%J.out
+#SBATCH -e ex05.ibex.%J.out
+#SBATCH --time=00:08:00
+
 # set script vars
 _nodes=2
 _ntasks=4

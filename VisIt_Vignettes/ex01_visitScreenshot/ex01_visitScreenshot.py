@@ -6,19 +6,21 @@
 #
 import sys
 
-print("Running VisIt example script: ", sys.argv[0:], "\n")
+print("Running VisIt example script: ", sys.argv[0], "\n")
+
 
 # Open the compute engine if running on cluster
 if len(sys.argv)  < 4:
     print("Running script locally, not launching a batch job\n")
 elif sys.argv[4] == "shaheen":
     OpenComputeEngine("localhost",("-l", "srun",
+                                   "-p", "workq", 
                                    "-nn", sys.argv[1],
                                    "-np", sys.argv[2],
                                    "-t", sys.argv[3]))
 
 elif sys.argv[4] == "ibex":
-    OpenComputeEngine("localhost",("-l", "mpirun",
+    OpenComputeEngine("localhost",("-l", "srun",
                                    "-p", "batch",
                                    "-nn", sys.argv[1],
                                    "-np", sys.argv[2],

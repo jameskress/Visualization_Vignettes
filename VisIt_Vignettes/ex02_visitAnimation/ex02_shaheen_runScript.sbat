@@ -6,9 +6,18 @@
 # Copyright KAUST
 #
 
+#SBATCH --account=K1033
+#SBATCH --job-name=ex02.shaheen
+#SBATCH --output=ex02.shaheen.%j.out
+#SBATCH --error=ex02.shaheen.%j.out
+#SBATCH --partition=workq
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=2
+#SBATCH --time=00:12:00
+
 # set script vars
 _nodes=1
-_ntasks=3
+_ntasks=2
 _time=00:12:00
 
 # load the visit environment

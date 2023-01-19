@@ -13,7 +13,6 @@
 #SBATCH -e ex02.ibex.%J.out
 #SBATCH --time=00:08:00
 
-
 # set script vars
 _nodes=1
 _ntasks=2

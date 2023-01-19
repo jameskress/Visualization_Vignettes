@@ -14,7 +14,7 @@ case "$OSVERSION" in
   ;;
 "SUSE"*) # Shaheen    
     module use  /sw/vis/xc40.modules
-    module load VisIt/3.3.0-el7gnu9.3.0
+    module load VisIt/3.3.1-el7gnu9.3.0
     module load ffmpeg
   ;;
 *)

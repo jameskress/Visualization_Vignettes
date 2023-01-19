@@ -642,12 +642,13 @@ if __name__ == '__main__':
         print("Running script locally, not launching a batch job\n")
     elif sys.argv[4] == "shaheen":
         OpenComputeEngine("localhost",("-l", "srun",
+                                       "-p", "workq", 
                                        "-nn", sys.argv[1],
                                        "-np", sys.argv[2],
                                        "-t", sys.argv[3]))
 
     elif sys.argv[4] == "ibex":
-        OpenComputeEngine("localhost",("-l", "mpirun",
+        OpenComputeEngine("localhost",("-l", "srun",
                                        "-p", "batch",
                                        "-nn", sys.argv[1],
                                        "-np", sys.argv[2],
