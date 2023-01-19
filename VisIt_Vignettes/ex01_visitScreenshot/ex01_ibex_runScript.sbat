@@ -5,14 +5,6 @@
 # Author: James Kress, <james.kress@kaust.edu.sa>
 # Copyright KAUST
 #
-#SBATCH -N 1
-#SBATCH --ntasks-per-node=2
-#SBATCH --partition=batch
-#SBATCH -J ex01.ibex
-#SBATCH -o ex01.ibex.%J.out
-#SBATCH -e ex01.ibex.%J.out
-#SBATCH --time=00:05:00
-
 
 # set script vars
 _nodes=1

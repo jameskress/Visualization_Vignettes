@@ -375,7 +375,7 @@ def animateBlobs(databaseName, variable):
     #
     # Encode a movie of the raw images
     #
-    movieName = pjoin(outputDir, "blobs_raw.mpg")
+    movieName = pjoin(outputDir, "blobs_raw.mp4")
     encoding.encode(outputBase, movieName, fdup=10)
 
     DeleteAllPlots()
@@ -576,8 +576,8 @@ def finalMovie():
 
     title_name = pjoin(output_dir, "title.png")
     blobs_base = pjoin(output_dir, "composite_animation", "blobs.2048x1920.%04d.png")
-    movie_name = pjoin(output_dir, "blobs_final.2048x1920.mpg")
-    low_res_movie_name = pjoin(output_dir, "blobs_final.640x360.mpg")
+    movie_name = pjoin(output_dir, "blobs_final.2048x1920.mp4")
+    low_res_movie_name = pjoin(output_dir, "blobs_final.640x360.mp4")
 
     output_base = pjoin(movie_dir, "comp.final.%04d.png")
     low_res_output_base = pjoin(low_res_movie_dir, "comp.final.%04d.png")

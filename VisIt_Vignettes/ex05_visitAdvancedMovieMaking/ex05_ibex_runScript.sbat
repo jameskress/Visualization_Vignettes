@@ -5,18 +5,10 @@
 # Author: James Kress, <james.kress@kaust.edu.sa>
 # Copyright KAUST
 #
-#SBATCH -N 1
-#SBATCH --ntasks-per-node=6
-#SBATCH --partition=batch
-#SBATCH -J ex05.ibex
-#SBATCH -o ex05.ibex.%J.out
-#SBATCH -e ex05.ibex.%J.out
-#SBATCH --time=00:10:00
-
 
 # set script vars
-_nodes=1
-_ntasks=6
+_nodes=2
+_ntasks=4
 _time=00:08:00
 
 # load the visit environment

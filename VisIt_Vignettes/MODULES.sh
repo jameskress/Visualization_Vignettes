@@ -9,7 +9,8 @@ OSVERSION=$(lsb_release -sir | awk -F '.' '{ print $1 }')
 echo "Loading modules for OS Version: $OSVERSION"
 case "$OSVERSION" in
 "CentOS"*) # Ibex
-    module load visit/3.3.0
+    module load ffmpeg
+    module load visit/3.3.1
   ;;
 "SUSE"*) # Shaheen    
     module use  /sw/vis/xc40.modules

@@ -41,9 +41,12 @@ def fly():
     # set the height of the output image
     swatts.height = 1784
     # change where images are saved
-    cwd = os.getcwd()
-    saveDir = cwd + "/output"
-    os.mkdir(saveDir)
+    try:
+        cwd = os.getcwd()
+        saveDir = cwd + "/output"
+        os.mkdir(saveDir)
+    except FileExistsError:
+        pass
     swatts.outputToCurrentDirectory = 0
     swatts.outputDirectory = saveDir
     

@@ -6,7 +6,7 @@
 # Copyright KAUST
 #
 #SBATCH -N 1
-#SBATCH --ntasks-per-node=6
+#SBATCH --ntasks-per-node=2
 #SBATCH --partition=batch
 #SBATCH -J ex02.ibex
 #SBATCH -o ex02.ibex.%J.out
@@ -16,8 +16,8 @@
 
 # set script vars
 _nodes=1
-_ntasks=6
-_time=00:05:00
+_ntasks=2
+_time=00:08:00
 
 # load the visit environment
 source ../MODULES.sh

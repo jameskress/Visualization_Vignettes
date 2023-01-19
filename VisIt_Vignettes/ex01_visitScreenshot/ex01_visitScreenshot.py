@@ -34,11 +34,14 @@ SetPlotOptions(PseudocolorAtts)
 DrawPlots()
 
 SaveWindowAtts = SaveWindowAttributes()
-cwd = os.getcwd()
-saveDir = cwd + "/output"
-os.mkdir(saveDir)
-swatts.outputToCurrentDirectory = 0
-swatts.outputDirectory = saveDir
+try:
+    cwd = os.getcwd()
+    saveDir = cwd + "/output"
+    os.mkdir(saveDir)
+except FileExistsError:
+    pass
+SaveWindowAtts.outputToCurrentDirectory = 0
+SaveWindowAtts.outputDirectory = saveDir
 SaveWindowAtts.fileName = "ex01_visit"
 SaveWindowAtts.family = 1
 SaveWindowAtts.format = SaveWindowAtts.PNG  # BMP, CURVE, JPEG, OBJ, PNG, POSTSCRIPT, POVRAY, PPM, RGB, STL, TIFF, ULTRA, VTK, PLY, EXR
