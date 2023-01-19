@@ -33,8 +33,10 @@ It is possible to run a local VisIt client to display and interact with your dat
 **WARNING**: Using a different version of VisIt than what is available on IBEX will most likely fail. 
 
 If this is your first time using VisIt on KAUST resources you will need to have VisIt load the KAUST host profile to be able to connect to KAUST systems. VisIt is distributed with the KAUST profiles, so they can be directly loaded from the VisIt GUI as follows:
-1. 
-2. Click “Apply” and make sure to save the settings (Options/Save Settings).
+1. Click "Options"
+2. Click "Host profiles and configuration setup"
+3. Select KAUST and click "Install"
+2. Save the settings (Options/Save Settings).
 Exit and re-launch VisIt.
 
 After successfully completing the above steps, you should now be able to connect to Ibex.
@@ -100,17 +102,17 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
             * ``./visit -nowin -cli -s <path to the python script to run>``
         2. We can run the script live in the VisIt interface
             * Open the VisIt "command" window
-            * Past the following: 
+            * Paste the following: 
                 ``import os
                   from os.path import join as pjoin
                   scripts_dir = "<path to>/KAUST_Visualization_Vignettes/VisIt_Vignettes"
                   Source(pjoin(scripts_dir,"<name of the python script>"))``
             * Click "Execute"
     2. Clusters: From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
-        1. Ibex: ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+        1. Ibex: ``sbatch ex*_ibex_runScript.sbat``
         2. Shaheen: 
             * Edit each Shaheen batch script by adding your account: ``vim ex*_shaheen_runScribt.sbat`` , and replace ``--account=<##>`` with your account
-            * ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+            * ``sbatch ex*_shaheen_runScribt.sbat``
 5. View the output messages from the tests: 
     1. Locally: the output will print live to the terminal while running
     2. Ibex: ``cat ex*.ibex.<job_number>.out``
@@ -118,10 +120,6 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
 6. View images from tests that write images:
     1. Locally: use your preferred image viewer 
     2. Ibex: ``xdg-open *.png``
+        a. To view videos copy them to your local machine
     3. Shaheen ``eog .``
-
-
-### createVisItMovie.sh
-1. This script will in general work with any sequence of **png** files, but in this repo is only used for test ``ex02_visitAnimation.py``
-2. After ``ex02_visitAnimation.py`` is run, you will have a sequence of png files, simply run ``bash createVisItMovie.sh`` and a movie will be saved
-3. If desired you can change the framerate, encoding, etc. in the script to suit your needs
+        a. To view videos copy them to your local machine
