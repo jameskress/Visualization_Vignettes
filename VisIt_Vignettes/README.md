@@ -10,10 +10,11 @@ VisIt was developed to analyze extremely large datasets using distributed memory
 
 ## Repo Organization
 This subfolder is organized as follows:
-- ``ex*.py`` various example scripts showing the use of VisIt from python
-- ``ex*_shaheen_runScript.sbat`` Shaheen batch scripts showing how to run VisIt in ``batch``
-- ``ex*_ibex_runScript.sbat`` Ibex batch scripts showing how to run VisIt in ``batch``
-- ``createVisItMovie.sh`` is a script to generate a movie from images generated with VisIt
+- Individual examples each have their own directory. Each directory contains:
+    - ``ex*.py`` various example scripts showing the use of VisIt from python
+    - ``ex*_shaheen_runScript.sbat`` Shaheen batch scripts showing how to run VisIt in ``batch``
+    - ``ex*_ibex_runScript.sbat`` Ibex batch scripts showing how to run VisIt in ``batch``
+    - ``createVisItMovie.sh`` is a script to generate a movie from images generated with VisIt
 - ``MODULES.sh`` is a module file that the batch scripts use to load the correct versions of modules
 - Information on VisIt and how to use it on KAUST computing resources is given below
 
@@ -30,7 +31,7 @@ There are essentially two ways to use VisIt at KAUST:
 ### Using VisIt Interactively on Ibex
 It is possible to run a local VisIt client to display and interact with your data while the VisIt server runs in an Ibex batch job, allowing interactive analysis of very large data sets. You will obtain the best performance by running the VisIt client on your local computer and running the server on Ibex with the same version of VisIt. It is highly recommended to check the available VisIt versions using ``module avail visit`` on the system you plan to connect to with VisIt.
 
-**WARNING**: Using a different version of VisIt than what is available on IBEX will most likely fail. 
+**WARNING**: Using a different version of VisIt than what is available on IBEX WILL fail. 
 
 If this is your first time using VisIt on KAUST resources you will need to have VisIt load the KAUST host profile to be able to connect to KAUST systems. VisIt is distributed with the KAUST profiles, so they can be directly loaded from the VisIt GUI as follows:
 1. Click "Options"
@@ -70,7 +71,7 @@ One of the most convenient tools available in the GUI is the ability to convert 
 a sequence of actions in VisIt to visualize their data may find the Trace tool useful. The Trace tool creates a Python script that reflects most actions
 taken in VisIt, which then can be used in batch mode to accomplish the same actions on Ibex or Shaheen.
 
-To start tracing from the GUI, click on ``Controls/Command``. An options window will pop up, at the top there will be a ``record`` button. Hit ``Record`` to start the trace, any time you modify properties, create filters, open files, etc., your actions will be translated into Python syntax. Once you are finished tracing the actions you want to script, click ``Stop``. A Python script should then be displayed to you and can be saved.
+To start tracing from the GUI, click on ``Controls/Command``. An options window will pop up, at the top there will be a ``Record`` button. Hit ``Record`` to start the trace, any time you modify properties, create filters, open files, etc., your actions will be translated into Python syntax. Once you are finished tracing the actions you want to script, click ``Stop``. A Python script should then be displayed to you and can be saved.
 
 
 ### For more information on VisIt
