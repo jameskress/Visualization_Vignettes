@@ -8,6 +8,9 @@ import sys
 
 print("Running VisIt example script: ", sys.argv[0], "\n")
 
+# Get directory of this script
+script_dir = os.path.abspath( os.path.dirname( __file__ ) )
+print("Running script from: ",  script_dir )
 
 # Open the compute engine if running on cluster
 if len(sys.argv)  < 4:
@@ -28,7 +31,8 @@ elif sys.argv[4] == "ibex":
 
 
 # Open file and add basic plot
-OpenDatabase("localhost:../../data/noise.silo", 0)
+dataFile = script_dir + "/../../data/noise.silo"
+OpenDatabase("localhost:" + dataFile, 0)
 AddPlot("Pseudocolor", "hardyglobal", 1, 0)
 DrawPlots()
 

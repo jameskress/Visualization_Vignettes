@@ -626,6 +626,10 @@ def finalMovie():
 if __name__ == '__main__':
     print("Running VisIt example script: ", sys.argv[0], "\n")
 
+    # Get directory of this script
+    script_dir = os.path.abspath( os.path.dirname( __file__ ) )
+    print("Running script from: ",  script_dir )
+
     # Open the compute engine if running on cluster
     if len(sys.argv)  < 4:
         print("Running script locally, not launching a batch job\n")
@@ -643,10 +647,10 @@ if __name__ == '__main__':
                                        "-np", sys.argv[2],
                                        "-t", sys.argv[3]))
 
-
-    animateBlobs("localhost:../../data/varying.visit", "temp")
-    createJSON("localhost:../../data/varying.visit", "temp", "output/blobs_times.json")
-    createCurves("localhost:../../data/varying.visit", "temp")
+    dataFile = script_dir + "/../../data/varying.visit"
+    animateBlobs("localhost:" + dataFile, "temp")
+    createJSON("localhost:" + dataFile, "temp", "output/blobs_times.json")
+    createCurves("localhost:" + dataFile, "temp")
     animateCurve()
     composite() # this calls the animage.py script, which is why that code is separate
     createTitle()
