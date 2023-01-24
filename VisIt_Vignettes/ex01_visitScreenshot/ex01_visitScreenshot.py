@@ -61,7 +61,7 @@ SaveWindowAtts.binary = 0
 SaveWindowAtts.stereo = 0
 SaveWindowAtts.compression = SaveWindowAtts.NONE  # NONE, PackBits, Jpeg, Deflate, LZW
 SaveWindowAtts.forceMerge = 0
-SaveWindowAtts.resConstraint = SaveWindowAtts.ScreenProportions  # NoConstraint, EqualWidthHeight, ScreenProportions
+SaveWindowAtts.resConstraint = SaveWindowAtts.EqualWidthHeight  # NoConstraint, EqualWidthHeight, ScreenProportions
 SetSaveWindowAttributes(SaveWindowAtts)
 SaveWindow()
 
