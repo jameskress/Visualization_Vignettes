@@ -120,7 +120,7 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
     3. Shaheen: ``cat ex*.shaheen_<job_number>.out``
 6. View images from tests that write images:
     1. Locally: use your preferred image viewer 
-    2. Ibex: ``xdg-open *.png``
+    2. Ibex: ``display*.png``
         a. To view videos copy them to your local machine
     3. Shaheen ``eog .``
         a. To view videos copy them to your local machine
