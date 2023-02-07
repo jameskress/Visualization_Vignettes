@@ -18,6 +18,15 @@ This subfolder is organized as follows:
 - ``MODULES.sh`` is a module file that the batch scripts use to load the correct versions of modules
 - Information on VisIt and how to use it on KAUST computing resources is given below
 
+### Example Details
+1. ``ex00`` - This script shows how to load a data set and then query information about the mesh, variables, and more
+2. ``ex01`` - This script shows how to create a screenshot and save it to disk
+3. ``ex02`` - This script shows how to take a series of screenshots while moving the camera and createing a movie
+4. ``ex03`` - This script shows how to animate the visualization of multiple iso surface values, showing different segments of a static data set
+5. ``ex04`` - This script shows how to animate the progress of streamlines in a flow field
+6. ``ex05`` - This script shows how to make an advanced movie with multiple composited views with extra text and images overlayed
+7. ``ex06`` - This script shows how to load and step through a multi time step file and take a screenshot per step
+
 
 ## Overview of VisIt at KAUST
 There are essentially two ways to use VisIt at KAUST:
