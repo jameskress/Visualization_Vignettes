@@ -8,11 +8,22 @@ ParaView was developed to analyze extremely large datasets using distributed mem
 
 ## Repo Organization
 This subfolder is organized as follows:
-- ``ex*.py`` various example scripts showing the use of ParaView from python
-- ``ex*_shaheen_runScript.sbat`` Shaheen batch scripts showing how to run ParaView with ``pvbatch``
-- ``ex*_ibex_runScript.sbat`` Ibex batch scripts showing how to run ParaView with ``pvbatch``
-- ``createParaViewMovie.sh`` Script to generate a movie from images generated with ParaView
+- Individual examples each have their own directory. Each directory contains:
+    - ``ex*.py`` various example scripts showing the use of ParaView from python
+    - ``ex*_shaheen_runScript.sbat`` Shaheen batch scripts showing how to run ParaView with ``pvbatch``
+    - ``ex*_ibex_runScript.sbat`` Ibex batch scripts showing how to run ParaView with ``pvbatch``
+    - ``createParaViewMovie.sh`` Script to generate a movie from images generated with ParaView
+- ``MODULES.sh`` is a module file that the batch scripts use to load the correct versions of modules
 - Information on ParaView and how to use it on KAUST computing resources is given below
+
+### Example Details
+1. ``ex00`` - This script shows how to load a data set and then query information about the mesh, variables, and more
+2. ``ex01`` - This script shows how to create a screenshot and save it to disk
+3. ``ex02`` - This script shows how to take a series of screenshots while moving the camera and createing a movie
+4. ``ex03`` - This script shows how to animate the visualization of multiple iso surface values, showing different segments of a static data set
+5. ``ex04`` - This script shows how to animate the progress of streamlines in a flow field
+6. ``ex05`` - This script shows how to make an advanced movie with multiple composited views with extra text and images overlayed
+7. ``ex06`` - This script shows how to load and step through a multi time step file and take a screenshot per step
 
 
 ## Overview of ParaView at KAUST
@@ -27,7 +38,7 @@ There are essentially two ways to use ParaView at KAUST:
 ### Using ParaView Interactively on Ibex
 It is possible to run a local ParaView client to display and interact with your data while the ParaView server runs in an Ibex batch job, allowing interactive analysis of very large data sets. You will obtain the best performance by running the ParaView client on your local computer and running the server on Ibex with the same version of ParaView. It is highly recommended to check the available ParaView versions using ``module avail paraview`` on the system you plan to connect ParaView to.
 
-**WARNING**: Using a different version of ParaView than what is available on IBEX will most likely fail. 
+**WARNING**: Using a different version of ParaView than what is available on IBEX WILL fail. 
 
 **WARNING**: For macOS clients, it is necessary to install [XQuartz (X11)](https://www.xquartz.org/) to get a command prompt in which you will securely enter your credentials.
 
@@ -92,34 +103,37 @@ These examples will only use ``pvbatch``, if you want to interactively use ParaV
 ## How to Run Examples in This Repo
 
 ### ex*.py
-1. Log on to either Ibex (<username>@glogin.ibex.kaust.edu.sa) or Shaheen (<username>@shaheen.hpc.kaust.edu.sa)
+1. Run scripts locally or log on to either Ibex (<username>@glogin.ibex.kaust.edu.sa) or Shaheen (<username>@shaheen.hpc.kaust.edu.sa)
 2. Clone this repo in your scratch directory
-    1. Ibex:
+    1. Locally wherever you like
+        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
+    2. Ibex:
         * ``cd /ibex/scratch/<username>``
         * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
-    2. Shaheen
+    3. Shaheen
         * ``cd /scratch/<username>``
         * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
-3. Load the ParaView module file
+3. If using a cluster load the ParaView module file
     1. Ibex:
         * ``module load paraview``
     2. Shaheen
         * ``module use /sw/vis/xc40.modules``
         * ``module load ParaView``
-4. From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
-    1. Ibex: ``sbatch ex*_ibex_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
-    2. Shaheen:
-        * Edit each Shaheen batch script by adding your account: ``vim ex*_shaheen_runScribt.sbat`` , and replace ``--account=<##>`` with your account
-        * ``sbatch ex*_shaheen_runScribt.sbat``, and replace ``*`` with the number of the test you want to run
+4. Run the example locally or on one of the clusters
+    1. Locally: 
+        1. We can run the *.py script directly on the command line, not using a batch script
+    2. Clusters: From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
+        1. Ibex: ``sbatch ex*_ibex_runScribt.sbat``
+        2. Shaheen:
+            * Edit each Shaheen batch script by adding your account: ``vim ex*_shaheen_runScribt.sbat`` , and replace ``--account=<##>`` with your account
+            * ``sbatch ex*_shaheen_runScribt.sbat``
 5. View the output messages from the tests: 
-    1. Ibex: ``cat ex*.ibex_<job_number>.out``
-    2. Shaheen: ``cat ex*.shaheen_<job_number>.out``
-6. View images from tests that write images: 
-    1. Ibex: ``xdg-open *.png``
-    2. Shaheen ``eog .``
-
-
-### createParaViewMovie.sh
-1. This script will in general work with any sequence of **png** files, but in this repo is only used for test ``ex02_pvAnimation.py``
-2. After ``ex02_pvAnimation.py`` is run, you will have a sequence of png files, simply run ``bash createParaViewMovie.sh`` and a movie will be saved
-3. If desired you can change the framerate, encoding, etc. in the script to suit your needs
+    1. Locally: the output will print live to the terminal while running
+    2. Ibex: ``cat ex*.ibex.<job_number>.out``
+    3. Shaheen: ``cat ex*.shaheen_<job_number>.out``
+6. View images from tests that write images:
+    1. Locally: use your preferred image viewer 
+    2. Ibex: ``display*.png``
+        a. To view videos copy them to your local machine
+    3. Shaheen ``eog .``
+        a. To view videos copy them to your local machine

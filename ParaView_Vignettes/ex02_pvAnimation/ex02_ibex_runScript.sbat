@@ -14,6 +14,6 @@
 #SBATCH --time=00:05:00
 
 # load the paraview environment
-source MODULES.sh
+source ../MODULES.sh
 
 mpirun -np 1 --mca opal_warn_on_missing_libcuda 0  `(which pvbatch)` --force-offscreen-rendering ./ex02_pvAnimation.py 

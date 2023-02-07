@@ -6,17 +6,17 @@
 # Copyright KAUST
 #
 #SBATCH --account=<##>
-#SBATCH --job-name=ex00.shaheen
-#SBATCH --output=ex00.shaheen.%j.out
-#SBATCH --error=ex00.shaheen.%j.out
+#SBATCH --job-name=ex01.shaheen
+#SBATCH --output=ex01.shaheen.%j.out
+#SBATCH --error=ex01.shaheen.%j.out
 #SBATCH --partition=workq
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=10:00
 
 # load the paraview environment
-source MODULES.sh
+source ../MODULES.sh
 
 HINT_FLAG="--hint=nomultithread"
 
-srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex00_pvConeStat.py 
+srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex01_pvScreenshot.py

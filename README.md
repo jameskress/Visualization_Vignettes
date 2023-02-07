@@ -14,6 +14,8 @@ KVL supports the use of VisIt on KAUST computing resources. We facilitate the in
 ## In Situ Visualization
 KVL supports the implementation of in situ visualization pipelines. We have multiple ways that this can be accomplished depending on user needs. For examples that you can copy and use immediatly for your own projects check out the **In_Situ_Vignettes** subfolder. 
 
+## Scripts
+Scripts that can help with visualization or movie making outside of ParaView or VisIt.
 
 ## For further information
 - KVL Wiki: https://wiki.vis.kaust.edu.sa/
