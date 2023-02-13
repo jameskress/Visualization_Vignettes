@@ -4,6 +4,7 @@
 # Author: James Kress, <james.kress@kaust.edu.sa>
 # Copyright KAUST
 #
+import os
 import sys
 # import visit_utils, we will use it to help encode our movie
 from visit_utils import *
@@ -178,4 +179,8 @@ encoding.encode(input_pattern,output_movie,fdup=4)
 
 
 print("\nFinished VisIt example script\n")
+
+# If on Windows wait for user input so that output does not disapear
+if os.name == 'nt':
+    input("Press any key to close")
 exit()

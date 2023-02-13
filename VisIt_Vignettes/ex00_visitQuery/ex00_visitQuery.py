@@ -4,6 +4,7 @@
 # Author: James Kress, <james.kress@kaust.edu.sa>
 # Copyright KAUST
 #
+import os
 import sys
 
 print("Running VisIt example script: ", sys.argv[0], "\n")
@@ -49,4 +50,8 @@ print("NumZones:        ", Query("NumZones", use_actual_data=1))
 print("Volume:          ", Query("Volume"))
 
 print("\nFinished VisIt example script\n")
+
+# If on Windows wait for user input so that output does not disapear
+if os.name == 'nt':
+    input("Press any key to close")
 exit()
