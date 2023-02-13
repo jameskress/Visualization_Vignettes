@@ -24,8 +24,7 @@ This subfolder is organized as follows:
 3. ``ex02`` - This script shows how to take a series of screenshots while moving the camera and createing a movie
 4. ``ex03`` - This script shows how to animate the visualization of multiple iso surface values, showing different segments of a static data set
 5. ``ex04`` - This script shows how to animate the progress of streamlines in a flow field
-6. ``ex05`` - This script shows how to make an advanced movie with multiple composited views with extra text and images overlayed
-7. ``ex06`` - This script shows how to load and step through a multi time step file and take a screenshot per step
+6. ``ex05`` - This script shows how to load and step through a multi time step file and take a screenshot per step
 
 
 ## Overview of VisIt at KAUST
