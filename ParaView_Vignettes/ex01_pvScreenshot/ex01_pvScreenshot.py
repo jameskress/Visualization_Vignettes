@@ -5,6 +5,7 @@
 # Copyright KAUST
 #
 import sys
+import pathlib
 from paraview.simple import *
 paraview.simple._DisableFirstRenderCameraReset()
 
@@ -17,8 +18,11 @@ cone = Cone()
 renderView1 = GetActiveViewOrCreate('RenderView')
 renderView1.ViewSize = [2048, 2048]
 
+# get directory where script is stored
+fileDir = str(pathlib.Path(__file__).parent.resolve())
+
 # show data in view
 cone1Display = Show(cone, renderView1)
-SaveScreenshot("ex01_pvScreenshot.png")
+SaveScreenshot(fileDir + "/ex01_pvScreenshot.png", renderView1)
 
 print("\nFinished ParaView example script\n")

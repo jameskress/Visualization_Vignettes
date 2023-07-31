@@ -5,6 +5,7 @@
 # Copyright KAUST
 #
 import sys
+import pathlib
 import paraview
 from paraview.simple import *
 paraview.compatibility.major = 5
@@ -216,8 +217,11 @@ renderView1.CameraFocalPoint = [0.12770339338804743, 0.11923099262182896, 0.1292
 renderView1.CameraViewUp = [0.034049744214794064, -0.7291798571869401, -0.683474469743926]
 renderView1.CameraParallelScale = 0.8651599216465272
 
+# get directory where script is stored
+fileDir = str(pathlib.Path(__file__).parent.resolve())
+
 # save animation
-SaveAnimation('ex02_pv_png_sequence.png', renderView1, ImageResolution=[4054, 2536],
+SaveAnimation(fileDir + '/ex02_pv_png_sequence.png', renderView1, ImageResolution=[4054, 2536],
     FrameWindow=[0, 99])
 
 # layout/tab size in pixels
@@ -229,7 +233,7 @@ renderView1.CameraViewUp = [0.034049744214794064, -0.7291798571869401, -0.683474
 renderView1.CameraParallelScale = 0.8651599216465272
 
 # save animation
-SaveAnimation('ex02_pv_animation_movie.avi', renderView1, ImageResolution=[4052, 2536],
+SaveAnimation(fileDir + '/ex02_pv_animation_movie.avi', renderView1, ImageResolution=[4052, 2536],
     FrameRate=10,
     FrameWindow=[0, 99])
 

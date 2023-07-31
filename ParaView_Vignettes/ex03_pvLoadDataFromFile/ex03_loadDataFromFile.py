@@ -5,6 +5,7 @@
 # Copyright KAUST
 #
 import sys
+import pathlib
 import paraview
 from paraview.simple import *
 paraview.compatibility.major = 5
@@ -15,8 +16,11 @@ print("Running ParaView example script: ", sys.argv[0], "\n")
 #### disable automatic camera reset on 'Show'
 paraview.simple._DisableFirstRenderCameraReset()
 
+# get directory where script is stored
+fileDir = str(pathlib.Path(__file__).parent.resolve())
+
 # create a new 'VisItSiloReader'
-noisesilo = VisItSiloReader(registrationName='noise.silo', FileName=['../data/noise.silo'])
+noisesilo = VisItSiloReader(registrationName='noise.silo', FileName=[fileDir + '/../../data/noise.silo'])
 noisesilo.MeshStatus = ['Mesh']
 noisesilo.MaterialStatus = []
 noisesilo.CellArrayStatus = []
@@ -25,7 +29,8 @@ noisesilo.PointArrayStatus = []
 # Properties modified on noisesilo
 noisesilo.MeshStatus = ['Mesh', 'Mesh2D', 'PointMesh']
 noisesilo.MaterialStatus = ['1 air', '2 chrome']
-noisesilo.PointArrayStatus = ['hardyglobal']
+noisesilo.CellArrayStatus = ['airVf', 'airVfGradient', 'chromeVf']
+noisesilo.PointArrayStatus = ['PointVar', 'grad', 'hardyglobal', 'hgslice', 'radial', 'shepardglobal', 'tensor_comps/grad_tensor_ii', 'tensor_comps/grad_tensor_ij', 'tensor_comps/grad_tensor_ik', 'tensor_comps/grad_tensor_ji', 'tensor_comps/grad_tensor_jj', 'tensor_comps/grad_tensor_jk', 'tensor_comps/grad_tensor_ki', 'tensor_comps/grad_tensor_kj', 'tensor_comps/grad_tensor_kk', 'x']
 
 # get active view
 renderView1 = GetActiveViewOrCreate('RenderView')
@@ -39,7 +44,7 @@ noisesiloDisplay.ColorArrayName = [None, '']
 noisesiloDisplay.SelectTCoordArray = 'None'
 noisesiloDisplay.SelectNormalArray = 'None'
 noisesiloDisplay.SelectTangentArray = 'None'
-noisesiloDisplay.OSPRayScaleArray = 'hardyglobal'
+noisesiloDisplay.OSPRayScaleArray = 'PointVar'
 noisesiloDisplay.OSPRayScaleFunction = 'PiecewiseFunction'
 noisesiloDisplay.SelectOrientationVectors = 'None'
 noisesiloDisplay.ScaleFactor = 2.0
@@ -47,18 +52,20 @@ noisesiloDisplay.SelectScaleArray = 'None'
 noisesiloDisplay.GlyphType = 'Arrow'
 noisesiloDisplay.GlyphTableIndexArray = 'None'
 noisesiloDisplay.GaussianRadius = 0.1
-noisesiloDisplay.SetScaleArray = ['POINTS', 'hardyglobal']
+noisesiloDisplay.SetScaleArray = ['POINTS', 'PointVar']
 noisesiloDisplay.ScaleTransferFunction = 'PiecewiseFunction'
-noisesiloDisplay.OpacityArray = ['POINTS', 'hardyglobal']
+noisesiloDisplay.OpacityArray = ['POINTS', 'PointVar']
 noisesiloDisplay.OpacityTransferFunction = 'PiecewiseFunction'
 noisesiloDisplay.DataAxesGrid = 'GridAxesRepresentation'
 noisesiloDisplay.PolarAxes = 'PolarAxesRepresentation'
+noisesiloDisplay.SelectInputVectors = ['POINTS', 'grad']
+noisesiloDisplay.WriteLog = ''
 
 # init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
-noisesiloDisplay.ScaleTransferFunction.Points = [1.0955432653427124, 0.0, 0.5, 0.0, 5.889651775360107, 1.0, 0.5, 0.0]
+noisesiloDisplay.ScaleTransferFunction.Points = [1.0779780149459839, 0.0, 0.5, 0.0, 5.925835132598877, 1.0, 0.5, 0.0]
 
 # init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
-noisesiloDisplay.OpacityTransferFunction.Points = [1.0955432653427124, 0.0, 0.5, 0.0, 5.889651775360107, 1.0, 0.5, 0.0]
+noisesiloDisplay.OpacityTransferFunction.Points = [1.0779780149459839, 0.0, 0.5, 0.0, 5.925835132598877, 1.0, 0.5, 0.0]
 
 # reset view to fit data
 renderView1.ResetCamera(False)
@@ -80,6 +87,9 @@ vtkBlockColorsLUT = GetColorTransferFunction('vtkBlockColors')
 
 # get opacity transfer function/opacity map for 'vtkBlockColors'
 vtkBlockColorsPWF = GetOpacityTransferFunction('vtkBlockColors')
+
+# get 2D transfer function for 'vtkBlockColors'
+vtkBlockColorsTF2D = GetTransferFunction2D('vtkBlockColors')
 
 # set scalar coloring
 ColorBy(noisesiloDisplay, ('POINTS', 'hardyglobal'))
@@ -160,7 +170,7 @@ renderView1.CameraViewUp = [-0.018686825287978125, 0.9986910201150085, 0.0476135
 renderView1.CameraParallelScale = 17.320508075688775
 
 # save screenshot
-SaveScreenshot('ex03_contour.png', renderView1, ImageResolution=[4054, 2536])
+SaveScreenshot(fileDir + '/ex03_contour.png', renderView1, ImageResolution=[4054, 2536])
 
 
 print("\nFinished ParaView example script\n")
