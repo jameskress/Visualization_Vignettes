@@ -4,14 +4,20 @@
 # Author: James Kress, <james.kress@kaust.edu.sa>
 # Copyright KAUST
 #
+import os
 import sys
 import pathlib
 import paraview
+import subprocess
 from paraview.simple import *
 paraview.compatibility.major = 5
 paraview.compatibility.minor = 10
 
 print("Running ParaView example script: ", sys.argv[0], "\n")
+
+# Get directory of this script
+script_dir = os.path.abspath( os.path.dirname( __file__ ) )
+print("Running script from: ",  script_dir )
 
 #### disable automatic camera reset on 'Show'
 paraview.simple._DisableFirstRenderCameraReset()
@@ -115,62 +121,76 @@ contour1.ContourBy = ['POINTS', 'hardyglobal']
 contour1.Isosurfaces = [3.49259752035141]
 contour1.PointMergeMethod = 'Uniform Binning'
 
-# Properties modified on contour1
-contour1.Isosurfaces = [1.0955432653427124, 1.6282219886779785, 2.1609007120132446, 2.6935794353485107, 3.226258158683777, 3.758936882019043, 4.291615605354309, 4.824294328689575, 5.356973052024841, 5.889651775360107]
+# create folder to store images
+try:
+    saveDir = script_dir + "/output"
+    os.mkdir(saveDir)
+except FileExistsError:
+    pass
 
-# show data in view
-contour1Display = Show(contour1, renderView1, 'GeometryRepresentation')
+# walk over a range of iso values
+for i in range(35):
+    # Properties modified on contour1
+    contour1.Isosurfaces = [2 + 0.1*i]
 
-# trace defaults for the display properties.
-contour1Display.Representation = 'Surface'
-contour1Display.ColorArrayName = ['POINTS', 'hardyglobal']
-contour1Display.LookupTable = hardyglobalLUT
-contour1Display.SelectTCoordArray = 'None'
-contour1Display.SelectNormalArray = 'Normals'
-contour1Display.SelectTangentArray = 'None'
-contour1Display.OSPRayScaleArray = 'hardyglobal'
-contour1Display.OSPRayScaleFunction = 'PiecewiseFunction'
-contour1Display.SelectOrientationVectors = 'None'
-contour1Display.ScaleFactor = 2.0
-contour1Display.SelectScaleArray = 'hardyglobal'
-contour1Display.GlyphType = 'Arrow'
-contour1Display.GlyphTableIndexArray = 'hardyglobal'
-contour1Display.GaussianRadius = 0.1
-contour1Display.SetScaleArray = ['POINTS', 'hardyglobal']
-contour1Display.ScaleTransferFunction = 'PiecewiseFunction'
-contour1Display.OpacityArray = ['POINTS', 'hardyglobal']
-contour1Display.OpacityTransferFunction = 'PiecewiseFunction'
-contour1Display.DataAxesGrid = 'GridAxesRepresentation'
-contour1Display.PolarAxes = 'PolarAxesRepresentation'
+    # show data in view
+    contour1Display = Show(contour1, renderView1, 'GeometryRepresentation')
 
-# init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
-contour1Display.ScaleTransferFunction.Points = [1.6282219886779785, 0.0, 0.5, 0.0, 5.889651775360107, 1.0, 0.5, 0.0]
+    # trace defaults for the display properties.
+    contour1Display.Representation = 'Surface'
+    contour1Display.ColorArrayName = ['POINTS', 'hardyglobal']
+    contour1Display.LookupTable = hardyglobalLUT
+    contour1Display.SelectTCoordArray = 'None'
+    contour1Display.SelectNormalArray = 'Normals'
+    contour1Display.SelectTangentArray = 'None'
+    contour1Display.OSPRayScaleArray = 'hardyglobal'
+    contour1Display.OSPRayScaleFunction = 'PiecewiseFunction'
+    contour1Display.SelectOrientationVectors = 'None'
+    contour1Display.ScaleFactor = 2.0
+    contour1Display.SelectScaleArray = 'hardyglobal'
+    contour1Display.GlyphType = 'Arrow'
+    contour1Display.GlyphTableIndexArray = 'hardyglobal'
+    contour1Display.GaussianRadius = 0.1
+    contour1Display.SetScaleArray = ['POINTS', 'hardyglobal']
+    contour1Display.ScaleTransferFunction = 'PiecewiseFunction'
+    contour1Display.OpacityArray = ['POINTS', 'hardyglobal']
+    contour1Display.OpacityTransferFunction = 'PiecewiseFunction'
+    contour1Display.DataAxesGrid = 'GridAxesRepresentation'
+    contour1Display.PolarAxes = 'PolarAxesRepresentation'
 
-# init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
-contour1Display.OpacityTransferFunction.Points = [1.6282219886779785, 0.0, 0.5, 0.0, 5.889651775360107, 1.0, 0.5, 0.0]
+    # init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
+    contour1Display.ScaleTransferFunction.Points = [1.6282219886779785, 0.0, 0.5, 0.0, 5.889651775360107, 1.0, 0.5, 0.0]
 
-# hide data in view
-Hide(noisesilo, renderView1)
+    # init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
+    contour1Display.OpacityTransferFunction.Points = [1.6282219886779785, 0.0, 0.5, 0.0, 5.889651775360107, 1.0, 0.5, 0.0]
 
-# show color bar/color legend
-contour1Display.SetScalarBarVisibility(renderView1, True)
+    # hide data in view
+    Hide(noisesilo, renderView1)
 
-# update the view to ensure updated data information
-renderView1.Update()
+    # show color bar/color legend
+    contour1Display.SetScalarBarVisibility(renderView1, True)
 
-# get layout
-layout1 = GetLayout()
+    # update the view to ensure updated data information
+    renderView1.Update()
 
-# layout/tab size in pixels
-layout1.SetSize(2027, 1268)
+    # get layout
+    layout1 = GetLayout()
 
-# current camera placement for renderView1
-renderView1.CameraPosition = [49.0381653030622, 3.083657606729836, -45.433581947240924]
-renderView1.CameraViewUp = [-0.018686825287978125, 0.9986910201150085, 0.047613536964819486]
-renderView1.CameraParallelScale = 17.320508075688775
+    # layout/tab size in pixels
+    layout1.SetSize(2027, 1268)
 
-# save screenshot
-SaveScreenshot(fileDir + '/ex03_contour.png', renderView1, ImageResolution=[4054, 2536])
+    # current camera placement for renderView1
+    renderView1.CameraPosition = [49.0381653030622, 3.083657606729836, -45.433581947240924]
+    renderView1.CameraViewUp = [-0.018686825287978125, 0.9986910201150085, 0.047613536964819486]
+    renderView1.CameraParallelScale = 17.320508075688775
 
+    # save screenshot
+    SaveScreenshot(fileDir + '/output/ex03_contour_%04d.png' % i, renderView1, ImageResolution=[4054, 2536])
+
+# ffmpeg create video
+imageLoc = fileDir + '/output/ex03_contour_%04d.png'
+movieLoc = fileDir + '/ex03_pvIsosurfaceAnimationout.mp4'
+cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
+subprocess.call(cmd, shell=True)
 
 print("\nFinished ParaView example script\n")

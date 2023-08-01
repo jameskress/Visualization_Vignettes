@@ -42,8 +42,7 @@ DrawPlots()
 
 SaveWindowAtts = SaveWindowAttributes()
 try:
-    cwd = os.getcwd()
-    saveDir = cwd + "/output"
+    saveDir = script_dir + "/output"
     os.mkdir(saveDir)
 except FileExistsError:
     pass

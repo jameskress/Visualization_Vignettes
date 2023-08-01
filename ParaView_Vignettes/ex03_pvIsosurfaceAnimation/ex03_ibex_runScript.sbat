@@ -16,4 +16,4 @@
 # load the paraview environment
 source ../MODULES.sh
 
-mpirun -np 1 `(which pvbatch)` --force-offscreen-rendering ./ex03_loadDataFromFile.py
+mpirun -np 1 `(which pvbatch)` --force-offscreen-rendering ./ex03_pvIsosurfaceAnimation.py

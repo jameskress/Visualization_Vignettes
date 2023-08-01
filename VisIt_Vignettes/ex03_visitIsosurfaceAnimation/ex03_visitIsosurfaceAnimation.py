@@ -63,8 +63,7 @@ swatts.width = 2048
 swatts.height = 1784
 # change where images are saved
 try:
-    cwd = os.getcwd()
-    saveDir = cwd + "/output"
+    saveDir = script_dir + "/output"
     os.mkdir(saveDir)
 except FileExistsError:
     pass
@@ -97,8 +96,8 @@ for i in range(35):
 #  Duplicating the frames allows you to slow the pace of the movie to something reasonable.
 #
 ################
-input_pattern = "output/ex03_visit_%04d.png"
-output_movie = "ex03_visit.mp4"
+input_pattern = script_dir + "/output/ex03_visit_%04d.png"
+output_movie = script_dir + "/ex03_visit.mp4"
 encoding.encode(input_pattern,output_movie,fdup=4)
 
 

@@ -48,8 +48,7 @@ def fly():
     swatts.height = 1784
     # change where images are saved
     try:
-        cwd = os.getcwd()
-        saveDir = cwd + "/output"
+        saveDir = script_dir + "/output"
         os.mkdir(saveDir)
     except FileExistsError:
         pass
@@ -173,8 +172,8 @@ fly()
 #  Duplicating the frames allows you to slow the pace of the movie to something reasonable.
 #
 ################
-input_pattern = "output/ex02_visit_%04d.png"
-output_movie = "ex02_visit.mp4"
+input_pattern = script_dir + "/output/ex02_visit_%04d.png"
+output_movie = script_dir + "/ex02_visit.mp4"
 encoding.encode(input_pattern,output_movie,fdup=4)
 
 

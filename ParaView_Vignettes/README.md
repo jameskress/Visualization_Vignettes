@@ -20,7 +20,7 @@ This subfolder is organized as follows:
 1. ``ex00`` - This script shows how to create a data source and query information about the mesh, variables, and more
 2. ``ex01`` - This script shows how to create a data source and create a screenshot and save it to disk
 3. ``ex02`` - This script shows how to create a data source and take a series of screenshots while moving the camera and createing a movie
-4. ``ex03`` - This script shows how to create a data source and load data from a file and create a screenshot
+4. ``ex03`` - This script shows how to animate the visualization of multiple iso surface values, showing different segments of a static data set
 
 
 ## Overview of ParaView at KAUST
