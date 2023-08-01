@@ -1,0 +1,19 @@
+#!/bin/bash
+#
+# KAUST Visualization Vignettes
+#
+# Author: James Kress, <james.kress@kaust.edu.sa>
+# Copyright KAUST
+#
+#SBATCH -N 1
+#SBATCH --ntasks-per-node=1
+#SBATCH --partition=batch
+#SBATCH -J ex04.ibex
+#SBATCH -o ex04.ibex.%J.out
+#SBATCH -e ex04.ibex.%J.out
+#SBATCH --time=00:10:00
+
+# load the paraview environment
+source ../MODULES.sh
+
+mpirun -np 1 `(which pvbatch)` --force-offscreen-rendering ./ex04_pvStreamlineAnimation.py
