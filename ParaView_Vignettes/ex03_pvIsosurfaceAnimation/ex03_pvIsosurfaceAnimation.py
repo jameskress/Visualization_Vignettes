@@ -22,11 +22,8 @@ print("Running script from: ",  script_dir )
 #### disable automatic camera reset on 'Show'
 paraview.simple._DisableFirstRenderCameraReset()
 
-# get directory where script is stored
-fileDir = str(pathlib.Path(__file__).parent.resolve())
-
 # create a new 'VisItSiloReader'
-noisesilo = VisItSiloReader(registrationName='noise.silo', FileName=[fileDir + '/../../data/noise.silo'])
+noisesilo = VisItSiloReader(registrationName='noise.silo', FileName=[script_dir + '/../../data/noise.silo'])
 noisesilo.MeshStatus = ['Mesh']
 noisesilo.MaterialStatus = []
 noisesilo.CellArrayStatus = []
@@ -122,8 +119,8 @@ contour1.Isosurfaces = [3.49259752035141]
 contour1.PointMergeMethod = 'Uniform Binning'
 
 # create folder to store images
+saveDir = script_dir + "/output"
 try:
-    saveDir = script_dir + "/output"
     os.mkdir(saveDir)
 except FileExistsError:
     pass
@@ -184,12 +181,14 @@ for i in range(35):
     renderView1.CameraViewUp = [-0.018686825287978125, 0.9986910201150085, 0.047613536964819486]
     renderView1.CameraParallelScale = 17.320508075688775
 
+    print("Saving Image ", i, " of 35")
+
     # save screenshot
-    SaveScreenshot(fileDir + '/output/ex03_contour_%04d.png' % i, renderView1, ImageResolution=[4054, 2536])
+    SaveScreenshot(script_dir + '/output/ex03_contour_%04d.png' % i, renderView1, ImageResolution=[4054, 2536])
 
 # ffmpeg create video
-imageLoc = fileDir + '/output/ex03_contour_%04d.png'
-movieLoc = fileDir + '/ex03_pvIsosurfaceAnimationout.mp4'
+imageLoc = script_dir + '/output/ex03_contour_%04d.png'
+movieLoc = script_dir + '/ex03_pvIsosurfaceAnimationout.mp4'
 cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
 subprocess.call(cmd, shell=True)
 

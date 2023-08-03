@@ -6,9 +6,9 @@
 # Copyright KAUST
 #
 #SBATCH --account=<##>
-#SBATCH --job-name=ex03.shaheen
-#SBATCH --output=ex03.shaheen.%j.out
-#SBATCH --error=ex03.shaheen.%j.out
+#SBATCH --job-name=ex05.shaheen
+#SBATCH --output=ex05.shaheen.%j.out
+#SBATCH --error=ex05.shaheen.%j.out
 #SBATCH --partition=workq
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -19,4 +19,4 @@ source../MODULES.sh
 
 HINT_FLAG="--hint=nomultithread"
 
-srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex03_pvIsosurfaceAnimation.py
+srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex05_pvMultiTimeStepFile.py

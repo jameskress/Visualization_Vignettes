@@ -8,12 +8,12 @@
 #SBATCH -N 1
 #SBATCH --ntasks-per-node=1
 #SBATCH --partition=batch
-#SBATCH -J ex03.ibex
-#SBATCH -o ex03.ibex.%J.out
-#SBATCH -e ex03.ibex.%J.out
+#SBATCH -J ex05.ibex
+#SBATCH -o ex05.ibex.%J.out
+#SBATCH -e ex05.ibex.%J.out
 #SBATCH --time=00:10:00
 
 # load the paraview environment
 source ../MODULES.sh
 
-mpirun -np 1 `(which pvbatch)` --force-offscreen-rendering ./ex03_pvIsosurfaceAnimation.py
+mpirun -np 1 `(which pvbatch)` --force-offscreen-rendering ./ex05_pvMultiTimeStepFile.py

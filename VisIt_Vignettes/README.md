@@ -25,6 +25,7 @@ This subfolder is organized as follows:
 4. ``ex03`` - This script shows how to animate the visualization of multiple iso surface values, showing different segments of a static data set
 5. ``ex04`` - This script shows how to animate the progress of streamlines in a flow field
 6. ``ex05`` - This script shows how to load and step through a multi time step file and take a screenshot per step
+7. ``ex06`` - This script shows how to load and create a complex visualization for a large data file
 
 
 ## Overview of VisIt at KAUST
