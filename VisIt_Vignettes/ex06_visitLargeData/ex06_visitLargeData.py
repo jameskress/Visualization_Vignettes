@@ -36,12 +36,13 @@ elif sys.argv[4] == "ibex":
                                    "-np", sys.argv[2],
                                    "-t", sys.argv[3]))
 
-dataFile = script_dir + "/cyclone.session"
-wrfFile = script_dir + "/../../data/cyclone-chapala-2015-11-02_00-00-00.vtr"
-rainFile = script_dir + "/../../data/currentRainfall.vtp"
-RestoreSessionWithDifferentSources(dataFile, 0, (wrfFile, rainFile)) 
+dataFile = script_dir + "/visitCyclone.session"
+#wrfFile = script_dir + "/../../data/cyclone-chapala-2015-11-02_00-00-00.vtr"
+wrfFile = script_dir + "/../../data/cyclone-chapala-2015-11-02_00-00-00-mb.vtm"
+rainFile = script_dir + "/../../data/currentRainfall.silo"
+RestoreSessionWithDifferentSources(dataFile, 0, (rainFile, wrfFile)) 
 #RestoreSessionWithDifferentSources("/home/kressjm/data/cyclone.session", 0, ("localhost:/mnt/5d22bac5-b323-4e21-96a7-929039418079/cyclone-chapala-2015-11-02_00-00-00.vtr","localhost:/mnt/5d22bac5-b323-4e21-96a7-929039418079/currentRainfall.vtp"))
-
+#RestoreSession(dataFile, 0)
 
 
 print("\nWindow one plots")

@@ -74,7 +74,7 @@ View3DAtts.parallelScale = 17.3205
 View3DAtts.nearPlane = -34.641
 View3DAtts.farPlane = 34.641
 View3DAtts.imagePan = (0, 0)
-View3DAtts.imageZoom = 1.21
+View3DAtts.imageZoom = 1.00
 View3DAtts.perspective = 1
 View3DAtts.eyeAngle = 2
 View3DAtts.centerOfRotationSet = 0
@@ -98,10 +98,14 @@ saveAtts.height = 1532
 #
 # Create the output directory structure.
 #
-outputDir = "output"
-outputName = pjoin(outputDir, "ex05_visit_%04d.png")
-if not os.path.isdir(outputDir):
-    os.mkdir(outputDir)
+saveDir = script_dir + "/output"
+try:
+    os.mkdir(saveDir)
+except FileExistsError:
+    pass
+saveAtts.outputToCurrentDirectory = 0
+saveAtts.outputDirectory = saveDir
+outputName = "ex05_visit_%04d.png"
 
 #
 # Loop over the time states
