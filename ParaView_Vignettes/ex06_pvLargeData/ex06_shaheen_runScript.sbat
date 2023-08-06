@@ -1,0 +1,22 @@
+#!/bin/bash
+#
+# KAUST Visualization Vignettes
+#
+# Author: James Kress, <james.kress@kaust.edu.sa>
+# Copyright KAUST
+#
+#SBATCH --account=<##>
+#SBATCH --job-name=ex06.shaheen
+#SBATCH --output=ex06.shaheen.%j.out
+#SBATCH --error=ex06.shaheen.%j.out
+#SBATCH --partition=workq
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --time=10:00
+
+# load the paraview environment
+source../MODULES.sh
+
+HINT_FLAG="--hint=nomultithread"
+
+srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex06_pvLargeData.py
