@@ -10,11 +10,11 @@ echo "Loading modules for OS Version: $OSVERSION"
 case "$OSVERSION" in
 "CentOS"*) # Ibex
     module load ffmpeg
-    module load visit/3.3.1
+    module load visit/3.3.2
   ;;
 "SUSE"*) # Shaheen    
     module use  /sw/vis/xc40.modules
-    module load VisIt/3.3.1-el7gnu9.3.0
+    module load VisIt/3.3.2-el7gnu9.3.0
     module load ffmpeg
   ;;
 *)

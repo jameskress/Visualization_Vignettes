@@ -74,31 +74,9 @@ swatts.fileName = "ex06_visit.png"
 SetSaveWindowAttributes(swatts)
 SaveWindow()
 
-print(saveDir)
-
 print("\nFinished VisIt example script\n")
 
 # If on Windows wait for user input so that output does not disapear
 if os.name == 'nt':
     input("Press any key to close")
 exit()
-
-SaveWindowAtts = SaveWindowAttributes()
-SaveWindowAtts.outputToCurrentDirectory = 0
-SaveWindowAtts.outputDirectory = "/home/kressjm/packages/KAUST_Visualization_Vignettes/VisIt_Vignettes/ex06_visitLargeData"
-SaveWindowAtts.fileName = "cyclone"
-SaveWindowAtts.family = 1
-SaveWindowAtts.format = SaveWindowAtts.JPEG  # BMP, CURVE, JPEG, OBJ, PNG, POSTSCRIPT, POVRAY, PPM, RGB, STL, TIFF, ULTRA, VTK, PLY, EXR
-SaveWindowAtts.width = 2850
-SaveWindowAtts.height = 1750
-SaveWindowAtts.screenCapture = 0
-SaveWindowAtts.saveTiled = 0
-SaveWindowAtts.quality = 100
-SaveWindowAtts.progressive = 1
-SaveWindowAtts.binary = 0
-SaveWindowAtts.stereo = 0
-SaveWindowAtts.compression = SaveWindowAtts.Jpeg  # NONE, PackBits, Jpeg, Deflate, LZW
-SaveWindowAtts.forceMerge = 0
-
-SaveWindowAtts.pixelData = 1
-SaveWindowAtts.opts.types = ()

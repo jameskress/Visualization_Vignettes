@@ -10,11 +10,11 @@ OSVERSION=$(lsb_release -sir | awk -F '.' '{ print $1 }')
 echo "Loading modules for OS Version: $OSVERSION"
 case "$OSVERSION" in
 "CentOS"*) # Ibex
-    module load paraview/5.10.1-openmpi4.0.3-mesa
+    module load paraview/5.11.1-openmpi4.0.3-mesa
   ;;
 "SUSE"*) # Shaheen
     module use  /sw/vis/xc40.modules
-    module load ParaView/5.10.1-gnu11.2.0-mesa
+    module load ParaView/5.11.1-gnu11.2.0-mesa
     module load ffmpeg
   ;;
 *)
