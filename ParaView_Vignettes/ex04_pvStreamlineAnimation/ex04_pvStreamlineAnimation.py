@@ -357,7 +357,7 @@ for ts in range(0,125):
 
 # ffmpeg create video
 imageLoc = script_dir + '/output/ex04_%04d.png'
-movieLoc = script_dir + '/ex03_pvStreamlineAnimation.mp4'
+movieLoc = script_dir + '/ex04_pvStreamlineAnimation.mp4'
 cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
 subprocess.call(cmd, shell=True)
 
