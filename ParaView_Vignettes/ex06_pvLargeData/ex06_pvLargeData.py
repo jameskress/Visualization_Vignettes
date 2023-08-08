@@ -706,6 +706,6 @@ try:
 except FileExistsError:
     pass
 # save screenshot
-SaveScreenshot(script_dir + '/output/ex06.png', renderView1, ImageResolution=[4054, 2536])
+SaveScreenshot(script_dir + '/output/ex06.png', renderView1, ImageResolution=[2850, 1750])
 
 print("\nFinished ParaView example script\n")
