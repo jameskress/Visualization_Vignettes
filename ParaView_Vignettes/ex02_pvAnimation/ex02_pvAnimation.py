@@ -8,6 +8,7 @@ import os
 import sys
 import pathlib
 import paraview
+import subprocess
 from paraview.simple import *
 paraview.compatibility.major = 5
 paraview.compatibility.minor = 10
@@ -244,9 +245,10 @@ renderView1.CameraPosition = [0.512437, 2.88229, -2.79939]
 renderView1.CameraViewUp = [0.034049744214794064, -0.7291798571869401, -0.683474469743926]
 renderView1.CameraParallelScale = 0.8651599216465272
 
-# save animation
-SaveAnimation(script_dir + '/ex02_pv_animation_movie.avi', renderView1, ImageResolution=[4052, 2536],
-    FrameRate=10,
-    FrameWindow=[0, 99])
+# ffmpeg create video
+imageLoc = saveDir + '/ex02_pv_png_sequence.%04d.png'
+movieLoc = script_dir + '/ex02_pvAnimationout.mp4'
+cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
+subprocess.call(cmd, shell=True)
 
 print("\nFinished ParaView example script\n")
