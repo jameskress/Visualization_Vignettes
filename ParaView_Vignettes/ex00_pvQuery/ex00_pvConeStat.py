@@ -4,6 +4,7 @@
 # Author: James Kress, <james.kress@kaust.edu.sa>
 # Copyright KAUST
 #
+import os
 import sys
 from paraview.simple import *
 

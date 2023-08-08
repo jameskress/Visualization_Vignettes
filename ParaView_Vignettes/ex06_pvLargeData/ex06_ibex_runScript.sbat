@@ -6,7 +6,7 @@
 # Copyright KAUST
 #
 #SBATCH -N 1
-#SBATCH --ntasks-per-node=16
+#SBATCH --ntasks-per-node=32
 #SBATCH --mem=200G
 #SBATCH --partition=batch
 #SBATCH -J ex06.ibex
@@ -17,9 +17,9 @@
 # by default ibex gives 2GB per core, so we ask for more above
 
 # set script vars
-_ntasks=16
+_ntasks=4
 
 # load the paraview environment
 source ../MODULES.sh
 
-mpirun -np $_ntasks `(which pvbatch)` --force-offscreen-rendering ./ex06_pvLargeData.py
+mpirun -np $_ntasks --bind-to none `(which pvbatch)` --force-offscreen-rendering ./ex06_pvLargeData.py
