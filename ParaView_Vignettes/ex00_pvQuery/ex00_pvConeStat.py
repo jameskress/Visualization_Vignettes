@@ -18,3 +18,8 @@ print("Cone Center:     ", cone.Center)
 print("Cone Direction:  ", cone.Direction)
 
 print("\nFinished ParaView example script\n")
+
+# If on Windows wait for user input so that output does not disapear
+if os.name == 'nt':
+    input("Press any key to close")
+exit()
