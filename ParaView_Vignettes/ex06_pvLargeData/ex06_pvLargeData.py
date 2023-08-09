@@ -26,16 +26,9 @@ paraview.simple._DisableFirstRenderCameraReset()
 # setup views used in the visualization
 # ----------------------------------------------------------------
 
-# Create a new 'Light'
-light1 = CreateLight()
-light1.Coords = 'Ambient'
-light1.Intensity = 0.1
-light1.Position = [248.55156387541595, 201.70562521648787, 1009.0110025122272]
-
 # get the material library
 materialLibrary1 = GetMaterialLibrary()
 
-# create light
 # Create a new 'Render View'
 renderView1 = CreateView('RenderView')
 renderView1.ViewSize = [2534, 1422]
@@ -50,7 +43,6 @@ renderView1.CameraParallelScale = 1348.1392372093005
 renderView1.UseColorPaletteForBackground = 0
 renderView1.BackgroundColorMode = 'Gradient'
 renderView1.BackEnd = 'OSPRay raycaster'
-renderView1.AdditionalLights = light1
 renderView1.OSPRayMaterialLibrary = materialLibrary1
 
 SetActiveView(None)
