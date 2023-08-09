@@ -11,7 +11,7 @@ import paraview
 import subprocess
 from paraview.simple import *
 paraview.compatibility.major = 5
-paraview.compatibility.minor = 10
+paraview.compatibility.minor = 11
 
 print("Running ParaView example script: ", sys.argv[0], "\n")
 
@@ -19,13 +19,6 @@ print("Running ParaView example script: ", sys.argv[0], "\n")
 script_dir = os.path.abspath( os.path.dirname( __file__ ) )
 print("Running script from: ",  script_dir )
 
-# state file generated using paraview version 5.11.1
-import paraview
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 11
-
-#### import the simple module from the paraview
-from paraview.simple import *
 #### disable automatic camera reset on 'Show'
 paraview.simple._DisableFirstRenderCameraReset()
 
@@ -45,15 +38,15 @@ materialLibrary1 = GetMaterialLibrary()
 # create light
 # Create a new 'Render View'
 renderView1 = CreateView('RenderView')
-renderView1.ViewSize = [2534, 1482]
+renderView1.ViewSize = [2534, 1422]
 renderView1.AxesGrid = 'GridAxes3DActor'
-renderView1.CenterOfRotation = [1120.0, 752.5, 356.0]
+renderView1.CenterOfRotation = [1120.0, 752.5, 24.794067791746784]
 renderView1.StereoType = 'Crystal Eyes'
-renderView1.CameraPosition = [-228.06798074519315, -1847.8484771027963, 1348.314494938655]
-renderView1.CameraFocalPoint = [1040.2591926012767, 578.8034414243264, 78.20786760918219]
+renderView1.CameraPosition = [-72.10084322930129, -1655.4902519668576, 1221.0330676745239]
+renderView1.CameraFocalPoint = [1163.4011535310035, 708.3582516270029, -16.202329580025463]
 renderView1.CameraViewUp = [0.1913223518502496, 0.3748028687276557, 0.9071485916188202]
 renderView1.CameraFocalDisk = 1.0
-renderView1.CameraParallelScale = 1674.5879612609185
+renderView1.CameraParallelScale = 1348.1392372093005
 renderView1.UseColorPaletteForBackground = 0
 renderView1.BackgroundColorMode = 'Gradient'
 renderView1.BackEnd = 'OSPRay raycaster'
@@ -69,7 +62,7 @@ SetActiveView(None)
 # create new layout object 'Layout #1'
 layout1 = CreateLayout(name='Layout #1')
 layout1.AssignView(0, renderView1)
-layout1.SetSize(2534, 1482)
+layout1.SetSize(2534, 1422)
 
 # ----------------------------------------------------------------
 # restore active view
@@ -80,15 +73,38 @@ SetActiveView(renderView1)
 # setup the data processing pipelines
 # ----------------------------------------------------------------
 
+# create a new 'XML MultiBlock Data Reader'
+cyclonechapala20151102_000000mbvtm = XMLMultiBlockDataReader(registrationName='cyclone-chapala-2015-11-02_00-00-00-mb.vtm', FileName=[script_dir + '/../../data/cyclone-chapala-2015-11-02_00-00-00-mb.vtm'])
+cyclonechapala20151102_000000mbvtm.PointArrayStatus = ['HGT', 'QCLOUD', 'QGRAUP', 'QICE', 'QRAIN', 'QVAPOR', 'RAINC', 'RAINNC', 'U', 'U10', 'V', 'V10', 'W']
+cyclonechapala20151102_000000mbvtm.TimeArray = 'None'
+
+# create a new 'Slice'
+yslice = Slice(registrationName='Y-slice', Input=cyclonechapala20151102_000000mbvtm)
+yslice.SliceType = 'Plane'
+yslice.HyperTreeGridSlicer = 'Plane'
+yslice.SliceOffsetValues = [0.0]
+
+# init the 'Plane' selected for 'SliceType'
+yslice.SliceType.Origin = [1120.0, 1505.0, 44.5]
+yslice.SliceType.Normal = [0.0, 1.0, 0.0]
+
+# init the 'Plane' selected for 'HyperTreeGridSlicer'
+yslice.HyperTreeGridSlicer.Origin = [1120.0, 752.5, 44.5]
+
+# create a new 'Resample To Image'
+resampleToImageqice = ResampleToImage(registrationName='ResampleToImage qice', Input=cyclonechapala20151102_000000mbvtm)
+resampleToImageqice.SamplingDimensions = [2240, 1505, 90]
+resampleToImageqice.SamplingBounds = [0.0, 2240.0, 0.0, 1505.0, 0.0, 712.0]
+
 # create a new 'VisItSiloReader'
 currentRainfallsilo = VisItSiloReader(registrationName='currentRainfall.silo', FileName=[script_dir + '/../../data/currentRainfall.silo'])
 currentRainfallsilo.MeshStatus = ['mesh']
 currentRainfallsilo.PointArrayStatus = ['calculatedRain']
 
-# create a new 'XML MultiBlock Data Reader'
-cyclonechapala20151102_000000mbvtm = XMLMultiBlockDataReader(registrationName='cyclone-chapala-2015-11-02_00-00-00-mb.vtm', FileName=[script_dir + '/../../data/cyclone-chapala-2015-11-02_00-00-00-mb.vtm'])
-cyclonechapala20151102_000000mbvtm.PointArrayStatus = ['HGT', 'QCLOUD', 'QGRAUP', 'QICE', 'QRAIN', 'QVAPOR', 'RAINC', 'RAINNC', 'U', 'U10', 'V', 'V10', 'W']
-cyclonechapala20151102_000000mbvtm.TimeArray = 'None'
+# create a new 'Resample To Image'
+resampleToImageqrain = ResampleToImage(registrationName='ResampleToImage qrain', Input=cyclonechapala20151102_000000mbvtm)
+resampleToImageqrain.SamplingDimensions = [2240, 1505, 90]
+resampleToImageqrain.SamplingBounds = [0.0, 2240.0, 0.0, 1505.0, 0.0, 712.0]
 
 # create a new 'Slice'
 slice4 = Slice(registrationName='Slice4', Input=cyclonechapala20151102_000000mbvtm)
@@ -104,55 +120,32 @@ slice4.SliceType.Normal = [0.0, 0.0, 1.0]
 slice4.HyperTreeGridSlicer.Origin = [1120.0, 752.5, 44.5]
 
 # create a new 'Warp By Scalar'
-warpByScalar1 = WarpByScalar(registrationName='WarpByScalar1', Input=slice4)
-warpByScalar1.Scalars = ['POINTS', 'HGT']
-warpByScalar1.ScaleFactor = 0.026
-
-# create a new 'Transform'
-staticgeometry = Transform(registrationName='Static geometry', Input=warpByScalar1)
-staticgeometry.Transform = 'Transform'
-
-# init the 'Transform' selected for 'Transform'
-staticgeometry.Transform.Translate = [0.0, 0.0, -1.0]
-
-# create a new 'Transform'
-transform1 = Transform(registrationName='Transform1', Input=cyclonechapala20151102_000000mbvtm)
-transform1.Transform = 'Transform'
-
-# init the 'Transform' selected for 'Transform'
-transform1.Transform.Scale = [1.0, 1.0, 8.0]
-
-# create a new 'Threshold'
-thresholdqvapor = Threshold(registrationName='Threshold qvapor', Input=transform1)
-thresholdqvapor.Scalars = ['POINTS', '']
-thresholdqvapor.LowerThreshold = 0.018
-thresholdqvapor.UpperThreshold = 0.024949532002210617
-
-# create a new 'Resample To Image'
-resampleToImageqrain = ResampleToImage(registrationName='ResampleToImage qrain', Input=transform1)
-resampleToImageqrain.SamplingDimensions = [2240, 1505, 90]
-resampleToImageqrain.SamplingBounds = [0.0, 2240.0, 0.0, 1505.0, 0.0, 712.0]
-
-# create a new 'Slice'
-yslice = Slice(registrationName='Y-slice', Input=transform1)
-yslice.SliceType = 'Plane'
-yslice.HyperTreeGridSlicer = 'Plane'
-yslice.SliceOffsetValues = [0.0]
-
-# init the 'Plane' selected for 'SliceType'
-yslice.SliceType.Origin = [1120.0, 1505.0, 44.5]
-yslice.SliceType.Normal = [0.0, 1.0, 0.0]
-
-# init the 'Plane' selected for 'HyperTreeGridSlicer'
-yslice.HyperTreeGridSlicer.Origin = [1120.0, 752.5, 44.5]
+warpByScalar1staticgeometry = WarpByScalar(registrationName='WarpByScalar1 - static geometry', Input=slice4)
+warpByScalar1staticgeometry.Scalars = ['POINTS', 'HGT']
+warpByScalar1staticgeometry.ScaleFactor = 0.026
 
 # create a new 'Calculator'
-calculator1 = Calculator(registrationName='Calculator1', Input=transform1)
+calculator1 = Calculator(registrationName='Calculator1', Input=cyclonechapala20151102_000000mbvtm)
 calculator1.ResultArrayName = 'wrf_vec'
 calculator1.Function = 'U10*iHat + V10*jHat'
 
+# create a new 'Extract Subset'
+extractSubset1surfacelic = ExtractSubset(registrationName='ExtractSubset1 surface lic', Input=calculator1)
+extractSubset1surfacelic.VOI = [0, 2240, 0, 1505, 0, 0]
+
+# create a new 'Glyph'
+glyph1surfacewind = Glyph(registrationName='Glyph1 - surface wind', Input=extractSubset1surfacelic,
+    GlyphType='Arrow')
+glyph1surfacewind.OrientationArray = ['POINTS', 'wrf_vec']
+glyph1surfacewind.ScaleArray = ['POINTS', 'No scale array']
+glyph1surfacewind.ScaleFactor = 73.92
+glyph1surfacewind.GlyphTransform = 'Transform2'
+glyph1surfacewind.GlyphMode = 'Every Nth Point'
+glyph1surfacewind.MaximumNumberOfSamplePoints = 500
+glyph1surfacewind.Stride = 10000
+
 # create a new 'Slice'
-xslice = Slice(registrationName='X-slice', Input=transform1)
+xslice = Slice(registrationName='X-slice', Input=cyclonechapala20151102_000000mbvtm)
 xslice.SliceType = 'Plane'
 xslice.HyperTreeGridSlicer = 'Plane'
 xslice.SliceOffsetValues = [0.0]
@@ -162,47 +155,6 @@ xslice.SliceType.Origin = [2239.0, 1505.0, 222.5]
 
 # init the 'Plane' selected for 'HyperTreeGridSlicer'
 xslice.HyperTreeGridSlicer.Origin = [1120.0, 752.5, 44.5]
-
-# create a new 'Threshold'
-thresholdSurfaceRain = Threshold(registrationName='Threshold Surface Rain', Input=currentRainfallsilo)
-thresholdSurfaceRain.Scalars = ['POINTS', 'calculatedRain']
-thresholdSurfaceRain.LowerThreshold = 0.01
-thresholdSurfaceRain.UpperThreshold = 45.67487541503906
-thresholdSurfaceRain.UseContinuousCellRange = 1
-
-# create a new 'Transform'
-transform3 = Transform(registrationName='Transform3', Input=thresholdSurfaceRain)
-transform3.Transform = 'Transform'
-
-# init the 'Transform' selected for 'Transform'
-transform3.Transform.Translate = [0.0, 0.0, 1.0]
-
-# create a new 'Resample To Image'
-resampleToImageqice = ResampleToImage(registrationName='ResampleToImage qice', Input=transform1)
-resampleToImageqice.SamplingDimensions = [2240, 1505, 90]
-resampleToImageqice.SamplingBounds = [0.0, 2240.0, 0.0, 1505.0, 0.0, 712.0]
-
-# create a new 'Extract Subset'
-extractSubset1surfacelic = ExtractSubset(registrationName='ExtractSubset1 surface lic', Input=calculator1)
-extractSubset1surfacelic.VOI = [0, 2240, 0, 1505, 0, 0]
-
-# create a new 'Glyph'
-glyph1 = Glyph(registrationName='Glyph1', Input=extractSubset1surfacelic,
-    GlyphType='Arrow')
-glyph1.OrientationArray = ['POINTS', 'wrf_vec']
-glyph1.ScaleArray = ['POINTS', 'No scale array']
-glyph1.ScaleFactor = 73.92
-glyph1.GlyphTransform = 'Transform2'
-glyph1.GlyphMode = 'Every Nth Point'
-glyph1.MaximumNumberOfSamplePoints = 500
-glyph1.Stride = 10000
-
-# create a new 'Transform'
-transform2 = Transform(registrationName='Transform2', Input=glyph1)
-transform2.Transform = 'Transform'
-
-# init the 'Transform' selected for 'Transform'
-transform2.Transform.Translate = [0.0, 0.0, 25.0]
 
 # ----------------------------------------------------------------
 # setup the visualization in view 'renderView1'
@@ -228,6 +180,7 @@ ysliceDisplay.LookupTable = separate_ysliceDisplay_QVAPORLUT
 ysliceDisplay.SelectTCoordArray = 'None'
 ysliceDisplay.SelectNormalArray = 'None'
 ysliceDisplay.SelectTangentArray = 'None'
+ysliceDisplay.Scale = [1.0, 1.0, 8.0]
 ysliceDisplay.OSPRayScaleArray = 'QVAPOR'
 ysliceDisplay.OSPRayScaleFunction = 'PiecewiseFunction'
 ysliceDisplay.SelectOrientationVectors = 'None'
@@ -250,6 +203,9 @@ ysliceDisplay.ScaleTransferFunction.Points = [9.999998745735539e-11, 0.0, 0.5, 0
 
 # init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
 ysliceDisplay.OpacityTransferFunction.Points = [9.999998745735539e-11, 0.0, 0.5, 0.0, 0.020866455510258675, 1.0, 0.5, 0.0]
+
+# init the 'PolarAxesRepresentation' selected for 'PolarAxes'
+ysliceDisplay.PolarAxes.Scale = [1.0, 1.0, 8.0]
 
 # set separate color map
 ysliceDisplay.UseSeparateColorMap = True
@@ -276,6 +232,7 @@ xsliceDisplay.LookupTable = qVAPORLUT
 xsliceDisplay.SelectTCoordArray = 'None'
 xsliceDisplay.SelectNormalArray = 'None'
 xsliceDisplay.SelectTangentArray = 'None'
+xsliceDisplay.Scale = [1.0, 1.0, 8.0]
 xsliceDisplay.OSPRayScaleArray = 'HGT'
 xsliceDisplay.OSPRayScaleFunction = 'PiecewiseFunction'
 xsliceDisplay.SelectOrientationVectors = 'None'
@@ -299,50 +256,8 @@ xsliceDisplay.ScaleTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 1.175781336747
 # init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
 xsliceDisplay.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 1.1757813367477812e-38, 1.0, 0.5, 0.0]
 
-# show data from staticgeometry
-staticgeometryDisplay = Show(staticgeometry, renderView1, 'GeometryRepresentation')
-
-# get 2D transfer function for 'HGT'
-hGTTF2D = GetTransferFunction2D('HGT')
-hGTTF2D.ScalarRangeInitialized = 1
-hGTTF2D.Range = [-1.1920928955078125e-07, 2371.900390625, -1.1920928955078125e-07, 2371.900390625]
-
-# get color transfer function/color map for 'HGT'
-hGTLUT = GetColorTransferFunction('HGT')
-hGTLUT.TransferFunction2D = hGTTF2D
-hGTLUT.RGBPoints = [-1.1920928955078125e-07, 0.2823529411764706, 0.396078431372549, 0.611764705882353, 11.042365546597642, 0.5764705882352941, 0.5137254901960784, 0.47843137254901963, 2371.900390625, 0.12156862745098039, 0.12156862745098039, 0.12156862745098039]
-hGTLUT.ColorSpace = 'RGB'
-hGTLUT.ScalarRangeInitialized = 1.0
-
-# trace defaults for the display properties.
-staticgeometryDisplay.Representation = 'Surface'
-staticgeometryDisplay.ColorArrayName = ['POINTS', 'HGT']
-staticgeometryDisplay.LookupTable = hGTLUT
-staticgeometryDisplay.SelectTCoordArray = 'None'
-staticgeometryDisplay.SelectNormalArray = 'None'
-staticgeometryDisplay.SelectTangentArray = 'None'
-staticgeometryDisplay.OSPRayScaleArray = 'HGT'
-staticgeometryDisplay.OSPRayScaleFunction = 'PiecewiseFunction'
-staticgeometryDisplay.SelectOrientationVectors = 'None'
-staticgeometryDisplay.ScaleFactor = 224.0
-staticgeometryDisplay.SelectScaleArray = 'HGT'
-staticgeometryDisplay.GlyphType = 'Arrow'
-staticgeometryDisplay.GlyphTableIndexArray = 'HGT'
-staticgeometryDisplay.GaussianRadius = 11.200000000000001
-staticgeometryDisplay.SetScaleArray = ['POINTS', 'HGT']
-staticgeometryDisplay.ScaleTransferFunction = 'PiecewiseFunction'
-staticgeometryDisplay.OpacityArray = ['POINTS', 'HGT']
-staticgeometryDisplay.OpacityTransferFunction = 'PiecewiseFunction'
-staticgeometryDisplay.DataAxesGrid = 'GridAxesRepresentation'
-staticgeometryDisplay.PolarAxes = 'PolarAxesRepresentation'
-staticgeometryDisplay.SelectInputVectors = ['POINTS', '']
-staticgeometryDisplay.WriteLog = ''
-
-# init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
-staticgeometryDisplay.ScaleTransferFunction.Points = [-1.1920809583898517e-07, 0.0, 0.5, 0.0, 2371.876708984375, 1.0, 0.5, 0.0]
-
-# init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
-staticgeometryDisplay.OpacityTransferFunction.Points = [-1.1920809583898517e-07, 0.0, 0.5, 0.0, 2371.876708984375, 1.0, 0.5, 0.0]
+# init the 'PolarAxesRepresentation' selected for 'PolarAxes'
+xsliceDisplay.PolarAxes.Scale = [1.0, 1.0, 8.0]
 
 # show data from resampleToImageqrain
 resampleToImageqrainDisplay = Show(resampleToImageqrain, renderView1, 'UniformGridRepresentation')
@@ -373,6 +288,7 @@ resampleToImageqrainDisplay.LookupTable = qRAINLUT
 resampleToImageqrainDisplay.SelectTCoordArray = 'None'
 resampleToImageqrainDisplay.SelectNormalArray = 'None'
 resampleToImageqrainDisplay.SelectTangentArray = 'None'
+resampleToImageqrainDisplay.Scale = [1.0, 1.0, 8.0]
 resampleToImageqrainDisplay.OSPRayScaleArray = 'HGT'
 resampleToImageqrainDisplay.OSPRayScaleFunction = 'PiecewiseFunction'
 resampleToImageqrainDisplay.SelectOrientationVectors = 'None'
@@ -397,12 +313,19 @@ resampleToImageqrainDisplay.SliceFunction = 'Plane'
 resampleToImageqrainDisplay.Slice = 44
 resampleToImageqrainDisplay.SelectInputVectors = ['POINTS', '']
 resampleToImageqrainDisplay.WriteLog = ''
+resampleToImageqrainDisplay.VolumeRenderingMode = 'Smart'
+#resampleToImageqrainDisplay.VolumeRenderingMode = 'GPU Based'
+#resampleToImageqrainDisplay.VolumeRenderingMode = 'OSPRay Based'
+#resampleToImageqrainDisplay.VolumeRenderingMode = 'Ray Cast Only'
 
 # init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
 resampleToImageqrainDisplay.ScaleTransferFunction.Points = [-1.979196007084738e-08, 0.0, 0.5, 0.0, 2352.196533203125, 1.0, 0.5, 0.0]
 
 # init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
 resampleToImageqrainDisplay.OpacityTransferFunction.Points = [-1.979196007084738e-08, 0.0, 0.5, 0.0, 2352.196533203125, 1.0, 0.5, 0.0]
+
+# init the 'PolarAxesRepresentation' selected for 'PolarAxes'
+resampleToImageqrainDisplay.PolarAxes.Scale = [1.0, 1.0, 8.0]
 
 # init the 'Plane' selected for 'SliceFunction'
 resampleToImageqrainDisplay.SliceFunction.Origin = [1120.0, 752.4999999999998, 356.0]
@@ -433,6 +356,7 @@ resampleToImageqiceDisplay.LookupTable = qICELUT
 resampleToImageqiceDisplay.SelectTCoordArray = 'None'
 resampleToImageqiceDisplay.SelectNormalArray = 'None'
 resampleToImageqiceDisplay.SelectTangentArray = 'None'
+resampleToImageqiceDisplay.Scale = [1.0, 1.0, 8.0]
 resampleToImageqiceDisplay.OSPRayScaleArray = 'HGT'
 resampleToImageqiceDisplay.OSPRayScaleFunction = 'PiecewiseFunction'
 resampleToImageqiceDisplay.SelectOrientationVectors = 'None'
@@ -452,17 +376,24 @@ resampleToImageqiceDisplay.ScalarOpacityFunction = qICEPWF
 resampleToImageqiceDisplay.TransferFunction2D = qICETF2D
 resampleToImageqiceDisplay.OpacityArrayName = ['POINTS', 'HGT']
 resampleToImageqiceDisplay.ColorArray2Name = ['POINTS', 'HGT']
+resampleToImageqiceDisplay.Shade = 1
 resampleToImageqiceDisplay.SliceFunction = 'Plane'
 resampleToImageqiceDisplay.Slice = 44
 resampleToImageqiceDisplay.SelectInputVectors = ['POINTS', '']
 resampleToImageqiceDisplay.WriteLog = ''
-resampleToImageqiceDisplay.Shade = 1
+resampleToImageqiceDisplay.VolumeRenderingMode = 'Smart'
+#resampleToImageqiceDisplay.VolumeRenderingMode = 'GPU Based'
+#resampleToImageqiceDisplay.VolumeRenderingMode = 'OSPRay Based'
+#resampleToImageqiceDisplay.VolumeRenderingMode = 'Ray Cast Only'
 
 # init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
 resampleToImageqiceDisplay.ScaleTransferFunction.Points = [-1.979196007084738e-08, 0.0, 0.5, 0.0, 2352.196533203125, 1.0, 0.5, 0.0]
 
 # init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
 resampleToImageqiceDisplay.OpacityTransferFunction.Points = [-1.979196007084738e-08, 0.0, 0.5, 0.0, 2352.196533203125, 1.0, 0.5, 0.0]
+
+# init the 'PolarAxesRepresentation' selected for 'PolarAxes'
+resampleToImageqiceDisplay.PolarAxes.Scale = [1.0, 1.0, 8.0]
 
 # init the 'Plane' selected for 'SliceFunction'
 resampleToImageqiceDisplay.SliceFunction.Origin = [1120.0, 752.4999999999998, 356.0]
@@ -519,47 +450,15 @@ extractSubset1surfacelicDisplay.ScaleTransferFunction.Points = [-1.1920928955078
 # init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
 extractSubset1surfacelicDisplay.OpacityTransferFunction.Points = [-1.1920928955078125e-07, 0.0, 0.5, 0.0, 2371.900390625, 1.0, 0.5, 0.0]
 
-# show data from transform2
-transform2Display = Show(transform2, renderView1, 'GeometryRepresentation')
-
-# trace defaults for the display properties.
-transform2Display.Representation = 'Surface'
-transform2Display.ColorArrayName = ['POINTS', 'wrf_vec']
-transform2Display.LookupTable = wrf_vecLUT
-transform2Display.SelectTCoordArray = 'None'
-transform2Display.SelectNormalArray = 'None'
-transform2Display.SelectTangentArray = 'None'
-transform2Display.OSPRayScaleArray = 'HGT'
-transform2Display.OSPRayScaleFunction = 'PiecewiseFunction'
-transform2Display.SelectOrientationVectors = 'wrf_vec'
-transform2Display.ScaleFactor = 229.25966415405276
-transform2Display.SelectScaleArray = 'HGT'
-transform2Display.GlyphType = 'Arrow'
-transform2Display.GlyphTableIndexArray = 'HGT'
-transform2Display.GaussianRadius = 11.462983207702637
-transform2Display.SetScaleArray = ['POINTS', 'HGT']
-transform2Display.ScaleTransferFunction = 'PiecewiseFunction'
-transform2Display.OpacityArray = ['POINTS', 'HGT']
-transform2Display.OpacityTransferFunction = 'PiecewiseFunction'
-transform2Display.DataAxesGrid = 'GridAxesRepresentation'
-transform2Display.PolarAxes = 'PolarAxesRepresentation'
-transform2Display.SelectInputVectors = ['POINTS', 'wrf_vec']
-transform2Display.WriteLog = ''
-
-# init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
-transform2Display.ScaleTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 1937.02392578125, 1.0, 0.5, 0.0]
-
-# init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
-transform2Display.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 1937.02392578125, 1.0, 0.5, 0.0]
-
-# show data from transform3
-transform3Display = Show(transform3, renderView1, 'UnstructuredGridRepresentation')
+# show data from currentRainfallsilo
+currentRainfallsiloDisplay = Show(currentRainfallsilo, renderView1, 'UnstructuredGridRepresentation')
 
 # get 2D transfer function for 'calculatedRain'
 calculatedRainTF2D = GetTransferFunction2D('calculatedRain')
 
 # get color transfer function/color map for 'calculatedRain'
 calculatedRainLUT = GetColorTransferFunction('calculatedRain')
+calculatedRainLUT.EnableOpacityMapping = 1
 calculatedRainLUT.TransferFunction2D = calculatedRainTF2D
 calculatedRainLUT.RGBPoints = [0.0, 1.0, 1.0, 0.988235, 0.09134975083007812, 1.0, 1.0, 0.988235, 2.2837437707519532, 0.984314, 0.988235, 0.843137, 4.5674875415039065, 0.988235, 0.988235, 0.741176, 6.851231312255859, 0.980392, 0.968627, 0.654902, 9.134975083007813, 0.980392, 0.945098, 0.576471, 11.418718853759765, 0.968627, 0.905882, 0.486275, 13.702462624511718, 0.968627, 0.862745, 0.388235, 15.98620639526367, 0.960784, 0.803922, 0.286275, 18.269950166015626, 0.94902, 0.741176, 0.219608, 20.553693936767576, 0.941176, 0.678431, 0.14902, 22.83743770751953, 0.929412, 0.607843, 0.094118, 25.121181478271485, 0.921569, 0.545098, 0.054902, 27.404925249023435, 0.909804, 0.486275, 0.035294, 29.68866901977539, 0.890196, 0.411765, 0.019608, 31.97241279052734, 0.8, 0.305882, 0.0, 34.2561565612793, 0.760784, 0.239216, 0.0, 36.53990033203125, 0.678431, 0.180392, 0.011765, 38.8236441027832, 0.6, 0.121569, 0.023529, 41.10738787353515, 0.501961, 0.054902, 0.031373, 43.39113164428711, 0.4, 0.039216, 0.058824, 45.67487541503906, 0.301961, 0.047059, 0.090196]
 calculatedRainLUT.ColorSpace = 'Lab'
@@ -568,41 +467,127 @@ calculatedRainLUT.ScalarRangeInitialized = 1.0
 
 # get opacity transfer function/opacity map for 'calculatedRain'
 calculatedRainPWF = GetOpacityTransferFunction('calculatedRain')
-calculatedRainPWF.Points = [0.0, 0.0, 0.5, 0.0, 45.67487541503906, 1.0, 0.5, 0.0]
+calculatedRainPWF.Points = [0.0, 0.0, 0.5, 0.0, 0.5781629681587219, 1.0, 0.5, 0.0, 45.67487541503906, 1.0, 0.5, 0.0]
 calculatedRainPWF.ScalarRangeInitialized = 1
 
 # trace defaults for the display properties.
-transform3Display.Representation = 'Surface'
-transform3Display.ColorArrayName = ['POINTS', 'calculatedRain']
-transform3Display.LookupTable = calculatedRainLUT
-transform3Display.SelectTCoordArray = 'None'
-transform3Display.SelectNormalArray = 'None'
-transform3Display.SelectTangentArray = 'None'
-transform3Display.OSPRayScaleArray = 'calculatedRain'
-transform3Display.OSPRayScaleFunction = 'PiecewiseFunction'
-transform3Display.SelectOrientationVectors = 'None'
-transform3Display.ScaleFactor = 222.9
-transform3Display.SelectScaleArray = 'calculatedRain'
-transform3Display.GlyphType = 'Arrow'
-transform3Display.GlyphTableIndexArray = 'calculatedRain'
-transform3Display.GaussianRadius = 11.145
-transform3Display.SetScaleArray = ['POINTS', 'calculatedRain']
-transform3Display.ScaleTransferFunction = 'PiecewiseFunction'
-transform3Display.OpacityArray = ['POINTS', 'calculatedRain']
-transform3Display.OpacityTransferFunction = 'PiecewiseFunction'
-transform3Display.DataAxesGrid = 'GridAxesRepresentation'
-transform3Display.PolarAxes = 'PolarAxesRepresentation'
-transform3Display.ScalarOpacityFunction = calculatedRainPWF
-transform3Display.ScalarOpacityUnitDistance = 45.52666330596649
-transform3Display.OpacityArrayName = ['POINTS', 'calculatedRain']
-transform3Display.SelectInputVectors = ['POINTS', '']
-transform3Display.WriteLog = ''
+currentRainfallsiloDisplay.Representation = 'Surface'
+currentRainfallsiloDisplay.ColorArrayName = ['POINTS', 'calculatedRain']
+currentRainfallsiloDisplay.LookupTable = calculatedRainLUT
+currentRainfallsiloDisplay.SelectTCoordArray = 'None'
+currentRainfallsiloDisplay.SelectNormalArray = 'None'
+currentRainfallsiloDisplay.SelectTangentArray = 'None'
+currentRainfallsiloDisplay.OSPRayScaleArray = 'calculatedRain'
+currentRainfallsiloDisplay.OSPRayScaleFunction = 'PiecewiseFunction'
+currentRainfallsiloDisplay.SelectOrientationVectors = 'None'
+currentRainfallsiloDisplay.ScaleFactor = 224.0
+currentRainfallsiloDisplay.SelectScaleArray = 'None'
+currentRainfallsiloDisplay.GlyphType = 'Arrow'
+currentRainfallsiloDisplay.GlyphTableIndexArray = 'None'
+currentRainfallsiloDisplay.GaussianRadius = 11.200000000000001
+currentRainfallsiloDisplay.SetScaleArray = ['POINTS', 'calculatedRain']
+currentRainfallsiloDisplay.ScaleTransferFunction = 'PiecewiseFunction'
+currentRainfallsiloDisplay.OpacityArray = ['POINTS', 'calculatedRain']
+currentRainfallsiloDisplay.OpacityTransferFunction = 'PiecewiseFunction'
+currentRainfallsiloDisplay.DataAxesGrid = 'GridAxesRepresentation'
+currentRainfallsiloDisplay.PolarAxes = 'PolarAxesRepresentation'
+currentRainfallsiloDisplay.ScalarOpacityFunction = calculatedRainPWF
+currentRainfallsiloDisplay.ScalarOpacityUnitDistance = 14.28847288693698
+currentRainfallsiloDisplay.OpacityArrayName = ['POINTS', 'calculatedRain']
+currentRainfallsiloDisplay.SelectInputVectors = [None, '']
+currentRainfallsiloDisplay.WriteLog = ''
 
 # init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
-transform3Display.ScaleTransferFunction.Points = [0.10001136016845703, 0.0, 0.5, 0.0, 45.67487541503906, 1.0, 0.5, 0.0]
+currentRainfallsiloDisplay.ScaleTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 45.67487541503906, 1.0, 0.5, 0.0]
 
 # init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
-transform3Display.OpacityTransferFunction.Points = [0.10001136016845703, 0.0, 0.5, 0.0, 45.67487541503906, 1.0, 0.5, 0.0]
+currentRainfallsiloDisplay.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 45.67487541503906, 1.0, 0.5, 0.0]
+
+# show data from warpByScalar1staticgeometry
+warpByScalar1staticgeometryDisplay = Show(warpByScalar1staticgeometry, renderView1, 'GeometryRepresentation')
+
+# get 2D transfer function for 'HGT'
+hGTTF2D = GetTransferFunction2D('HGT')
+hGTTF2D.ScalarRangeInitialized = 1
+hGTTF2D.Range = [-1.1920928955078125e-07, 2371.900390625, -1.1920928955078125e-07, 2371.900390625]
+
+# get color transfer function/color map for 'HGT'
+hGTLUT = GetColorTransferFunction('HGT')
+hGTLUT.TransferFunction2D = hGTTF2D
+hGTLUT.RGBPoints = [-1.1920928955078125e-07, 0.2823529411764706, 0.396078431372549, 0.611764705882353, 11.042365546597642, 0.5764705882352941, 0.5137254901960784, 0.47843137254901963, 2371.900390625, 0.12156862745098039, 0.12156862745098039, 0.12156862745098039]
+hGTLUT.ColorSpace = 'RGB'
+hGTLUT.ScalarRangeInitialized = 1.0
+
+# trace defaults for the display properties.
+warpByScalar1staticgeometryDisplay.Representation = 'Surface'
+warpByScalar1staticgeometryDisplay.ColorArrayName = ['POINTS', 'HGT']
+warpByScalar1staticgeometryDisplay.LookupTable = hGTLUT
+warpByScalar1staticgeometryDisplay.SelectTCoordArray = 'None'
+warpByScalar1staticgeometryDisplay.SelectNormalArray = 'None'
+warpByScalar1staticgeometryDisplay.SelectTangentArray = 'None'
+warpByScalar1staticgeometryDisplay.Position = [0.0, 0.0, -1.0]
+warpByScalar1staticgeometryDisplay.OSPRayScaleArray = 'HGT'
+warpByScalar1staticgeometryDisplay.OSPRayScaleFunction = 'PiecewiseFunction'
+warpByScalar1staticgeometryDisplay.SelectOrientationVectors = 'None'
+warpByScalar1staticgeometryDisplay.ScaleFactor = 224.0
+warpByScalar1staticgeometryDisplay.SelectScaleArray = 'HGT'
+warpByScalar1staticgeometryDisplay.GlyphType = 'Arrow'
+warpByScalar1staticgeometryDisplay.GlyphTableIndexArray = 'HGT'
+warpByScalar1staticgeometryDisplay.GaussianRadius = 11.200000000000001
+warpByScalar1staticgeometryDisplay.SetScaleArray = ['POINTS', 'HGT']
+warpByScalar1staticgeometryDisplay.ScaleTransferFunction = 'PiecewiseFunction'
+warpByScalar1staticgeometryDisplay.OpacityArray = ['POINTS', 'HGT']
+warpByScalar1staticgeometryDisplay.OpacityTransferFunction = 'PiecewiseFunction'
+warpByScalar1staticgeometryDisplay.DataAxesGrid = 'GridAxesRepresentation'
+warpByScalar1staticgeometryDisplay.PolarAxes = 'PolarAxesRepresentation'
+warpByScalar1staticgeometryDisplay.SelectInputVectors = [None, '']
+warpByScalar1staticgeometryDisplay.WriteLog = ''
+
+# init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
+warpByScalar1staticgeometryDisplay.ScaleTransferFunction.Points = [-1.1920809583898517e-07, 0.0, 0.5, 0.0, 2371.876708984375, 1.0, 0.5, 0.0]
+
+# init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
+warpByScalar1staticgeometryDisplay.OpacityTransferFunction.Points = [-1.1920809583898517e-07, 0.0, 0.5, 0.0, 2371.876708984375, 1.0, 0.5, 0.0]
+
+# init the 'PolarAxesRepresentation' selected for 'PolarAxes'
+warpByScalar1staticgeometryDisplay.PolarAxes.Translation = [0.0, 0.0, -1.0]
+
+# show data from glyph1surfacewind
+glyph1surfacewindDisplay = Show(glyph1surfacewind, renderView1, 'GeometryRepresentation')
+
+# trace defaults for the display properties.
+glyph1surfacewindDisplay.Representation = 'Surface'
+glyph1surfacewindDisplay.ColorArrayName = ['POINTS', 'wrf_vec']
+glyph1surfacewindDisplay.LookupTable = wrf_vecLUT
+glyph1surfacewindDisplay.SelectTCoordArray = 'None'
+glyph1surfacewindDisplay.SelectNormalArray = 'None'
+glyph1surfacewindDisplay.SelectTangentArray = 'None'
+glyph1surfacewindDisplay.Position = [0.0, 0.0, 25.0]
+glyph1surfacewindDisplay.OSPRayScaleArray = 'HGT'
+glyph1surfacewindDisplay.OSPRayScaleFunction = 'PiecewiseFunction'
+glyph1surfacewindDisplay.SelectOrientationVectors = 'wrf_vec'
+glyph1surfacewindDisplay.ScaleFactor = 228.4596332550049
+glyph1surfacewindDisplay.SelectScaleArray = 'HGT'
+glyph1surfacewindDisplay.GlyphType = 'Arrow'
+glyph1surfacewindDisplay.GlyphTableIndexArray = 'HGT'
+glyph1surfacewindDisplay.GaussianRadius = 11.422981662750244
+glyph1surfacewindDisplay.SetScaleArray = ['POINTS', 'HGT']
+glyph1surfacewindDisplay.ScaleTransferFunction = 'PiecewiseFunction'
+glyph1surfacewindDisplay.OpacityArray = ['POINTS', 'HGT']
+glyph1surfacewindDisplay.OpacityTransferFunction = 'PiecewiseFunction'
+glyph1surfacewindDisplay.DataAxesGrid = 'GridAxesRepresentation'
+glyph1surfacewindDisplay.PolarAxes = 'PolarAxesRepresentation'
+glyph1surfacewindDisplay.SelectInputVectors = ['POINTS', 'wrf_vec']
+glyph1surfacewindDisplay.WriteLog = ''
+
+# init the 'PiecewiseFunction' selected for 'ScaleTransferFunction'
+glyph1surfacewindDisplay.ScaleTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 2039.9964599609375, 1.0, 0.5, 0.0]
+
+# init the 'PiecewiseFunction' selected for 'OpacityTransferFunction'
+glyph1surfacewindDisplay.OpacityTransferFunction.Points = [0.0, 0.0, 0.5, 0.0, 2039.9964599609375, 1.0, 0.5, 0.0]
+
+# init the 'PolarAxesRepresentation' selected for 'PolarAxes'
+glyph1surfacewindDisplay.PolarAxes.Translation = [0.0, 0.0, 25.0]
 
 # setup the color legend parameters for each legend in this view
 
@@ -614,8 +599,12 @@ qVAPORLUTColorBar.WindowLocation = 'Any Location'
 qVAPORLUTColorBar.Position = [0.44240531042561504, 0.1480086114101184]
 qVAPORLUTColorBar.Title = 'QVAPOR'
 qVAPORLUTColorBar.ComponentTitle = ''
+qVAPORLUTColorBar.TitleBold = 1
+qVAPORLUTColorBar.LabelBold = 1
+qVAPORLUTColorBar.LabelFontSize = 13
 qVAPORLUTColorBar.ScalarBarThickness = 25
 qVAPORLUTColorBar.ScalarBarLength = 0.25
+qVAPORLUTColorBar.RangeLabelFormat = '%-#6.1f'
 
 # set color bar visibility
 qVAPORLUTColorBar.Visibility = 1
@@ -625,11 +614,15 @@ qRAINLUTColorBar = GetScalarBar(qRAINLUT, renderView1)
 qRAINLUTColorBar.AutoOrient = 0
 qRAINLUTColorBar.Orientation = 'Horizontal'
 qRAINLUTColorBar.WindowLocation = 'Any Location'
-qRAINLUTColorBar.Position = [0.727887543928153, 0.0832292787944027]
+qRAINLUTColorBar.Position = [0.727887543928153, 0.0432292787944027]
 qRAINLUTColorBar.Title = 'QRAIN'
 qRAINLUTColorBar.ComponentTitle = ''
+qRAINLUTColorBar.TitleBold = 1
+qRAINLUTColorBar.LabelBold = 1
+qRAINLUTColorBar.LabelFontSize = 13
 qRAINLUTColorBar.ScalarBarThickness = 25
 qRAINLUTColorBar.ScalarBarLength = 0.24999999999999978
+qRAINLUTColorBar.RangeLabelFormat = '%-#6.1f'
 
 # set color bar visibility
 qRAINLUTColorBar.Visibility = 1
@@ -642,8 +635,12 @@ calculatedRainLUTColorBar.WindowLocation = 'Any Location'
 calculatedRainLUTColorBar.Position = [0.728231159703241, 0.1480086114101184]
 calculatedRainLUTColorBar.Title = 'calculatedRain'
 calculatedRainLUTColorBar.ComponentTitle = ''
+calculatedRainLUTColorBar.TitleBold = 1
+calculatedRainLUTColorBar.LabelBold = 1
+calculatedRainLUTColorBar.LabelFontSize = 13
 calculatedRainLUTColorBar.ScalarBarThickness = 25
 calculatedRainLUTColorBar.ScalarBarLength = 0.25
+calculatedRainLUTColorBar.RangeLabelFormat = '%-#6.1f'
 
 # set color bar visibility
 calculatedRainLUTColorBar.Visibility = 1
@@ -653,11 +650,17 @@ qICELUTColorBar = GetScalarBar(qICELUT, renderView1)
 qICELUTColorBar.AutoOrient = 0
 qICELUTColorBar.Orientation = 'Horizontal'
 qICELUTColorBar.WindowLocation = 'Any Location'
-qICELUTColorBar.Position = [0.44323311206559923, 0.08430570505920344]
+qICELUTColorBar.Position = [0.44323311206559923, 0.04430570505920344]
 qICELUTColorBar.Title = 'QICE'
 qICELUTColorBar.ComponentTitle = ''
+qICELUTColorBar.TitleBold = 1
+qICELUTColorBar.LabelBold = 1
+qICELUTColorBar.LabelFontSize = 13
 qICELUTColorBar.ScalarBarThickness = 25
 qICELUTColorBar.ScalarBarLength = 0.25
+qICELUTColorBar.AutomaticLabelFormat = 0
+qICELUTColorBar.LabelFormat = '%-#6.3f'
+qICELUTColorBar.RangeLabelFormat = '%-#6.1f'
 
 # set color bar visibility
 qICELUTColorBar.Visibility = 1
@@ -672,7 +675,7 @@ resampleToImageqrainDisplay.SetScalarBarVisibility(renderView1, True)
 resampleToImageqiceDisplay.SetScalarBarVisibility(renderView1, True)
 
 # show color legend
-transform3Display.SetScalarBarVisibility(renderView1, True)
+currentRainfallsiloDisplay.SetScalarBarVisibility(renderView1, True)
 
 # ----------------------------------------------------------------
 # setup color maps and opacity mapes used in the visualization
@@ -696,8 +699,13 @@ separate_ysliceDisplay_QVAPORPWF.ScalarRangeInitialized = 1
 
 # ----------------------------------------------------------------
 # restore active source
-SetActiveSource(transform3)
+SetActiveSource(currentRainfallsilo)
 # ----------------------------------------------------------------
+
+
+if __name__ == '__main__':
+    # generate extracts
+    SaveExtracts(ExtractsOutputDirectory='extracts')
 
 # create folder to store images
 saveDir = script_dir + "/output"
