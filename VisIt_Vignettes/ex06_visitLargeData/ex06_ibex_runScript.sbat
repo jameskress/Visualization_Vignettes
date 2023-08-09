@@ -6,8 +6,8 @@
 # Copyright KAUST
 #
 
-#SBATCH -N 4
-#SBATCH --ntasks-per-node=1
+#SBATCH -N 1
+#SBATCH --ntasks-per-node=4
 #SBATCH --partition=batch
 #SBATCH --mem=200G
 #SBATCH -J ex06.ibex
@@ -18,7 +18,7 @@
 # by default ibex gives 2GB per core, so we ask for more above
 
 # set script vars
-_nodes=4
+_nodes=1
 _ntasks=4
 _time=00:15:00
 
