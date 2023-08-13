@@ -10,7 +10,14 @@ OSVERSION=$(lsb_release -sir | awk -F '.' '{ print $1 }')
 echo "Loading modules for OS Version: $OSVERSION"
 case "$OSVERSION" in
 "CentOS"*) # Ibex
-    module load paraview/5.11.1-openmpi4.0.3-mesa
+    modVar=$1
+    if [ "$modVar" = "egl" ]; then
+        echo "Loading paraview egl variant"
+        module load paraview/5.11.1-openmpi4.0.3-egl
+    else
+        echo "Loading paraview mesa variant"
+        module load paraview/5.11.1-openmpi4.0.3-mesa
+    fi
   ;;
 "SUSE"*) # Shaheen
     module use  /sw/vis/xc40.modules

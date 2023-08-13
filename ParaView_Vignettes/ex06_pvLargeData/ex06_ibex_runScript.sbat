@@ -13,13 +13,17 @@
 #SBATCH -o ex06.ibex.%J.out
 #SBATCH -e ex06.ibex.%J.out
 #SBATCH --time=00:15:00
+#SBATCH --gres=gpu:1
 
 # by default ibex gives 2GB per core, so we ask for more above
 
+#OpenMP settings:
+export OMP_NUM_THREADS=32
+
 # set script vars
-_ntasks=4
+_ntasks=1
 
 # load the paraview environment
-source ../MODULES.sh
+source ../MODULES.sh "egl"
 
-mpirun -np $_ntasks --bind-to none `(which pvbatch)` --force-offscreen-rendering ./ex06_pvLargeData.py
+time mpirun -np $_ntasks --bind-to none `(which pvbatch)` --force-offscreen-rendering ./ex06_pvLargeData.py
