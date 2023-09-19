@@ -16,7 +16,7 @@
 # load the paraview environment
 source ../MODULES.sh "mesa"
 
-mpirun -np 1 `(which pvbatch)` --force-offscreen-rendering ./ex03_pvIsosurfaceAnimation.py "ibex"
+mpirun -np 1 `(which pvbatch)` --verbosity=OFF --force-offscreen-rendering ./ex03_pvIsosurfaceAnimation.py "ibex"
 
 module load ffmpeg
 saveDir=$(pwd)'/output'
