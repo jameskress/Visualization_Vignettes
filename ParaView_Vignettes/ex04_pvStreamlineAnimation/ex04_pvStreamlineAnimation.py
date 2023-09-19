@@ -355,10 +355,16 @@ for ts in range(0,125):
     # save screenshot
     SaveScreenshot(script_dir + '/output/ex04_%04d.png' % ts, renderView1, ImageResolution=[4054, 2536])
 
-# ffmpeg create video
-imageLoc = script_dir + '/output/ex04_%04d.png'
-movieLoc = script_dir + '/ex04_pvStreamlineAnimation.mp4'
-cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
-subprocess.call(cmd, shell=True)
+runningOnIbex = "no"
+if len(sys.argv) == 2:
+  runningOnIbex = sys.argv[1]
+
+if runningOnIbex != "ibex":
+    print("Generating movie using ffmpeg\n")
+    # ffmpeg create video
+    imageLoc = script_dir + '/output/ex04_%04d.png'
+    movieLoc = script_dir + '/ex04_pvStreamlineAnimation.mp4'
+    cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
+    subprocess.call(cmd, shell=True)
 
 print("\nFinished ParaView example script\n")

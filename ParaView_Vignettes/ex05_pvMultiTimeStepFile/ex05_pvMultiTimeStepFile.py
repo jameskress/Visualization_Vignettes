@@ -168,10 +168,16 @@ if __name__ == '__main__':
     SaveExtracts(ExtractsOutputDirectory='extracts')
 
 
-# ffmpeg create video
-imageLoc = script_dir + '/extracts/ex05_%06d.jpg'
-movieLoc = script_dir + '/ex05_pvMultiTimeSteps.mp4'
-cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
-subprocess.call(cmd, shell=True)
+runningOnIbex = "no"
+if len(sys.argv) == 2:
+  runningOnIbex = sys.argv[1]
+
+if runningOnIbex != "ibex":
+    print("Generating movie using ffmpeg\n")
+    # ffmpeg create video
+    imageLoc = script_dir + '/extracts/ex05_%06d.jpg'
+    movieLoc = script_dir + '/ex05_pvMultiTimeSteps.mp4'
+    cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
+    subprocess.call(cmd, shell=True)
 
 print("\nFinished ParaView example script\n")

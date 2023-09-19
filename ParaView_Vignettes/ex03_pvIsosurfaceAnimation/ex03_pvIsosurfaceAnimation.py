@@ -186,10 +186,17 @@ for i in range(35):
     # save screenshot
     SaveScreenshot(script_dir + '/output/ex03_contour_%04d.png' % i, renderView1, ImageResolution=[4054, 2536])
 
-# ffmpeg create video
-imageLoc = script_dir + '/output/ex03_contour_%04d.png'
-movieLoc = script_dir + '/ex03_pvIsosurfaceAnimationout.mp4'
-cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
-subprocess.call(cmd, shell=True)
+runningOnIbex = "no"
+if len(sys.argv) == 2:
+  runningOnIbex = sys.argv[1]
+
+if runningOnIbex != "ibex":
+    print("Generating movie using ffmpeg\n")
+    # ffmpeg create video
+    imageLoc = script_dir + '/output/ex03_contour_%04d.png'
+    movieLoc = script_dir + '/ex03_pvIsosurfaceAnimationout.mp4'
+    cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
+    subprocess.call(cmd, shell=True)
+
 
 print("\nFinished ParaView example script\n")

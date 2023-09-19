@@ -237,18 +237,25 @@ except FileExistsError:
 SaveAnimation(saveDir + '/ex02_pv_png_sequence.png', renderView1, ImageResolution=[4054, 2536],
     FrameWindow=[0, 99])
 
-# layout/tab size in pixels
-layout1.SetSize(2027, 1268)
+runningOnIbex = "no"
+if len(sys.argv) == 2:
+  runningOnIbex = sys.argv[1]
 
-# current camera placement for renderView1
-renderView1.CameraPosition = [0.512437, 2.88229, -2.79939]
-renderView1.CameraViewUp = [0.034049744214794064, -0.7291798571869401, -0.683474469743926]
-renderView1.CameraParallelScale = 0.8651599216465272
+if runningOnIbex != "ibex":
+    print("Generating movie using ffmpeg\n")
+    # layout/tab size in pixels
+    layout1.SetSize(2027, 1268)
 
-# ffmpeg create video
-imageLoc = saveDir + '/ex02_pv_png_sequence.%04d.png'
-movieLoc = script_dir + '/ex02_pvAnimationout.mp4'
-cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
-subprocess.call(cmd, shell=True)
+    # current camera placement for renderView1
+    renderView1.CameraPosition = [0.512437, 2.88229, -2.79939]
+    renderView1.CameraViewUp = [0.034049744214794064, -0.7291798571869401, -0.683474469743926]
+    renderView1.CameraParallelScale = 0.8651599216465272
+
+    # ffmpeg create video
+    imageLoc = saveDir + '/ex02_pv_png_sequence.%04d.png'
+    movieLoc = script_dir + '/ex02_pvAnimationout.mp4'
+    cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
+    subprocess.call(cmd, shell=True)
+
 
 print("\nFinished ParaView example script\n")

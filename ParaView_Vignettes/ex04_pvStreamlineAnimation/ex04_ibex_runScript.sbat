@@ -14,6 +14,12 @@
 #SBATCH --time=00:10:00
 
 # load the paraview environment
-source ../MODULES.sh
+source ../MODULES.sh "mesa"
 
-mpirun -np 1 `(which pvbatch)` --force-offscreen-rendering ./ex04_pvStreamlineAnimation.py
+mpirun -np 1 `(which pvbatch)` --force-offscreen-rendering ./ex04_pvStreamlineAnimation.py "ibex"
+
+module load ffmpeg
+saveDir=$(pwd)'/output'
+imageLoc=$saveDir'/ex04_%04d.png'
+movieLoc=$(pwd)'/ex04_streamlineAnimation.mp4'
+ffmpeg -f image2 -framerate 6 -i $imageLoc -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic $movieLoc

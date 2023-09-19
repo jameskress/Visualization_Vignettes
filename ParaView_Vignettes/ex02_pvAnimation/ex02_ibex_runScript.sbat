@@ -11,9 +11,16 @@
 #SBATCH -J ex02.ibex
 #SBATCH -o ex02.ibex.%J.out
 #SBATCH -e ex02.ibex.%J.out
-#SBATCH --time=00:05:00
+#SBATCH --time=00:10:00
 
 # load the paraview environment
-source ../MODULES.sh
+source ../MODULES.sh "mesa"
 
-mpirun -np 1 --mca opal_warn_on_missing_libcuda 0  `(which pvbatch)` --force-offscreen-rendering ./ex02_pvAnimation.py 
+mpirun -np 1 --mca opal_warn_on_missing_libcuda 0  `(which pvbatch)` --force-offscreen-rendering ./ex02_pvAnimation.py "ibex"
+
+module load ffmpeg
+saveDir=$(pwd)'/output'
+imageLoc=$saveDir'/ex02_pv_png_sequence.%04d.png'
+movieLoc=$(pwd)'/ex02_pvAnimationout.mp4'
+ffmpeg -f image2 -framerate 6 -i $imageLoc -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic $movieLoc
+
