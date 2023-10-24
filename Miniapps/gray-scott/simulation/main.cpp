@@ -2,11 +2,91 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <string>
 #include <mpi.h>
 
 #include "../../gray-scott/common/timer.hpp"
 #include "../../gray-scott/simulation/gray-scott.h"
 #include "../../gray-scott/simulation/writer.h"
+
+using namespace std;
+
+int unknownArg = 0;
+string fileName = "";
+string loggingLevel = "MAX";
+// print program usage message to user
+void printUsage(int argc, char **argv, int rank, int numTasks) {
+  if (rank == 0) {
+    fprintf(stderr,
+            "\n\tUSAGE: %s \n"
+            "\t\tRequired Arguments:\n"
+            "\t\t\t--settings-file=<path+file>\n"
+            "\t\tAdditional Arguments:\n"
+            "\t\t\t--logging-level=<string> (default INFO [OFF, ERROR, WARNING, INFO, TRACE, MAX, INVALID])\n"
+            "\t\t\t--help || --h || -h\n"
+            "\n\n",
+            argv[0]);
+    printf("\n\t--Ran with :: Number of tasks=%d--\n\n", numTasks);
+  }
+  MPI_Abort(MPI_COMM_WORLD, -1);
+} // END printUsage
+
+// method to check user input args and set up the program
+void checkArgs(int argc, char **argv, int rank, int numTasks) {
+  char repeatargs[2048];
+  sprintf(repeatargs, "\n\tRunning %s with:\n", argv[0]);
+
+  char unrecognizedArgs[2048];
+  sprintf(unrecognizedArgs, "\n\t!!WARNING!! Passed unrecognized argument:\n");
+
+  for (int i = 1; i < argc; i++) {
+    string longvarNm(argv[i]);
+    string optionName = longvarNm.substr(0, longvarNm.find("=", 1, 1) + 1);
+    string optionValue =
+        longvarNm.substr(longvarNm.find("=", 1, 1) + 1, longvarNm.length());
+
+    if (optionName == "") {
+      optionName = longvarNm;
+    }
+
+    if (optionName == "--help" || optionName == "-h" || optionName == "--h") {
+      printUsage(argc, argv, rank, numTasks);
+    } else if (optionName == "--settings-file=") {
+      fileName = optionValue;
+      // set args to repeat to user
+      char str[1024];
+      sprintf(str, "\t\t--settings-file=%s\n", optionValue.c_str());
+      strcat(repeatargs, str);
+    } else if (optionName == "--logging-level=") {
+      loggingLevel = optionValue;
+      char str[1024];
+      sprintf(str, "\t\t--logging-level=%s\n", optionValue.c_str());
+      strcat(repeatargs, str); 
+    } else {
+      unknownArg = 1;
+      char str[1024];
+      sprintf(str, "\t\t%s\n", longvarNm.c_str());
+      strcat(unrecognizedArgs, str);
+    }
+  }
+
+  // test for required args
+  if (fileName == "") {
+    if (rank == 0) {
+      if (unknownArg == 1)
+        printf("%s\n", unrecognizedArgs);
+      printf("\n\n\t-*-*-ERROR-*-*- \t%s\n", repeatargs);
+      printUsage(argc, argv, rank, numTasks);
+    }
+    MPI_Abort(MPI_COMM_WORLD, -1);;
+  } else {
+    if (rank == 0) {
+      if (unknownArg == 1)
+        printf("%s\n", unrecognizedArgs);
+      printf("%s\n", repeatargs);
+    }
+  }
+} // END checkAndSetProgramArgs
 
 void print_settings(const Settings &s, int restart_step)
 {
@@ -45,7 +125,8 @@ int main(int argc, char **argv)
 {
     int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-    int rank, procs, wrank;
+    int rank, procs, wrank, len;
+    char my_hostname[MPI_MAX_PROCESSOR_NAME];
 
     MPI_Comm_rank(MPI_COMM_WORLD, &wrank);
 
@@ -55,18 +136,25 @@ int main(int argc, char **argv)
 
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &procs);
+    MPI_Get_processor_name(my_hostname, &len);
+    
+    //----Test and then set args
+    checkArgs(argc, argv, rank, procs);
+    //--
+    
+    // vtk logger
+    vtkLogger::Init(argc, argv);
+    vtkLogger::SetStderrVerbosity(vtkLogger::ConvertToVerbosity(loggingLevel.c_str()));
+    vtkLogger::SetThreadName("Rank_" + to_string(rank));
 
-    if (argc < 2)
+    //----Print run setup info
+    if (rank == 0) 
     {
-        if (rank == 0)
-        {
-            std::cerr << "Too few arguments" << std::endl;
-            std::cerr << "Usage: gray-scott settings.json" << std::endl;
-        }
-        MPI_Abort(MPI_COMM_WORLD, -1);
+        printf("\t - Number of tasks=%d My rank=%d Running on %s\n", procs, rank, my_hostname);
     }
+    //--
 
-    Settings settings = Settings::from_json(argv[1]);
+    Settings settings = Settings::from_json(fileName);
 
     GrayScott sim(settings, comm);
     sim.init();
@@ -115,9 +203,9 @@ int main(int argc, char **argv)
         {
             if (rank == 0)
             {
-                std::cout << "Simulation at step " << it
+                vtkLog(INFO, "Simulation at step " << it
                           << " writing output step     "
-                          << it / settings.plotgap << std::endl;
+                          << it / settings.plotgap);
             }
 
             writer_main.write(it, sim, rank, procs);

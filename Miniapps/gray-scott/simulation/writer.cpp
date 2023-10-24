@@ -3,7 +3,7 @@
 Writer::Writer(const Settings &settings, const GrayScott &sim, int rank)
 : settings(settings)
 {
-    vtkLog(INFO, "" << rank);
+    vtkLog(TRACE, "");
     controller = static_cast<vtkMPIController*>(vtkMultiProcessController::GetGlobalController());
     if (!controller)
     {
@@ -11,19 +11,20 @@ Writer::Writer(const Settings &settings, const GrayScott &sim, int rank)
         controller = vtkMPIController::New();
         controller->Initialize();
         vtkMultiProcessController::SetGlobalController(controller);
-        vtkLog(INFO, "Finished creating vtkMPIController");
+        vtkLog(TRACE, "Finished creating vtkMPIController");
     }    
 }
 
 void Writer::open(const std::string &fname, bool append, int rank)
 {
-    vtkLog(INFO, "" << rank);
+    vtkLog(TRACE, "");
     writer = vtkSmartPointer<vtkXMLPImageDataWriter>::New();   
     writer->SetController(controller); 
 }
 
 void Writer::write(int step, const GrayScott &sim, int rank, int numRanks)
 {
+    vtkLogStartScope(INFO, "Starting Write: VTK");
     if (!sim.size_x || !sim.size_y || !sim.size_z)
     {
         return;
@@ -34,14 +35,14 @@ void Writer::write(int step, const GrayScott &sim, int rank, int numRanks)
     int localExtent[6] = {0 + dx, nx - 1 + dx, 0 + dy, ny - 1 + dy, 0 + dz, nz - 1 + dz};
     int wholeExtent[6] = {0, settings.L + 1, 0, settings.L + 1, 0, settings.L + 1};
 
-    vtkLog(INFO, "rank_" << rank << " :: offsets " << sim.offset_x << " " << sim.offset_y << " " << sim.offset_z);
-    vtkLog(INFO, "rank_" << rank << " :: local dims " << localExtent[0] << " "
+    vtkLog(TRACE, "rank_" << rank << " :: offsets " << sim.offset_x << " " << sim.offset_y << " " << sim.offset_z);
+    vtkLog(TRACE, "rank_" << rank << " :: local dims " << localExtent[0] << " "
                                                       << localExtent[1] << " "
                                                       << localExtent[2] << " "
                                                       << localExtent[3] << " "
                                                       << localExtent[4] << " "
                                                       << localExtent[5]);
-    vtkLog(INFO, "rank_" << rank << " :: global dims " << wholeExtent[0] << " " 
+    vtkLog(TRACE, "rank_" << rank << " :: global dims " << wholeExtent[0] << " " 
                                                        << wholeExtent[1] << " " 
                                                        << wholeExtent[2] << " " 
                                                        << wholeExtent[3] << " " 
@@ -78,12 +79,12 @@ void Writer::write(int step, const GrayScott &sim, int rank, int numRanks)
     var_u->SetName("u");
 
 
-    vtkLog(INFO, "" << rank);
+    vtkLog(TRACE, "");
     char str[1024];
     //sprintf(str, "grayScott_ts-%05d_rank-%05d.vti", step, rank);
     sprintf(str, "grayScott_step-%06d.pvti", step);
     writer->SetFileName(str);
-    vtkLog(INFO, "" << rank);
+    vtkLog(TRACE, "");
     writer->SetNumberOfPieces(numRanks);
     writer->SetStartPiece(rank);
     writer->SetEndPiece(rank);
@@ -95,14 +96,15 @@ void Writer::write(int step, const GrayScott &sim, int rank, int numRanks)
     //writer->UpdateExtent(wholeExtent);
     //writer->UpdateWholeExtent();
     //writer->PropagateUpdateExtent();
-    vtkLog(INFO, "" << rank);
+    vtkLog(TRACE, "");
     writer->Update();
-    vtkLog(INFO, "" << rank);
+    vtkLog(TRACE, "");
     writer->Write();
-    vtkLog(INFO, "" << rank);
+    vtkLog(TRACE, "");
+    vtkLogEndScope("Starting Write: VTK");
 }
 
 void Writer::close(int rank) 
 {
-    vtkLog(INFO, "" << rank);
+    vtkLog(TRACE, "");
 }
