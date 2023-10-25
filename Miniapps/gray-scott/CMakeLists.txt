@@ -13,7 +13,11 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR)
 endif()
 
 project(KAUST_Visualization_Vignettes_Miniapp LANGUAGES C CXX VERSION 0.1.0)
+option(ENABLE_TIMERS "Timers ON/OFF" OFF)
 
+if(ENABLE_TIMERS)
+  add_definitions(-DENABLE_TIMERS)
+endif()
 
 #------------------------------------------------------------------------------#
 # Common dependencies
@@ -48,11 +52,9 @@ set(CMAKE_CXX_STANDARD 11 CACHE STRING "C++ Standard level to use (11)")
 set_property(CACHE CMAKE_CXX_STANDARD PROPERTY STRINGS "11;17")
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
-
 find_package(VTK REQUIRED)
 include_directories(${VTK_INCLUDE_DIRS})
-  
-  
+    
 add_executable(kvvm-gray-scott
   simulation/main.cpp
   simulation/gray-scott.cpp
@@ -63,22 +65,6 @@ target_link_libraries(kvvm-gray-scott MPI::MPI_C ${VTK_LIBRARIES})
 install(TARGETS kvvm-gray-scott 
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-#add_executable(adios2-pdf-calc analysis/pdf-calc.cpp)
-#target_link_libraries(adios2-pdf-calc MPI::MPI_C)
-install(FILES "adios2.xml" "adios2-inline-plugin.xml" "adios2-fides-staging.xml"
-                           "visit-bp4.session" "visit-bp4.session.gui" 
-                           "visit-sst.session" "visit-sst.session.gui"                  
-                           "simulation/settings-files.json"
-                           "simulation/settings-staging.json"
-                           "simulation/settings-inline.json"
-                           "plot/decomp.py" "plot/gsplot.py" "plot/pdfplot.py"
-                           "README.md" 
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/adios2-examples/gray-scott) 
-
-install(DIRECTORY "catalyst"
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/adios2-examples/gray-scott) 
-
-
-install(PROGRAMS "cleanup.sh" 
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/adios2-examples/gray-scott) 
-
+install(FILES  "simulation/settings-files.json"
+               "README.md" 
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/gray-scott) 

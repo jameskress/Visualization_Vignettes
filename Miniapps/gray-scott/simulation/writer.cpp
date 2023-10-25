@@ -108,27 +108,28 @@ int ImageSource::FillOutputPortInformation(int port, vtkInformation *info)
 Writer::Writer(const Settings &settings, const GrayScott &sim, int rank)
     : settings(settings)
 {
-    vtkLog(INFO, "" << rank);
-    controller = static_cast<vtkMPIController *>(vtkMultiProcessController::GetGlobalController());
+    vtkLog(TRACE, "");
+    controller = static_cast<vtkMPIController*>(vtkMultiProcessController::GetGlobalController());
     if (!controller)
     {
         vtkLog(INFO, "" << rank);
         controller = vtkMPIController::New();
         controller->Initialize();
         vtkMultiProcessController::SetGlobalController(controller);
-        vtkLog(INFO, "Finished creating vtkMPIController");
-    }
+        vtkLog(TRACE, "Finished creating vtkMPIController");
+    }    
 }
 
 void Writer::open(const std::string &fname, bool append, int rank)
 {
-    vtkLog(INFO, "" << rank);
-    writer = vtkSmartPointer<vtkXMLPImageDataWriter>::New();
-    writer->SetController(controller);
+    vtkLog(TRACE, "");
+    writer = vtkSmartPointer<vtkXMLPImageDataWriter>::New();   
+    writer->SetController(controller); 
 }
 
 void Writer::write(int step, const GrayScott &sim, int rank, int numRanks)
 {
+    vtkLogStartScope(INFO, "Starting Write: VTK");
     if (!sim.size_x || !sim.size_y || !sim.size_z)
     {
         return;
@@ -178,7 +179,7 @@ void Writer::write(int step, const GrayScott &sim, int rank, int numRanks)
     source->var_v->SetName("v");
     source->var_u->SetName("u");
 
-    vtkLog(INFO, "" << rank);
+    vtkLog(TRACE, "");
     char str[1024];
     // sprintf(str, "grayScott_ts-%05d_rank-%05d.vti", step, rank);
     sprintf(str, "grayScott_step-%06d.pvti", step);
@@ -213,5 +214,5 @@ void Writer::write(int step, const GrayScott &sim, int rank, int numRanks)
 
 void Writer::close(int rank)
 {
-    vtkLog(INFO, "" << rank);
+    vtkLog(TRACE, "");
 }
