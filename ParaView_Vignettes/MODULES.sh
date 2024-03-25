@@ -6,30 +6,30 @@
 # Copyright KAUST
 #
 # Check OS so we know what machine we are on
-OSVERSION=$(lsb_release -sir | awk -F '.' '{ print $1 }')
+OSVERSION=$(cat /etc/os-release | awk -F 'NAME=' '{print $2; exit;}')
 echo "Loading modules for OS Version: $OSVERSION"
 case "$OSVERSION" in
-"CentOS"*) # Ibex
+"\"Rocky Linux\""*) # Ibex
+
+    # get latest paraview version number from ibex, and then load the pv we really want
+    module load paraview
+    currentVersion=$EBVERSIONPARAVIEW
+    module unload paraview
+
     modVar=$1
     if [ "$modVar" = "egl" ]; then
         echo "Loading paraview egl variant"
-        module load paraview/5.11.1-openmpi4.0.3-egl
+        module load paraview/$currentVersion-gnu-egl
     else
         echo "Loading paraview mesa variant"
-        module load paraview/5.11.1-openmpi4.0.3-mesa
+        module load paraview/$currentVersion-gnu-mesa
     fi
   ;;
-"SUSE"*) # Shaheen
-    module use  /sw/vis/xc40.modules
-    module load ParaView/5.11.1-gnu11.2.0-mesa
-    module load ffmpeg
+"\"SLES\""*) # Shaheen
+    module load paraview
   ;;
 *)
     echo ERROR: Unrecognised operating system $osversion
     exit 1 # terminate and indicate error
   ;;
 esac
-
-
-
-
