@@ -5,7 +5,7 @@
 # Author: James Kress, <james.kress@kaust.edu.sa>
 # Copyright KAUST
 #
-#SBATCH --account=
+#SBATCH --account=<##>
 #SBATCH --job-name=ex04.shaheen
 #SBATCH --output=ex04.shaheen.%j.out
 #SBATCH --error=ex04.shaheen.%j.out
