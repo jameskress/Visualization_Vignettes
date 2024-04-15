@@ -12,10 +12,10 @@
 #SBATCH --partition=workq
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=10:00
+#SBATCH --time=20:00
 
 # load the paraview environment
-source../MODULES.sh
+source ../MODULES.sh
 
 HINT_FLAG="--hint=nomultithread"
 

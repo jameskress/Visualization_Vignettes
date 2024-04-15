@@ -40,8 +40,7 @@ renderView1.CameraFocalPoint = [-0.015402677710824217, -2.6004421659710117, 0.89
 renderView1.CameraViewUp = [-0.0736869301049068, 0.9494013496431565, -0.3052987285061431]
 renderView1.CameraFocalDisk = 1.0
 renderView1.CameraParallelScale = 17.320508075688775
-renderView1.UseColorPaletteForBackground = 0
-renderView1.BackgroundColorMode = 'Gradient'
+renderView1.UseColorPaletteForBackground = 1
 renderView1.BackEnd = 'OSPRay raycaster'
 renderView1.OSPRayMaterialLibrary = materialLibrary1
 
