@@ -11,12 +11,18 @@
 #SBATCH --error=ex04.shaheen.%j.out
 #SBATCH --partition=workq
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
+#SBATCH --ntasks-per-node=4
 #SBATCH --time=10:00
+
+#OpenMP settings:
+export OMP_NUM_THREADS=4,4
+
+# set script vars
+_ntasks=4
 
 # load the paraview environment
 source ../MODULES.sh
 
 HINT_FLAG="--hint=nomultithread"
 
-srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex04_pvStreamlineAnimation.py
+time srun -n $_ntasks $HINT_FLAG  `(which pvbatch)` --verbosity=OFF  --force-offscreen-rendering ./ex04_pvStreamlineAnimation.py

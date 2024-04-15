@@ -20,10 +20,10 @@ if len(sys.argv)  < 4:
     print("Running script locally, not launching a batch job\n")
 elif sys.argv[4] == "shaheen":
     OpenComputeEngine("localhost",("-l", "srun",
-                                   "-p", "workq", 
-                                   "-nn", sys.argv[1],
-                                   "-np", sys.argv[2],
-                                   "-t", sys.argv[3]))
+                                   "-p", sys.argv[1], 
+                                   "-nn", sys.argv[2],
+                                   "-np", sys.argv[3],
+                                   "-t", sys.argv[4]))
 
 elif sys.argv[4] == "ibex":
     OpenComputeEngine("localhost",("-l", "srun",

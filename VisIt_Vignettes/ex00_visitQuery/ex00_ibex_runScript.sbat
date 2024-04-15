@@ -22,4 +22,4 @@ _time=00:02:00
 # load the visit environment
 source ../MODULES.sh
 
-`(which visit)` -nowin -cli -s ex00_visitQuery.py $_nodes $_ntasks $_time "ibex"
+time `(which visit)` -nowin -cli -s ex00_visitQuery.py $_nodes $_ntasks $_time "ibex"

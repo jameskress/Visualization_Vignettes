@@ -11,7 +11,7 @@ import paraview
 import subprocess
 from paraview.simple import *
 paraview.compatibility.major = 5
-paraview.compatibility.minor = 11
+paraview.compatibility.minor = 12
 
 print("Running ParaView example script: ", sys.argv[0], "\n")
 

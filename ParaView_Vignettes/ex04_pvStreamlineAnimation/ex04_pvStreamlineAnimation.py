@@ -11,13 +11,13 @@ import paraview
 import subprocess
 from paraview.simple import *
 paraview.compatibility.major = 5
-paraview.compatibility.minor = 10
+paraview.compatibility.minor = 12
 
-print("Running ParaView example script: ", sys.argv[0], "\n")
+print("Running ParaView example script: ", sys.argv[0], "\n", flush=True)
 
 # Get directory of this script
 script_dir = os.path.abspath( os.path.dirname( __file__ ) )
-print("Running script from: ",  script_dir )
+print("Running script from: ",  script_dir, flush=True)
 
 #### disable automatic camera reset on 'Show'
 paraview.simple._DisableFirstRenderCameraReset()
@@ -350,7 +350,7 @@ except FileExistsError:
 
 for ts in range(0,125):
     streamTracerWithCustomSource1.MaximumSteps = ts
-    print("Saving Image ", ts, " of 125")
+    print("Saving Image ", ts, " of 125", flush=True)
     # save screenshot
     SaveScreenshot(script_dir + '/output/ex04_%04d.png' % ts, renderView1, ImageResolution=[4054, 2536])
 
@@ -359,11 +359,11 @@ if len(sys.argv) == 2:
   runningOnIbex = sys.argv[1]
 
 if runningOnIbex != "ibex":
-    print("Generating movie using ffmpeg\n")
+    print("Generating movie using ffmpeg\n", flush=True)
     # ffmpeg create video
     imageLoc = script_dir + '/output/ex04_%04d.png'
     movieLoc = script_dir + '/ex04_pvStreamlineAnimation.mp4'
     cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
     subprocess.call(cmd, shell=True)
 
-print("\nFinished ParaView example script\n")
+print("\nFinished ParaView example script\n", flush=True)

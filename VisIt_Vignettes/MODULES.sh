@@ -5,17 +5,16 @@
 # Author: James Kress, <james.kress@kaust.edu.sa>
 # Copyright KAUST
 #
-OSVERSION=$(lsb_release -sir | awk -F '.' '{ print $1 }')
+OSVERSION=$(cat /etc/os-release | awk -F 'NAME=' '{print $2; exit;}')
 echo "Loading modules for OS Version: $OSVERSION"
 case "$OSVERSION" in
-"CentOS"*) # Ibex
+"\"CentOS\""*) # Ibex
     module load ffmpeg
     module load visit/3.3.2
   ;;
-"SUSE"*) # Shaheen    
-    module use  /sw/vis/xc40.modules
-    module load VisIt/3.3.2-el7gnu9.3.0
+"\"SLES\""*) # Shaheen    
     module load ffmpeg
+    module load visit/3.3.3
   ;;
 *)
     echo ERROR: Unrecognised operating system $osversion

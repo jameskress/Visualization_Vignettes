@@ -15,8 +15,8 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=00:02:00
 
-
 # set script vars
+_partition="ppn"
 _nodes=1
 _ntasks=1
 _time=00:02:00
@@ -24,5 +24,4 @@ _time=00:02:00
 # load the visit environment
 source ../MODULES.sh
 
-`(which visit)` -nowin -cli -s ex00_visitQuery.py $_nodes $_ntasks $_time "shaheen"
-
+time `(which visit)` -nowin -cli -s ex00_visitQuery.py $_partition $_nodes $_ntasks $_time "shaheen"

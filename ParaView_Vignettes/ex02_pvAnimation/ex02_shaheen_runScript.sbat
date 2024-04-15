@@ -19,4 +19,4 @@ source ../MODULES.sh
 
 HINT_FLAG="--hint=nomultithread"
 
-srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex02_pvAnimation.py
+time srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex02_pvAnimation.py

@@ -27,6 +27,7 @@ case "$OSVERSION" in
   ;;
 "\"SLES\""*) # Shaheen
     module load paraview
+    module load ffmpeg
   ;;
 *)
     echo ERROR: Unrecognised operating system $osversion

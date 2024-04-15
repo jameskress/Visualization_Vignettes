@@ -15,8 +15,8 @@
 #SBATCH --ntasks-per-node=2
 #SBATCH --time=00:05:00
 
-
 # set script vars
+_partition="ppn"
 _nodes=1
 _ntasks=2
 _time=00:05:00
@@ -24,5 +24,5 @@ _time=00:05:00
 # load the visit environment
 source ../MODULES.sh
 
-`(which visit)` -nowin -cli -s ex05_visitMultiTimeStepFile.py $_nodes $_ntasks $_time "shaheen"
+time `(which visit)` -nowin -cli -s ex05_visitMultiTimeStepFile.py $_partition $_nodes $_ntasks $_time "shaheen"
 

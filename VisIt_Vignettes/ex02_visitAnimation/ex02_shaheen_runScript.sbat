@@ -16,6 +16,7 @@
 #SBATCH --time=00:12:00
 
 # set script vars
+_partition="ppn"
 _nodes=1
 _ntasks=2
 _time=00:12:00
@@ -23,4 +24,4 @@ _time=00:12:00
 # load the visit environment
 source ../MODULES.sh
 
-`(which visit)` -nowin -cli -s ex02_visitAnimation.py $_nodes $_ntasks $_time "shaheen"
+time `(which visit)` -nowin -cli -s ex02_visitAnimation.py $_partition $_nodes $_ntasks $_time "shaheen"

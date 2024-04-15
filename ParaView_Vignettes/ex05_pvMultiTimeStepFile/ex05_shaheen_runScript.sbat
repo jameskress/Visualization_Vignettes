@@ -19,4 +19,4 @@ source ../MODULES.sh
 
 HINT_FLAG="--hint=nomultithread"
 
-srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex05_pvMultiTimeStepFile.py
+time srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex05_pvMultiTimeStepFile.py
