@@ -114,7 +114,7 @@ nTimeSteps = TimeSliderGetNStates()
 
 for timeStep in range(0, nTimeSteps):
     # Save an image each step
-    print("\nSaving image for timestep: ", timeStep)
+    print("\nSaving image for timestep: ", timeStep, flush=True)
     TimeSliderSetState(timeStep)
     saveAtts.fileName = outputName % timeStep
     SetSaveWindowAttributes(saveAtts)

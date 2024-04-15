@@ -10,7 +10,7 @@
 #SBATCH --job-name=ex05.shaheen
 #SBATCH --output=ex05.shaheen.%j.out
 #SBATCH --error=ex05.shaheen.%j.out
-#SBATCH --partition=workq
+#SBATCH --partition=ppn
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=2
 #SBATCH --time=00:05:00

@@ -10,15 +10,15 @@
 #SBATCH --job-name=ex06.shaheen
 #SBATCH --output=ex06.shaheen.%j.out
 #SBATCH --error=ex06.shaheen.%j.out
-#SBATCH --partition=workq
+#SBATCH --partition=ppn
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=2
+#SBATCH --ntasks-per-node=8
 #SBATCH --time=00:05:00
 
 
 # set script vars
 _nodes=1
-_ntasks=2
+_ntasks=8
 _time=00:05:00
 
 # load the visit environment

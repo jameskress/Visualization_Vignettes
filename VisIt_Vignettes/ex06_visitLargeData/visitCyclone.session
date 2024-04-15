@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <Object name="VisIt">
-    <Field name="Version" type="string">3.3.2</Field>
+    <Field name="Version" type="string">3.3.3</Field>
     <Object name="VIEWER">
         <Object name="DEFAULT_VALUES">
             <Object name="GlobalAttributes">

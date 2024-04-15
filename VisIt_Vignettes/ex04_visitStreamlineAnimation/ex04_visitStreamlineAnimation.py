@@ -139,7 +139,7 @@ for ts in range(0,125):
     # set the integral curve attributes to change the where we crop the streamlines
     iatts.cropEnd = (ts + 1) * .5
     
-    print("Saving Image ", ts, " of 125")
+    print("\nSaving Image ", ts, " of 125", flush=True)
     
     # update streamline attributes and draw the plot
     SetOperatorOptions(iatts)
