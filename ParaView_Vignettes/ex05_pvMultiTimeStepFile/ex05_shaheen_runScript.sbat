@@ -11,12 +11,19 @@
 #SBATCH --error=ex05.shaheen.%j.out
 #SBATCH --partition=workq
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
+#SBATCH --ntasks-per-node=192
 #SBATCH --time=10:00
+
+# set script vars
+_ntasks=4
+_nthreads=48
+
+#OpenMP settings:
+export OMP_NUM_THREADS=$_nthreads
 
 # load the paraview environment
 source ../MODULES.sh
 
 HINT_FLAG="--hint=nomultithread"
 
-time srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex05_pvMultiTimeStepFile.py
+time srun -n $_ntasks $HINT_FLAG -c $_nthreads --cpu-bind=verbose,cores `(which pvbatch)` --force-offscreen-rendering ./ex05_pvMultiTimeStepFile.py
