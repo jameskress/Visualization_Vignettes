@@ -31,8 +31,7 @@ This subfolder is organized as follows:
 ## Overview of VisIt at KAUST
 There are essentially two ways to use VisIt at KAUST:
 1. Interactivelly
-    1. KAUST IT Remote workstations: [Remote Workstations](https://myws.kaust.edu.sa/)
-    2. Locally on your laptop or desktop. Kaust IT installs VisIt as a module on KAUST Ubuntu systems. Otherwise you can download a binary from the VisIt website: [VisIt](https://visit-dav.github.io/visit-website/releases-as-tables/#latest).
+    1. Locally on your laptop or desktop. You can download a binary from the VisIt website: [VisIt](https://visit-dav.github.io/visit-website/releases-as-tables/#latest).
     3. Client/Server mode: a GUI client runs on your local machine and the data is processed on KAUST HPC resources. 
 2. Batch mode: a python script is executed either locally or on KAUST HPC resources.
 
@@ -64,15 +63,12 @@ Once you have VisIt installed and set up on your local computer:
 -  Once specified, the server side of VisIt will be launched, and you can interact with your data (after the job launches and reaches to top of the Ibex queue).
 
 
-### Using VisIt Interactively on Shaheen II
-Shaheen II does not currently allow for ``client/server`` connections with VisIt. Therefore, you should just use ``batch`` mode with a python script on Shaheen. 
+### Using VisIt Interactively on Shaheen III
+Shaheen III does not currently allow for ``client/server`` connections with VisIt. Therefore, you should just use ``batch`` mode with a python script on Shaheen. 
 
 To access VisIt on Shaheen do the following:
-* ``module use /sw/vis/xc40.modules``
-* ``module load VisIt``
-
-
-We expect to be able to use ``client/server`` mode on the upcoming Shaheen III system. 
+* ``module avail visit``
+* ``module load visit``
 
 
 ### Creating a Python Trace for Batch Processing
@@ -93,19 +89,18 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
 1. Run scripts locally or log on to either Ibex (<username>@ilogin.ibex.kaust.edu.sa) or Shaheen (<username>@shaheen.hpc.kaust.edu.sa)
 2. Clone this repo
     1. Locally wherever you like
-        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
+        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
     2. Ibex scratch:
         * ``cd /ibex/scratch/<username>``
-        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
+        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
     3. Shaheen scratch
         * ``cd /scratch/<username>``
-        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
+        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
 3. If using a cluster load the VisIt module file
     1. Ibex
         * ``module load visit``
     2. Shaheen
-        * ``module use /sw/vis/xc40.modules``
-        * ``module load VisIt``
+        * ``module load visit``
 4. Run the example locally or on one of the clusters
     1. Locally: 
         1. We can run the *.py script directly on the command line, not using a batch script
@@ -129,7 +124,7 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
     3. Shaheen: ``cat ex*.shaheen_<job_number>.out``
 6. View images from tests that write images:
     1. Locally: use your preferred image viewer 
-    2. Ibex: ``display*.png``
+    2. Ibex: ``eog .``
         a. To view videos copy them to your local machine
     3. Shaheen ``eog .``
         a. To view videos copy them to your local machine
