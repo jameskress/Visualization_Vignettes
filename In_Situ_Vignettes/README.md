@@ -35,6 +35,7 @@ KVL has developed Inshimtu
 
 
 ### ParaView Catalyst
+KVL has done a workshop on basic Catalyst use, see our [YouTube Channel](https://www.youtube.com/live/oMudj6EUy3g?si=1nmV3BBCaYi8uwTM)
 
 ## Other options for Bespoke In Situ
 If you are looking for a true in situ integration there are multiple options available
