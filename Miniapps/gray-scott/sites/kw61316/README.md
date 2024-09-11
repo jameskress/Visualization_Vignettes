@@ -1,5 +1,4 @@
-# paraview superbuild #
-------------------------
+# paraview superbuild
 Build the paraview superbuild to get catalyst and libcatalyst_paraview
 
 Configurations options:
@@ -17,7 +16,7 @@ Debugging Catalyst
 export CATALYST_DEBUG=1
 
 
-## Settings file ##
+## Settings file
 ''output_file_name'': The format of this string is extrememly important, as catalyst requires specific things to work correctly. Specifically, the time step information must explicilty list ''ts''
 - ex: ''grayScott-%04ts.vtpd''
 
