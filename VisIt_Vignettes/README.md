@@ -1,9 +1,9 @@
 # VisIt Vignettes
 
+[VisIt_Vignettes Repository](https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes/-/tree/master/VisIt_Vignettes?ref_type=heads)
+
 ## What is VisIt
-VisIt is an interactive, parallel analysis and visualization tool for scientific data. VisIt contains a rich set of visualization features so you can
-view your data in a variety of ways. It can be used to visualize scalar and vector fields defined on two- and three-dimensional (2D and 3D) structured and
-unstructured meshes. 
+VisIt is an interactive, parallel analysis and visualization tool for scientific data. VisIt contains a rich set of visualization features so you can view your data in a variety of ways. It can be used to visualize scalar and vector fields defined on two- and three-dimensional (2D and 3D) structured and unstructured meshes. 
 
 VisIt was developed to analyze extremely large datasets using distributed memory computing resources. KVL provides VisIt installs on Ibex and Shaheen to facilitate large scale distributed visualizations. The VisIt server running on Ibex and Shaheen may be used in a headless batch processing mode, however to use the GUI only Ibex is supported.
 
@@ -32,12 +32,12 @@ This subfolder is organized as follows:
 There are essentially two ways to use VisIt at KAUST:
 1. Interactivelly
     1. Locally on your laptop or desktop. You can download a binary from the VisIt website: [VisIt](https://visit-dav.github.io/visit-website/releases-as-tables/#latest).
-    3. Client/Server mode: a GUI client runs on your local machine and the data is processed on KAUST HPC resources. 
+    2. Client/Server mode: a GUI client runs on your local machine and the data is processed on KAUST HPC resources. 
 2. Batch mode: a python script is executed either locally or on KAUST HPC resources.
 
 
 ### Using VisIt Interactively on Ibex
-It is possible to run a local VisIt client to display and interact with your data while the VisIt server runs in an Ibex batch job, allowing interactive analysis of very large data sets. You will obtain the best performance by running the VisIt client on your local computer and running the server on Ibex with the same version of VisIt. It is highly recommended to check the available VisIt versions using ``module avail visit`` on the system you plan to connect to with VisIt.
+It is possible to run a local VisIt client to display and interact with your data while the VisIt server runs in an Ibex batch job (``client/server mode``), allowing interactive analysis of very large data sets. You will obtain the best performance by running the VisIt client on your local computer and running the server on Ibex with the same version of VisIt. It is highly recommended to check the available VisIt versions using ``module avail visit`` on the system you plan to connect to with VisIt.
 
 **WARNING**: Using a different version of VisIt than what is available on IBEX WILL fail. 
 
@@ -45,7 +45,7 @@ If this is your first time using VisIt on KAUST resources you will need to have 
 1. Click "Options"
 2. Click "Host profiles and configuration setup"
 3. Select KAUST and click "Install"
-2. Save the settings (Options/Save Settings).
+4. Save the settings (Options/Save Settings).
 Exit and re-launch VisIt.
 
 After successfully completing the above steps, you should now be able to connect to Ibex.
@@ -64,11 +64,24 @@ Once you have VisIt installed and set up on your local computer:
 
 
 ### Using VisIt Interactively on Shaheen III
-Shaheen III does not currently allow for ``client/server`` connections with VisIt. Therefore, you should just use ``batch`` mode with a python script on Shaheen. 
+It is possible to run a local VisIt client to display and interact with your data while the VisIt server runs in an Shaheen batch job (``client/server mode``), allowing interactive analysis of very large data sets. You will obtain the best performance by running the VisIt client on your local computer and running the server on Shaheen with the same version of VisIt. It is highly recommended to check the available VisIt versions using ``module avail visit`` on the system you plan to connect to with VisIt.
 
-To access VisIt on Shaheen do the following:
-* ``module avail visit``
-* ``module load visit``
+**WARNING**: Using a different version of VisIt than what is available on Shaheen WILL fail. 
+
+If this is your first time using VisIt on KAUST resources you will need to have VisIt load the KAUST host profile to be able to connect to KAUST systems. VisIt is distributed with the KAUST profiles, so they can be directly loaded from the VisIt GUI as follows:
+1. Click "Options"
+2. Click "Host profiles and configuration setup"
+3. Select KAUST and click "Install"
+4. Save the settings (Options/Save Settings).
+Exit and re-launch VisIt.
+
+After successfully completing the above steps, you should now be able to connect to Shaheen.
+
+**Note:** The above process will not give you the ``Shaheen 3`` host profile in VisIt versions ``3.4.1`` or older. For thos instances you will need to manually create the host profile using the information for the VisIt repository, located here: [KAUST Shaheen 3 VisIt Host Profile](https://github.com/visit-dav/visit/blob/develop/src/resources/hosts/kaust/host_kaust_shaheen.xml).
+
+
+### Using VisIt in Batch Processing Mode ###
+See the examples in this repo for how to create a job script to run a VisIt batch jobs. 
 
 
 ### Creating a Python Trace for Batch Processing
@@ -89,18 +102,19 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
 1. Run scripts locally or log on to either Ibex (<username>@ilogin.ibex.kaust.edu.sa) or Shaheen (<username>@shaheen.hpc.kaust.edu.sa)
 2. Clone this repo
     1. Locally wherever you like
-        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
+        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
     2. Ibex scratch:
         * ``cd /ibex/scratch/<username>``
-        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
+        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
     3. Shaheen scratch
         * ``cd /scratch/<username>``
-        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
+        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
 3. If using a cluster load the VisIt module file
     1. Ibex
         * ``module load visit``
     2. Shaheen
-        * ``module load visit``
+        * ``module use /sw/vis/xc40.modules``
+        * ``module load VisIt``
 4. Run the example locally or on one of the clusters
     1. Locally: 
         1. We can run the *.py script directly on the command line, not using a batch script
@@ -124,7 +138,7 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
     3. Shaheen: ``cat ex*.shaheen_<job_number>.out``
 6. View images from tests that write images:
     1. Locally: use your preferred image viewer 
-    2. Ibex: ``eog .``
+    2. Ibex: ``display*.png``
         a. To view videos copy them to your local machine
     3. Shaheen ``eog .``
         a. To view videos copy them to your local machine
