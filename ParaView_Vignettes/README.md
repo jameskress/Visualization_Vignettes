@@ -114,13 +114,13 @@ These examples will only use ``pvbatch``, if you want to interactively use ParaV
 1. Run scripts locally or log on to either Ibex (<username>@glogin.ibex.kaust.edu.sa) or Shaheen (<username>@shaheen.hpc.kaust.edu.sa)
 2. Clone this repo in your scratch directory
     1. Locally wherever you like
-        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
+        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
     2. Ibex:
         * ``cd /ibex/scratch/<username>``
-        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
+        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
     3. Shaheen
         * ``cd /scratch/<username>``
-        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
+        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
 3. If using a cluster load the ParaView module file
     1. Ibex:
         * ``module load paraview``
