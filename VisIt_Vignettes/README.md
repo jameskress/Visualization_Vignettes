@@ -102,13 +102,13 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
 1. Run scripts locally or log on to either Ibex (<username>@ilogin.ibex.kaust.edu.sa) or Shaheen (<username>@shaheen.hpc.kaust.edu.sa)
 2. Clone this repo
     1. Locally wherever you like
-        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
+        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
     2. Ibex scratch:
         * ``cd /ibex/scratch/<username>``
-        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
+        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
     3. Shaheen scratch
         * ``cd /scratch/<username>``
-        * ``git clone https://gitlab.kaust.edu.sa/kvl/KAUST_Visualization_Vignettes.git``
+        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
 3. If using a cluster load the VisIt module file
     1. Ibex
         * ``module load visit``
