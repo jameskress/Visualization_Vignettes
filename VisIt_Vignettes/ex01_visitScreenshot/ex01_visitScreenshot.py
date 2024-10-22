@@ -40,6 +40,11 @@ PseudocolorAtts.colorTableName = "hot_desaturated"
 SetPlotOptions(PseudocolorAtts)
 DrawPlots()
 
+# Change the annotations on the window
+AnnotationAtts = AnnotationAttributes()
+AnnotationAtts.userInfoFlag = 0
+SetAnnotationAttributes(AnnotationAtts)
+
 SaveWindowAtts = SaveWindowAttributes()
 try:
     saveDir = script_dir + "/output"
@@ -49,7 +54,7 @@ except FileExistsError:
 SaveWindowAtts.outputToCurrentDirectory = 0
 SaveWindowAtts.outputDirectory = saveDir
 SaveWindowAtts.fileName = "ex01_visit"
-SaveWindowAtts.family = 1
+SaveWindowAtts.family = 0
 SaveWindowAtts.format = SaveWindowAtts.PNG  # BMP, CURVE, JPEG, OBJ, PNG, POSTSCRIPT, POVRAY, PPM, RGB, STL, TIFF, ULTRA, VTK, PLY, EXR
 SaveWindowAtts.width = 2048
 SaveWindowAtts.height = 2048

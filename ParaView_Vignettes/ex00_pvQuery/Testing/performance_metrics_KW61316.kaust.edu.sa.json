@@ -1,0 +1,359 @@
+{
+    "2024-10-15T13:25:36.510284": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 1.0858502388000488,
+        "memory_usage": 124911616,
+        "memory_usage_mb": 119.125,
+        "cpu_usage_percent": 2.4,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T14:23:08.079448": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.807839870452881,
+        "memory_usage": 124239872,
+        "memory_usage_mb": 118.484375,
+        "cpu_usage_percent": 1.4,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T14:27:21.705044": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.7821950912475586,
+        "memory_usage": 124497920,
+        "memory_usage_mb": 118.73046875,
+        "cpu_usage_percent": 1.3,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T14:28:45.668304": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.7893471717834473,
+        "memory_usage": 124874752,
+        "memory_usage_mb": 119.08984375,
+        "cpu_usage_percent": 1.5,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T14:35:05.740645": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.7771902084350586,
+        "memory_usage": 124362752,
+        "memory_usage_mb": 118.6015625,
+        "cpu_usage_percent": 1.4,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T14:45:58.481518": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.7893102169036865,
+        "memory_usage": 124334080,
+        "memory_usage_mb": 118.57421875,
+        "cpu_usage_percent": 1.2,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T14:50:18.049423": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.3321259021759033,
+        "memory_usage": 124293120,
+        "memory_usage_mb": 118.53515625,
+        "cpu_usage_percent": 2.8,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T14:52:59.114346": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.1584599018096924,
+        "memory_usage": 124592128,
+        "memory_usage_mb": 118.8203125,
+        "cpu_usage_percent": 2.3,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T15:09:21.011199": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.21360182762146,
+        "memory_usage": 124502016,
+        "memory_usage_mb": 118.734375,
+        "cpu_usage_percent": 2.3,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T16:05:10.322900": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.1240274906158447,
+        "memory_usage": 124739584,
+        "memory_usage_mb": 118.9609375,
+        "cpu_usage_percent": 2.6,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T16:06:08.007714": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.276665449142456,
+        "memory_usage": 124837888,
+        "memory_usage_mb": 119.0546875,
+        "cpu_usage_percent": 2.6,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T16:25:09.420734": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.1684865951538086,
+        "memory_usage": 124203008,
+        "memory_usage_mb": 118.44921875,
+        "cpu_usage_percent": 2.0,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-16T09:21:17.918026": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 3.036510705947876,
+        "memory_usage": 124235776,
+        "memory_usage_mb": 118.48046875,
+        "cpu_usage_percent": 2.0,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-16T10:04:48.017049": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.1642653942108154,
+        "memory_usage": 124805120,
+        "memory_usage_mb": 119.0234375,
+        "cpu_usage_percent": 2.3,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-16T10:58:58.579380": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 1.9936447143554688,
+        "memory_usage": 124276736,
+        "memory_usage_mb": 118.51953125,
+        "cpu_usage_percent": 2.3,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-16T11:01:50.722624": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 1.976154088973999,
+        "memory_usage": 124493824,
+        "memory_usage_mb": 118.7265625,
+        "cpu_usage_percent": 2.3,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-16T11:02:28.860244": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 1.9578609466552734,
+        "memory_usage": 124538880,
+        "memory_usage_mb": 118.76953125,
+        "cpu_usage_percent": 2.6,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-16T11:02:43.245360": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 1.9990615844726562,
+        "memory_usage": 124026880,
+        "memory_usage_mb": 118.28125,
+        "cpu_usage_percent": 2.7,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-16T11:33:07.824403": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 2.310929298400879,
+        "memory_usage": 124477440,
+        "memory_usage_mb": 118.7109375,
+        "cpu_usage_percent": 2.3,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-22T12:11:58.545825": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 1.7593138217926025,
+        "memory_usage": 125140992,
+        "memory_usage_mb": 119.34375,
+        "cpu_usage_percent": 2.8,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-22T12:15:01.216737": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 1.740204095840454,
+        "memory_usage": 124444672,
+        "memory_usage_mb": 118.6796875,
+        "cpu_usage_percent": 2.4,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    }
+}

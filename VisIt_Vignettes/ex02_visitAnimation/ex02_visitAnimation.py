@@ -152,6 +152,11 @@ PseudocolorAtts.colorTableName = "hot_desaturated"
 SetPlotOptions(PseudocolorAtts)
 DrawPlots()
 
+# Change the annotations on the window
+AnnotationAtts = AnnotationAttributes()
+AnnotationAtts.userInfoFlag = 0
+SetAnnotationAttributes(AnnotationAtts)
+
 fly()
 
 

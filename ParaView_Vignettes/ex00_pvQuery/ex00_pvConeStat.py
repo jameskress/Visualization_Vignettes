@@ -18,4 +18,8 @@ print("Cone Radius:     ", cone.Radius)
 print("Cone Center:     ", cone.Center)
 print("Cone Direction:  ", cone.Direction)
 
+
+print("\nChecking for the currently supported OpenGL Driver")
+print(GetOpenGLInformation().GetCapabilities())
+
 print("\nFinished ParaView example script\n")

@@ -56,7 +56,7 @@ swatts = SaveWindowAttributes()
 # the rendered files. 
 swatts.family = 0
 # select PNG as the output file format
-swatts.format = swatts.PNG 
+swatts.format = swatts.JPEG 
 swatts.resConstraint = swatts.NoConstraint  # NoConstraint, EqualWidthHeight, ScreenProportions
 # set the width of the output image
 swatts.width = 2850

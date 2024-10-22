@@ -151,8 +151,8 @@ for timeStep in range(0, nTimeSteps):
 #  Duplicating the frames allows you to slow the pace of the movie to something reasonable.
 #
 ################
-input_pattern = "output/ex05_visit_%04d.png"
-output_movie = "ex05_visit.mp4"
+input_pattern = script_dir + "/output/ex05_visit_%04d.png"
+output_movie = script_dir + "/ex05_visit.mp4"
 encoding.encode(input_pattern,output_movie,fdup=4)
 
 

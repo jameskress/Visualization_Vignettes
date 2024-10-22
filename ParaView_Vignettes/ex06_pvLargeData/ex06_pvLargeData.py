@@ -11,7 +11,7 @@ import paraview
 import subprocess
 from paraview.simple import *
 paraview.compatibility.major = 5
-paraview.compatibility.minor = 12
+paraview.compatibility.minor = 13
 
 print("Running ParaView example script: ", sys.argv[0], "\n")
 
@@ -44,7 +44,7 @@ renderView1.UseColorPaletteForBackground = 0
 renderView1.BackgroundColorMode = 'Gradient'
 renderView1.BackEnd = 'OSPRay raycaster'
 renderView1.OSPRayMaterialLibrary = materialLibrary1
-
+renderView1.ShowAnnotation = False  # Disables render view annotations
 SetActiveView(None)
 
 # ----------------------------------------------------------------
@@ -517,7 +517,7 @@ warpByScalar1staticgeometryDisplay.LookupTable = hGTLUT
 warpByScalar1staticgeometryDisplay.SelectTCoordArray = 'None'
 warpByScalar1staticgeometryDisplay.SelectNormalArray = 'None'
 warpByScalar1staticgeometryDisplay.SelectTangentArray = 'None'
-warpByScalar1staticgeometryDisplay.Position = [0.0, 0.0, -1.0]
+warpByScalar1staticgeometryDisplay.Translation = [0.0, 0.0, -1.0]
 warpByScalar1staticgeometryDisplay.OSPRayScaleArray = 'HGT'
 warpByScalar1staticgeometryDisplay.OSPRayScaleFunction = 'PiecewiseFunction'
 warpByScalar1staticgeometryDisplay.SelectOrientationVectors = 'None'
@@ -554,7 +554,7 @@ glyph1surfacewindDisplay.LookupTable = wrf_vecLUT
 glyph1surfacewindDisplay.SelectTCoordArray = 'None'
 glyph1surfacewindDisplay.SelectNormalArray = 'None'
 glyph1surfacewindDisplay.SelectTangentArray = 'None'
-glyph1surfacewindDisplay.Position = [0.0, 0.0, 25.0]
+glyph1surfacewindDisplay.Translation = [0.0, 0.0, 25.0]
 glyph1surfacewindDisplay.OSPRayScaleArray = 'HGT'
 glyph1surfacewindDisplay.OSPRayScaleFunction = 'PiecewiseFunction'
 glyph1surfacewindDisplay.SelectOrientationVectors = 'wrf_vec'
@@ -695,16 +695,13 @@ SetActiveSource(currentRainfallsilo)
 # ----------------------------------------------------------------
 
 
-if __name__ == '__main__':
-    # generate extracts
-    SaveExtracts(ExtractsOutputDirectory='extracts')
-
 # create folder to store images
 saveDir = script_dir + "/output"
 try:
     os.mkdir(saveDir)
 except FileExistsError:
     pass
+
 # save screenshot
 SaveScreenshot(script_dir + '/output/ex06.png', renderView1, ImageResolution=[2850, 1750])
 

@@ -5,7 +5,7 @@
 # Copyright KAUST
 #
 import sys
-import pathlib
+from pathlib import *
 from paraview.simple import *
 paraview.simple._DisableFirstRenderCameraReset()
 
@@ -17,12 +17,18 @@ cone = Cone()
 # get active view
 renderView1 = GetActiveViewOrCreate('RenderView')
 renderView1.ViewSize = [2048, 2048]
+renderView1.ShowAnnotation = False  # Disables render view annotations
+
 
 # get directory where script is stored
-fileDir = str(pathlib.Path(__file__).parent.resolve())
+fileDir = str(Path(__file__).parent.resolve())
+
+# Create the output directory if it doesn't exist
+directory = Path(fileDir + '/output')
+directory.mkdir(parents=True, exist_ok=True)
 
 # show data in view
 cone1Display = Show(cone, renderView1)
-SaveScreenshot(fileDir + "/ex01_pvScreenshot.png", renderView1)
+SaveScreenshot(str(directory) + "/ex01_pvScreenshot.png", renderView1)
 
 print("\nFinished ParaView example script\n")

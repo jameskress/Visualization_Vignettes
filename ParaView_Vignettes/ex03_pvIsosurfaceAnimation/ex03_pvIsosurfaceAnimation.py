@@ -11,7 +11,7 @@ import paraview
 import subprocess
 from paraview.simple import *
 paraview.compatibility.major = 5
-paraview.compatibility.minor = 12
+paraview.compatibility.minor = 13
 
 print("Running ParaView example script: ", sys.argv[0], "\n")
 
@@ -37,6 +37,7 @@ noisesilo.PointArrayStatus = ['PointVar', 'grad', 'hardyglobal', 'hgslice', 'rad
 
 # get active view
 renderView1 = GetActiveViewOrCreate('RenderView')
+renderView1.ShowAnnotation = False  # Disables render view annotations
 
 # show data in view
 noisesiloDisplay = Show(noisesilo, renderView1, 'GeometryRepresentation')
@@ -195,7 +196,7 @@ if runningOnIbex != "ibex":
     # ffmpeg create video
     imageLoc = script_dir + '/output/ex03_contour_%04d.png'
     movieLoc = script_dir + '/ex03_pvIsosurfaceAnimationout.mp4'
-    cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
+    cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc + ' -y'
     subprocess.call(cmd, shell=True)
 
 

@@ -11,7 +11,7 @@ import paraview
 import subprocess
 from paraview.simple import *
 paraview.compatibility.major = 5
-paraview.compatibility.minor = 12
+paraview.compatibility.minor = 13
 
 
 print("Running ParaView example script: ", sys.argv[0], "\n")
@@ -31,6 +31,7 @@ SetActiveSource(sphere1)
 
 # get active view
 renderView1 = GetActiveViewOrCreate('RenderView')
+renderView1.ShowAnnotation = False  # Disables render view annotations
 
 # show data in view
 sphere1Display = Show(sphere1, renderView1, 'GeometryRepresentation')
@@ -254,7 +255,7 @@ if runningOnIbex != "ibex":
     # ffmpeg create video
     imageLoc = saveDir + '/ex02_pv_png_sequence.%04d.png'
     movieLoc = script_dir + '/ex02_pvAnimationout.mp4'
-    cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
+    cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc + ' -y'
     subprocess.call(cmd, shell=True)
 
 

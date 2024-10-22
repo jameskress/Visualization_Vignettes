@@ -1,0 +1,13 @@
+3D surface area:  The total Surface Area is 2400 parsec^2
+Average Value  :  The average value of hardyglobal is 3.27436 Joules
+Centroid:         Centroid = (0.205405, 0.162072, -0.0195174)
+GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
+
+MinMax:           
+hardyglobal -- Min = 1.09554 (node 105026 at coord <0.612245, -10, 7.14286>)
+hardyglobal -- Max = 5.88965 (node 83943 at coord <7.55102, 1.42857, 3.46939>)
+
+
+NumNodes:         The actual number of nodes is 125000.
+NumZones:         The actual number of zones is 117649.
+Volume:           The total Volume is 8000 parsec^3

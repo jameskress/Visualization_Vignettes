@@ -1,0 +1,53 @@
+{
+    "2024-10-21T10:31:22.906352": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 22.503123998641968,
+        "memory_usage": 195411968,
+        "memory_usage_mb": 186.359375,
+        "cpu_usage_percent": 16.8,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-12",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-21T13:30:09.481594": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 22.59685254096985,
+        "memory_usage": 264994816,
+        "memory_usage_mb": 252.71875,
+        "cpu_usage_percent": 24.9,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-12",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-21T13:48:01.594392": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 22.786155939102173,
+        "memory_usage": 261406720,
+        "memory_usage_mb": 249.296875,
+        "cpu_usage_percent": 23.8,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-12",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    }
+}

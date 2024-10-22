@@ -1,0 +1,36 @@
+{
+    "2024-10-22T14:01:45.869731": {
+        "test_name": "ex01_visitScreenshot",
+        "execution_time": 2.297755241394043,
+        "memory_usage": 230494208,
+        "memory_usage_mb": 219.81640625,
+        "cpu_usage_percent": 6.5,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    },
+    "2024-10-22T14:06:06.145421": {
+        "test_name": "ex01_visitScreenshot",
+        "execution_time": 2.3028903007507324,
+        "memory_usage": 231415808,
+        "memory_usage_mb": 220.6953125,
+        "cpu_usage_percent": 6.5,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    }
+}

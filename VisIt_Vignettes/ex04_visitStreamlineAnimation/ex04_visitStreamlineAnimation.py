@@ -166,8 +166,8 @@ for ts in range(0,125):
 #  Duplicating the frames allows you to slow the pace of the movie to something reasonable.
 #
 ################
-input_pattern = "output/ex04_visit_%04d.png"
-output_movie = "ex04_visit.mp4"
+input_pattern = script_dir + "/output/ex04_visit_%04d.png"
+output_movie = script_dir + "/ex04_visit.mp4"
 encoding.encode(input_pattern,output_movie,fdup=3)
 
 

@@ -49,6 +49,10 @@ iso_atts.variable = "hardyglobal"
 AddOperator("Isosurface")
 DrawPlots()
 
+# Change the annotations on the window
+AnnotationAtts = AnnotationAttributes()
+AnnotationAtts.userInfoFlag = 0
+SetAnnotationAttributes(AnnotationAtts)
 
 # set basic save options
 swatts = SaveWindowAttributes()

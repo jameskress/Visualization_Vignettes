@@ -1,0 +1,36 @@
+{
+    "2024-10-22T14:04:39.794738": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "execution_time": 20.18181872367859,
+        "memory_usage": 561246208,
+        "memory_usage_mb": 535.24609375,
+        "cpu_usage_percent": 12.6,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    },
+    "2024-10-22T14:09:00.314877": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "execution_time": 20.15909242630005,
+        "memory_usage": 563216384,
+        "memory_usage_mb": 537.125,
+        "cpu_usage_percent": 12.9,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    }
+}

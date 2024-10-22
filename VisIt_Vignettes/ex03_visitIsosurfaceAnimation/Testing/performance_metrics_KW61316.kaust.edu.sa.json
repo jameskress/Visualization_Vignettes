@@ -1,0 +1,36 @@
+{
+    "2024-10-22T14:02:52.069795": {
+        "test_name": "ex03_visitIsosurfaceAnimation",
+        "execution_time": 19.464925289154053,
+        "memory_usage": 395759616,
+        "memory_usage_mb": 377.42578125,
+        "cpu_usage_percent": 13.9,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    },
+    "2024-10-22T14:07:12.318146": {
+        "test_name": "ex03_visitIsosurfaceAnimation",
+        "execution_time": 19.53359055519104,
+        "memory_usage": 397471744,
+        "memory_usage_mb": 379.05859375,
+        "cpu_usage_percent": 14.2,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    }
+}

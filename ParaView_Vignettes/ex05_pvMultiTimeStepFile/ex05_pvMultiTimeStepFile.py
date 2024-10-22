@@ -11,7 +11,7 @@ import paraview
 import subprocess
 from paraview.simple import *
 paraview.compatibility.major = 5
-paraview.compatibility.minor = 12
+paraview.compatibility.minor = 13
 
 print("Running ParaView example script: ", sys.argv[0], "\n")
 
@@ -39,7 +39,7 @@ renderView1.CameraViewUp = [0.22243375416581943, -0.9557185249379747, -0.1926793
 renderView1.CameraFocalDisk = 1.0
 renderView1.CameraParallelScale = 17.320508075688775
 renderView1.OSPRayMaterialLibrary = materialLibrary1
-
+renderView1.ShowAnnotation = False  # Disables render view annotations
 SetActiveView(None)
 
 # ----------------------------------------------------------------
@@ -162,10 +162,15 @@ jPG1.Writer.Format = 'JPEG'
 SetActiveSource(jPG1)
 # ----------------------------------------------------------------
 
+# create folder to store images
+saveDir = script_dir + "/output"
+try:
+    os.mkdir(saveDir)
+except FileExistsError:
+    pass
 
-if __name__ == '__main__':
-    # generate extracts
-    SaveExtracts(ExtractsOutputDirectory='extracts')
+# generate extracts
+SaveExtracts(ExtractsOutputDirectory=saveDir)
 
 
 runningOnIbex = "no"
@@ -175,9 +180,9 @@ if len(sys.argv) == 2:
 if runningOnIbex != "ibex":
     print("Generating movie using ffmpeg\n")
     # ffmpeg create video
-    imageLoc = script_dir + '/extracts/ex05_%06d.jpg'
+    imageLoc = script_dir + '/output/ex05_%06d.jpg'
     movieLoc = script_dir + '/ex05_pvMultiTimeSteps.mp4'
-    cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
+    cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc + ' -y'
     subprocess.call(cmd, shell=True)
 
 print("\nFinished ParaView example script\n")

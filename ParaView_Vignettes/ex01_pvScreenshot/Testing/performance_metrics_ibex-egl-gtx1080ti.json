@@ -1,0 +1,36 @@
+{
+    "2024-10-20T13:30:19.734912": {
+        "test_name": "ex01_pvScreenshot",
+        "execution_time": 2.5196151733398438,
+        "memory_usage": 179888128,
+        "memory_usage_mb": 171.5546875,
+        "cpu_usage_percent": 10.9,
+        "machine_info": {
+            "system": "Linux",
+            "node": "dgpu501-22",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-20T14:05:31.672923": {
+        "test_name": "ex01_pvScreenshot",
+        "execution_time": 2.647552490234375,
+        "memory_usage": 181452800,
+        "memory_usage_mb": 173.046875,
+        "cpu_usage_percent": 8.2,
+        "machine_info": {
+            "system": "Linux",
+            "node": "dgpu501-22",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    }
+}

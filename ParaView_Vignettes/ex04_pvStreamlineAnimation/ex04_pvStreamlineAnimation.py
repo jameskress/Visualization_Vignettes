@@ -11,7 +11,7 @@ import paraview
 import subprocess
 from paraview.simple import *
 paraview.compatibility.major = 5
-paraview.compatibility.minor = 12
+paraview.compatibility.minor = 13
 
 print("Running ParaView example script: ", sys.argv[0], "\n", flush=True)
 
@@ -43,6 +43,7 @@ renderView1.CameraParallelScale = 17.320508075688775
 renderView1.UseColorPaletteForBackground = 1
 renderView1.BackEnd = 'OSPRay raycaster'
 renderView1.OSPRayMaterialLibrary = materialLibrary1
+renderView1.ShowAnnotation = False  # Disables render view annotations
 
 SetActiveView(None)
 
@@ -363,7 +364,7 @@ if runningOnIbex != "ibex":
     # ffmpeg create video
     imageLoc = script_dir + '/output/ex04_%04d.png'
     movieLoc = script_dir + '/ex04_pvStreamlineAnimation.mp4'
-    cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc
+    cmd = 'ffmpeg -f image2 -framerate 6 -i ' + imageLoc + ' -qmin 1 -qmax 2 -g 100 -an -vcodec mpeg4 -flags +mv4+aic ' + movieLoc + ' -y'
     subprocess.call(cmd, shell=True)
 
 print("\nFinished ParaView example script\n", flush=True)

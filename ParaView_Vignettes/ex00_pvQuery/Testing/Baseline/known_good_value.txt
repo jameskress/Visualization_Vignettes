@@ -1,0 +1,10 @@
+Cone Resolution:  6
+Cone Height:      1.0
+Cone Radius:      0.5
+Cone Center:      [0.0, 0.0, 0.0]
+Cone Direction:   [1.0, 0.0, 0.0]
+
+Checking for the currently supported OpenGL Driver
+OpenGL vendor string:  NVIDIA Corporation
+
+Finished ParaView example script
