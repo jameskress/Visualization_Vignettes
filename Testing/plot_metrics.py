@@ -82,6 +82,9 @@ def generate_individual_graphs(test_directory, current_sub_test):
     #print(all_versions)
     marker_map = generate_marker_map(all_versions)
     
+    # Sort machine names alphabetically for consistent ordering
+    sorted_machines = sorted(all_data.keys())
+    
     # Ensure the output directory exists before saving the plots
     os.makedirs(testing_dir, exist_ok=True)
 
@@ -93,14 +96,15 @@ def generate_individual_graphs(test_directory, current_sub_test):
     }
 
     # Generate a colormap with distinct colors
-    colors = plt.cm.turbo(np.linspace(0, 1, len(all_data)))  # Adjust colormap as needed
+    colors = plt.cm.turbo(np.linspace(0, 1, len(sorted_machines)))  # Adjust colormap as needed
 
     for metric, ylabel in metrics.items():
         plt.figure(figsize=(22, 10))
         added_labels = set()  # Set to track added labels
         version_shapes = {}  # Dictionary to track shapes for each version
 
-        for i, (machine_name, df) in enumerate(all_data.items()):
+        for i, machine_name in enumerate(sorted_machines):
+            df = all_data[machine_name]
             if metric in df.columns:
                 # Plot the line first to connect the points
                 plt.plot(df.index, df[metric], linestyle='-', linewidth=2, color=colors[i], alpha=0.5)
@@ -154,3 +158,75 @@ def generate_individual_graphs(test_directory, current_sub_test):
         plt.close()
 
     print(f"\tDone with `generate_individual_graphs`")
+    
+    
+def generate_combination_execution_time_plot(base_directory):
+    """
+    Generate a combined execution time plot across all tests and machines in the base directory.
+    Each test and machine will have a separate series.
+    """
+    # Initialize a dictionary to store data for all tests and machines
+    all_data = {}
+
+    # Discover all sub-test directories automatically
+    for test_name in sorted(os.listdir(base_directory)):
+        test_dir = os.path.join(base_directory, test_name)
+        
+        # Only proceed if it's a directory and contains a 'Testing' subdirectory
+        if os.path.isdir(test_dir) and os.path.exists(os.path.join(test_dir, 'Testing')):
+            testing_dir = os.path.join(test_dir, 'Testing')
+
+            # Find all performance metrics JSON files in the Testing directory
+            performance_files = [f for f in os.listdir(testing_dir) if f.startswith('performance_metrics_') and f.endswith('.json')]
+
+            if not performance_files:
+                print(f"No performance data found for {test_name}.")
+                continue
+
+            # Load data from each JSON file
+            for file_name in performance_files:
+                machine_name = file_name.split('_')[-1].replace('.json', '')  # Extract machine name
+                file_path = os.path.join(testing_dir, file_name)
+
+                with open(file_path, 'r') as file:
+                    performance_data = json.load(file)
+
+                if performance_data:
+                    # Use the JSON keys (which represent the timestamp) as the DataFrame index
+                    df = pd.DataFrame.from_dict(performance_data, orient='index')
+                    df.index = pd.to_datetime(df.index)  # Convert index to datetime
+                    df = df.sort_index()  # Ensure the DataFrame is sorted by time
+
+                    # Add to the data dictionary with test and machine as the key
+                    all_data[(test_name, machine_name)] = df
+
+    if not all_data:
+        print("No valid performance data found.")
+        return
+
+    # Plot all execution time data in one combined plot
+    plt.figure(figsize=(22, 10))
+
+    colors = plt.cm.turbo(np.linspace(0, 1, len(all_data)))  # Distinct colors for each series
+
+    for i, ((test_name, machine_name), df) in enumerate(all_data.items()):
+        if 'execution_time' in df.columns:
+            plt.plot(df.index, df['execution_time'], label=f'{test_name} - {machine_name}', linestyle='-', linewidth=2, color=colors[i])
+
+    plt.title('Execution Time Across All Tests and Machines', fontsize=18)
+    plt.xlabel('Date and Time', fontsize=14)
+    plt.ylabel('Execution Time (s)', fontsize=14)
+    plt.xticks(rotation=45, ha='right', fontsize=12)
+
+    # Add legend outside the plot
+    plt.legend(loc='upper left', bbox_to_anchor=(1, 1), frameon=False, fontsize=12)
+    
+    # Adjust layout to fit the legend
+    plt.tight_layout(rect=[0, 0, 0.85, 1])
+
+    # Save the combined plot
+    output_file = os.path.join(base_directory, 'combined_execution_time_plot.png')
+    plt.savefig(output_file)
+    plt.close()
+
+    print(f"Combined execution time plot saved as {output_file}")

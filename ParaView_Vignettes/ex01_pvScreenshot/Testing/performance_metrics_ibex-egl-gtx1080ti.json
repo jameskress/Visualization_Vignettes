@@ -32,5 +32,22 @@
             "paraview_version": "5.13.1",
             "visit_version": null
         }
+    },
+    "2024-10-23T11:33:57.391819": {
+        "test_name": "ex01_pvScreenshot",
+        "execution_time": 2.481973648071289,
+        "memory_usage": 225701888,
+        "memory_usage_mb": 215.24609375,
+        "cpu_usage_percent": 11.0,
+        "machine_info": {
+            "system": "Linux",
+            "node": "dgpu609-22",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
     }
 }

@@ -42,6 +42,9 @@ elif sys.argv[4] == "ibex":
 dataFile = script_dir + "/../../data/varying.visit"
 OpenDatabase("localhost:" + dataFile, 0)
 AddPlot("Pseudocolor", "temp", 1, 0)
+PseudocolorAtts = PseudocolorAttributes()
+PseudocolorAtts.colorTableName = "hot_desaturated"
+SetPlotOptions(PseudocolorAtts)
 DrawPlots()
 
 #

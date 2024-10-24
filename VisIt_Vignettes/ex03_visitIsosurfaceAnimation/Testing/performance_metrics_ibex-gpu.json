@@ -1,0 +1,36 @@
+{
+    "2024-10-24T09:00:12.423469": {
+        "test_name": "ex03_visitIsosurfaceAnimation",
+        "execution_time": 26.30535650253296,
+        "memory_usage": 252821504,
+        "memory_usage_mb": 241.109375,
+        "cpu_usage_percent": 13.8,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn603-14-r",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    },
+    "2024-10-24T09:09:56.449426": {
+        "test_name": "ex03_visitIsosurfaceAnimation",
+        "execution_time": 26.270995140075684,
+        "memory_usage": 253444096,
+        "memory_usage_mb": 241.703125,
+        "cpu_usage_percent": 13.8,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn603-14-r",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    }
+}

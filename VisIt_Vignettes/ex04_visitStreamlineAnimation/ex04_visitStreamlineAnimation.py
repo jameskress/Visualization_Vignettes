@@ -126,6 +126,7 @@ patts.lineType = patts.Tube
 patts.tailStyle = patts.Spheres
 patts.headStyle = patts.Cones
 patts.endPointRadiusBBox = 0.01
+patts.colorTableName = "hot_desaturated"
 SetPlotOptions(patts)
 DrawPlots()
 

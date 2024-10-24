@@ -1,0 +1,70 @@
+{
+    "2024-10-24T09:02:41.933215": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "execution_time": 21.891750812530518,
+        "memory_usage": 317083648,
+        "memory_usage_mb": 302.39453125,
+        "cpu_usage_percent": 28.9,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn603-14-r",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    },
+    "2024-10-24T09:12:32.293622": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "execution_time": 22.586303234100342,
+        "memory_usage": 317816832,
+        "memory_usage_mb": 303.09375,
+        "cpu_usage_percent": 34.5,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn603-14-r",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    },
+    "2024-10-24T09:34:02.263852": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "execution_time": 21.431272745132446,
+        "memory_usage": 140787712,
+        "memory_usage_mb": 134.265625,
+        "cpu_usage_percent": 30.5,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn603-14-r",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    },
+    "2024-10-24T09:35:36.204097": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "execution_time": 21.48044776916504,
+        "memory_usage": 139886592,
+        "memory_usage_mb": 133.40625,
+        "cpu_usage_percent": 30.6,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn603-14-r",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    }
+}

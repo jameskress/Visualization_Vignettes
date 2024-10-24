@@ -12,7 +12,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from PIL import Image, ImageChops
 from metrics import *
-from plot_metrics import generate_individual_graphs  # Import the graphing functions
+from plot_metrics import generate_individual_graphs, generate_combination_execution_time_plot
 
 def run_local_test(test_dir):
     """
@@ -254,7 +254,7 @@ def create_summary_report(test_directory, test_type, args_machine_name):
             for result in comparison_results:
                 if result['status'] == 'DIFFERENT':
                     test_status['image_comparison_passed'] = False
-                    summary_report['failed_image_comparisons'].append(subdir)
+                    summary_report['failed_image_comparisons'].append({subdir: result})
                     summary_report['any_tests_failed'] = True
 
         # Check text comparison results
@@ -298,7 +298,7 @@ def create_summary_report(test_directory, test_type, args_machine_name):
         summary_report['test_results'][subdir] = test_status
 
     # Save summary report in the main Testing directory (same as test_suite.py)
-    report_name =  test_type + '_summary_report.json'
+    report_name =  test_type + '_' + machine_name + '_summary_report.json'
     summary_report_path = os.path.join(os.path.dirname(__file__), report_name)
     with open(summary_report_path, 'w') as f:
         json.dump(summary_report, f, indent=4)
@@ -333,7 +333,7 @@ def clean_test_files(test_directory):
 
 # logic to execute a single unit test
 def run_test(test_dir, dir_name, args):
-    print(f"Running {test_dir}")
+    print(f"\nRunning {test_dir}")
 
     submit = args.submit
     generate_metrics_only = args.generate_metrics

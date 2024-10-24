@@ -32,5 +32,22 @@
             "paraview_version": "5.13.1",
             "visit_version": null
         }
+    },
+    "2024-10-23T09:19:16.884697": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "execution_time": 77.38970851898193,
+        "memory_usage": 287764480,
+        "memory_usage_mb": 274.43359375,
+        "cpu_usage_percent": 13.4,
+        "machine_info": {
+            "system": "Linux",
+            "node": "dgpu609-10",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
     }
 }
