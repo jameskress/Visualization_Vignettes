@@ -13,14 +13,8 @@ def find_executable(executable_name, env_var):
         executable = os.path.join(executable_path, executable_name)
         if os.path.isfile(executable) and os.access(executable, os.X_OK):
             return executable
-        else:
-            raise ValueError(f"{env_var} is set but {executable_name} not found at {executable_path}")
-    
-    executable = shutil.which(executable_name)
-    if executable:
-        return executable
-    
-    raise ValueError(f"{executable_name} not found in system PATH or in {env_var}")
+        
+    return shutil.which(executable_name)
 
 def run_local_visit(script_path, args, output_dir):
     """
@@ -41,10 +35,24 @@ def run_local_paraview(script_path, args, output_dir):
     """
     Run the ParaView script locally using pvbatch and save logs in the output directory.
     """
+    # Locate pvbatch and executables for mpirun/srun
     pvbatch_exec = find_executable('pvbatch', 'PARAVIEW_PATH')
-    mpi_exec = find_executable('mpirun', 'MPI_EXEC_PATH')
+    mpi_exec = find_executable('mpirun', 'MPI_EXEC_PATH')  # Use mpirun if available
+    srun_exec = find_executable('srun', 'SRUN_PATH')  # Fall back to srun if mpirun is not available
 
-    cmd = [mpi_exec, "-np", "1", "--bind-to", "none", pvbatch_exec, '--force-offscreen-rendering', script_path]
+    # Determine if mpirun or srun should be used
+    if mpi_exec:
+         cmd = [mpi_exec, "-np", "1", "--bind-to", "none", pvbatch_exec, '--force-offscreen-rendering', script_path]
+    elif srun_exec:
+        cmd = [srun_exec, "--hint=nomultithread", "--ntasks=2", 
+                      "--ntasks-per-node=2", "--ntasks-per-socket=1", 
+                      "--cpus-per-task=32",  "--ntasks-per-core=1",
+                      "--mem-bind=v,none", "--cpu-bind=v,cores",
+                      pvbatch_exec, '--force-offscreen-rendering', script_path]
+    else:
+        print("Error: Neither mpirun nor srun was found on the system.")
+        return
+
     cmd.extend(args)
 
     # Set OMP_NUM_THREADS to the desired number of threads
