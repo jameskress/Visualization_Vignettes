@@ -6,44 +6,65 @@
 #
 import os
 import sys
+
 # import visit_utils, we will use it to help encode our movie
 from visit_utils import *
 
 print("Running VisIt example script: ", sys.argv[0], "\n")
 
 # Get directory of this script
-script_dir = os.path.abspath( os.path.dirname( __file__ ) )
-print("Running script from: ",  script_dir )
+script_dir = os.path.abspath(os.path.dirname(__file__))
+print("Running script from: ", script_dir)
 
 # Open the compute engine if running on cluster
-if len(sys.argv)  < 4:
+if len(sys.argv) < 4:
     print("Running script locally, not launching a batch job\n")
 elif sys.argv[4] == "shaheen":
-    OpenComputeEngine("localhost",("-l", "srun",
-                                   "-p", sys.argv[1], 
-                                   "-nn", sys.argv[2],
-                                   "-np", sys.argv[3],
-                                   "-t", sys.argv[4]))
+    OpenComputeEngine(
+        "localhost",
+        (
+            "-l",
+            "srun",
+            "-p",
+            sys.argv[1],
+            "-nn",
+            sys.argv[2],
+            "-np",
+            sys.argv[3],
+            "-t",
+            sys.argv[4],
+        ),
+    )
 
 elif sys.argv[4] == "ibex":
-    OpenComputeEngine("localhost",("-l", "srun",
-                                   "-p", "batch",
-                                   "-nn", sys.argv[1],
-                                   "-np", sys.argv[2],
-                                   "-t", sys.argv[3]))
+    OpenComputeEngine(
+        "localhost",
+        (
+            "-l",
+            "srun",
+            "-p",
+            "batch",
+            "-nn",
+            sys.argv[1],
+            "-np",
+            sys.argv[2],
+            "-t",
+            sys.argv[3],
+        ),
+    )
 
 
-def fly(): 
+def fly():
     # set basic save options
     swatts = SaveWindowAttributes()
 
-    # The 'family' option controls if visit automatically adds a frame number to 
-    # the rendered files. 
+    # The 'family' option controls if visit automatically adds a frame number to
+    # the rendered files.
     swatts.family = 0
     # select PNG as the output file format
-    swatts.format = swatts.PNG 
+    swatts.format = swatts.PNG
     # set the width of the output image
-    swatts.width = 2048 
+    swatts.width = 2048
     # set the height of the output image
     swatts.height = 1784
     # change where images are saved
@@ -54,8 +75,7 @@ def fly():
         pass
     swatts.outputToCurrentDirectory = 0
     swatts.outputDirectory = saveDir
-    
-    
+
     # Create the control points for the views.
     c0 = View3DAttributes()
     c0.viewNormal = (0, 0, 1)
@@ -66,7 +86,7 @@ def fly():
     c0.nearPlane = 17.3205
     c0.farPlane = 81.9615
     c0.perspective = 1
- 
+
     c1 = View3DAttributes()
     c1.viewNormal = (-0.499159, 0.475135, 0.724629)
     c1.focus = (0, 0, 0)
@@ -76,7 +96,7 @@ def fly():
     c1.nearPlane = 15.276
     c1.farPlane = 69.917
     c1.perspective = 1
- 
+
     c2 = View3DAttributes()
     c2.viewNormal = (-0.522881, 0.831168, -0.189092)
     c2.focus = (0, 0, 0)
@@ -86,7 +106,7 @@ def fly():
     c2.nearPlane = 14.8914
     c2.farPlane = 59.5324
     c2.perspective = 1
- 
+
     c3 = View3DAttributes()
     c3.viewNormal = (-0.438771, 0.523661, -0.730246)
     c3.focus = (0, 0, 0)
@@ -96,7 +116,7 @@ def fly():
     c3.nearPlane = 3.5905
     c3.farPlane = 48.2315
     c3.perspective = 1
- 
+
     c4 = View3DAttributes()
     c4.viewNormal = (0.286142, -0.342802, -0.894768)
     c4.focus = (0, 0, 0)
@@ -106,7 +126,7 @@ def fly():
     c4.nearPlane = 1.5495
     c4.farPlane = 56.1905
     c4.perspective = 1
- 
+
     c5 = View3DAttributes()
     c5.viewNormal = (0.974296, -0.223599, -0.0274086)
     c5.focus = (0, 0, 0)
@@ -116,16 +136,16 @@ def fly():
     c5.nearPlane = 24.1248
     c5.farPlane = 58.7658
     c5.perspective = 1
- 
+
     c6 = c0
- 
+
     # Create a tuple of camera values and x values. The x values are weights
     # that help to determine where in [0,1] the control points occur.
     cpts = (c0, c1, c2, c3, c4, c5, c6)
-    x=[]
+    x = []
     for i in range(7):
-        x = x + [float(i) / float(6.)]
- 
+        x = x + [float(i) / float(6.0)]
+
     # Animate the camera. Note that we use the new built-in EvalCubicSpline
     # function which takes a t value from [0,1] a tuple of t values and a tuple
     # of control points. In this case, the control points are View3DAttributes
@@ -164,27 +184,27 @@ fly()
 # use visit_utils.encoding to encode these images into a "mp4" movie
 #
 # The encoder looks for a printf style pattern in the input path to identify the frames of the movie.
-# The frame numbers need to start at 0. 
-# 
+# The frame numbers need to start at 0.
+#
 # The encoder selects a set of decent encoding settings based on the extension of the
-# the output movie file (second argument). In this case we will create a "mp4" file. 
-# 
-# Other supported options include ".mpg", ".mov". 
+# the output movie file (second argument). In this case we will create a "mp4" file.
+#
+# Other supported options include ".mpg", ".mov".
 #   "mp4" is usually the best choice and plays on all most all platforms (Linux ,OSX, Windows).
 #   "mpg" is lower quality, but should play on any platform.
 #
-# 'fdup' controls the number of times each frame is duplicated. 
+# 'fdup' controls the number of times each frame is duplicated.
 #  Duplicating the frames allows you to slow the pace of the movie to something reasonable.
 #
 ################
 input_pattern = script_dir + "/output/ex02_visit_%04d.png"
 output_movie = script_dir + "/ex02_visit.mp4"
-encoding.encode(input_pattern,output_movie,fdup=4)
+encoding.encode(input_pattern, output_movie, fdup=4)
 
 
 print("\nFinished VisIt example script\n")
 
 # If on Windows wait for user input so that output does not disapear
-if os.name == 'nt':
+if os.name == "nt":
     input("Press any key to close")
 exit()

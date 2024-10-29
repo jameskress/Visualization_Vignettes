@@ -22,7 +22,7 @@ export CATALYST_DEBUG=1
 
 
 See if the following work
-export CATALYST_IMPLEMENTATION_PATHS="<paraview-install-dir>/lib/catalyst" 
+export CATALYST_IMPLEMENTATION_PATHS="<paraview-install-dir>/lib/catalyst"
 export CATALYST_IMPLEMENTATION_NAME=paraview/home/kressjm/packages/gray-scott/KAUST_Visualization_Vignettes/Miniapps/gray-scott/README.md
 
 

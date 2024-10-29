@@ -20,30 +20,33 @@ def create_extractor(data):
         return CreateExtractor(extractorType, data, registrationName=extractorType)
 
     grid = data.GetClientSideObject().GetOutputDataObject(0)
-    if grid.IsA('vtkImageData'):
-        return CreateExtractor('VTI', data, registrationName='VTI')
-    elif grid.IsA('vtkRectilinearGrid'):
-        return CreateExtractor('VTR', data, registrationName='VTR')
-    elif grid.IsA('vtkStructuredGrid'):
-        return CreateExtractor('VTS', data, registrationName='VTS')
-    elif grid.IsA('vtkPolyData'):
-        return CreateExtractor('VTP', data, registrationName='VTP')
-    elif grid.IsA('vtkUnstructuredGrid'):
-        return CreateExtractor('VTU', data, registrationName='VTU')
-    elif grid.IsA('vtkUniformGridAMR'):
-        return CreateExtractor('VTH', data, registrationName='VTH')
-    elif grid.IsA('vtkMultiBlockDataSet'):
-        return CreateExtractor('VTM', data, registrationName='VTM')
-    elif grid.IsA('vtkPartitionedDataSet'):
-        return CreateExtractor('VTPD', data, registrationName='VTPD')
-    elif grid.IsA('vtkPartitionedDataSetCollection'):
-        return CreateExtractor('VTPC', data, registrationName='VTPC')
-    elif  grid.IsA('vtkHyperTreeGrid'):
-        return CreateExtractor('HTG', data, registrationName='HTG')
+    if grid.IsA("vtkImageData"):
+        return CreateExtractor("VTI", data, registrationName="VTI")
+    elif grid.IsA("vtkRectilinearGrid"):
+        return CreateExtractor("VTR", data, registrationName="VTR")
+    elif grid.IsA("vtkStructuredGrid"):
+        return CreateExtractor("VTS", data, registrationName="VTS")
+    elif grid.IsA("vtkPolyData"):
+        return CreateExtractor("VTP", data, registrationName="VTP")
+    elif grid.IsA("vtkUnstructuredGrid"):
+        return CreateExtractor("VTU", data, registrationName="VTU")
+    elif grid.IsA("vtkUniformGridAMR"):
+        return CreateExtractor("VTH", data, registrationName="VTH")
+    elif grid.IsA("vtkMultiBlockDataSet"):
+        return CreateExtractor("VTM", data, registrationName="VTM")
+    elif grid.IsA("vtkPartitionedDataSet"):
+        return CreateExtractor("VTPD", data, registrationName="VTPD")
+    elif grid.IsA("vtkPartitionedDataSetCollection"):
+        return CreateExtractor("VTPC", data, registrationName="VTPC")
+    elif grid.IsA("vtkHyperTreeGrid"):
+        return CreateExtractor("HTG", data, registrationName="HTG")
     else:
-        raise RuntimeError("Unsupported data type: %s. Check that the adaptor "
-                           "is providing channel named %s",
-                           grid.GetClassName(), catalystChannel)
+        raise RuntimeError(
+            "Unsupported data type: %s. Check that the adaptor "
+            "is providing channel named %s",
+            grid.GetClassName(),
+            catalystChannel,
+        )
 
 
 # print values for parameters passed via adaptor (note these don't change,
@@ -70,13 +73,13 @@ for i in range(numPointArrays):
     currentArray = producer.GetPointDataInformation().GetArray(i)
     print("Array = {}, name = {}".format(i, currentArray.GetName()))
 print("=======================================================")
-producer.PointArrayStatus = ['v', 'u']
+producer.PointArrayStatus = ["v", "u"]
 
 # create a new 'Contour'
-contour1 = Contour(registrationName='Contour1', Input=producer)
-contour1.ContourBy = ['POINTS', 'v']
+contour1 = Contour(registrationName="Contour1", Input=producer)
+contour1.ContourBy = ["POINTS", "v"]
 contour1.Isosurfaces = [0.2053265338835752]
-contour1.PointMergeMethod = 'Uniform Binning'
+contour1.PointMergeMethod = "Uniform Binning"
 
 # Returns extractor type based on data (or you can manually specify
 extractor = create_extractor(contour1)
@@ -87,15 +90,15 @@ options = catalyst.Options()
 options.ExtractsOutputDirectory = outputDirectory
 options.GlobalTrigger.Frequency = frequency
 options.EnableCatalystLive = 1
-options.CatalystLiveTrigger = 'TimeStep'
+options.CatalystLiveTrigger = "TimeStep"
 
-#--------------------------------------------------------------
+# --------------------------------------------------------------
 # Dynamically determine client
 clientport = 22222
-clienthost = 'localhost'
+clienthost = "localhost"
 options.CatalystLiveURL = "localhost:22222"
-if 'CATALYST_CLIENT' in os.environ:
-  clienthost = os.environ['CATALYST_CLIENT']
+if "CATALYST_CLIENT" in os.environ:
+    clienthost = os.environ["CATALYST_CLIENT"]
 options.CatalystLiveURL = str(clienthost) + ":" + str(clientport)
 
 
@@ -119,10 +122,12 @@ def catalyst_execute(info):
     print("===================================\n")
     # slow things down for live view
     time.sleep(1)
-    
+
+
 # ------------------------------------------------------------------------------
-if __name__ == '__main__':
+if __name__ == "__main__":
     from paraview.simple import SaveExtractsUsingCatalystOptions
+
     # Code for non in-situ environments; if executing in post-processing
     # i.e. non-Catalyst mode, let's generate extracts using Catalyst options
     SaveExtractsUsingCatalystOptions(options)

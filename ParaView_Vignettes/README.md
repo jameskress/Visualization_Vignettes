@@ -32,14 +32,14 @@ This subfolder is organized as follows:
 There are essentially two ways to use ParaView at KAUST:
 1. Interactivelly
     1. Locally on your laptop or desktop. You can download a binary from Kitware: [ParaView](https://www.paraview.org/download/)
-    2. Client/Server mode: a GUI client runs on your local machine and the data is processed on KAUST HPC resources. 
+    2. Client/Server mode: a GUI client runs on your local machine and the data is processed on KAUST HPC resources.
 2. Batch mode: a python script is executed either locally or on KAUST HPC resources.
 
 
 ### Using ParaView Interactively on Ibex
 It is possible to run a local ParaView client to display and interact with your data while the ParaView server runs in an Ibex batch job (``client/server mode``), allowing interactive analysis of very large data sets. You will obtain the best performance by running the ParaView client on your local computer and running the server on Ibex with the same version of ParaView. It is *required* to check the available ParaView versions using ``module avail paraview`` on the system on which you plan to connect.
 
-**WARNING**: Using a different version of ParaView than what is available on IBEX WILL fail. 
+**WARNING**: Using a different version of ParaView than what is available on IBEX WILL fail.
 
 **WARNING**: For macOS clients, it is necessary to install [XQuartz (X11)](https://www.xquartz.org/) to get a command prompt in which you will securely enter your credentials.
 
@@ -66,7 +66,7 @@ After setting up and installing ParaView, you can connect to KAUST systems remot
 It is possible to run a local ParaView client to display and interact with your data while the ParaView server runs in an Shaheen batch job (``client/server mode``), allowing interactive analysis of very large data sets. You will obtain the best performance by running the ParaView client on your local computer and running the server on Shaheen with the same version of ParaView. It is *required* to check the available ParaView versions using ``module avail paraview`` on the system on which you plan to connect.
 
 
-**WARNING**: Using a different version of ParaView than what is available on Shaheen WILL fail. 
+**WARNING**: Using a different version of ParaView than what is available on Shaheen WILL fail.
 
 **WARNING**: For macOS clients, it is necessary to install [XQuartz (X11)](https://www.xquartz.org/) to get a command prompt in which you will securely enter your credentials.
 
@@ -76,10 +76,10 @@ After local installation you must give ParaView the relevant server information 
 * Step 3: Import Servers: Click ``Load Servers`` button and find the ``default_servers.pvsc`` file .
 
 After successfully completing the above steps, you should now be able to connect to Shaheen.
- 
+
 
 ### Using ParaView in Batch Processing Mode ###
-See the examples in this repo for how to create a job script to run a ParaView python file. 
+See the examples in this repo for how to create a job script to run a ParaView python file.
 
 
 ### Creating a Python Trace for Batch Processing
@@ -97,11 +97,11 @@ ParaView comes with two command line programs that execute Python scripts: ``pvp
 
 The difference between ``pvpython`` and ``pvbatch`` is subtle and has to do with the way they establish the visualization service. ``pvpython`` is roughly equivalent to the paraview client GUI with the GUI replaced with the Python interpreter. It is a serial application that connects to a ParaView server (which can be either builtin or remote).
 
-``pvbatch`` is roughly equivalent to ``pvserver`` except that commands are taken from a Python script rather than from a socket connection to a ParaView client. It is a parallel application that can be launched with mpirun (assuming it was compiled with MPI), but it cannot connect to another server; it is its own server. 
+``pvbatch`` is roughly equivalent to ``pvserver`` except that commands are taken from a Python script rather than from a socket connection to a ParaView client. It is a parallel application that can be launched with mpirun (assuming it was compiled with MPI), but it cannot connect to another server; it is its own server.
 
 In general, you should use ``pvpython`` if you will be using the interpreter interactively and ``pvbatch`` if you are running in parallel.
 
-These examples will only use ``pvbatch``, if you want to interactively use ParaView from the command line you can start ``pvpython`` and interact with the interpreter in the same way as these example scipts. 
+These examples will only use ``pvbatch``, if you want to interactively use ParaView from the command line you can start ``pvpython`` and interact with the interpreter in the same way as these example scipts.
 
 
 ### For more information on ParaView
@@ -128,19 +128,19 @@ These examples will only use ``pvbatch``, if you want to interactively use ParaV
         * ``module use /sw/vis/xc40.modules``
         * ``module load ParaView``
 4. Run the example locally or on one of the clusters
-    1. Locally: 
+    1. Locally:
         1. We can run the *.py script directly on the command line, not using a batch script
     2. Clusters: From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
         1. Ibex: ``sbatch ex*_ibex_runScribt.sbat``
         2. Shaheen:
             * Edit each Shaheen batch script by adding your account: ``vim ex*_shaheen_runScribt.sbat`` , and replace ``--account=<##>`` with your account
             * ``sbatch ex*_shaheen_runScribt.sbat``
-5. View the output messages from the tests: 
+5. View the output messages from the tests:
     1. Locally: the output will print live to the terminal while running
     2. Ibex: ``cat ex*.ibex.<job_number>.out``
     3. Shaheen: ``cat ex*.shaheen_<job_number>.out``
 6. View images from tests that write images:
-    1. Locally: use your preferred image viewer 
+    1. Locally: use your preferred image viewer
     2. Ibex: ``display*.png``
         a. To view videos copy them to your local machine
     3. Shaheen ``eog .``

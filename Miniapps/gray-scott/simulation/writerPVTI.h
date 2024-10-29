@@ -14,7 +14,7 @@
 #include <vtkFloatArray.h>
 #include <vtkLogger.h>
 #include <vtkMPIController.h>
-   
+
 class WriterPVTI : public Writer
 {
     void CreateWriter(const Settings &settings, const GrayScott &sim, int rank) override;

@@ -55,7 +55,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -rdynamic")
-    
+
 add_executable(kvvm-gray-scott
   simulation/main.cpp
   simulation/gray-scott.cpp
@@ -66,7 +66,7 @@ add_executable(kvvm-gray-scott
 
 target_link_libraries(kvvm-gray-scott PRIVATE MPI::MPI_C ${VTK_LIBRARIES} catalyst::catalyst)
 
-install(TARGETS kvvm-gray-scott 
+install(TARGETS kvvm-gray-scott
         RUNTIME DESTINATION .)
 
 install(FILES  "configs/miniapp-settings/settings-catalyst-file-io.json"
@@ -74,5 +74,5 @@ install(FILES  "configs/miniapp-settings/settings-catalyst-file-io.json"
                "configs/miniapp-settings/settings-vtk-pvti.json"
                "configs/catalyst_scripts/catalyst-extract-jpg.py"
                "configs/catalyst_scripts/catalyst-extract-contour_v.py"
-               "README.md" 
-        DESTINATION .) 
+               "README.md"
+        DESTINATION .)

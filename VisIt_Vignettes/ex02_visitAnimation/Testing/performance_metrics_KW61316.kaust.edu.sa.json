@@ -32,5 +32,22 @@
             "paraview_version": null,
             "visit_version": "3.4.1"
         }
+    },
+    "2024-10-29T14:22:42.664376": {
+        "test_name": "ex02_visitAnimation",
+        "execution_time": 42.20231246948242,
+        "memory_usage": 314384384,
+        "memory_usage_mb": 299.8203125,
+        "cpu_usage_percent": 15.4,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-124-generic",
+            "version": "#134-Ubuntu SMP Fri Sep 27 20:20:17 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
     }
 }

@@ -3,7 +3,7 @@
 [VisIt_Vignettes Repository](https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes/-/tree/master/VisIt_Vignettes?ref_type=heads)
 
 ## What is VisIt
-VisIt is an interactive, parallel analysis and visualization tool for scientific data. VisIt contains a rich set of visualization features so you can view your data in a variety of ways. It can be used to visualize scalar and vector fields defined on two- and three-dimensional (2D and 3D) structured and unstructured meshes. 
+VisIt is an interactive, parallel analysis and visualization tool for scientific data. VisIt contains a rich set of visualization features so you can view your data in a variety of ways. It can be used to visualize scalar and vector fields defined on two- and three-dimensional (2D and 3D) structured and unstructured meshes.
 
 VisIt was developed to analyze extremely large datasets using distributed memory computing resources. KVL provides VisIt installs on Ibex and Shaheen to facilitate large scale distributed visualizations. The VisIt server running on Ibex and Shaheen may be used in a headless batch processing mode, however to use the GUI only Ibex is supported.
 
@@ -32,14 +32,14 @@ This subfolder is organized as follows:
 There are essentially two ways to use VisIt at KAUST:
 1. Interactivelly
     1. Locally on your laptop or desktop. You can download a binary from the VisIt website: [VisIt](https://visit-dav.github.io/visit-website/releases-as-tables/#latest).
-    2. Client/Server mode: a GUI client runs on your local machine and the data is processed on KAUST HPC resources. 
+    2. Client/Server mode: a GUI client runs on your local machine and the data is processed on KAUST HPC resources.
 2. Batch mode: a python script is executed either locally or on KAUST HPC resources.
 
 
 ### Using VisIt Interactively on Ibex
 It is possible to run a local VisIt client to display and interact with your data while the VisIt server runs in an Ibex batch job (``client/server mode``), allowing interactive analysis of very large data sets. You will obtain the best performance by running the VisIt client on your local computer and running the server on Ibex with the same version of VisIt. It is highly recommended to check the available VisIt versions using ``module avail visit`` on the system you plan to connect to with VisIt.
 
-**WARNING**: Using a different version of VisIt than what is available on IBEX WILL fail. 
+**WARNING**: Using a different version of VisIt than what is available on IBEX WILL fail.
 
 If this is your first time using VisIt on KAUST resources you will need to have VisIt load the KAUST host profile to be able to connect to KAUST systems. VisIt is distributed with the KAUST profiles, so they can be directly loaded from the VisIt GUI as follows:
 1. Click "Options"
@@ -66,7 +66,7 @@ Once you have VisIt installed and set up on your local computer:
 ### Using VisIt Interactively on Shaheen III
 It is possible to run a local VisIt client to display and interact with your data while the VisIt server runs in an Shaheen batch job (``client/server mode``), allowing interactive analysis of very large data sets. You will obtain the best performance by running the VisIt client on your local computer and running the server on Shaheen with the same version of VisIt. It is highly recommended to check the available VisIt versions using ``module avail visit`` on the system you plan to connect to with VisIt.
 
-**WARNING**: Using a different version of VisIt than what is available on Shaheen WILL fail. 
+**WARNING**: Using a different version of VisIt than what is available on Shaheen WILL fail.
 
 If this is your first time using VisIt on KAUST resources you will need to have VisIt load the KAUST host profile to be able to connect to KAUST systems. VisIt is distributed with the KAUST profiles, so they can be directly loaded from the VisIt GUI as follows:
 1. Click "Options"
@@ -81,7 +81,7 @@ After successfully completing the above steps, you should now be able to connect
 
 
 ### Using VisIt in Batch Processing Mode ###
-See the examples in this repo for how to create a job script to run a VisIt batch jobs. 
+See the examples in this repo for how to create a job script to run a VisIt batch jobs.
 
 
 ### Creating a Python Trace for Batch Processing
@@ -116,12 +116,12 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
         * ``module use /sw/vis/xc40.modules``
         * ``module load VisIt``
 4. Run the example locally or on one of the clusters
-    1. Locally: 
+    1. Locally:
         1. We can run the *.py script directly on the command line, not using a batch script
             * ``./visit -nowin -cli -s <path to the python script to run>``
         2. We can run the script live in the VisIt interface
             * Open the VisIt "command" window
-            * Paste the following: 
+            * Paste the following:
                 ``import os
                   from os.path import join as pjoin
                   scripts_dir = "<path to>/KAUST_Visualization_Vignettes/VisIt_Vignettes"
@@ -129,15 +129,15 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
             * Click "Execute"
     2. Clusters: From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
         1. Ibex: ``sbatch ex*_ibex_runScript.sbat``
-        2. Shaheen: 
+        2. Shaheen:
             * Edit each Shaheen batch script by adding your account: ``vim ex*_shaheen_runScribt.sbat`` , and replace ``--account=<##>`` with your account
             * ``sbatch ex*_shaheen_runScribt.sbat``
-5. View the output messages from the tests: 
+5. View the output messages from the tests:
     1. Locally: the output will print live to the terminal while running
     2. Ibex: ``cat ex*.ibex.<job_number>.out``
     3. Shaheen: ``cat ex*.shaheen_<job_number>.out``
 6. View images from tests that write images:
-    1. Locally: use your preferred image viewer 
+    1. Locally: use your preferred image viewer
     2. Ibex: ``display*.png``
         a. To view videos copy them to your local machine
     3. Shaheen ``eog .``

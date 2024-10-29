@@ -6,7 +6,7 @@
 # Copyright KAUST
 #
 # Check OS so we know what machine we are on
-OSVERSION=$(cat /etc/os-release | awk -F 'NAME=' '{print $2; exit;}')
+OSVERSION=$( < /etc/os-release  awk -F 'NAME=' '{print $2; exit;}')
 echo "Loading modules for OS Version: $OSVERSION"
 case "$OSVERSION" in
 "\"Rocky Linux\""*) # Ibex
@@ -19,10 +19,10 @@ case "$OSVERSION" in
     modVar=$1
     if [ "$modVar" = "egl" ]; then
         echo "Loading paraview egl variant"
-        module load paraview/$currentVersion-gnu-egl
+        module load paraview/"$currentVersion"-gnu-egl
     else
         echo "Loading paraview mesa variant"
-        module load paraview/$currentVersion-gnu-mesa
+        module load paraview/"$currentVersion"-gnu-mesa
     fi
   ;;
 "\"SLES\""*) # Shaheen
@@ -30,7 +30,7 @@ case "$OSVERSION" in
     module load ffmpeg
   ;;
 *)
-    echo ERROR: Unrecognised operating system $osversion
+    echo ERROR: Unrecognised operating system "$OSVERSION"
     exit 1 # terminate and indicate error
   ;;
 esac

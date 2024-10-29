@@ -1,13 +1,13 @@
 # Regression and Performance Testing
 
-This `test_suite.py` is designed to allow us to track the performance and regression testing of installations of **VisIt** and **ParaView** on **Ibex** and **Shaheen**. These tests can also be run on your local machine, and make for a conveneint method to run each of the exampels in either the **ParaView** or **VisIt** directories without manually running each of them 
+This `test_suite.py` is designed to allow us to track the performance and regression testing of installations of **VisIt** and **ParaView** on **Ibex** and **Shaheen**. These tests can also be run on your local machine, and make for a conveneint method to run each of the exampels in either the **ParaView** or **VisIt** directories without manually running each of them
 
 ## ParaView Testing
 
 ### Local Machine Test Runs
 ```
 export PARAVIEW_PATH="/home/kressjm/packages/ParaView-5.13.1-MPI-Linux-Python3.10-x86_64/bin"
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1 
+python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1
 ```
 
 ### Ibex CPU Test Runs

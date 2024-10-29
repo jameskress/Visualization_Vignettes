@@ -224,7 +224,7 @@ void WriterPVTI::write(int step, const GrayScott &sim, int rank, int numRanks)
     writer->SetCompressorTypeToNone();
     writer->Write();
     vtkLogEndScope("Writing: VTK");
-    
+
     source->Delete();
 }
 

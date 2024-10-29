@@ -32,5 +32,22 @@
             "paraview_version": null,
             "visit_version": "3.4.1"
         }
+    },
+    "2024-10-29T14:21:56.123788": {
+        "test_name": "ex00_visitQuery",
+        "execution_time": 2.359400749206543,
+        "memory_usage": 124461056,
+        "memory_usage_mb": 118.6953125,
+        "cpu_usage_percent": 4.9,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-124-generic",
+            "version": "#134-Ubuntu SMP Fri Sep 27 20:20:17 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
     }
 }

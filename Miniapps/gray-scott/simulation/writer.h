@@ -23,7 +23,7 @@ public:
     virtual void close(int rank) = 0;
     virtual void printSelf() = 0;
 
-            
+
 protected:
     Settings settings;
     vtkSmartPointer<vtkXMLPImageDataWriter> writer;

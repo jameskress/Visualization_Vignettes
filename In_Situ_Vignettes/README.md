@@ -40,12 +40,12 @@ KVL has done a workshop on basic Catalyst use, see our [YouTube Channel](https:/
 ## Other options for Bespoke In Situ
 If you are looking for a true in situ integration there are multiple options available
 
-1. ADIOS2 
-    - A full data management solution. 
+1. ADIOS2
+    - A full data management solution.
     - Can aid in better I/O performance, in situ, data reduction
     - https://adios2.readthedocs.io/en/latest/
 
-2. ParaView Catalyst / VisIt Libsim 
+2. ParaView Catalyst / VisIt Libsim
     - Directly integrate ParaView of VisIt functionality into your simulation code
     - https://catalyst-in-situ.readthedocs.io/en/latest/index.html
     - https://www.visitusers.org/index.php?title=VisIt-tutorial-in-situ
@@ -58,4 +58,3 @@ If you are looking for a true in situ integration there are multiple options ava
     - VTK-m is a toolkit of scientific visualization algorithms for emerging processor architectures (many-core extension of VTK)
     - It is used by Ascent, but can be used with other libraries to enable in transit visualization
     - https://m.vtk.org/
-

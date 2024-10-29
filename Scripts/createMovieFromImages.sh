@@ -5,9 +5,9 @@
 # Author: James Kress, <james.kress@kaust.edu.sa>
 # Copyright KAUST
 #
-if [ $0 == "-h" ]; then
+if [ "$0" == "-h" ]; then
 	echo "This script will link all '.png' files in :: "
-	echo $(pwd) " to :: " $(pwd)"/movie"
+	echo "$(pwd)" " to :: " "$(pwd)/movie"
 fi
 
 echo "Running script..."
@@ -16,12 +16,12 @@ mkdir movie
 
 echo "    -Linking '.png' files"
 
-cd movie
+cd movie || exit
 x=1
 for i in ../*.png; do
 	counter=$(printf %03d $x)
 	ln -s "$i" img"$counter".png
-	x=$(($x+1))
+	x=$((x+1))
 done
 
 

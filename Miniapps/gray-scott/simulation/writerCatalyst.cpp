@@ -64,7 +64,7 @@ void WriterCatalyst::write(int step, const GrayScott &sim, int rank, int numRank
     {
         return;
     }
-    
+
     conduit_cpp::Node exec_params;
     // add time/cycle information
     auto state = exec_params["catalyst/state"];
@@ -93,20 +93,20 @@ void WriterCatalyst::write(int step, const GrayScott &sim, int rank, int numRank
     float spacing[3] = {0.1, 0.1, 0.1};
     //For no_ghost use
     int nx = sim.size_x + 0, ny = sim.size_y + 0, nz = sim.size_z + 0;
-    
+
     //int nx = sim.size_x + 2, ny = sim.size_y + 2, nz = sim.size_z + 2;
     int dx = sim.offset_x, dy = sim.offset_y, dz = sim.offset_z;
     int wholeExtent[6] = {0, (int)settings.L, 0, (int)settings.L, 0, (int)settings.L};
     vtkLog(TRACE, "" << "size " << nx << " " << ny << " " << nz);
     vtkLog(TRACE, "" << "offsets " << dx << " " << dy << " " << dz);
-    vtkLog(TRACE, "" << "local dims " 
+    vtkLog(TRACE, "" << "local dims "
                           << dx << " "
                           << nx + dx << " "
                           << dy << " "
                           << ny + dy << " "
                           << dz << " "
                           << nz + dz);
-    vtkLog(TRACE, "" << "global dims " 
+    vtkLog(TRACE, "" << "global dims "
                           << 0 << " "
                           << (int)settings.L << " "
                           << 0 << " "
@@ -116,7 +116,7 @@ void WriterCatalyst::write(int step, const GrayScott &sim, int rank, int numRank
 
 
     // move the final mesh fragments so that each domain is flush against all other domains.
-    // this is necessary as we could not get ghost cells to work correctly, so with all 
+    // this is necessary as we could not get ghost cells to work correctly, so with all
     // domains touching the visulaization is able to create its own
     mesh["coordsets/coords/origin/x"].set(dx * spacing[0] - (dx/nx) * spacing[0]);
     mesh["coordsets/coords/origin/y"].set(dy * spacing[1] - (dy/ny) * spacing[1]);

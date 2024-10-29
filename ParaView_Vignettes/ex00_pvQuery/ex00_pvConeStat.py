@@ -10,7 +10,7 @@ from paraview.simple import *
 
 print("Running ParaView example script: ", sys.argv[0], "\n")
 
-#Create a simple cone object and query it's properties
+# Create a simple cone object and query it's properties
 cone = Cone()
 print("Cone Resolution: ", cone.Resolution)
 print("Cone Height:     ", cone.Height)

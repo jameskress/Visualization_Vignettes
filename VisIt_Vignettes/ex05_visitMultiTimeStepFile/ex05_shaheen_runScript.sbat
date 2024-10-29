@@ -25,4 +25,3 @@ _time=00:05:00
 source ../MODULES.sh
 
 time `(which visit)` -nowin -cli -s ex05_visitMultiTimeStepFile.py $_partition $_nodes $_ntasks $_time "shaheen"
-

@@ -8,7 +8,7 @@ u_t = Du * (u_xx + u_yy + u_zz) - u * v^2 + F * (1 - u)  + noise * randn(-1,1)
 v_t = Dv * (v_xx + v_yy + v_zz) + u * v^2 - (F + k) * v
 ```
 
-A reaction-diffusion system is a system in which a dynamical system is attached to a diffusion equation, and it creates various patterns. This is an equation that simulates the chemical reaction between the chemicals $U$ and $V$. $U$ is called the activator and $V$ is called the repressor. 
+A reaction-diffusion system is a system in which a dynamical system is attached to a diffusion equation, and it creates various patterns. This is an equation that simulates the chemical reaction between the chemicals $U$ and $V$. $U$ is called the activator and $V$ is called the repressor.
 
 ## How to build
 Make sure MPI, VTK, and Catalyst are installed.
@@ -26,7 +26,7 @@ cd ..
 mkdir paraview-build
 cd paraview-build
 ccmake -DUSE_SYSTEM_mpi=ON -DUSE_SYSTEM_python3=ON -DENABLE_catalyst=ON -DENABLE_mpi=ON -DENABLE_netcdf=ON -DENABLE_hdf5=ON -DENABLE_python3=ON ../paraview-superbuild
-make -j 
+make -j
 ```
 
 ### Building Gray-Scott ###
@@ -64,9 +64,9 @@ Du:                   0.2
 Dv:                   0.1
 noise:                1e-07
 output_file_name:     grayScott-%04ts.vti
-output_type:          
-catalyst_script_path: 
-catalyst_lib_path:    
+output_type:
+catalyst_script_path:
+catalyst_lib_path:
 process layout:       4x4x2
 local grid size:      16x16x32
 ========================================

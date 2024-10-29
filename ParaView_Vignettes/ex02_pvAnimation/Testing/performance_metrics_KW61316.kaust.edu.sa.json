@@ -202,5 +202,22 @@
             "paraview_version": "5.13.1",
             "visit_version": null
         }
+    },
+    "2024-10-29T14:00:21.662669": {
+        "test_name": "ex02_pvAnimation",
+        "execution_time": 51.26776194572449,
+        "memory_usage": 320765952,
+        "memory_usage_mb": 305.90625,
+        "cpu_usage_percent": 3.0,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-124-generic",
+            "version": "#134-Ubuntu SMP Fri Sep 27 20:20:17 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
     }
 }

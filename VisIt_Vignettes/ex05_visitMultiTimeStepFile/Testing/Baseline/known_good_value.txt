@@ -7,7 +7,7 @@ Average Value  :  The average value of temp is 9.95761
 Centroid:         Centroid = (2.3619, 0.213034, -0.00621945)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.77904 (node 80957 at coord <-7.14286, -2.2449, 3.06122>)
 temp -- Max = 27.4035 (node 36896 at coord <8.77551, 5.10204, -4.28571>)
 
@@ -31,7 +31,7 @@ Average Value  :  The average value of temp is 9.3342
 Centroid:         Centroid = (2.47284, 0.215214, -0.00526254)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.55262 (node 80957 at coord <-7.14286, -2.2449, 3.06122>)
 temp -- Max = 26.2509 (node 36896 at coord <8.77551, 5.10204, -4.28571>)
 
@@ -55,7 +55,7 @@ Average Value  :  The average value of temp is 8.77089
 Centroid:         Centroid = (2.52026, 0.214748, -0.00409811)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.32619 (node 80957 at coord <-7.14286, -2.2449, 3.06122>)
 temp -- Max = 25.0983 (node 36896 at coord <8.77551, 5.10204, -4.28571>)
 
@@ -79,7 +79,7 @@ Average Value  :  The average value of temp is 8.27192
 Centroid:         Centroid = (2.49193, 0.211061, -0.00301632)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.16446 (node 80957 at coord <-7.14286, -2.2449, 3.06122>)
 temp -- Max = 23.9457 (node 36896 at coord <8.77551, 5.10204, -4.28571>)
 
@@ -103,7 +103,7 @@ Average Value  :  The average value of temp is 7.83356
 Centroid:         Centroid = (2.38676, 0.204355, -0.00248397)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.27084 (node 58310 at coord <-5.91837, -3.46939, -0.612245>)
 temp -- Max = 22.7931 (node 36896 at coord <8.77551, 5.10204, -4.28571>)
 
@@ -127,7 +127,7 @@ Average Value  :  The average value of temp is 7.4568
 Centroid:         Centroid = (2.20082, 0.194678, -0.0031826)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.37807 (node 58311 at coord <-5.5102, -3.46939, -0.612245>)
 temp -- Max = 21.6405 (node 36896 at coord <8.77551, 5.10204, -4.28571>)
 
@@ -151,7 +151,7 @@ Average Value  :  The average value of temp is 7.14213
 Centroid:         Centroid = (1.93433, 0.181954, -0.00570835)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.49241 (node 39314 at coord <-4.28571, 4.69388, -3.87755>)
 temp -- Max = 20.4879 (node 36896 at coord <8.77551, 5.10204, -4.28571>)
 
@@ -175,7 +175,7 @@ Average Value  :  The average value of temp is 6.89065
 Centroid:         Centroid = (1.59154, 0.166401, -0.00979334)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.47548 (node 72621 at coord <-1.42857, -9.18367, 1.83673>)
 temp -- Max = 19.3354 (node 36896 at coord <8.77551, 5.10204, -4.28571>)
 
@@ -199,7 +199,7 @@ Average Value  :  The average value of temp is 6.70498
 Centroid:         Centroid = (1.18134, 0.14917, -0.0151194)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.25095 (node 72621 at coord <-1.42857, -9.18367, 1.83673>)
 temp -- Max = 18.1828 (node 36896 at coord <8.77551, 5.10204, -4.28571>)
 
@@ -223,7 +223,7 @@ Average Value  :  The average value of temp is 6.58251
 Centroid:         Centroid = (0.721351, 0.132158, -0.0214832)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.21888 (node 72621 at coord <-1.42857, -9.18367, 1.83673>)
 temp -- Max = 17.0302 (node 36896 at coord <8.77551, 5.10204, -4.28571>)
 
@@ -247,7 +247,7 @@ Average Value  :  The average value of temp is 6.52688
 Centroid:         Centroid = (0.231174, 0.11728, -0.0284431)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.22969 (node 105026 at coord <0.612245, -10, 7.14286>)
 temp -- Max = 15.9698 (node 23602 at coord <-9.18367, -1.02041, -6.32653>)
 
@@ -271,7 +271,7 @@ Average Value  :  The average value of temp is 6.53397
 Centroid:         Centroid = (-0.264854, 0.105117, -0.0348973)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.1805 (node 105026 at coord <0.612245, -10, 7.14286>)
 temp -- Max = 17.0957 (node 23602 at coord <-9.18367, -1.02041, -6.32653>)
 
@@ -295,7 +295,7 @@ Average Value  :  The average value of temp is 6.60884
 Centroid:         Centroid = (-0.741726, 0.0961035, -0.0393562)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.26464 (node 32778 at coord <1.42857, -7.95918, -4.69388>)
 temp -- Max = 18.2216 (node 23602 at coord <-9.18367, -1.02041, -6.32653>)
 
@@ -319,7 +319,7 @@ Average Value  :  The average value of temp is 6.74915
 Centroid:         Centroid = (-1.17672, 0.0903813, -0.0413799)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.49163 (node 32778 at coord <1.42857, -7.95918, -4.69388>)
 temp -- Max = 19.3475 (node 23602 at coord <-9.18367, -1.02041, -6.32653>)
 
@@ -343,7 +343,7 @@ Average Value  :  The average value of temp is 6.95997
 Centroid:         Centroid = (-1.54739, 0.0882937, -0.041242)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.71862 (node 32778 at coord <1.42857, -7.95918, -4.69388>)
 temp -- Max = 20.4735 (node 23602 at coord <-9.18367, -1.02041, -6.32653>)
 
@@ -367,7 +367,7 @@ Average Value  :  The average value of temp is 7.24101
 Centroid:         Centroid = (-1.83907, 0.0897012, -0.0396334)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.78578 (node 82191 at coord <6.73469, 7.55102, 3.06122>)
 temp -- Max = 21.5994 (node 23602 at coord <-9.18367, -1.02041, -6.32653>)
 
@@ -391,7 +391,7 @@ Average Value  :  The average value of temp is 7.5927
 Centroid:         Centroid = (-2.04281, 0.0936227, -0.0374373)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.52062 (node 82191 at coord <6.73469, 7.55102, 3.06122>)
 temp -- Max = 22.7253 (node 23602 at coord <-9.18367, -1.02041, -6.32653>)
 
@@ -415,7 +415,7 @@ Average Value  :  The average value of temp is 8.01501
 Centroid:         Centroid = (-2.15603, 0.0982206, -0.0356535)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.39615 (node 82191 at coord <6.73469, 7.55102, 3.06122>)
 temp -- Max = 23.8512 (node 23602 at coord <-9.18367, -1.02041, -6.32653>)
 
@@ -439,7 +439,7 @@ Average Value  :  The average value of temp is 8.5056
 Centroid:         Centroid = (-2.18363, 0.102404, -0.0346517)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.66131 (node 82191 at coord <6.73469, 7.55102, 3.06122>)
 temp -- Max = 24.9772 (node 23602 at coord <-9.18367, -1.02041, -6.32653>)
 
@@ -463,7 +463,7 @@ Average Value  :  The average value of temp is 9.06581
 Centroid:         Centroid = (-2.12988, 0.106138, -0.0339761)
 GridInformation:  Grid 0: type=AVT_RECTILINEAR_MESH, dims={50,50,50}
 
-MinMax:           
+MinMax:
 temp -- Min = 1.92648 (node 82191 at coord <6.73469, 7.55102, 3.06122>)
 temp -- Max = 26.1031 (node 23602 at coord <-9.18367, -1.02041, -6.32653>)
 
