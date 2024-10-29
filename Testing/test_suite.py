@@ -26,8 +26,15 @@ def run_local_test(test_dir):
         os.path.dirname(os.path.abspath(__file__)), "run_tests.py"
     )
 
+    # Check for Python executables
+    python_exec = shutil.which("python") or shutil.which("python3")
+    if not python_exec:
+        print("Error: Neither 'python' nor 'python3' is available on this system.")
+        return
+
+    # Run the script if it exists
     if os.path.exists(run_tests_path):
-        subprocess.run(["python", run_tests_path, test_dir])
+        subprocess.run([python_exec, run_tests_path, test_dir])
     else:
         print(f"run_tests.py not found at {run_tests_path}")
 
@@ -142,6 +149,11 @@ def create_baseline_images(output_dir, max_images=5):
     return selected_images
 
 
+def resize_to_match(baseline_image, output_image):
+    if baseline_image.size != output_image.size:
+        output_image = output_image.resize(baseline_image.size, Image.ANTIALIAS)
+    return output_image
+
 def compare_images(baseline_dir, output_dir, selected_images):
     """
     Compare images in the 'output' directory against baseline images.
@@ -161,7 +173,12 @@ def compare_images(baseline_dir, output_dir, selected_images):
             if os.path.exists(baseline_image_path):
                 baseline_image = Image.open(baseline_image_path)
                 output_image = Image.open(output_image_path)
-
+                
+               # added to make sure images from different machines match before comparison
+                baseline_image = baseline_image.convert("RGB")
+                output_image = output_image.convert("RGB")
+                output_image = resize_to_match(baseline_image, output_image)
+                
                 # Compare images
                 diff = ImageChops.difference(baseline_image, output_image)
 
