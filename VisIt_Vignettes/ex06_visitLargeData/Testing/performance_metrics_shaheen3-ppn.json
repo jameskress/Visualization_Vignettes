@@ -1,0 +1,19 @@
+{
+    "2024-10-30T12:39:22.604690": {
+        "test_name": "ex06_visitLargeData",
+        "execution_time": 176.39179062843323,
+        "memory_usage": 250400768,
+        "memory_usage_mb": 238.80078125,
+        "cpu_usage_percent": 0.5,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn1",
+            "release": "5.14.21-150500.55.65_13.0.73-cray_shasta_c",
+            "version": "#1 SMP Fri Jun 14 21:25:32 UTC 2024 (d052318)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    }
+}

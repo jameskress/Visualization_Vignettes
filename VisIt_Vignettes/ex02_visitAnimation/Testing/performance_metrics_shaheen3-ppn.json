@@ -1,0 +1,19 @@
+{
+    "2024-10-30T12:34:13.308250": {
+        "test_name": "ex02_visitAnimation",
+        "execution_time": 48.22133803367615,
+        "memory_usage": 168312832,
+        "memory_usage_mb": 160.515625,
+        "cpu_usage_percent": 2.4,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn1",
+            "release": "5.14.21-150500.55.65_13.0.73-cray_shasta_c",
+            "version": "#1 SMP Fri Jun 14 21:25:32 UTC 2024 (d052318)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    }
+}

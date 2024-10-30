@@ -1,0 +1,19 @@
+{
+    "2024-10-30T12:33:23.449466": {
+        "test_name": "ex01_visitScreenshot",
+        "execution_time": 3.38737154006958,
+        "memory_usage": 166572032,
+        "memory_usage_mb": 158.85546875,
+        "cpu_usage_percent": 1.2,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn1",
+            "release": "5.14.21-150500.55.65_13.0.73-cray_shasta_c",
+            "version": "#1 SMP Fri Jun 14 21:25:32 UTC 2024 (d052318)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    }
+}

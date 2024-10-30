@@ -1,0 +1,36 @@
+{
+    "2024-10-30T12:13:17.244445": {
+        "test_name": "ex06_visitLargeData",
+        "execution_time": 176.44591307640076,
+        "memory_usage": 268374016,
+        "memory_usage_mb": 255.94140625,
+        "cpu_usage_percent": 0.3,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid01182",
+            "release": "5.14.21-150500.55.65_13.0.73-cray_shasta_c",
+            "version": "#1 SMP Fri Jun 14 21:25:32 UTC 2024 (d052318)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    },
+    "2024-10-30T12:24:52.994240": {
+        "test_name": "ex06_visitLargeData",
+        "execution_time": 174.728698015213,
+        "memory_usage": 269012992,
+        "memory_usage_mb": 256.55078125,
+        "cpu_usage_percent": 0.3,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid01182",
+            "release": "5.14.21-150500.55.65_13.0.73-cray_shasta_c",
+            "version": "#1 SMP Fri Jun 14 21:25:32 UTC 2024 (d052318)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    }
+}

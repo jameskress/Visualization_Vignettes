@@ -151,7 +151,7 @@ def create_baseline_images(output_dir, max_images=5):
 
 def resize_to_match(baseline_image, output_image):
     if baseline_image.size != output_image.size:
-        output_image = output_image.resize(baseline_image.size, Image.ANTIALIAS)
+        output_image = output_image.resize(baseline_image.size, Image.LANCZOS)
     return output_image
 
 def compare_images(baseline_dir, output_dir, selected_images):
