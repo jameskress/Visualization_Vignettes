@@ -10,13 +10,13 @@
 #SBATCH --job-name=ex00.shaheen
 #SBATCH --output=ex01.shaheen.%j.out
 #SBATCH --error=ex01.shaheen.%j.out
-#SBATCH --partition=ppn
+#SBATCH --partition=workq
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=2
 #SBATCH --time=00:10:00
 
 # set script vars
-_partition="ppn"
+_partition="workq"
 _nodes=1
 _ntasks=2
 _time=00:10:00

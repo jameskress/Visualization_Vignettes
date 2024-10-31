@@ -16,6 +16,14 @@ python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test
 module load paraview/5.13.1-gnu-mesa
 ```
 
+# Use ParaView's built in pip to install necessary packages
+```
+pip3 install pandas
+pip3 install matplotlib
+pip3 install psutil
+pip3 install scipy
+```
+
 ```
 srun   --cpus-per-task=12 --ntasks=1  --time=00:40:00  --mem=100G --pty /bin/bash
 python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name ibex-cpu
@@ -56,6 +64,29 @@ python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test
 srun --gres=gpu:a100:1  --cpus-per-task=12 --ntasks=1  --time=00:40:00 --mem=100G --pty /bin/bash
 python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name ibex-egl-a100
 ```
+
+
+### Shaheen3 CPU Test Runs ###
+
+```
+module load paraview/5.13.1-mesa
+```
+
+# Use ParaView's built in pip to install necessary packages
+```
+pip3 install pandas
+pip3 install matplotlib
+pip3 install psutil
+pip3 install scipy
+```
+
+srun --cpus-per-task=32 --ntasks=2  --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
+python test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name shaheen3-cpu
+
+
+srun --cpus-per-task=32 --ntasks=2 -p ppn --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
+python test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name shaheen3-mesa-ppn
+
 
 
 
@@ -101,3 +132,34 @@ pip3 install psutil
 srun   --cpus-per-task=12 --ntasks=1  --time=00:40:00  --mem=100G --pty /bin/bash
 python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type VisIt --visit_version 3.4.1  --machine_name ibex-gpu
 ```
+
+
+### Shaheen3 CPU Test Runs ###
+
+```
+module load visit/3.4.1
+```
+
+**First Run Setup **
+You need to create a Python venv to get all needed pacakges for use on the compute nodes which don't have network access.
+
+```
+python3 -m venv /scratch/kressjm/kvv_testing_env
+cd kvv_testing_env/bin
+source activate
+pip3 install pytz
+pip3 install pyparsing
+pip3 install six
+pip3 install psutil
+pip3 install pandas
+pip3 install matplotlib
+pip3 install scipy
+```
+
+Use `deactivate` to exit venv
+
+srun --cpus-per-task=32 --ntasks=2  -p workq --time=00:40:00 --mem=300G -A k01 --pty /bin/bash
+python3 test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type VisIt --visit_version 3.4.1 --machine_name shaheen3-cpu
+
+srun --cpus-per-task=32 --ntasks=2 -p ppn --time=00:40:00 --mem=300G -A k01 --pty /bin/bash
+python3 test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type VisIt --visit_version 3.4.1 --machine_name shaheen3-ppn

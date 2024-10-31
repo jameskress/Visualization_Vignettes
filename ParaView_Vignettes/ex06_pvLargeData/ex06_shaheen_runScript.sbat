@@ -11,6 +11,7 @@
 #SBATCH --error=ex06.shaheen.%j.out
 #SBATCH --partition=workq
 #SBATCH --nodes=1
+#SBATCH --mem=200G
 #SBATCH --time=00:20:00
 
 # set script vars
@@ -24,6 +25,6 @@ export OMP_NUM_THREADS=$_nthreads
 # load the paraview environment
 source ../MODULES.sh
 
-HINT_FLAG="--hint=nomultithread"
+HINT_FLAG="--hint=nomultithread  --mem-bind=v,none --cpu-bind=v,cores"
 
 time srun -n $_ntasks --ntasks-per-node=$_ntasks_per_node $HINT_FLAG -c $_nthreads --cpu-bind=verbose,cores   `(which pvbatch)` --force-offscreen-rendering ./ex06_pvLargeData.py

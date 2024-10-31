@@ -24,6 +24,6 @@ export OMP_NUM_THREADS=$_nthreads
 # load the paraview environment
 source ../MODULES.sh
 
-HINT_FLAG="--hint=nomultithread"
+HINT_FLAG="--hint=nomultithread  --mem-bind=v,none --cpu-bind=v,cores"
 
 time srun -n $_ntasks $HINT_FLAG -c $_nthreads --cpu-bind=verbose,cores `(which pvbatch)` --force-offscreen-rendering ./ex05_pvMultiTimeStepFile.py

@@ -26,7 +26,7 @@ case "$OSVERSION" in
     fi
   ;;
 "\"SLES\""*) # Shaheen
-    module load paraview
+    module load paraview/"$currentVersion"-gnu-mesa
     module load ffmpeg
   ;;
 *)
