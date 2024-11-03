@@ -15,3 +15,12 @@ repos:
     rev: v0.10.0.1
     hooks:
     -   id: shellcheck
+- repo: https://github.com/PyCQA/flake8
+  rev: 3.9.2
+  hooks:
+  -   id: flake8
+      name: flake8
+      types: [python]
+      args:
+      -   --max-line-length=88
+      -   --ignore=E203,E501,W503
