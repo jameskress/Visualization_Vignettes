@@ -23,4 +23,4 @@ repos:
       types: [python]
       args:
       -   --max-line-length=88
-      -   --ignore=E203,E501,W503
+      -   --ignore=E203,E501,W503,F403,F405

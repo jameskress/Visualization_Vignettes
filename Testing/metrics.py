@@ -1,9 +1,4 @@
-import os
 import psutil
-import json
-import time
-import numpy as np
-from scipy.stats import ttest_ind
 
 
 def gather_metrics(test_name, start_time, end_time):
@@ -24,7 +19,7 @@ def gather_metrics(test_name, start_time, end_time):
 
 
 def detect_significant_changes(df, threshold=10):
-    print("\tChecking for significant changes...")  # Debugging
+    print("\t\tChecking for significant changes...")  # Debugging
 
     if len(df) < 2:
         print("\tNot enough data for comparison.")
@@ -44,7 +39,7 @@ def detect_significant_changes(df, threshold=10):
             if len(last_two_runs) == 2:
                 previous_value, current_value = last_two_runs
                 print(
-                    f"\tComparing {metric}: previous={previous_value}, current={current_value}"
+                    f"\t\t\tComparing {metric}: previous={previous_value}, current={current_value}"
                 )  # Debugging
 
                 percent_change = 100 * (current_value - previous_value) / previous_value
@@ -52,7 +47,7 @@ def detect_significant_changes(df, threshold=10):
 
                 if percent_change > threshold:
                     print(
-                        f"\tSignificant change detected for {metric}: {percent_change}% change"
+                        f"\t\t\t\tSignificant change detected for {metric}: {percent_change}% change"
                     )
                     return {
                         "Performance_stable": False,
@@ -61,5 +56,5 @@ def detect_significant_changes(df, threshold=10):
                         "percent_change": percent_change,
                     }
 
-    print("\tNo significant changes found.")
+    print("\t\tNo significant changes found.")
     return None

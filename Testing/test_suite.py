@@ -1,4 +1,5 @@
 import os
+import sys
 import subprocess
 import argparse
 import re
@@ -9,12 +10,10 @@ import shutil
 import datetime
 import platform
 import pandas as pd
-import matplotlib.pyplot as plt
 from PIL import Image, ImageChops
 from metrics import *
 from plot_metrics import (
     generate_individual_graphs,
-    generate_combination_execution_time_plot,
 )
 
 
@@ -154,6 +153,7 @@ def resize_to_match(baseline_image, output_image):
         output_image = output_image.resize(baseline_image.size, Image.LANCZOS)
     return output_image
 
+
 def compare_images(baseline_dir, output_dir, selected_images):
     """
     Compare images in the 'output' directory against baseline images.
@@ -173,12 +173,12 @@ def compare_images(baseline_dir, output_dir, selected_images):
             if os.path.exists(baseline_image_path):
                 baseline_image = Image.open(baseline_image_path)
                 output_image = Image.open(output_image_path)
-                
-               # added to make sure images from different machines match before comparison
+
+                # added to make sure images from different machines match before comparison
                 baseline_image = baseline_image.convert("RGB")
                 output_image = output_image.convert("RGB")
                 output_image = resize_to_match(baseline_image, output_image)
-                
+
                 # Compare images
                 diff = ImageChops.difference(baseline_image, output_image)
 
@@ -261,7 +261,23 @@ def compare_text_files(output_log, known_good_value_path, ignore_patterns=None):
     return True  # All lines match
 
 
-def create_summary_report(test_directory, test_type, args_machine_name):
+def is_gpu_test_allowed_to_fail(test_dir):
+    # list of tests that need a gpu in order to pass
+    gpu_required_tests = ["ex00_pvQuery"]
+
+    parent_dir = os.path.basename(os.path.dirname(test_dir))
+    # Match names starting with "ex"
+    match = re.match(r"^ex\d+.*", parent_dir)
+
+    if match:
+        return match.group(0) in gpu_required_tests
+    else:
+        return False
+
+
+def create_summary_report(
+    test_directory, test_type, args_machine_name, args_non_gpu_machine
+):
     """
     Create a summary report indicating:
     1. Tests with image/text comparison failures.
@@ -316,13 +332,24 @@ def create_summary_report(test_directory, test_type, args_machine_name):
         # Check text comparison results
         text_comparison_file = os.path.join(testing_dir, "text_comparison_results.json")
         if os.path.exists(text_comparison_file):
+            print(f"\n\tOutput comparison file found: {text_comparison_file}")
             with open(text_comparison_file, "r") as f:
                 text_comparison_results = json.load(f)
             for result in text_comparison_results:
-                if result["logs_match"] == False:
-                    test_status["text_comparison_passed"] = False
-                    summary_report["failed_text_comparisons"].append(subdir)
-                    summary_report["any_tests_failed"] = True
+                if result["logs_match"] is False:
+                    if is_gpu_test_allowed_to_fail(subdir) and args_non_gpu_machine:
+                        test_status["text_comparison_passed"] = True
+                        print(
+                            f"\tTest failure detected but was expected, not triggering error: \n\t\t{subdir}"
+                        )
+                    else:
+                        test_status["text_comparison_passed"] = False
+                        summary_report["failed_text_comparisons"].append(subdir)
+                        print(
+                            f"\tTest failure detected, which was unexpected: \n\t\t{subdir}"
+                        )
+                        summary_report["any_tests_failed"] = True
+            print("\tFinished output comparison logs.")
 
         # Check performance changes
         performance_file = os.path.join(
@@ -476,6 +503,32 @@ def clean_tests(test_directory, example_dirs, args):
     pass
 
 
+# function to check if any text comparisons failed so that we can set an exit error flag
+def check_failure(test_dir, non_gpu_machine):
+    """
+    Check if a test in the given directory failed based on its results.
+    """
+    text_comparison_file = os.path.join(test_dir, "text_comparison_results.json")
+
+    if not os.path.exists(text_comparison_file):
+        print(f"No text comparison file found for {test_dir}. Skipping failure check.")
+        return False  # Return as passed if no results file is found
+
+    with open(text_comparison_file, "r") as f:
+        text_comparison_results = json.load(f)
+
+    # Iterate through the results to check for any mismatches
+    for result in text_comparison_results:
+        if result["logs_match"] is False:
+            if is_gpu_test_allowed_to_fail(test_dir) and non_gpu_machine:
+                print(f"\tNon-GPU test failure allowed for {test_dir}.")
+            else:
+                print(f"\tTest failure in {test_dir}.")
+                return True  # Indicates test failed
+
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run or submit tests.")
     parser.add_argument("root_directory", type=str, help="Root dir of repo.")
@@ -515,6 +568,12 @@ def main():
         default=None,
         help="Specify the VisIt version (e.g., 3.2.0)",
     )
+    parser.add_argument(
+        "--non_gpu_machine",
+        action="store_true",
+        default=False,
+        help="Indicate that tests are running on a non-GPU machine.",
+    )
 
     args = parser.parse_args()
 
@@ -531,12 +590,14 @@ def main():
         clean_tests(test_directory, example_dirs, args)
         return
 
+    test_failed = False  # Initialize flag to track any failures
     # a single test was specified, just run it
     if args.test_number is not None:
         # Check if the test number is within the valid range
         if args.test_number < len(example_dirs):
             test_dir = os.path.join(test_directory, example_dirs[args.test_number])
             run_test(test_dir, example_dirs[args.test_number], args)
+            test_failed = check_failure(test_dir + "/Testing", args.non_gpu_machine)
         else:
             print(
                 f"Error: Test number {args.test_number} is out of range. Available tests: 0-{len(example_dirs)-1}"
@@ -545,9 +606,19 @@ def main():
         for dir_name in example_dirs:
             test_dir = os.path.join(test_directory, dir_name)
             run_test(test_dir, dir_name, args)
+            if check_failure(test_dir + "/Testing", args.non_gpu_machine):
+                test_failed = True
 
         # Create a summary report of all tests
-        create_summary_report(test_directory, args.test_type, args.machine_name)
+        create_summary_report(
+            test_directory, args.test_type, args.machine_name, args.non_gpu_machine
+        )
+
+    # Set exit code if any test failed
+    if test_failed:
+        sys.exit(13)  # Exit with non-zero code to indicate failure
+    else:
+        sys.exit(0)  # Exit with zero if all tests passed
 
 
 if __name__ == "__main__":
