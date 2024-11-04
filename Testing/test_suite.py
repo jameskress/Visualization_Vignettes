@@ -332,31 +332,34 @@ def create_summary_report(
         # Check text comparison results
         text_comparison_file = os.path.join(testing_dir, "text_comparison_results.json")
         if os.path.exists(text_comparison_file):
-            print(f"\n\tOutput comparison file found: {text_comparison_file}")
+            print(f"\n\n\tOutput comparison file found: {text_comparison_file}")
             with open(text_comparison_file, "r") as f:
                 text_comparison_results = json.load(f)
             for result in text_comparison_results:
                 if result["logs_match"] is False:
-                    if is_gpu_test_allowed_to_fail(subdir) and args_non_gpu_machine:
+                    if (
+                        is_gpu_test_allowed_to_fail(testing_dir)
+                        and args_non_gpu_machine
+                    ):
                         test_status["text_comparison_passed"] = True
                         print(
-                            f"\tTest failure detected but was expected, not triggering error: \n\t\t{subdir}"
+                            f"\t\tTest failure detected but was expected, not triggering error: \n\t\t\t{subdir}"
                         )
                     else:
                         test_status["text_comparison_passed"] = False
                         summary_report["failed_text_comparisons"].append(subdir)
                         print(
-                            f"\tTest failure detected, which was unexpected: \n\t\t{subdir}"
+                            f"\t\tTest failure detected, which was unexpected: \n\t\t\t{subdir}"
                         )
                         summary_report["any_tests_failed"] = True
-            print("\tFinished output comparison logs.")
+            print("\t\tFinished output comparison logs.")
 
         # Check performance changes
         performance_file = os.path.join(
             testing_dir, f"performance_metrics_{machine_name}.json"
         )
         if os.path.exists(performance_file):
-            print(f"\n\tPerformance file found: {performance_file}")
+            print(f"\tPerformance file found: {performance_file}")
             with open(performance_file, "r") as f:
                 performance_data = json.load(f)
 
@@ -419,7 +422,7 @@ def clean_test_files(test_directory):
 
 # logic to execute a single unit test
 def run_test(test_dir, dir_name, args):
-    print(f"\nRunning {test_dir}")
+    print(f"\n\nRunning {test_dir}")
 
     submit = args.submit
     generate_metrics_only = args.generate_metrics
@@ -609,10 +612,10 @@ def main():
             if check_failure(test_dir + "/Testing", args.non_gpu_machine):
                 test_failed = True
 
-        # Create a summary report of all tests
-        create_summary_report(
-            test_directory, args.test_type, args.machine_name, args.non_gpu_machine
-        )
+    # Create a summary report of all tests
+    create_summary_report(
+        test_directory, args.test_type, args.machine_name, args.non_gpu_machine
+    )
 
     # Set exit code if any test failed
     if test_failed:
