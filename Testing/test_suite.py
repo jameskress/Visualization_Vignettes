@@ -619,6 +619,11 @@ def main():
 
     # Set exit code if any test failed
     if test_failed:
+        print("\n\n**********")
+        print(
+            "***** Unexpected test failure detected: consider the test_suite as NOT passed. ***** "
+        )
+        print("**********")
         sys.exit(13)  # Exit with non-zero code to indicate failure
     else:
         sys.exit(0)  # Exit with zero if all tests passed
