@@ -26,7 +26,7 @@ pip3 install scipy
 
 ```
 srun   --cpus-per-task=12 --ntasks=1  --time=00:40:00  --mem=100G --pty /bin/bash
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name ibex-cpu
+python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name ibex-cpu --non_gpu_machine
 ```
 
 ### Ibex GPU Test Runs
@@ -81,11 +81,11 @@ pip3 install scipy
 ```
 
 srun --cpus-per-task=32 --ntasks=2  --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
-python test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name shaheen3-cpu
+python test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name shaheen3-cpu --non_gpu_machine
 
 
 srun --cpus-per-task=32 --ntasks=2 -p ppn --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
-python test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name shaheen3-mesa-ppn
+python test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name shaheen3-mesa-ppn --non_gpu_machine
 
 
 

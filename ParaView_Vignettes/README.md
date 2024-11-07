@@ -131,7 +131,7 @@ These examples will only use ``pvbatch``, if you want to interactively use ParaV
     1. Ibex:
         * ``module load paraview``
     2. Shaheen
-        * ``module load ParaView``
+        * ``module load paraview``
 4. Run the example locally or on one of the clusters
     1. Locally:
         1. We can run the *.py script directly on the command line, not using a batch script
@@ -150,58 +150,3 @@ These examples will only use ``pvbatch``, if you want to interactively use ParaV
         a. To view videos copy them to your local machine
     3. Shaheen ``display  *.png``
         a. To view videos copy them to your local machine
-
-
-
-# This file is a template, and might need editing before it works on your project.
-# You can copy and paste this template into a new `.gitlab-ci.yml` file.
-# You should not add this template to an existing `.gitlab-ci.yml` file by using the `include:` keyword.
-#
-# To contribute improvements to CI/CD templates, please follow the Development guide at:
-# https://docs.gitlab.com/ee/development/cicd/templates.html
-# This specific template is located at:
-# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/C++.gitlab-ci.yml
-
-# use the official gcc image, based on debian
-# can use versions as well, like gcc:5.2
-# see https://hub.docker.com/_/gcc/
-
-image: gcc
-
-build:
-  stage: build
-  # instead of calling g++ directly you can also use some build toolkit like make
-  # install the necessary build tools when needed
-  before_script:
-     - apt update && apt -y install make autoconf python3
-     - pip3 install pip3 install pandas matplotlib psutil scipy
-     - wget https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v5.13&type=binary&os=Linux&downloadFile=ParaView-5.13.1-MPI-Linux-Python3.10-x86_64.tar.gz paraview.tar.gz
-     - tar -xvf paraview.tar.gz
-     - export PARAVIEW_DIR=parview/bin
-
-  script:
-    - echo "Build in situ code here"
-  artifacts:
-    paths:
-      #- mybinary
-      # depending on your build setup it's most likely a good idea to cache outputs to reduce the build time
-      # cache:
-      #   paths:
-      #     - "*.o"
-
-# run tests using the binary built before
-paraview_0_test:
-  stage: test
-  script:
-    - python test_suite.py KAUST_Visualization_Vignettes --test_type ParaView --paraview_version 5.13.1 --test_number 0
-
-deploy:
-  stage: deploy
-  script: echo "Define your deployment script!"
-  environment: production
-
-
-    If you wish to install a non-Debian-packaged Python package,
-    create a virtual environment using python3 -m venv path/to/venv.
-    Then use path/to/venv/bin/python and path/to/venv/bin/pip. Make
-    sure you have python3-full installed.

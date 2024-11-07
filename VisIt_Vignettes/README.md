@@ -113,8 +113,7 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
     1. Ibex
         * ``module load visit``
     2. Shaheen
-        * ``module use /sw/vis/xc40.modules``
-        * ``module load VisIt``
+        * ``module load visit``
 4. Run the example locally or on one of the clusters
     1. Locally:
         1. We can run the *.py script directly on the command line, not using a batch script
@@ -138,7 +137,7 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
     3. Shaheen: ``cat ex*.shaheen_<job_number>.out``
 6. View images from tests that write images:
     1. Locally: use your preferred image viewer
-    2. Ibex: ``display*.png``
+    2. Ibex: ``display *.png``
         a. To view videos copy them to your local machine
-    3. Shaheen ``eog .``
+    3. Shaheen ``display *.png``
         a. To view videos copy them to your local machine
