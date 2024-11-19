@@ -552,7 +552,8 @@ def main():
     parser.add_argument(
         "--test_number",
         type=int,
-        help="Specify the test number to run (e.g., 0 for ex00, 1 for ex01, etc.).",
+        nargs="+",  # Allow one or more numbers
+        help="Specify one or more test numbers to run (e.g., 0 for ex00, 1 for ex01, 1,2 for two tests, etc.).",
     )
     parser.add_argument(
         "--machine_name",
@@ -594,17 +595,19 @@ def main():
         return
 
     test_failed = False  # Initialize flag to track any failures
-    # a single test was specified, just run it
+
+    # Run specific tests if --test_number is provided
     if args.test_number is not None:
-        # Check if the test number is within the valid range
-        if args.test_number < len(example_dirs):
-            test_dir = os.path.join(test_directory, example_dirs[args.test_number])
-            run_test(test_dir, example_dirs[args.test_number], args)
-            test_failed = check_failure(test_dir + "/Testing", args.non_gpu_machine)
-        else:
-            print(
-                f"Error: Test number {args.test_number} is out of range. Available tests: 0-{len(example_dirs)-1}"
-            )
+        for test_number in args.test_number:
+            if test_number < len(example_dirs):
+                test_dir = os.path.join(test_directory, example_dirs[test_number])
+                run_test(test_dir, example_dirs[test_number], args)
+                if check_failure(test_dir + "/Testing", args.non_gpu_machine):
+                    test_failed = True
+            else:
+                print(
+                    f"Error: Test number {test_number} is out of range. Available tests: 0-{len(example_dirs)-1}"
+                )
     else:  # Run all tests if no specific test number is given
         for dir_name in example_dirs:
             test_dir = os.path.join(test_directory, dir_name)
