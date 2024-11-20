@@ -163,3 +163,7 @@ python3 test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --
 
 srun --cpus-per-task=32 --ntasks=2 -p ppn --time=00:40:00 --mem=300G -A k01 --pty /bin/bash
 python3 test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type VisIt --visit_version 3.4.1 --machine_name shaheen3-ppn
+
+
+## Continuous Integration
+A GitLab CI pipeline is setup to run each time this repo is committed. It uses a GitLab Runner setup on an internal KVL system, render-01. This pipeline runs the `test_suite.py` for both ParaView and VisIt. The artifacts from these runs are saved for review. If the tests pass the CI pipeline will pass.
