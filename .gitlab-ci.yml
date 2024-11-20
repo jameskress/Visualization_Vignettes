@@ -50,6 +50,7 @@ paraview-test-job:   # This job runs in the test stage.
     access: all
     expire_in: 30 days
     paths:
+      - "ParaView_Vignettes/*/output/*"
       - "ParaView_Vignettes/*/Testing/*.json"
       - "ParaView_Vignettes/*/Testing/*.log"
       - "ParaView_Vignettes/*/Testing/*.png"
@@ -84,6 +85,7 @@ visit-test-job:
     access: all
     expire_in: 30 days
     paths:
+      - "VisIt_Vignettes/*/output/*"
       - "VisIt_Vignettes/*/Testing/*.json"
       - "VisIt_Vignettes/*/Testing/*.log"
       - "VisIt_Vignettes/*/Testing/*.png"
