@@ -1,0 +1,32 @@
+#!/bin/bash
+#
+# KAUST Visualization Vignettes
+#
+# Author: James Kress, <james.kress@kaust.edu.sa>
+# Copyright KAUST
+#
+#SBATCH -N 1
+#SBATCH --ntasks-per-node=1
+#SBATCH --mem=10G
+#SBATCH --partition=batch
+#SBATCH -J grayScott.ibex
+#SBATCH -o grayScott.ibex.%J.out
+#SBATCH -e grayScott.ibex.%J.out
+#SBATCH --time=00:15:00
+
+# by default ibex gives 2GB per core, so we ask for more above
+
+#OpenMP settings:
+export OMP_NUM_THREADS=1
+
+# set script vars
+_ntasks=1
+
+# load the paraview environment
+source MODULES.sh
+
+time mpirun -np $_ntasks --bind-to none kvvm-gray-scott --settings-file=/ibex/scratch/kressjm/test/ibex-settings-vtk-pvti.json --logging-level=TRACE
+
+#time mpirun -np $_ntasks --bind-to none kvvm-gray-scott --settings-file=/ibex/scratch/kressjm/test/ibex-settings-catalyst-insitu.json --logging-level=TRACE
+
+#time mpirun -np $_ntasks --bind-to none kvvm-gray-scott --settings-file=/ibex/scratch/kressjm/test/ibex-settings-catalyst-file-io.json --logging-level=TRACE

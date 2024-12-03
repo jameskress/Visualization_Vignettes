@@ -1,0 +1,36 @@
+{
+    "2024-10-23T14:56:32.324864": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "execution_time": 21.765196323394775,
+        "memory_usage": 374706176,
+        "memory_usage_mb": 357.3515625,
+        "cpu_usage_percent": 14.6,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn605-26-l",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    },
+    "2024-10-23T16:02:50.696957": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "execution_time": 21.36088466644287,
+        "memory_usage": 374263808,
+        "memory_usage_mb": 356.92578125,
+        "cpu_usage_percent": 19.1,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn605-26-l",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    }
+}

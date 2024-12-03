@@ -1,0 +1,36 @@
+{
+    "2024-10-23T09:26:41.081901": {
+        "test_name": "ex06_pvLargeData",
+        "execution_time": 420.39330434799194,
+        "memory_usage": 296693760,
+        "memory_usage_mb": 282.94921875,
+        "cpu_usage_percent": 31.5,
+        "machine_info": {
+            "system": "Linux",
+            "node": "dgpu609-10",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-23T09:33:49.360777": {
+        "test_name": "ex06_pvLargeData",
+        "execution_time": 375.9754056930542,
+        "memory_usage": 129048576,
+        "memory_usage_mb": 123.0703125,
+        "cpu_usage_percent": 30.8,
+        "machine_info": {
+            "system": "Linux",
+            "node": "dgpu609-10",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    }
+}

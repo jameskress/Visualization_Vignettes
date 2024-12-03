@@ -10,25 +10,45 @@ import sys
 print("Running VisIt example script: ", sys.argv[0], "\n")
 
 # Get directory of this script
-script_dir = os.path.abspath( os.path.dirname( __file__ ) )
-print("Running script from: ",  script_dir )
+script_dir = os.path.abspath(os.path.dirname(__file__))
+print("Running script from: ", script_dir)
 
 # Open the compute engine if running on cluster
-if len(sys.argv)  < 4:
+if len(sys.argv) < 4:
     print("Running script locally, not launching a batch job\n")
 elif sys.argv[4] == "shaheen":
-    OpenComputeEngine("localhost",("-l", "srun",
-                                   "-p", sys.argv[1], 
-                                   "-nn", sys.argv[2],
-                                   "-np", sys.argv[3],
-                                   "-t", sys.argv[4]))
+    OpenComputeEngine(
+        "localhost",
+        (
+            "-l",
+            "srun",
+            "-p",
+            sys.argv[1],
+            "-nn",
+            sys.argv[2],
+            "-np",
+            sys.argv[3],
+            "-t",
+            sys.argv[4],
+        ),
+    )
 
 elif sys.argv[4] == "ibex":
-    OpenComputeEngine("localhost",("-l", "srun",
-                                   "-p", "batch",
-                                   "-nn", sys.argv[1],
-                                   "-np", sys.argv[2],
-                                   "-t", sys.argv[3]))
+    OpenComputeEngine(
+        "localhost",
+        (
+            "-l",
+            "srun",
+            "-p",
+            "batch",
+            "-nn",
+            sys.argv[1],
+            "-np",
+            sys.argv[2],
+            "-t",
+            sys.argv[3],
+        ),
+    )
 
 
 # Open file and add basic plot
@@ -40,6 +60,11 @@ PseudocolorAtts.colorTableName = "hot_desaturated"
 SetPlotOptions(PseudocolorAtts)
 DrawPlots()
 
+# Change the annotations on the window
+AnnotationAtts = AnnotationAttributes()
+AnnotationAtts.userInfoFlag = 0
+SetAnnotationAttributes(AnnotationAtts)
+
 SaveWindowAtts = SaveWindowAttributes()
 try:
     saveDir = script_dir + "/output"
@@ -49,8 +74,10 @@ except FileExistsError:
 SaveWindowAtts.outputToCurrentDirectory = 0
 SaveWindowAtts.outputDirectory = saveDir
 SaveWindowAtts.fileName = "ex01_visit"
-SaveWindowAtts.family = 1
-SaveWindowAtts.format = SaveWindowAtts.PNG  # BMP, CURVE, JPEG, OBJ, PNG, POSTSCRIPT, POVRAY, PPM, RGB, STL, TIFF, ULTRA, VTK, PLY, EXR
+SaveWindowAtts.family = 0
+SaveWindowAtts.format = (
+    SaveWindowAtts.PNG
+)  # BMP, CURVE, JPEG, OBJ, PNG, POSTSCRIPT, POVRAY, PPM, RGB, STL, TIFF, ULTRA, VTK, PLY, EXR
 SaveWindowAtts.width = 2048
 SaveWindowAtts.height = 2048
 SaveWindowAtts.screenCapture = 0
@@ -61,13 +88,15 @@ SaveWindowAtts.binary = 0
 SaveWindowAtts.stereo = 0
 SaveWindowAtts.compression = SaveWindowAtts.NONE  # NONE, PackBits, Jpeg, Deflate, LZW
 SaveWindowAtts.forceMerge = 0
-SaveWindowAtts.resConstraint = SaveWindowAtts.EqualWidthHeight  # NoConstraint, EqualWidthHeight, ScreenProportions
+SaveWindowAtts.resConstraint = (
+    SaveWindowAtts.EqualWidthHeight
+)  # NoConstraint, EqualWidthHeight, ScreenProportions
 SetSaveWindowAttributes(SaveWindowAtts)
 SaveWindow()
 
 print("\nFinished VisIt example script\n")
 
 # If on Windows wait for user input so that output does not disapear
-if os.name == 'nt':
+if os.name == "nt":
     input("Press any key to close")
 exit()

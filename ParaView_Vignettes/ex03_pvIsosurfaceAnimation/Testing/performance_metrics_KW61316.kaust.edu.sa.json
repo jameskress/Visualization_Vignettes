@@ -1,0 +1,189 @@
+{
+    "2024-10-15T13:30:45.996171": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 18.380746841430664,
+        "memory_usage": 241274880,
+        "memory_usage_mb": 230.09765625,
+        "cpu_usage_percent": 3.0,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T14:49:40.853093": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 19.96171545982361,
+        "memory_usage": 242262016,
+        "memory_usage_mb": 231.0390625,
+        "cpu_usage_percent": 3.0,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T14:56:42.110769": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 20.08549404144287,
+        "memory_usage": 242622464,
+        "memory_usage_mb": 231.3828125,
+        "cpu_usage_percent": 2.9,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T15:14:42.591568": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 20.099907875061035,
+        "memory_usage": 241926144,
+        "memory_usage_mb": 230.71875,
+        "cpu_usage_percent": 3.1,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T16:10:28.612716": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 19.79097890853882,
+        "memory_usage": 247640064,
+        "memory_usage_mb": 236.16796875,
+        "cpu_usage_percent": 2.9,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-15T16:29:27.302828": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 19.212008714675903,
+        "memory_usage": 241897472,
+        "memory_usage_mb": 230.69140625,
+        "cpu_usage_percent": 2.1,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-16T09:25:15.610931": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 20.116610527038574,
+        "memory_usage": 242642944,
+        "memory_usage_mb": 231.40234375,
+        "cpu_usage_percent": 3.1,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-16T10:08:42.495488": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 20.008148431777954,
+        "memory_usage": 243204096,
+        "memory_usage_mb": 231.9375,
+        "cpu_usage_percent": 3.2,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-16T11:36:59.846310": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 20.043798685073853,
+        "memory_usage": 242294784,
+        "memory_usage_mb": 231.0703125,
+        "cpu_usage_percent": 2.5,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-22T12:16:25.056644": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 18.14767098426819,
+        "memory_usage": 403750912,
+        "memory_usage_mb": 385.046875,
+        "cpu_usage_percent": 4.7,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-122-generic",
+            "version": "#132-Ubuntu SMP Thu Aug 29 13:45:52 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-29T14:00:48.594661": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 18.223271369934082,
+        "memory_usage": 406466560,
+        "memory_usage_mb": 387.63671875,
+        "cpu_usage_percent": 4.3,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-124-generic",
+            "version": "#134-Ubuntu SMP Fri Sep 27 20:20:17 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    }
+}

@@ -1,0 +1,36 @@
+{
+    "2024-10-30T12:09:55.347502": {
+        "test_name": "ex04_visitStreamlineAnimation",
+        "execution_time": 78.12120985984802,
+        "memory_usage": 215908352,
+        "memory_usage_mb": 205.90625,
+        "cpu_usage_percent": 0.9,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid01182",
+            "release": "5.14.21-150500.55.65_13.0.73-cray_shasta_c",
+            "version": "#1 SMP Fri Jun 14 21:25:32 UTC 2024 (d052318)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    },
+    "2024-10-30T12:21:33.183949": {
+        "test_name": "ex04_visitStreamlineAnimation",
+        "execution_time": 77.68739700317383,
+        "memory_usage": 213508096,
+        "memory_usage_mb": 203.6171875,
+        "cpu_usage_percent": 0.9,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid01182",
+            "release": "5.14.21-150500.55.65_13.0.73-cray_shasta_c",
+            "version": "#1 SMP Fri Jun 14 21:25:32 UTC 2024 (d052318)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    }
+}

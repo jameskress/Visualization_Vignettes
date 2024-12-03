@@ -1,0 +1,87 @@
+{
+    "2024-10-21T10:39:06.664386": {
+        "test_name": "ex05_pvMultiTimeStepFile",
+        "execution_time": 4.906597375869751,
+        "memory_usage": 216494080,
+        "memory_usage_mb": 206.46484375,
+        "cpu_usage_percent": 23.2,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-12",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-21T13:37:53.820018": {
+        "test_name": "ex05_pvMultiTimeStepFile",
+        "execution_time": 4.544950246810913,
+        "memory_usage": 293064704,
+        "memory_usage_mb": 279.48828125,
+        "cpu_usage_percent": 28.7,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-12",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-21T13:55:57.293090": {
+        "test_name": "ex05_pvMultiTimeStepFile",
+        "execution_time": 4.749866485595703,
+        "memory_usage": 299032576,
+        "memory_usage_mb": 285.1796875,
+        "cpu_usage_percent": 29.7,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-12",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-24T08:22:53.826608": {
+        "test_name": "ex05_pvMultiTimeStepFile",
+        "execution_time": 7.13091778755188,
+        "memory_usage": 281169920,
+        "memory_usage_mb": 268.14453125,
+        "cpu_usage_percent": 13.0,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-12",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-24T08:37:43.350756": {
+        "test_name": "ex05_pvMultiTimeStepFile",
+        "execution_time": 4.415548324584961,
+        "memory_usage": 283148288,
+        "memory_usage_mb": 270.03125,
+        "cpu_usage_percent": 13.2,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-12",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    }
+}

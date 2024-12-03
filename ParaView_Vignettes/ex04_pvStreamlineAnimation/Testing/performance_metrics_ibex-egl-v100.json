@@ -1,0 +1,70 @@
+{
+    "2024-10-21T09:34:04.602119": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "execution_time": 81.40965819358826,
+        "memory_usage": 195600384,
+        "memory_usage_mb": 186.5390625,
+        "cpu_usage_percent": 17.7,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu609-07",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-21T10:11:24.888679": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "execution_time": 78.4505500793457,
+        "memory_usage": 196194304,
+        "memory_usage_mb": 187.10546875,
+        "cpu_usage_percent": 18.2,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu609-07",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-23T08:46:04.852313": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "execution_time": 72.78772115707397,
+        "memory_usage": 286400512,
+        "memory_usage_mb": 273.1328125,
+        "cpu_usage_percent": 32.7,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu208-18",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-10-23T08:58:45.589560": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "execution_time": 73.08473420143127,
+        "memory_usage": 286093312,
+        "memory_usage_mb": 272.83984375,
+        "cpu_usage_percent": 15.4,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu208-18",
+            "release": "5.14.0-162.23.1.el9_1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Apr 11 19:09:37 UTC 2023",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    }
+}

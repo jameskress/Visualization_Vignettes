@@ -1,0 +1,19 @@
+{
+    "2024-10-30T12:36:22.770718": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "execution_time": 18.356980800628662,
+        "memory_usage": 237375488,
+        "memory_usage_mb": 226.37890625,
+        "cpu_usage_percent": 1.0,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn1",
+            "release": "5.14.21-150500.55.65_13.0.73-cray_shasta_c",
+            "version": "#1 SMP Fri Jun 14 21:25:32 UTC 2024 (d052318)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        }
+    }
+}

@@ -17,6 +17,6 @@
 # load the paraview environment
 source ../MODULES.sh
 
-HINT_FLAG="--hint=nomultithread"
+HINT_FLAG="--hint=nomultithread  --mem-bind=v,none --cpu-bind=v,cores"
 
-time srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex00_pvConeStat.py 
+time srun $HINT_FLAG  `(which pvbatch)` --force-offscreen-rendering ./ex00_pvConeStat.py
