@@ -4,6 +4,22 @@ import shutil
 import argparse
 
 
+def is_gpu_available():
+    """Check if a GPU is available on the current system."""
+    try:
+        result = subprocess.run(
+            ["nvidia-smi"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+def is_ppn_node():
+    """Check if the current node contains 'ppn' in its hostname."""
+    hostname = os.uname().nodename
+    return "ppn" in hostname
+
+
 def find_executable(executable_name, env_var):
     """
     Find the executable for Visit or ParaView using an environment variable or system PATH.
@@ -46,8 +62,11 @@ def run_local_paraview(script_path, args, output_dir):
         "srun", "SRUN_PATH"
     )  # Fall back to srun if mpirun is not available
 
-    # Determine if mpirun or srun should be used
-    if mpi_exec:
+    if is_ppn_node() and is_gpu_available():
+        print("Running ParaView without mpirun or srun (using pvbatch only).")
+        cmd = ["pvbatch", "--force-offscreen-rendering", script_path]  
+    elif mpi_exec:
+        print("Running ParaView with mpirun")
         cmd = [
             mpi_exec,
             "-np",
@@ -59,11 +78,12 @@ def run_local_paraview(script_path, args, output_dir):
             script_path,
         ]
     elif srun_exec:
+        print("Running ParaView with srun")
         cmd = [
             srun_exec,
             "--hint=nomultithread",
-            "--ntasks=2",
-            "--ntasks-per-node=2",
+            "--ntasks=1",
+            "--ntasks-per-node=1",
             "--ntasks-per-socket=1",
             "--cpus-per-task=32",
             "--ntasks-per-core=1",

@@ -26,7 +26,22 @@ case "$OSVERSION" in
     fi
   ;;
 "\"SLES\""*) # Shaheen
-    module load paraview/"$currentVersion"-gnu-mesa
+    
+    # get latest paraview version number from shaheen, and then load the pv we really want
+    module swap PrgEnv-cray PrgEnv-gnu
+    module load paraview
+    currentVersion=$EBVERSIONPARAVIEW
+    module unload paraview
+
+    modVar=$1
+    if [ "$modVar" = "egl" ]; then
+        echo "Loading paraview egl variant"
+        module load paraview/"$currentVersion"-egl
+    else
+        echo "Loading paraview mesa variant"
+        module load paraview/"$currentVersion"-mesa
+    fi
+
     module load ffmpeg
   ;;
 *)

@@ -1,0 +1,36 @@
+{
+    "2024-12-04T11:47:50.635806": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 19.097058534622192,
+        "memory_usage": 168587264,
+        "memory_usage_mb": 160.77734375,
+        "cpu_usage_percent": 0.6,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn13",
+            "release": "5.14.21-150500.55.65_13.0.73-cray_shasta_c",
+            "version": "#1 SMP Fri Jun 14 21:25:32 UTC 2024 (d052318)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    },
+    "2024-12-04T12:03:02.370129": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 17.066698789596558,
+        "memory_usage": 165298176,
+        "memory_usage_mb": 157.640625,
+        "cpu_usage_percent": 0.6,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn13",
+            "release": "5.14.21-150500.55.65_13.0.73-cray_shasta_c",
+            "version": "#1 SMP Fri Jun 14 21:25:32 UTC 2024 (d052318)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.1",
+            "visit_version": null
+        }
+    }
+}
