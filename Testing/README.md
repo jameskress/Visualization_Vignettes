@@ -146,6 +146,35 @@ cd KAUST_Visualization_Vignettes/Testing
 python test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name shaheen3-mesa-ppn --non_gpu_machine
 ```
 
+### Shaheen3 GPU Test Runs ###
+
+- First, load the necessary modules:
+```bash
+module load paraview/5.13.1-egl
+```
+
+- Next, create a python virtual environment so that the necessary python packages exist:
+```bash
+python3 -m venv /scratch/kressjm/kvv_testing_paraview_gpu_env
+cd kvv_testing_paraview_gpu_env/bin
+source activate
+pip3 install pandas
+pip3 install matplotlib
+pip3 install psutil
+pip3 install scipy
+```
+
+- When you are done testing and want to exit the `venv` do:
+```bash
+deactivate
+```
+
+- Next, run the ParaView tests on the `PPN` GPU nodes:
+```bash
+srun --cpus-per-task=32 --ntasks=1 -p ppn -G 1 --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
+cd KAUST_Visualization_Vignettes/Testing
+python test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name shaheen3-mesa-ppn-gpu
+```
 
 
 ## VisIt Testing
@@ -166,6 +195,22 @@ python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test
 module load visit/3.4.1
 module load ffmpeg
 ```
+
+- Next, create a python virtual environment so that the necessary python packages exist:
+```bash
+python3 -m venv /ibex/scratch/kressjm/kvv_testing_visit_env
+cd kvv_testing_visit_env/bin
+source activate
+pip3 install pytz
+pip3 install six
+pip3 install pyparsing
+pip3 install psutil
+```
+
+- When you are done testing and want to exit the `venv` do:
+```bash
+deactivate
+``
 
 - Next, run the VisIt tests:
 ```bash
