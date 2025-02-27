@@ -79,11 +79,6 @@ local grid size:      16x16x32
 
 ```
 
-ccmake -DCMAKE_INSTALL_PREFIX=../install \
-  -DENABLE_TIMERS=ON \
-  -Dcatalyst_DIR=/home/kressjm/packages/KAUST_Visualization_Vignettes/paraview-build/install/lib/cmake/catalyst-2.0 \
-  -DVTK_DIR=/home/kressjm/packages/KAUST_Visualization_Vignettes/paraview-build/install/lib/cmake/paraview-5.13/vtk \
-  ../.
 
 ## How to run with catalyst file writer
 ```
