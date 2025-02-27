@@ -21,13 +21,14 @@ Catalyst needs to be built with the SAME MPI compiler as gray-scott
 
 git clone --recursive https://gitlab.kitware.com/paraview/paraview-superbuild.git
 cd paraview-superbuild
-git checkout v5.12.0
+git checkout v5.13.2
 cd ..
 mkdir paraview-build
 cd paraview-build
 ccmake -DUSE_SYSTEM_mpi=ON -DUSE_SYSTEM_python3=ON -DENABLE_catalyst=ON -DENABLE_mpi=ON -DENABLE_netcdf=ON -DENABLE_hdf5=ON -DENABLE_python3=ON ../paraview-superbuild
 make -j
 ```
+
 
 ### Building Gray-Scott ###
 ```
@@ -37,7 +38,7 @@ cd build
 ccmake -DCMAKE_INSTALL_PREFIX=../install \
   -DENABLE_TIMERS=ON \
   -Dcatalyst_DIR=<path_to>/paraview-build/install/lib/cmake/catalyst-2.0 \
-  -DVTK_DIR=<path_to>/paraview-build/install/lib/cmake/paraview-5.12/vtk \
+  -DVTK_DIR=<path_to>/paraview-build/install/lib/cmake/paraview-5.13/vtk \
   ../.
 make
 make install
@@ -45,6 +46,7 @@ make install
 
 ## How to run with pvti writer
 ```
+export LD_LIBRARY_PATH=<path_to>/paraview-build/install/lib
 mpirun -np 32 kvvm-gray-scott --settings-file=settings-vtk-pvti.json --logging-level=INFO
 
 	Running kvvm-gray-scott with:
@@ -77,7 +79,11 @@ local grid size:      16x16x32
 
 ```
 
-
+ccmake -DCMAKE_INSTALL_PREFIX=../install \
+  -DENABLE_TIMERS=ON \
+  -Dcatalyst_DIR=/home/kressjm/packages/KAUST_Visualization_Vignettes/paraview-build/install/lib/cmake/catalyst-2.0 \
+  -DVTK_DIR=/home/kressjm/packages/KAUST_Visualization_Vignettes/paraview-build/install/lib/cmake/paraview-5.13/vtk \
+  ../.
 
 ## How to run with catalyst file writer
 ```
