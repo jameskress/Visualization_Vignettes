@@ -1,0 +1,47 @@
+- action: "add_pipelines"
+  pipelines: 
+    contour_pipeline: 
+      contour_filter: 
+        type: "contour"
+        params: 
+          field: "v"
+          levels: 8
+
+    clip_pipeline: 
+      clip_filter: 
+        type: "clip"
+        params: 
+          plane: 
+            point: 
+              x: 0.0
+              y: 0.0
+              z: 4.0
+            normal: 
+              x: 1.0
+              y: -1.0
+              z: -1.0
+
+- action: "add_scenes"
+  scenes: 
+     scene3:
+      plots:
+        surface1:
+          type: "pseudocolor"
+          field: "v"
+          pipeline: "contour_pipeline"
+      renders:
+        r3:
+          image_width: 1024
+          image_height: 768
+          image_prefix: "ascent_grayscott_surface_contour_%03d"
+     scene4:
+      plots:
+        surface2:
+          type: "pseudocolor"
+          field: "v"
+          pipeline: "clip_pipeline"
+      renders:
+        r4:
+          image_width: 1024
+          image_height: 768
+          image_prefix: "ascent_grayscott_surface_clip_%03d"

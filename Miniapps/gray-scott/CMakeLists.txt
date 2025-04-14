@@ -1,78 +1,181 @@
 #------------------------------------------------------------------------------#
-# Distributed under the OSI-approved Apache License, Version 2.0.  See
+# Distributed under the OSI-approved Apache License, Version 2.0. See
 # accompanying file Copyright.txt for details.
 #------------------------------------------------------------------------------#
-# 3.12 for object library support with Fortran modules
+
 cmake_minimum_required(VERSION 3.12)
+
+project(KAUST_Visualization_Vignettes_Miniapp
+        VERSION 0.1.0
+        LANGUAGES C CXX)
+
+
+# Make sure RPATH is used for installed targets
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+#------------------------------------------------------------------------------#
+# C++ Standard
+#------------------------------------------------------------------------------#
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ Standard level to use (17)")
 set_property(CACHE CMAKE_CXX_STANDARD PROPERTY STRINGS "17")
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
-# Fail immediately if not using an out-of-source build
+#------------------------------------------------------------------------------#
+# Enforce out-of-source builds
+#------------------------------------------------------------------------------#
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR)
   message(FATAL_ERROR
-    "In-source builds are not supported.  Please create a build directory "
-    "separate from the source directory")
+    "In-source builds are not supported. Please create a separate build directory.")
 endif()
 
-project(KAUST_Visualization_Vignettes_Miniapp LANGUAGES C CXX VERSION 0.1.0)
+#------------------------------------------------------------------------------#
+# Build Options
+#------------------------------------------------------------------------------#
 option(ENABLE_TIMERS "Timers ON/OFF" OFF)
 
 if(ENABLE_TIMERS)
   add_definitions(-DENABLE_TIMERS)
 endif()
 
+# Default to Release build
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+endif()
+
+set(CMAKE_CXX_FLAGS_DEBUG "-g -rdynamic")
+
 #------------------------------------------------------------------------------#
-# Common dependencies
+# Writer Options
 #------------------------------------------------------------------------------#
+option(ENABLE_CATALYST "Enable Catalyst writer" OFF)
+option(ENABLE_ASCENT "Enable Ascent writer" OFF)
+
+
+# Define preprocessor macros based on CMake options
+if(ENABLE_CATALYST)
+  add_definitions(-DUSE_CATALYST)
+endif()
+
+if(ENABLE_ASCENT)
+  add_definitions(-DUSE_ASCENT)
+endif()
+
+#------------------------------------------------------------------------------#
+# Dependencies
+#------------------------------------------------------------------------------#
+
+# MPI
 set(_components C CXX)
 if(CMAKE_Fortran_COMPILER_LOADED)
   list(APPEND _components Fortran)
 endif()
 
 find_package(MPI COMPONENTS ${_components})
-if(MPI_FOUND)
-  # Workaround for various MPI implementations forcing the link of C++ bindings
-  add_definitions(-DOMPI_SKIP_MPICXX -DMPICH_SKIP_MPICXX)
 
+if(MPI_FOUND)
+  add_definitions(-DOMPI_SKIP_MPICXX -DMPICH_SKIP_MPICXX)
   list(APPEND _components MPI)
 endif()
 
-find_package(VTK REQUIRED COMPONENTS IOXML IOParallelXML ParallelMPI FiltersCore)
-include_directories(${VTK_INCLUDE_DIRS})
-message("vtk include dirs: " ${VTK_INCLUDE_DIRS})
+# VTK (Required)
+find_package(VTK REQUIRED COMPONENTS
+  CommonCore
+  IOXML
+  IOParallelXML
+  ParallelMPI
+  FiltersCore
+)
 
-#find_package(ADIOS2 2.7.1 REQUIRED COMPONENTS ${_components})
-#find_package(Threads)
-find_package(catalyst 2.0 REQUIRED)
-
-#------------------------------------------------------------------------------#
-# Top level build options
-#------------------------------------------------------------------------------#
-# Default to a Release build if not specified
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+if(NOT VTK_FOUND)
+  message(FATAL_ERROR "VTK not found. Set VTK_DIR to the installation directory.")
 endif()
 
-SET(CMAKE_CXX_FLAGS_DEBUG "-g -rdynamic")
+# Catalyst (Optional)
+if(ENABLE_CATALYST)
+  find_package(catalyst 2.0 REQUIRED)
 
-add_executable(kvvm-gray-scott
+  if(NOT catalyst_FOUND)
+    message(FATAL_ERROR "Catalyst not found. Set catalyst_DIR to the installation directory.")
+  endif()
+
+  message(STATUS "Catalyst writer enabled.")
+endif()
+
+# Ascent (Optional)
+if(ENABLE_ASCENT)
+  find_package(Ascent REQUIRED)
+  find_package(Conduit REQUIRED)
+
+  if(NOT ASCENT_VERSION)
+    message(FATAL_ERROR "Ascent not found. Set Ascent_DIR to the installation directory.")
+  endif()
+
+  message(STATUS "Ascent writer enabled.")
+endif()
+
+#------------------------------------------------------------------------------#
+# Executable and Sources
+#------------------------------------------------------------------------------#
+set(SRC_FILES
   simulation/main.cpp
   simulation/gray-scott.cpp
   simulation/settings.cpp
   simulation/writerPVTI.cpp
-  simulation/writerCatalyst.cpp
 )
 
-target_link_libraries(kvvm-gray-scott PRIVATE MPI::MPI_C ${VTK_LIBRARIES} catalyst::catalyst)
+if(ENABLE_CATALYST)
+  list(APPEND SRC_FILES simulation/writerCatalyst.cpp)
+endif()
 
+if(ENABLE_ASCENT)
+  list(APPEND SRC_FILES simulation/writerAscent.cpp)
+endif()
+
+add_executable(kvvm-gray-scott ${SRC_FILES})
+
+#------------------------------------------------------------------------------#
+# Linking
+#------------------------------------------------------------------------------#
+target_link_libraries(kvvm-gray-scott PRIVATE
+  MPI::MPI_C
+  ${VTK_LIBRARIES}
+)
+
+target_include_directories(kvvm-gray-scott PRIVATE
+  ${VTK_INCLUDE_DIRS}
+)
+
+if(ENABLE_CATALYST)
+  target_link_libraries(kvvm-gray-scott PRIVATE catalyst::catalyst)
+endif()
+
+if(ENABLE_ASCENT)
+  target_link_libraries(kvvm-gray-scott PRIVATE
+    ascent::ascent_mpi
+    conduit::conduit_mpi
+  )
+endif()
+
+#------------------------------------------------------------------------------#
+# Install Rules
+#------------------------------------------------------------------------------#
 install(TARGETS kvvm-gray-scott
         RUNTIME DESTINATION .)
 
-install(FILES  "configs/miniapp-settings/settings-catalyst-file-io.json"
-               "configs/miniapp-settings/settings-catalyst-insitu.json"
-               "configs/miniapp-settings/settings-vtk-pvti.json"
-               "configs/catalyst_scripts/catalyst-extract-jpg.py"
-               "configs/catalyst_scripts/catalyst-extract-contour_v.py"
-               "README.md"
-        DESTINATION .)
+install(FILES
+  configs/miniapp-settings/settings-catalyst-file-io.json
+  configs/miniapp-settings/settings-catalyst-insitu.json
+  configs/miniapp-settings/settings-vtk-pvti.json
+  configs/miniapp-settings/settings-ascent.json
+  configs/catalyst_scripts/catalyst-extract-jpg.py
+  configs/catalyst_scripts/catalyst-extract-contour_v.py
+  configs/ascent_scripts/ascent-extract-png.yaml
+  configs/ascent_scripts/ascent-slice-iso-png.yaml
+  configs/ascent_scripts/ascent_options.yaml
+  configs/cleanupRun.sh
+  README.md
+  DESTINATION .
+)

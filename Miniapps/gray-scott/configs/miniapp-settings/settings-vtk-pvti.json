@@ -9,7 +9,7 @@
     "steps": 100,
     "noise": 0.0000001,
     "output_file_name": "grayScott-%04ts.vti",
-    "output_type": "",
+    "output_type": "pvti",
     "catalyst_script_path": "",
     "catalyst_lib_path": "",
     "checkpoint": true,

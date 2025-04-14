@@ -5,13 +5,14 @@
 #include <vtkStreamingDemandDrivenPipeline.h>
 #include <iostream>
 #include <exception>
+#include <filesystem>
 
+namespace fs = std::filesystem;
 
 //--------------------------------------------------------------
 //  WriterCatalyst
 //--------------------------------------------------------------
 void WriterCatalyst::CreateWriter(const Settings &_settings, const GrayScott &sim, int rank)
-
 {
     settings = _settings;
     vtkLog(TRACE, "");
@@ -19,24 +20,34 @@ void WriterCatalyst::CreateWriter(const Settings &_settings, const GrayScott &si
 
     if (settings.output_type == "catalyst_io")
     {
-      vtkLogStartScope(TRACE, "before script");
-      node["catalyst/pipelines/0/type"].set("io");
-      node["catalyst/pipelines/0/filename"].set(settings.output_file_name);
-      node["catalyst/pipelines/0/channel"].set("grid");
-      vtkLogStartScope(TRACE, "after script");
+        vtkLogStartScope(TRACE, "before script");
+        node["catalyst/pipelines/0/type"].set("io");
+        node["catalyst/pipelines/0/filename"].set(settings.output_file_name);
+        node["catalyst/pipelines/0/channel"].set("grid");
+        vtkLogStartScope(TRACE, "after script");
+    }
+    else if (settings.output_type == "catalyst_insitu")
+    {
+        const auto path = std::string(settings.catalyst_script_path);
+        const auto script_name = path.substr(path.find_last_of("/\\") + 1);
+
+        // Verify the script file exists
+        if (!fs::exists(path)) {
+            vtkLog(ERROR, "Catalyst script not found at path: " << path);
+            throw std::runtime_error("Missing Catalyst script file: " + path);
+        }
+
+        vtkLog(INFO, "Using Catalyst script: " << script_name);
+
+        // Build conduit node for script with arguments
+        const auto name = "catalyst/scripts/script" + script_name;
+        node[name + "/filename"].set_string(path);
+        node[name + "/args"].append().set_string("--channel-name=grid");
     }
     else
     {
-      const auto path = std::string(settings.catalyst_script_path);
-      // note: one can simply add the script file as follows:
-      //node["catalyst/scripts/script" + settings.catalyst_script].set_string(path);
-      const auto script_name =  path.substr(path.find_last_of("/\\") + 1);
-
-      // alternatively, use this form to pass optional parameters to the script.
-      const auto name = "catalyst/scripts/script" + script_name;
-
-      node[name + "/filename"].set_string(path);
-      node[name + "/args"].append().set_string("--channel-name=grid");
+        vtkLog(ERROR, "Unknown output type: " << settings.output_type);
+        throw std::runtime_error("Invalid output type in settings.");
     }
 
     // indicate that we want to load ParaView-Catalyst

@@ -11,7 +11,7 @@ v_t = Dv * (v_xx + v_yy + v_zz) + u * v^2 - (F + k) * v
 A reaction-diffusion system is a system in which a dynamical system is attached to a diffusion equation, and it creates various patterns. This is an equation that simulates the chemical reaction between the chemicals $U$ and $V$. $U$ is called the activator and $V$ is called the repressor.
 
 ## How to build
-Make sure MPI, VTK, and Catalyst are installed.
+Make sure `MPI`, and `VTK` are installed. These are non-optional dependencies. You can also enable `Catalyst` and or `Ascent` for more visualization options.
 
 ### Catalyst ###
 The easiest way to get catalyst and VTK is to use the ParaView Superbuild. This will also enable easy live viewing from Catalyst in ParaView.
@@ -21,13 +21,24 @@ Catalyst needs to be built with the SAME MPI compiler as gray-scott
 
 git clone --recursive https://gitlab.kitware.com/paraview/paraview-superbuild.git
 cd paraview-superbuild
-git checkout v5.13.2
+git checkout v5.13.3
 cd ..
 mkdir paraview-build
 cd paraview-build
-ccmake -DUSE_SYSTEM_mpi=ON -DUSE_SYSTEM_python3=ON -DENABLE_catalyst=ON -DENABLE_mpi=ON -DENABLE_netcdf=ON -DENABLE_hdf5=ON -DENABLE_python3=ON ../paraview-superbuild
+ccmake -DUSE_SYSTEM_mpi=ON -DUSE_SYSTEM_python3=ON -DENABLE_catalyst=ON -DENABLE_mpi=ON -DENABLE_netcdf=ON -DENABLE_hdf5=ON -DENABLE_python3=ON -DENABLE_openmp=ON  ../paraview-superbuild
 make -j
 ```
+
+### Ascent ###
+To build ascent, follow one of the methods listed in the Ascent documentation. Below is the method that we have tested. 
+
+```
+git clone --recursive https://github.com/alpine-dav/ascent.git
+cd ascent
+env prefix=build env enable_mpi=ON enable_openmp=ON  ./scripts/build_ascent/build_ascent.sh
+export Ascent_DIR=/home/kressjm/packages/ascent/build/install/ascent-checkout/lib/cmake/ascent
+```
+
 
 
 ### Building Gray-Scott ###
@@ -44,9 +55,15 @@ make
 make install
 ```
 
-## How to run with pvti writer
+Running install will move all the interesting settings and implementation specific scripts into the install directory for easy use.
+
+
+## Running with VTK ##
+VTK is a mandatory dependency of this code. We use it for logging and for basic output from the simulation. Below is how to run the `pvti` writer with Gray-Scott. 
+
+### How to run with pvti writer ###
 ```
-export LD_LIBRARY_PATH=<path_to>/paraview-build/install/lib
+cd <path to>/install
 mpirun -np 32 kvvm-gray-scott --settings-file=settings-vtk-pvti.json --logging-level=INFO
 
 	Running kvvm-gray-scott with:
@@ -79,15 +96,20 @@ local grid size:      16x16x32
 
 ```
 
+## Running with Catalyst ##
+Catalyst is an optional dependency and will allow you to use the power of ParaView to create great visualization pipelines and renderings. Below are some examples on ways to use Catalyst. 
 
-## How to run with catalyst file writer
+
+### How to run with catalyst file writer ###
+> 💡 **Note:** You must edit the settings file to provide the correct paths for your Catalyst installation.
+
+
 ```
 edit settings file to use correct paths for your machine (configs/miniapp-settings/settings-catalyst-file-io.json)
 cd <path_to_install>
-mkdir run
-cd run
-ln -s ../bin/kvvm-gray-scott .
-mpirun -np 4 kvvm-gray-scott --settings-file=../../configs/miniapp-settings/settings-catalyst-file-io.json --logging-level=INFO
+mkdir run-catalyst-io
+cd run-catalyst-io
+mpirun -np 4 ../kvvm-gray-scott --settings-file=../settings-catalyst-file-io.json --logging-level=INFO
 
 ========================================
 grid:                 64x64x64
@@ -115,14 +137,15 @@ local grid size:      32x32x64
 ```
 
 
-## How to run with catalyst in situ
+### How to run with catalyst in situ ###
+> 💡 **Note:** You must edit the settings file to provide the correct paths for your Catalyst installation.
+
 ```
 edit settings file to use correct paths for your machine (configs/miniapp-settings/settings-catalyst-insitu.json)
 cd <path_to_install>
-mkdir run
-cd run
-ln -s ../bin/kvvm-gray-scott .
-mpirun -np 4 kvvm-gray-scott --settings-file=../../configs/miniapp-settings/settings-catalyst-insitu.json --logging-level=INFO
+mkdir run-catalyst-insitu
+cd run-catalyst-insitu
+mpirun -np 4 ../kvvm-gray-scott --settings-file=../settings-catalyst-insitu.json --logging-level=INFO
 
 ========================================
 grid:                 64x64x64
@@ -146,16 +169,27 @@ local grid size:      32x32x64
 ```
 
 
-## How to run with catalyst in situ and connect live (locally or on remote host)
+### How to run with catalyst in situ and connect live (locally or on remote host) ##
+> 💡 **Note:** You must edit the settings file to provide the correct paths for your Catalyst installation.
+
 ```
 edit settings file to use correct paths for your machine (configs/miniapp-settings/settings-catalyst-insitu.json)
 cd <path_to_install>
-mkdir run
-cd run
-ln -s ../bin/kvvm-gray-scott .
+mkdir run-catalyst-live
+cd run-catalyst-live
 export CATALYST_CLIENT=<your_viewer_IP>
-Run ParaView GUI, start catalyst connection
-mpirun -np 4 kvvm-gray-scott --settings-file=../../configs/miniapp-settings/settings-catalyst-insitu.json --logging-level=INFO
+```
+
+> Run ParaView GUI, start catalyst connection
+>
+> If you are running with MPI, you have to manually start a `pvserver` with the number of procs that you are using for the simulation, or you will just see one block from the simulation.
+>
+> i.e. `mpirun -np 4 pvserver`
+> Then, connect to that pvserver from paraview
+> Then, start catalyst.
+
+```
+mpirun -np 4 ../kvvm-gray-scott --settings-file=../settings-catalyst-insitu.json --logging-level=INFO
 view the results in ParaView
 
 ========================================
@@ -179,8 +213,53 @@ local grid size:      32x32x64
 ========================================
 ```
 
+## Running with Ascent ##
+Ascent is an optional dependency and will allow you to use the power of Ascent, trigger, VTK-m, and more, to create great visualization pipelines and renderings. Below are some examples on ways to use Ascent. 
 
-## How to change the parameters
+
+### How to run with catalyst in situ ###
+> 💡 **Note:** You must copy the `ascent_options.yaml` and the `ascent_actions` file you are using into your run directory. Ascent looks for a file called `ascent_options.yaml` when it runs, if it is not there, it will run a default action. In addition, you can change the actions you have ascent do by changing the name of the actions script in the options file.  
+
+
+```
+cd <path_to_install>
+mkdir run-ascent
+cd run-ascent
+ln -s ../ascent_options.yaml .
+ln -s ../ascent-extract-png.yaml .
+ln -s ../ascent-slice-iso-png.yaml .
+
+mpirun -np 4 ../kvvm-gray-scott --settings-file=settings-ascent.json --logging-level=INFO
+
+
+	Running ../kvvm-gray-scott with:
+		--settings-file=../settings-ascent.json
+		--logging-level=INFO
+
+	 - Number of tasks=4 My rank=0 Running on KW61316.kaust.edu.sa
+========================================
+grid:                 64x64x64
+restart:              no
+steps:                100
+plotgap:              10
+F:                    0.01
+k:                    0.05
+dt:                   2
+Du:                   0.2
+Dv:                   0.1
+noise:                1e-07
+output_file_name:     grayScott-%04ts.vti
+output_type:          ascent
+catalyst_script_path: 
+catalyst_lib_path:    
+process layout:       2x2x1
+local grid size:      32x32x64
+========================================
+
+```
+
+
+## How to change the parameters of Gray-Scott ##
 
 Edit settings.json to change the parameters for the simulation.
 

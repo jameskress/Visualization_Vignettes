@@ -217,14 +217,34 @@ int main(int argc, char **argv)
   int restart_step = 0;
   std::shared_ptr<Writer> writer_main;
 
+  // Create the writer based on the settings
   if (settings.output_type.empty())
   {
-    writer_main = WriterType::Create(WriterType::WRITER_TYPE_PVTI);
+      std::cerr << "Error: output_type is not set!" << std::endl;
+      exit(1); 
   }
+  else if (settings.output_type == "pvti")
+  {
+      writer_main = WriterType::Create(WriterType::WRITER_TYPE_PVTI);
+  }
+  #ifdef USE_ASCENT
+  else if (settings.output_type == "ascent")
+  {
+      writer_main = WriterType::Create(WriterType::WRITER_TYPE_ASCENT);
+  }
+  #endif
+  #ifdef USE_CATALYST
+  else if (settings.output_type == "catalyst_io" || settings.output_type == "catalyst_insitu")
+  {
+      writer_main = WriterType::Create(WriterType::WRITER_TYPE_CATALYST);
+  }
+  #endif
   else
   {
-    writer_main = WriterType::Create(WriterType::WRITER_TYPE_CATALYST);
+      std::cerr << "Error: Invalid output_type value: " << settings.output_type << std::endl;
+      exit(1);
   }
+
   writer_main->CreateWriter(settings, sim, rank);
   writer_main->open(settings.output_file_name, (restart_step > 0), rank);
   writer_main->printSelf();

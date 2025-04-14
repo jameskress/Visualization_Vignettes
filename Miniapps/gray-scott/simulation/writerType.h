@@ -15,15 +15,16 @@
 #include <vtkLogger.h>
 #include <vtkMPIController.h>
 
-/* TODO later*/
-// #ifdef USE_CATALYST
-#include "../../gray-scott/simulation/writerCatalyst.h"
-// #endif
-
-/* TODO later*/
-// #ifdef USE_VTK
+// Always include VTK writer
 #include "../../gray-scott/simulation/writerPVTI.h"
-// #endif
+
+#ifdef USE_CATALYST
+#include "../../gray-scott/simulation/writerCatalyst.h"
+#endif
+
+#ifdef USE_ASCENT
+#include "../../gray-scott/simulation/writerAscent.h"
+#endif
 
 class WriterType
 {
@@ -31,7 +32,12 @@ public:
     enum EWriterType
     {
         WRITER_TYPE_PVTI = 0,
-        WRITER_TYPE_CATALYST = 1
+    #ifdef USE_CATALYST
+        WRITER_TYPE_CATALYST = 1,
+    #endif
+    #ifdef USE_ASCENT
+        WRITER_TYPE_ASCENT = 2,
+    #endif
     };
 
     static std::shared_ptr<Writer> Create(EWriterType type)
@@ -39,11 +45,18 @@ public:
         switch (type)
         {
         case WRITER_TYPE_PVTI:
-            return std::shared_ptr<Writer>(new WriterPVTI());
-            break;
+            return std::make_shared<WriterPVTI>();
+
+        #ifdef USE_CATALYST
         case WRITER_TYPE_CATALYST:
-            return std::shared_ptr<Writer>(new WriterCatalyst());
-            break;
+            return std::make_shared<WriterCatalyst>();
+        #endif
+
+        #ifdef USE_ASCENT
+        case WRITER_TYPE_ASCENT:
+            return std::make_shared<WriterAscent>();
+        #endif
+
         default:
             return nullptr;
         }

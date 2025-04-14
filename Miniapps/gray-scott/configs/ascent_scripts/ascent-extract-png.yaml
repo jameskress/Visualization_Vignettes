@@ -1,0 +1,45 @@
+- action: "add_scenes"
+  scenes: 
+    scene1: 
+      plots: 
+        plot1: 
+          type: "volume"
+          field: "v"
+          color_table: 
+            name: "rainbow desaturated"
+            control_points: 
+              -
+                type: "alpha"
+                position: 0.0  # Fully transparent for lower values
+                alpha: 0.0
+              - 
+                type: "alpha"
+                position: 1.0  # Fully opaque for higher values
+                alpha: 1.0
+      renders: 
+        r1: 
+          image_width: 2113
+          image_height: 1338
+          image_prefix: "ascent_grayscott_v_ts_%03d"
+
+    scene2:  # Second scene for the "u" field
+      plots: 
+        plot2: 
+          type: "volume"
+          field: "u"  # Field for the second volume visualization
+          color_table: 
+            name: "rainbow desaturated"  
+            control_points: 
+              -
+                type: "alpha"
+                position: 0.0  # Fully opaque for lower values
+                alpha: 1.0
+              - 
+                type: "alpha"
+                position: 1.0  # Fully transparent for higher values
+                alpha: 0.0
+      renders: 
+        r2: 
+          image_width: 2113
+          image_height: 1338
+          image_prefix: "ascent_grayscott_u_ts_%03d" 

@@ -1,0 +1,7 @@
+runtime:
+  type: "ascent" # "ascent" "flow" "empty"
+  vtkm:
+    backend: "openmp"
+actions_file: "ascent-extract-png.yaml"
+messages: "quiet" #"verbose" "quiet" # print extra ascent related messages
+timings: "false" #"true" "false" # print a timing file per rank for filters
