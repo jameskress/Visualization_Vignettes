@@ -168,6 +168,7 @@ echo "   -Generating movie file with FFmpeg..."
 ffmpeg_command=(
     ffmpeg -y -framerate "$OUTPUT_FRAMERATE" \
     -i "img%04d.${ffmpeg_input_ext}" \
+    -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" \
     -c:v libx264 \
     -preset "$ENCODER_PRESET" \
     -crf "$VIDEO_QUALITY_CRF" \
