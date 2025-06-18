@@ -52,7 +52,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -rdynamic")
 #------------------------------------------------------------------------------#
 option(ENABLE_CATALYST "Enable Catalyst writer" OFF)
 option(ENABLE_ASCENT "Enable Ascent writer" OFF)
-
+option(ENABLE_ADIOS2 "Enable ADIOS2" OFF)
 
 # Define preprocessor macros based on CMake options
 if(ENABLE_CATALYST)
@@ -61,6 +61,10 @@ endif()
 
 if(ENABLE_ASCENT)
   add_definitions(-DUSE_ASCENT)
+endif()
+
+if(ENABLE_ADIOS2)
+  add_definitions(-DUSE_ADIOS2)
 endif()
 
 #------------------------------------------------------------------------------#
@@ -98,7 +102,7 @@ if(ENABLE_CATALYST)
   find_package(catalyst 2.0 REQUIRED)
 
   if(NOT catalyst_FOUND)
-    message(FATAL_ERROR "Catalyst not found. Set catalyst_DIR to the installation directory.")
+    
   endif()
 
   message(STATUS "Catalyst writer enabled.")
@@ -114,6 +118,19 @@ if(ENABLE_ASCENT)
   endif()
 
   message(STATUS "Ascent writer enabled.")
+endif()
+
+# ADIOS2 (Optional)
+if(ENABLE_ADIOS2)
+  find_package(ADIOS2 REQUIRED)
+
+  if(ADIOS2_FOUND)
+      message(STATUS "Found ADIOS2 version ${ADIOS2_VERSION}. Enabling ADIOS2 features.")
+  else()
+      message(FATAL_ERROR "ADIOS2 not found. Set ADIOS2_DIR to the installation directory.")
+  endif()
+
+  message(STATUS "ADIOS2 enabled.")
 endif()
 
 #------------------------------------------------------------------------------#
@@ -132,6 +149,11 @@ endif()
 
 if(ENABLE_ASCENT)
   list(APPEND SRC_FILES simulation/writerAscent.cpp)
+endif()
+
+if(ENABLE_ADIOS2)
+  list(APPEND SRC_FILES simulation/restart.cpp)
+  list(APPEND SRC_FILES simulation/writerADIOS.cpp)
 endif()
 
 add_executable(kvvm-gray-scott ${SRC_FILES})
@@ -157,6 +179,10 @@ if(ENABLE_ASCENT)
     ascent::ascent_mpi
     conduit::conduit_mpi
   )
+endif()
+
+if(ENABLE_ADIOS2)
+  target_link_libraries(kvvm-gray-scott PRIVATE adios2::cxx11_mpi)
 endif()
 
 #------------------------------------------------------------------------------#

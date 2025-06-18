@@ -26,12 +26,46 @@ void GrayScott::init()
 
 void GrayScott::iterate()
 {
+    // Perform halo exchange on the current, valid u and v arrays.
     exchange(u, v);
     calc(u, v, u2, v2);
 
-    u.swap(u2);
-    v.swap(v2);
+    // Copy the results back to u and v. 
+    // This is done to avoid issues with 0 values in the ghost cells when restarting the sim
+    //u.swap(u2);
+    //v.swap(v2);
+    for (int z = 1; z < size_z + 1; z++)
+    {
+        for (int y = 1; y < size_y + 1; y++)
+        {
+            for (int x = 1; x < size_x + 1; x++)
+            {
+                const int i = l2i(x, y, z);
+                u[i] = u2[i];
+                v[i] = v2[i];
+            }
+        }
+    }
 }
+
+#ifdef USE_ADIOS2
+void GrayScott::restart(std::vector<double> &u_in, std::vector<double> &v_in)
+{
+    auto expected_len = (size_x + 2) * (size_y + 2) * (size_z + 2);
+    if (u_in.size() == expected_len)
+    {
+        u = u_in;
+        v = v_in;
+    }
+    else
+    {
+        throw std::runtime_error(
+            "Restart with incompatible array size, expected " +
+            std::to_string(expected_len) + " got " +
+            std::to_string(u_in.size()) + " elements");
+    }
+}
+#endif
 
 const std::vector<double> &GrayScott::u_ghost() const { return u; }
 
@@ -54,7 +88,6 @@ void GrayScott::v_noghost(double *v_no_ghost) const
 std::vector<unsigned char>
 GrayScott::ghost_point_mask() const
 {
-    std::cerr << __FILE__ << __LINE__ << std::endl;
     std::vector<unsigned char> buf((size_x + 2) * (size_y + 2) * (size_z + 2), 1);
     // set non ghosts
     for (int z = 1; z < size_z + 1; z++)
@@ -81,7 +114,6 @@ GrayScott::ghost_point_mask() const
             }
         }
     }*/
-    std::cerr << __FILE__ << __LINE__ << std::endl;
 
     return buf;
 }
@@ -89,7 +121,6 @@ GrayScott::ghost_point_mask() const
 std::vector<unsigned char>
 GrayScott::ghost_cell_mask() const
 {
-    std::cerr << __FILE__ << __LINE__ << std::endl;
     std::vector<unsigned char> buf((size_x + 1) * (size_y + 1) * (size_z + 1), 1);
     // set non ghosts
     for (int z = 1; z < size_z; z++)
@@ -116,7 +147,6 @@ GrayScott::ghost_cell_mask() const
             }
         }
     }*/
-    std::cerr << __FILE__ << __LINE__ << std::endl;
 
     return buf;
 }

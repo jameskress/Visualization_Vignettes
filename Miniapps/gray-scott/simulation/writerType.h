@@ -26,6 +26,10 @@
 #include "../../gray-scott/simulation/writerAscent.h"
 #endif
 
+#ifdef USE_ADIOS2
+#include "../../gray-scott/simulation/writerADIOS.h"
+#endif
+
 class WriterType
 {
 public:
@@ -37,6 +41,9 @@ public:
     #endif
     #ifdef USE_ASCENT
         WRITER_TYPE_ASCENT = 2,
+    #endif
+    #ifdef USE_ADIOS2
+        WRITER_TYPE_ADIOS = 3 
     #endif
     };
 
@@ -55,6 +62,11 @@ public:
         #ifdef USE_ASCENT
         case WRITER_TYPE_ASCENT:
             return std::make_shared<WriterAscent>();
+        #endif
+
+        #ifdef USE_ADIOS2
+        case WRITER_TYPE_ADIOS:
+            return std::make_shared<WriterADIOS>();
         #endif
 
         default:

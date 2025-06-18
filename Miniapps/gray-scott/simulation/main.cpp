@@ -10,6 +10,11 @@
 #include "writer.h"
 #include "writerType.h"
 
+#ifdef USE_ADIOS2
+#include "restart.h"
+#include "writerADIOS.h"
+#endif
+
 // #include <vtkDebugLeaks.h>
 
 using namespace std;
@@ -146,12 +151,17 @@ void print_settings(const Settings &s, int restart_step)
             << std::endl;
   if (restart_step > 0)
   {
-    std::cout << "restart:          from step " << restart_step
-              << std::endl;
+    std::cout << "restart:          from step " << restart_step  << std::endl;
   }
   else
   {
     std::cout << "restart:              no" << std::endl;
+  }
+  std::cout << "checkpoint:           " << (s.checkpoint ? "yes" : "no") << std::endl;
+  if (s.checkpoint)
+  {
+    std::cout << "checkpoint_freq:      " << s.checkpoint_freq << std::endl;
+    std::cout << "checkpoint_output:    " << s.checkpoint_output << std::endl;
   }
   std::cout << "steps:                " << s.steps << std::endl;
   std::cout << "plotgap:              " << s.plotgap << std::endl;
@@ -165,7 +175,9 @@ void print_settings(const Settings &s, int restart_step)
   std::cout << "output_type:          " << s.output_type << std::endl;
   std::cout << "catalyst_script_path: " << s.catalyst_script_path << std::endl;
   std::cout << "catalyst_lib_path:    " << s.catalyst_lib_path << std::endl;
-  // std::cout << "adios_config:     " << s.adios_config << std::endl;
+#ifdef USE_ADIOS2
+  std::cout << "adios_config:         " << s.adios_config << std::endl;
+#endif
 }
 
 void print_simulator_settings(const GrayScott &s)
@@ -215,8 +227,21 @@ int main(int argc, char **argv)
   sim.init();
 
   int restart_step = 0;
-  std::shared_ptr<Writer> writer_main;
+#ifdef USE_ADIOS2
+  vtkLog(TRACE, "Setting up ADIOS2 for checkpointing");
+  adios2::ADIOS adios(settings.adios_config, comm);
+  adios2::IO io_ckpt = adios.DeclareIO("SimulationCheckpoint");
 
+  if (settings.restart)
+  {
+      restart_step = ReadRestart(comm, settings, sim, io_ckpt);
+      vtkLog(INFO, "Restarting simulation from step " << restart_step);
+      //io_main.SetParameter("AppendAfterSteps",
+      //                      std::to_string(restart_step / settings.plotgap));
+  }
+#endif
+
+  std::shared_ptr<Writer> writer_main;
   // Create the writer based on the settings
   if (settings.output_type.empty())
   {
@@ -239,11 +264,32 @@ int main(int argc, char **argv)
       writer_main = WriterType::Create(WriterType::WRITER_TYPE_CATALYST);
   }
   #endif
+  #ifdef USE_ADIOS2
+  else if (settings.output_type == "adios")
+  {
+      writer_main = WriterType::Create(WriterType::WRITER_TYPE_ADIOS);
+  }
+  #endif
   else
   {
       std::cerr << "Error: Invalid output_type value: " << settings.output_type << std::endl;
       exit(1);
   }
+
+#ifdef USE_ADIOS2
+  // --- Special handling for the ADIOS writer ---
+  // Check if the writer we created is, in fact, an ADIOS writer.
+  if (settings.output_type == "adios")
+  {
+      // Safely cast the generic Writer pointer to a specific WriterADIOS pointer.
+      auto adios_writer = std::dynamic_pointer_cast<WriterADIOS>(writer_main);
+      if (adios_writer)
+      {
+          // If the cast was successful, call our new method to pass the adios object.
+          adios_writer->SetADIOS(adios);
+      }
+  }
+#endif
 
   writer_main->CreateWriter(settings, sim, rank);
   writer_main->open(settings.output_file_name, (restart_step > 0), rank);
@@ -299,6 +345,16 @@ int main(int argc, char **argv)
       writer_main->write(it, sim, rank, procs);
       // vtkLog(INFO, "Post-write mem usage: " << float(getValue())/1000000.0);
     }
+
+#ifdef USE_ADIOS2
+    // Write checkpoint if enabled
+    if (settings.checkpoint && (it % settings.checkpoint_freq) == 0)
+    {
+        vtkLog(INFO, "Writing checkpoint at step " << it);
+        // Write checkpoint data
+        WriteCkpt(comm, it, settings, sim, io_ckpt);
+    }
+#endif
 
 #ifdef ENABLE_TIMERS
     double time_write = timer_write.stop();

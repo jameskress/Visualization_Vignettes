@@ -25,7 +25,10 @@ public:
 
     void init();
     void iterate();
+
+    #ifdef USE_ADIOS2
     void restart(std::vector<double> &u, std::vector<double> &v);
+    #endif
 
     const std::vector<double> &u_ghost() const;
     const std::vector<double> &v_ghost() const;
