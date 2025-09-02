@@ -1,45 +1,34 @@
 - action: "add_scenes"
-  scenes: 
-    scene1: 
-      plots: 
-        plot1: 
+  scenes:
+    v_volume:
+      plots:
+        volume_plot:
           type: "volume"
           field: "v"
-          color_table: 
-            name: "rainbow desaturated"
-            control_points: 
-              -
-                type: "alpha"
-                position: 0.0  # Fully transparent for lower values
+          color_table:
+            control_points:
+              - type: "rgb"
+                position: 0.0
+                color: [0.231, 0.298, 0.753]  # Blue
+              - type: "rgb"
+                position: 0.300345
+                color: [0.865, 0.865, 0.865]  # Gray
+              - type: "rgb"
+                position: 0.600691
+                color: [0.706, 0.016, 0.149]  # Red
+              - type: "alpha"
+                position: 0.0
                 alpha: 0.0
-              - 
-                type: "alpha"
-                position: 1.0  # Fully opaque for higher values
+              - type: "alpha"
+                position: 0.600691
                 alpha: 1.0
-      renders: 
-        r1: 
+      renders:
+        render1:
           image_width: 2113
           image_height: 1338
-          image_prefix: "ascent_grayscott_v_ts_%03d"
-
-    scene2:  # Second scene for the "u" field
-      plots: 
-        plot2: 
-          type: "volume"
-          field: "u"  # Field for the second volume visualization
-          color_table: 
-            name: "rainbow desaturated"  
-            control_points: 
-              -
-                type: "alpha"
-                position: 0.0  # Fully opaque for lower values
-                alpha: 1.0
-              - 
-                type: "alpha"
-                position: 1.0  # Fully transparent for higher values
-                alpha: 0.0
-      renders: 
-        r2: 
-          image_width: 2113
-          image_height: 1338
-          image_prefix: "ascent_grayscott_u_ts_%03d" 
+          annotations: "on"
+          image_prefix: "ascent_render_v_%06d.jpeg"
+          camera:
+            position: [9.742, 8.216, 10.431]
+            look_at:  [3.25, 3.25, 3.25]
+            up:       [-0.47618, 0.86344, -0.16649]

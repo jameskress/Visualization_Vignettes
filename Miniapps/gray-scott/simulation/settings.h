@@ -27,6 +27,7 @@ struct Settings
     bool adios_span;
     bool adios_memory_selection;
     std::string mesh_type;
+    std::string kombynelite_script_path;
 
     Settings();
     static Settings from_json(const std::string &fname);

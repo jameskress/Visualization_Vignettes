@@ -1,0 +1,36 @@
+pipelines:
+  # This pipeline creates a slice through the center of the volume
+  # to show the evolution of the internal structures.
+  - type: "slice"
+    enabled: "true"
+    frequency: 1
+    attributes:
+      # Define the slice plane at the center of the 128^3 domain
+      origin: [64, 64, 64]
+      # The normal vector points along the X-axis, creating a YZ plane
+      normal: [1, 0, 0]
+    outputs:
+      # Render the slice to a PNG file.
+      - type: "render"
+        enabled: true
+        file_pattern: "extracts/kombyne_slice_v_ts_%ts.png"
+        file_format: "png"
+        attributes:
+          width: 2113
+          height: 1338
+          scene:
+            camera:
+              position: [307, 307, 307]
+              focus: [64, 64, 64] 
+              up: [0, 1, 0]
+              fov: 30.0
+            lights:
+              - type: ambient
+                intensity: 0.7
+              - type: directional
+                direction: [-1, -1, -1]
+                intensity: 0.8
+            pseudocolor:
+              variable: "V"
+              color_table: "cool to warm"
+

@@ -75,14 +75,8 @@ for i in range(numPointArrays):
 print("=======================================================")
 producer.PointArrayStatus = ["v", "u"]
 
-# create a new 'Contour'
-contour1 = Contour(registrationName="Contour1", Input=producer)
-contour1.ContourBy = ["POINTS", "v"]
-contour1.Isosurfaces = [0.2053265338835752]
-contour1.PointMergeMethod = "Uniform Binning"
 
-# Returns extractor type based on data (or you can manually specify
-extractor = create_extractor(contour1)
+extractor = create_extractor(producer)
 
 # ------------------------------------------------------------------------------
 # Catalyst options

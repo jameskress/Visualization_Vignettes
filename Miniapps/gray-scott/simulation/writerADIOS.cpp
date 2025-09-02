@@ -42,7 +42,8 @@ void WriterADIOS::SetADIOS(adios2::ADIOS &adios)
 void WriterADIOS::open(const std::string &fname, bool append, int rank)
 {
     vtkLog(INFO, "Opening ADIOS2 writer for file: " << fname);
-    m_io.SetEngine("BP5");
+    //Removed the engine type setting to allow runtime configuration from XML file
+    //m_io.SetEngine("BP5");
 
     // --- DEFINE SIMULATION PARAMETERS AS ATTRIBUTES ---
     m_io.DefineAttribute<double>("F", settings.F);

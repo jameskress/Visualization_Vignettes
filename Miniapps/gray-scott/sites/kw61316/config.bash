@@ -3,11 +3,13 @@
 -DVTK_DIR=/home/kressjm/packages/paraview-src/build_5.13.3/install/lib/cmake/paraview-5.13/vtk \
 -DAscent_DIR=/home/kressjm/packages/ascent/build/install/ascent-checkout/lib/cmake/ascent \
 -DADIOS2_DIR=/home/kressjm/packages/KAUST_Visualization_Vignettes/adios2-build \
+-Dkombynelite_DIR=/home/kressjm/packages/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite \
 -DENABLE_TIMERS=1 \
 -DCMAKE_BUILD_TYPE=DEBUG \
--DENABLE_ASCENT=ON \
+-DENABLE_ASCENT=OFF \
 -DENABLE_CATALYST=ON \
 -DENABLE_ADIOS2=ON \
+-DENABLE_KOMBYNELITE=ON \
 -DCMAKE_INSTALL_PREFIX=../install \
 ../
 

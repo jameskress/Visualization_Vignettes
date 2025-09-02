@@ -53,6 +53,20 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -rdynamic")
 option(ENABLE_CATALYST "Enable Catalyst writer" OFF)
 option(ENABLE_ASCENT "Enable Ascent writer" OFF)
 option(ENABLE_ADIOS2 "Enable ADIOS2" OFF)
+option(ENABLE_KOMBYNELITE "Enable Kombyne lite in situ writer" OFF)
+
+# --- Check for conflicting in situ library options ---
+set(INSITU_LIBRARIES_ENABLED 0)
+if(ENABLE_ASCENT)
+  math(EXPR INSITU_LIBRARIES_ENABLED "${INSITU_LIBRARIES_ENABLED}+1")
+endif()
+if(ENABLE_KOMBYNELITE)
+  math(EXPR INSITU_LIBRARIES_ENABLED "${INSITU_LIBRARIES_ENABLED}+1")
+endif()
+
+if(INSITU_LIBRARIES_ENABLED GREATER 1)
+  message(FATAL_ERROR "Ascent and Kombyne cannot be enabled at the same time due to conflicting dependencies (Conduit). Please enable only one.")
+endif()
 
 # Define preprocessor macros based on CMake options
 if(ENABLE_CATALYST)
@@ -65,6 +79,10 @@ endif()
 
 if(ENABLE_ADIOS2)
   add_definitions(-DUSE_ADIOS2)
+endif()
+
+if(ENABLE_KOMBYNELITE)
+  add_definitions(-DUSE_KOMBYNE)
 endif()
 
 #------------------------------------------------------------------------------#
@@ -133,6 +151,20 @@ if(ENABLE_ADIOS2)
   message(STATUS "ADIOS2 enabled.")
 endif()
 
+
+# Kombyne (Optional)
+if(ENABLE_KOMBYNELITE)
+  find_package(kombynelite REQUIRED)
+
+  if(kombynelite_FOUND)
+    message(STATUS "Kombyne lite found: kombynelite")
+  else()
+    message(FATAL_ERROR "Kombyne lite not found. Set kombynelite_DIR to the installation directory.")
+  endif()
+
+  message(STATUS "Kombyne lite enabled.")
+endif()
+
 #------------------------------------------------------------------------------#
 # Executable and Sources
 #------------------------------------------------------------------------------#
@@ -154,6 +186,10 @@ endif()
 if(ENABLE_ADIOS2)
   list(APPEND SRC_FILES simulation/restart.cpp)
   list(APPEND SRC_FILES simulation/writerADIOS.cpp)
+endif()
+
+if(ENABLE_KOMBYNELITE)
+  list(APPEND SRC_FILES simulation/writerKombyne.cpp)
 endif()
 
 add_executable(kvvm-gray-scott ${SRC_FILES})
@@ -183,6 +219,10 @@ endif()
 
 if(ENABLE_ADIOS2)
   target_link_libraries(kvvm-gray-scott PRIVATE adios2::cxx11_mpi)
+endif()
+
+if(ENABLE_KOMBYNELITE)
+  target_link_libraries(kvvm-gray-scott PRIVATE kombynelite)
 endif()
 
 #------------------------------------------------------------------------------#

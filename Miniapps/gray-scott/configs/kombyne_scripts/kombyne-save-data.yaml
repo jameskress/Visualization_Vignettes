@@ -1,0 +1,10 @@
+pipelines:
+  - type: "null"
+    enabled: "true"
+    frequency: 1 # Process every step the simulation sends
+    outputs:
+      - type: "export"
+        file_pattern: "extracts/full_grid.%ts"
+        file_format: "vtk"
+        attributes:
+          binary: "true"

@@ -1,0 +1,7 @@
+- action: "add_extracts"
+  extracts:
+    contour_data_extract:
+      type: "relay"
+      params:
+        path: "ascent_data"
+        protocol: "blueprint/mesh/hdf5"

@@ -30,6 +30,10 @@
 #include "../../gray-scott/simulation/writerADIOS.h"
 #endif
 
+#ifdef USE_KOMBYNE
+#include "../../gray-scott/simulation/writerKombyne.h"
+#endif
+
 class WriterType
 {
 public:
@@ -43,7 +47,10 @@ public:
         WRITER_TYPE_ASCENT = 2,
     #endif
     #ifdef USE_ADIOS2
-        WRITER_TYPE_ADIOS = 3 
+        WRITER_TYPE_ADIOS = 3,
+    #endif
+    #ifdef USE_KOMBYNE
+        WRITER_TYPE_KOMBYNE = 4
     #endif
     };
 
@@ -68,6 +75,11 @@ public:
         case WRITER_TYPE_ADIOS:
             return std::make_shared<WriterADIOS>();
         #endif
+
+        #ifdef USE_KOMBYNE
+        case WRITER_TYPE_KOMBYNE:
+            return std::make_shared<WriterKombyne>();
+        #endif      
 
         default:
             return nullptr;

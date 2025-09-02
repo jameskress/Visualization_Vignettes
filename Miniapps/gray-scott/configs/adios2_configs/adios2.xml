@@ -73,7 +73,6 @@
 
     <!-- example engines
 
-        <engine type="BPFile"/>
         <engine type="BP5"/>
         <engine type="HDF5"/>
         <engine type="SST"/>
@@ -124,13 +123,6 @@
             <parameter key="OpenTimeoutSecs" value="10.0"/>
         </engine>
 
-        === BPFile ===
-        BPFile is a token name for the BP3 old file format.
-        It will refer to BP5 in the future. 
-        'SubStreams' parameter is the same as for BP5.
-        <engine type="BPFile">
-            <parameter key="SubStreams" value="4"/>
-        </engine>
 
         === InSituMPI ===
         One must launch producer and consumer as one MPI appliction in MPMD mode.

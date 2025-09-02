@@ -1,0 +1,60 @@
+# Action 1: Define a reusable pipeline of filters.
+- action: "add_pipelines"
+  pipelines:
+    clip_pipeline:
+      f1:
+        type: "clip"
+        params:
+          invert: true
+          plane:
+            point:
+              x: 2.62658
+              y: 3.25000
+              z: 3.25000
+            normal:
+              x: 1.0
+              y: 0.0
+              z: 0.0
+
+# Action 2: Render a scene that uses the pipeline.
+- action: "add_scenes"
+  scenes:
+    multi_view_scene:
+      plots:
+        # PLOT 1: Volume rendering of the full, original dataset.
+        full_volume_plot:
+          type: "volume"
+          field: "u"
+          color_table:
+            control_points:
+              - { type: "rgb", position: 0.145, color: [0.231, 0.298, 0.753] }
+              - { type: "rgb", position: 0.572, color: [0.865, 0.865, 0.865] }
+              - { type: "rgb", position: 1.0,   color: [0.706, 0.016, 0.149] }
+              - { type: "alpha", position: 0.145, alpha: 1.0 }
+              - { type: "alpha", position: 1.0,   alpha: 0.0 }
+
+        # PLOT 2: Surface rendering of the clipped data.
+        clipped_surface_plot:
+          type: "pseudocolor"
+          field: "u"
+          pipeline: "clip_pipeline"
+          color_table:
+            control_points:
+              - { type: "rgb", position: 0.145, color: [0.231, 0.298, 0.753] }
+              - { type: "rgb", position: 0.572, color: [0.865, 0.865, 0.865] }
+              - { type: "rgb", position: 1.0,   color: [0.706, 0.016, 0.149] }
+              - { type: "alpha", position: 0.0, alpha: 1.0 }
+              - { type: "alpha", position: 1.0, alpha: 1.0 }
+
+      renders:
+        render1:
+          image_width: 2113
+          image_height: 1338
+          annotations: "on"
+          image_prefix: "ascent_multi_render_%06d.png"
+          
+          camera:
+            zoom: 2.0
+            position: [13.662, 19.169, -7.296]
+            look_at:  [3.25, 3.25, 3.25]
+            up:       [-0.622, -0.107, -0.776]

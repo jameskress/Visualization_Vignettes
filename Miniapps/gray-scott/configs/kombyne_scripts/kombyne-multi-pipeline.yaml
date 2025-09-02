@@ -1,0 +1,68 @@
+pipelines:
+  # Pipeline 1: A slice through the domain, colored by "U".
+  - type: "slice"
+    enabled: "true"
+    frequency: 1
+    attributes:
+      # Define the slice plane at the center of the 128^3 domain
+      origin: [64, 64, 64]
+      normal: [1, 0, 0] # YZ Plane
+    outputs:
+      - type: "render"
+        enabled: true
+        file_pattern: "extracts/kombyne_slice_u_ts_%ts.png"
+        file_format: "png"
+        attributes:
+          width: 2113
+          height: 1338
+          scene:
+            camera:
+              position: [307, 307, 307]
+              focus: [64, 64, 64] 
+              up: [0, 1, 0]
+              fov: 30.0
+            lights:
+              - type: ambient
+                intensity: 0.7
+              - type: directional
+                direction: [-1, -1, -1]
+                intensity: 0.8
+            pseudocolor:
+              variable: "U"
+              color_table: "cool to warm"
+
+  # Pipeline 2: A semi-transparent isosurface of "U".
+  - type: "iso"
+    enabled: "true"
+    frequency: 1
+    attributes:
+      variable: "U"
+      value: 0.57
+    outputs:
+      - type: "render"
+        enabled: true
+        file_pattern: "extracts/kombyne_iso_u_ts_%ts.png"
+        file_format: "png"
+        attributes:
+          width: 2113
+          height: 1338
+          quality: "high"
+          scene:
+            camera:
+              position: [307, 307, 307]
+              focus: [64, 64, 64] 
+              up: [0, 1, 0]
+              fov: 30.0
+            lights:
+              - type: ambient
+                intensity: 0.7
+              - type: directional
+                direction: [-1, -1, -1]
+                intensity: 0.8
+            pseudocolor:
+              variable: "U"
+              color_table: "cool to warm"
+              # Set an explicit data range to fix rendering issues.
+              minimum: 0.0
+              maximum: 5.0
+

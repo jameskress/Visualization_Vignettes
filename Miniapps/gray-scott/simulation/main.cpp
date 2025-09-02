@@ -270,6 +270,12 @@ int main(int argc, char **argv)
       writer_main = WriterType::Create(WriterType::WRITER_TYPE_ADIOS);
   }
   #endif
+  #ifdef USE_KOMBYNE
+  else if (settings.output_type == "kombyne")
+  {
+      writer_main = WriterType::Create(WriterType::WRITER_TYPE_KOMBYNE);
+  }
+  #endif
   else
   {
       std::cerr << "Error: Invalid output_type value: " << settings.output_type << std::endl;
