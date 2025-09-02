@@ -231,17 +231,34 @@ endif()
 install(TARGETS kvvm-gray-scott
         RUNTIME DESTINATION .)
 
+# Install config files and scripts from their respective directories.
+# The trailing slash on the directory path ensures the *contents* of the
+# directory are installed, not the directory itself.
+install(DIRECTORY configs/miniapp-settings/
+        DESTINATION .
+        FILES_MATCHING PATTERN "*.json")
+
+install(DIRECTORY configs/catalyst_scripts/
+        DESTINATION .
+        FILES_MATCHING PATTERN "*.py")
+
+install(DIRECTORY configs/ascent_scripts/
+        DESTINATION .
+        FILES_MATCHING PATTERN "*.yaml")
+
+# Use OPTIONAL in case these directories don't exist yet.
+install(DIRECTORY configs/kombyne_scripts/
+        DESTINATION .
+        FILES_MATCHING PATTERN "*.yaml"
+        OPTIONAL)
+
+install(DIRECTORY configs/adios2_configs/
+        DESTINATION .
+        FILES_MATCHING PATTERN "*.xml"
+        OPTIONAL)
+
+# Install miscellaneous top-level files that aren't in a subdirectory.
 install(FILES
-  configs/miniapp-settings/settings-catalyst-file-io.json
-  configs/miniapp-settings/settings-catalyst-insitu.json
-  configs/miniapp-settings/settings-vtk-pvti.json
-  configs/miniapp-settings/settings-ascent.json
-  configs/catalyst_scripts/catalyst-extract-jpg.py
-  configs/catalyst_scripts/catalyst-extract-contour_v.py
-  configs/ascent_scripts/ascent-extract-png.yaml
-  configs/ascent_scripts/ascent-slice-iso-png.yaml
-  configs/ascent_scripts/ascent_options.yaml
   configs/cleanupRun.sh
   README.md
   DESTINATION .
-)

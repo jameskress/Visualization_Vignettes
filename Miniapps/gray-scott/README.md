@@ -10,9 +10,11 @@ v_t = Dv * (v_xx + v_yy + v_zz) + u * v^2 - (F + k) * v
 
 A reaction-diffusion system is a system in which a dynamical system is attached to a diffusion equation, and it creates various patterns. This is an equation that simulates the chemical reaction between the chemicals $U$ and $V$. $U$ is called the activator and $V$ is called the repressor.
 
+<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+
 ## How to build
 
-Make sure `MPI`, and `VTK` are installed. These are non-optional dependencies. You can also enable `Catalyst` and or `Ascent` for more visualization options.
+Make sure `MPI`, and `VTK` are installed. These are non-optional dependencies. You can also enable `Catalyst`, `Ascent`, or `Kombyne` for more visualization options.
 
 `ADIOS2` is required for checkpointing and for restarting a sim from a given checkpoint. If `ADIOS2` is not enabled then the checkpoint and restart options will be ignored in the settings.
 
@@ -58,31 +60,51 @@ make -j
 
 ### Kombyne
 
+`Kombyne` is a closed source, paid, commercial in situ software. They do have a `lite` version, which we make use of in this repo, that is free. We cannot distribute the source, as such you have to get your free download from there [here](https://www.ilight.com/kombyne-lite-downloads-4/).
+
+```
+Download Kombyne-Lite from the Inteligent Light website.
+
+cd /path/to/install
+tar zxvf kombyne-lite-1.0.0-ubuntu18-gcc7.5-openmpi.tar.gz
+
+Then, in your cmake configuration file, just set the location, for example:
+kombynelite_DIR=/home/kressjm/packages/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite 
+```
 
 ### Building Gray-Scott
+
+> 💡 **Note:**  `Ascent` and `Kombyne` cannot be enabled at the same time due to library conflicts.
 
 ```
 cd <path_to_gray-scott>
 mkdir build
 cd build
-ccmake -DCMAKE_INSTALL_PREFIX=../install \
-  -DENABLE_TIMERS=ON \
-  -Dcatalyst_DIR=<path_to>/paraview-build/install/lib/cmake/catalyst-2.0 \
-  -DVTK_DIR=<path_to>/paraview-build/install/lib/cmake/paraview-5.13/vtk \
-  -DAscent_DIR=<path_to>/ascent/build/install/ascent-checkout/lib/cmake/ascent \
-  -DADIOS2_DIR=<path_to>/adios2-build \
-  -DENABLE_ASCENT=ON \
-  -DENABLE_CATALYST=ON \
-  -DENABLE_ADIOS2=ON \
-  -DCMAKE_INSTALL_PREFIX=../install \
-  ../.
+cmake \
+-Dcatalyst_DIR=/home/kressjm/packages/paraview-src/build_5.13.3/install/lib/cmake/catalyst-2.0 \
+-DVTK_DIR=/home/kressjm/packages/paraview-src/build_5.13.3/install/lib/cmake/paraview-5.13/vtk \
+-DAscent_DIR=/home/kressjm/packages/ascent/build/install/ascent-checkout/lib/cmake/ascent \
+-DADIOS2_DIR=/home/kressjm/packages/KAUST_Visualization_Vignettes/adios2-build \
+-Dkombynelite_DIR=/home/kressjm/packages/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite \
+-DENABLE_TIMERS=1 \
+-DCMAKE_BUILD_TYPE=DEBUG \
+-DENABLE_ASCENT=OFF \
+-DENABLE_CATALYST=ON \
+-DENABLE_ADIOS2=ON \
+-DENABLE_KOMBYNELITE=ON \
+-DCMAKE_INSTALL_PREFIX=../install \
+../
+
 make
 make install
 ```
 
 Running `make install` will move all the interesting settings and implementation specific scripts into the `install` directory for easy use.
+</div>
 
 ---
+
+<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
 
 ## Running with ADIOS2 I/O and/or Checkpointing 
 `ADIOS2` is an optional dependency that enables high-performance, parallel I/O. If enabled during compilation, it provides two major features:
@@ -208,7 +230,7 @@ The console will print messages confirming that it is reading the checkpoint fil
 <details>
 <summary>Click to see sample restart output</summary>
 
-```
+```bash
 (   0.258s) [Rank_0         ]            restart.cpp:81    INFO| Attempting to restart from file: ckpt.bp
 (   0.318s) [Rank_0          ]            restart.cpp:124   INFO| Successfully read checkpoint. Restarting from step 10000
 (   0.269s) [Rank_0         ]               main.cpp:239   INFO| Restarting simulation from step 10000
@@ -220,8 +242,11 @@ restart:          from step 10000
 ========================================
 ```
 </details>
+</div>
 
 ---
+
+<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
 
 ## Running with VTK
 
@@ -259,7 +284,8 @@ The console will display the run parameters and confirm that the simulation is w
 
 <details>
 <summary>Click to see sample output</summary>
-```
+
+```bash
 ========================================
 grid:                 64x64x64
 restart:              no
@@ -282,18 +308,18 @@ local grid size:      16x16x32
 (   0.374s) [Rank_0          ]               main.cpp:273   INFO| Simulation at step 30 writing output step     3
 ```
 </details>
+</div>
 
 ---
 
-## Running with Catalyst
+<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
 
+## Running with Catalyst
 Catalyst is an optional dependency and will allow you to use the power of ParaView to create great visualization pipelines and renderings. Below are some examples on ways to use Catalyst.
 
 ### How to run with catalyst file writer
 
 This method uses Catalyst's file I/O capabilities to save the simulation's output data directly to disk as VTK partitioned datasets (`.vtpd`). This is useful for capturing the full dataset at specific timesteps for post-processing and analysis in ParaView or other visualization tools.
-
----
 
 > 💡 **Note:** You must edit the settings file to provide the correct paths for your Catalyst installation.
 
@@ -320,13 +346,6 @@ cd run-catalyst-io
 
 # Run the simulation with 4 processes
 mpirun -np 4 ../kvvm-gray-scott --settings-file=../settings-catalyst-file-io.json --logging-level=INFO
-
-```bash
-edit settings file to use correct paths for your machine (configs/miniapp-settings/settings-catalyst-file-io.json)
-cd <path_to_install>
-mkdir run-catalyst-io
-cd run-catalyst-io
-mpirun -np 4 ../kvvm-gray-scott --settings-file=../settings-catalyst-file-io.json --logging-level=INFO
 ```
 
 
@@ -335,7 +354,8 @@ If successful, the console will display the run parameters and confirm that the 
 
 <details>
 <summary>Click to see sample output</summary>
-```
+
+```bash
 ========================================
 grid:                 64x64x64
 restart:              no
@@ -365,8 +385,6 @@ local grid size:      32x32x64
 
 ### How to run with catalyst in situ
 This guide explains how to run the simulation with live, in-situ visualization and data extraction using ParaView Catalyst.
-
----
 
 > 💡 **Note:** You must edit the settings file to provide the correct paths for your Catalyst installation.
 
@@ -410,7 +428,8 @@ If the simulation starts correctly, your console will display the run parameters
 
 <details>
 <summary>Click to see sample output</summary>
-```
+
+```bash
 ========================================
 grid:                 64x64x64
 restart:              no
@@ -437,8 +456,6 @@ local grid size:      32x32x64
 
 ### How to run with catalyst in situ and connect live (locally or on remote host)
 This guide explains how to connect a ParaView GUI to the simulation in real-time. This allows you to interactively inspect data, change visualization parameters, and view results as they are being generated, either on your local machine or from a remote server.
-
----
 
 > 💡 **Note:** You must edit the settings file to provide the correct paths for your Catalyst installation.
 
@@ -493,7 +510,8 @@ mpirun -np 4 ../kvvm-gray-scott --settings-file=../settings-catalyst-insitu.json
 
 <details>
 <summary>Click to see sample output</summary>
-```
+
+```bash
 ========================================
 grid:                 64x64x64
 restart:              no
@@ -515,8 +533,11 @@ local grid size:      32x32x64
 ========================================
 ```
 </details>
+</div>
 
 ---
+
+<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
 
 ## Running with Ascent
 
@@ -538,7 +559,7 @@ To choose which visualization to run, you must edit **`ascent_options.yaml`** an
 
 | Script                        | Description                                                                                                                                                                                            |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ascent-extract-png.yaml`     | Performs a volume rendering of the **'v'** scalar field and saves the visualization as a series of PNG images.                                                                                           |
+| `ascent-extract-png.yaml`     | **(Image Export)** Performs a volume rendering of the **'v'** scalar field and saves the visualization as a series of PNG images.                                                                                           |
 | `ascent-multi-pipeline.yaml`  | **(Advanced Visualization)** Renders both a semi-transparent volume and a solid clipped surface of the **'u'** field into a single composite PNG image for each timestep.                                  |
 | `ascent-save-data.yaml`       | **(Data Export)** Saves the simulation data to an HDF5 file. **Known Limitation:** This script overwrites its output file at each timestep.             |
 
@@ -587,7 +608,8 @@ If the simulation starts correctly, your console will display the run parameters
 
 <details>
 <summary>Click to see sample output</summary>
-```
+
+```bash
 ========================================
 grid:                 64x64x64
 restart:              no
@@ -608,12 +630,14 @@ local grid size:      32x32x64
 ========================================
 ```
 </details>
+</div>
 
 ---
 
-## Running In-Situ with Kombyne
-Kombyne is an optional dependency that provides in-situ capabilities, allowing you to create visualization pipelines and renderings directly from the simulation. Kombyne is a commercial in situ product, as such, this repo makes use of the `lite` version which is free, but not folly featured. Below are instructions on how to configure and run the included Kombyne examples.
+<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
 
+## Running with Kombyne
+Kombyne is an optional dependency that provides in-situ capabilities, allowing you to create visualization pipelines and renderings directly from the simulation. Kombyne is a commercial in situ product, as such, this repo makes use of the `lite` version which is free, but not folly featured. Below are instructions on how to configure and run the included Kombyne examples.
 
 
 ### Step 1: ⚙️ Configure Your Pipeline
@@ -636,11 +660,11 @@ Inside this file, you need to set the `kombynelite_script_path` key to the name 
 
 | Script                        | Description                                                                                                                                                                                            |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `kombyne-extract-png.yaml`    | Performs a rendering of a slice of the scalar field and saves the visualization as a series of PNG images.                                                                                                 |
+| `kombyne-extract-png.yaml`    | **(Image Export)** Performs a rendering of a slice of the scalar field and saves the visualization as a series of PNG images.                                                                                                 |
 | `kombyne-multi-pipeline.yaml` | **(Advanced Visualization)** Renders two seperate images, first, a slice and second, an isosurface, creating a PNG image for each timestep.                                         |
 | `kombyne-save-data.yaml`      | **(Data Export)** Saves the simulation data to a *.vtm file at each time step. |
 
-> NOTE: Kombyne does not support the same actions that the other in situ libraries in this miniapp do, as a result, its renderings are close approximations to what the other in situ systems produce. 
+> 💡 **Note:** Kombyne does not support the same actions that the other in situ libraries in this miniapp do, as a result, its renderings are close approximations to what the other in situ systems produce. 
 
 
 ### Step 2: 🚀 Execute the Simulation
@@ -665,7 +689,6 @@ mpirun -np 4 ../kvvm-gray-scott --settings-file=../configs/miniapp-settings/sett
 ```
 
 
-
 ### Step 3: ✅ Verify the Output
 
 If the simulation starts correctly, your console will display the run parameters, confirming that the `output_type` is `kombyne`. Depending on the script you chose, you will find PNG images or data files in your run directory.
@@ -673,7 +696,7 @@ If the simulation starts correctly, your console will display the run parameters
 <details>
 <summary>Click to see sample console output</summary>
 
-```
+```bash
 ========================================
 grid:                 128x128x128
 restart:              no
@@ -693,9 +716,11 @@ local grid size:      64x64x64
 ========================================
 ```
 </details>
-
+</div>
 
 ---
+
+<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
 
 ## 🧪 Configuring the Gray-Scott Simulation
 
@@ -730,7 +755,7 @@ These control the simulation's execution length and how data is saved or process
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `steps`                     | The total number of timesteps to simulate.                                                                             |
 | `plotgap`                   | How often to save output (e.g., a value of 10 saves data every 10 steps).                                              |
-| `output_file_name`          | A template for the output filename, ending in `.vti` or `.vtpd`.                                                       |
+| `output_file_name`          | A template for the output filename, ending in `.vti`, `.vtpd`, or `.bp`.                                                       |
 | `output_type`               | The output mode: `pvti`, `catalyst_io`, `catalyst_insitu`, `adios`, `ascent`, or `kombyne`.                              |
 | `catalyst_script_path`      | **(Catalyst Only)** The absolute path to the Python Catalyst pipeline script.                                            |
 | `catalyst_lib_path`         | **(Catalyst Only)** The absolute path to your Catalyst library installation.                                             |
@@ -739,7 +764,7 @@ These control the simulation's execution length and how data is saved or process
 | `adios_span`                | **(ADIOS Only)** A boolean to enable ADIOS span functionality for in-transit processing.                                 |
 | `adios_memory_selection`    | **(ADIOS Only)** A boolean to enable ADIOS memory selection.                                                             |
 
-#### Checkpointing Parameters (Required ADIOS)
+#### Checkpointing Parameters (Requires ADIOS)
 
 Use these parameters to save and restart a simulation from a specific state.
 
@@ -795,3 +820,4 @@ Here are several example parameter sets and the patterns they generate.
 * `k`: 0.06
 
 ![](img/example5.jpg?raw=true)
+</div>
