@@ -10,7 +10,8 @@ v_t = Dv * (v_xx + v_yy + v_zz) + u * v^2 - (F + k) * v
 
 A reaction-diffusion system is a system in which a dynamical system is attached to a diffusion equation, and it creates various patterns. This is an equation that simulates the chemical reaction between the chemicals $U$ and $V$. $U$ is called the activator and $V$ is called the repressor.
 
-<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+
+<br>
 
 ## How to build
 
@@ -100,11 +101,10 @@ make install
 ```
 
 Running `make install` will move all the interesting settings and implementation specific scripts into the `install` directory for easy use.
-</div>
 
 ---
 
-<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+<br>
 
 ## Running with ADIOS2 I/O and/or Checkpointing 
 `ADIOS2` is an optional dependency that enables high-performance, parallel I/O. If enabled during compilation, it provides two major features:
@@ -242,11 +242,10 @@ restart:          from step 10000
 ========================================
 ```
 </details>
-</div>
 
 ---
 
-<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+<br>
 
 ## Running with VTK
 
@@ -308,11 +307,10 @@ local grid size:      16x16x32
 (   0.374s) [Rank_0          ]               main.cpp:273   INFO| Simulation at step 30 writing output step     3
 ```
 </details>
-</div>
 
 ---
 
-<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+<br>
 
 ## Running with Catalyst
 Catalyst is an optional dependency and will allow you to use the power of ParaView to create great visualization pipelines and renderings. Below are some examples on ways to use Catalyst.
@@ -533,11 +531,10 @@ local grid size:      32x32x64
 ========================================
 ```
 </details>
-</div>
 
 ---
 
-<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+<br>
 
 ## Running with Ascent
 
@@ -630,11 +627,10 @@ local grid size:      32x32x64
 ========================================
 ```
 </details>
-</div>
 
 ---
 
-<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+<br>
 
 ## Running with Kombyne
 Kombyne is an optional dependency that provides in-situ capabilities, allowing you to create visualization pipelines and renderings directly from the simulation. Kombyne is a commercial in situ product, as such, this repo makes use of the `lite` version which is free, but not folly featured. Below are instructions on how to configure and run the included Kombyne examples.
@@ -716,11 +712,10 @@ local grid size:      64x64x64
 ========================================
 ```
 </details>
-</div>
 
 ---
 
-<div style="background-color: #f9f9f9; border: 1px solid #e1e1e1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+<br>
 
 ## 🧪 Configuring the Gray-Scott Simulation
 
@@ -777,47 +772,91 @@ Use these parameters to save and restart a simulation from a specific state.
 | `restart_input`     | The name of the checkpoint file to read from when restarting.               |
 
 
-#### **✨ Example Parameter Sets**
-
+<table>
+<thead>
+<tr>
+<th colspan="2">✨ Example Parameter Sets</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2">
 Here are several example parameter sets and the patterns they generate.
+</td>
+</tr>
+<tr>
+<td valign="top" width="50%">
 
-#### Mitosis-like Patterns
-* `Du`: 0.2
-* `Dv`: 0.1
-* `F`: 0.02
-* `k`: 0.048
+Mitosis-like Patterns
+Du: 0.2
+
+Dv: 0.1
+
+F: 0.02
+
+k: 0.048
 
 ![](img/example1.jpg?raw=true)
+</td>
+<td valign="top" width="50%">
 
-#### Worms and Loops
-* `Du`: 0.2
-* `Dv`: 0.1
-* `F`: 0.03
-* `k`: 0.0545
+Worms and Loops
+Du: 0.2
+
+Dv: 0.1
+
+F: 0.03
+
+k: 0.0545
 
 ![](img/example2.jpg?raw=true)
+</td>
+</tr>
+<tr>
+<td valign="top" width="50%">
 
-#### Labyrinthine Structures
-* `Du`: 0.2
-* `Dv`: 0.1
-* `F`: 0.03
-* `k`: 0.06
+Labyrinthine Structures
+Du: 0.2
+
+Dv: 0.1
+
+F: 0.03
+
+k: 0.06
 
 ![](img/example3.jpg?raw=true)
+</td>
+<td valign="top" width="50%">
 
-#### Spotted Patterns
-* `Du`: 0.2
-* `Dv`: 0.1
-* `F`: 0.01
-* `k`: 0.05
+Spotted Patterns
+Du: 0.2
+
+Dv: 0.1
+
+F: 0.01
+
+k: 0.05
 
 ![](img/example4.jpg?raw=true)
+</td>
+</tr>
+<tr>
+<td valign="top" width="50%">
 
-#### Coral Growth
-* `Du`: 0.2
-* `Dv`: 0.1
-* `F`: 0.02
-* `k`: 0.06
+Coral Growth
+Du: 0.2
+
+Dv: 0.1
+
+F: 0.02
+
+k: 0.06
 
 ![](img/example5.jpg?raw=true)
-</div>
+</td>
+<td valign="top" width="50%">
+<!-- Empty cell for alignment -->
+</td>
+</tr>
+</tbody>
+</table>
