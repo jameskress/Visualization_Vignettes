@@ -25,7 +25,7 @@ paraview-test-job:   # This job runs in the test stage.
   stage: test    # It only starts when the job in the build stage completes successfully.
   script:
     - echo "Running ParaView Tests"
-    - apt update && apt -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6
+    - apt update && apt -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
     - python3 -V
     - python3 -m venv test-venv
     - source test-venv/bin/activate
@@ -58,7 +58,7 @@ visit-test-job:
   stage: test
   script:
     - echo "Running VisIt Tests"
-    - apt update && apt -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 curl zip unzip
+    - apt update && apt -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 curl zip unzip libgl1-mesa-glx
     - python3 -V
     - python3 -m venv test-venv
     - source test-venv/bin/activate
