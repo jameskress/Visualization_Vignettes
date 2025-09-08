@@ -11,8 +11,8 @@
 #include <vector>
 
 GrayScott::GrayScott(const Settings &settings, MPI_Comm comm)
-: settings(settings), comm(comm), rand_dev(), mt_gen(rand_dev()),
-  uniform_dist(-1.0, 1.0)
+    : settings(settings), comm(comm), rand_dev(), mt_gen(rand_dev()),
+      uniform_dist(-1.0, 1.0)
 {
 }
 
@@ -30,10 +30,10 @@ void GrayScott::iterate()
     exchange(u, v);
     calc(u, v, u2, v2);
 
-    // Copy the results back to u and v. 
+    // Copy the results back to u and v.
     // This is done to avoid issues with 0 values in the ghost cells when restarting the sim
-    //u.swap(u2);
-    //v.swap(v2);
+    // u.swap(u2);
+    // v.swap(v2);
     for (int z = 1; z < size_z + 1; z++)
     {
         for (int y = 1; y < size_y + 1; y++)
@@ -97,23 +97,22 @@ GrayScott::ghost_point_mask() const
             for (int x = 1; x < size_x + 1; x++)
             {
                 buf[(x) + (y) * (size_x + 2) +
-                              (z) * (size_x + 2) * (size_y + 2)] = 0;
+                    (z) * (size_x + 2) * (size_y + 2)] = 0;
             }
         }
     }
 
-
- /*       for (int z = 1; z < size_z + 1; z++)
-    {
-        for (int y = 1; y < size_y + 1; y++)
-        {
-            for (int x = 1; x < size_x + 1; x++)
-            {
-                data_no_ghost[(x - 1) + (y - 1) * size_x +
-                              (z - 1) * size_x * size_y] = data[l2i(x, y, z)];
-            }
-        }
-    }*/
+    /*       for (int z = 1; z < size_z + 1; z++)
+       {
+           for (int y = 1; y < size_y + 1; y++)
+           {
+               for (int x = 1; x < size_x + 1; x++)
+               {
+                   data_no_ghost[(x - 1) + (y - 1) * size_x +
+                                 (z - 1) * size_x * size_y] = data[l2i(x, y, z)];
+               }
+           }
+       }*/
 
     return buf;
 }
@@ -130,23 +129,22 @@ GrayScott::ghost_cell_mask() const
             for (int x = 1; x < size_x; x++)
             {
                 buf[(x) + (y) * (size_x + 1) +
-                              (z) * (size_x + 1) * (size_y + 1)] = 0;
+                    (z) * (size_x + 1) * (size_y + 1)] = 0;
             }
         }
     }
 
-
- /*       for (int z = 1; z < size_z + 1; z++)
-    {
-        for (int y = 1; y < size_y + 1; y++)
-        {
-            for (int x = 1; x < size_x + 1; x++)
-            {
-                data_no_ghost[(x - 1) + (y - 1) * size_x +
-                              (z - 1) * size_x * size_y] = data[l2i(x, y, z)];
-            }
-        }
-    }*/
+    /*       for (int z = 1; z < size_z + 1; z++)
+       {
+           for (int y = 1; y < size_y + 1; y++)
+           {
+               for (int x = 1; x < size_x + 1; x++)
+               {
+                   data_no_ghost[(x - 1) + (y - 1) * size_x +
+                                 (z - 1) * size_x * size_y] = data[l2i(x, y, z)];
+               }
+           }
+       }*/
 
     return buf;
 }

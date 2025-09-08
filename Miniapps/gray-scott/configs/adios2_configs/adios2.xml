@@ -7,11 +7,14 @@
 
     <io name="SimulationOutput">
         <engine type="BP5">
+            <parameter key="verbose" value="0"/>
             <!-- SST engine parameters -->
             <parameter key="RendezvousReaderCount" value="0"/>
-            <parameter key="QueueLimit" value="1"/>
-            <parameter key="QueueFullPolicy" value="Discard"/>
-            <parameter key="DataTransport" value="MPI"/>
+            <parameter key="QueueLimit" value="5"/>
+            <!-- <parameter key="QueueFullPolicy" value="Discard"/> -->
+            <parameter key="QueueFullPolicy" value="Block"/>
+            <!-- <parameter key="DataTransport" value="MPI"/> Use on HPC Systems-->
+            <parameter key="DataTransport" value="evpath"/>
             <!-- BP5/SST engine parameters -->
             <parameter key="OpenTimeoutSecs" value="60.0"/>
             <!-- BP5 engine parameters -->

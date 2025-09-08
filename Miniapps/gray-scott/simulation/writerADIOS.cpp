@@ -137,6 +137,25 @@ void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
 void WriterADIOS::close(int rank)
 {
     vtkLog(INFO, "Closing ADIOS2 writer");
+
+    if(rank == 0)
+    {
+        std::cout << "--- ADIOS2 Final Configuration ---" << std::endl;
+        const adios2::Params parameters = m_io.Parameters();
+        if(parameters.empty())
+        {
+            std::cout << "No parameters found." << std::endl;
+        }
+        else
+        {
+            for (const auto& pair : parameters)
+            {
+                std::cout << pair.first << " = " << pair.second << std::endl;
+            }
+        }
+        std::cout << "------------------------------------" << std::endl;
+    }
+
     // Close the engine, which finalizes the file.
     if(m_engine)
     {

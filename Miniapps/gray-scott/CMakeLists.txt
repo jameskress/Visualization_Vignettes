@@ -48,12 +48,26 @@ endif()
 set(CMAKE_CXX_FLAGS_DEBUG "-g -rdynamic")
 
 #------------------------------------------------------------------------------#
+# Common Library (for shared code like PerfLogger)
+#------------------------------------------------------------------------------#
+add_library(common common/perf_logger.cpp)
+target_include_directories(common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+if(ENABLE_TIMERS)
+  # Apply the compile definition to the common library.
+  # Any target that links to it will inherit this definition.
+  target_compile_definitions(common PUBLIC ENABLE_TIMERS)
+  message(STATUS "Performance Timers are ENABLED")
+endif()
+
+#------------------------------------------------------------------------------#
 # Writer Options
 #------------------------------------------------------------------------------#
 option(ENABLE_CATALYST "Enable Catalyst writer" OFF)
 option(ENABLE_ASCENT "Enable Ascent writer" OFF)
 option(ENABLE_ADIOS2 "Enable ADIOS2" OFF)
 option(ENABLE_KOMBYNELITE "Enable Kombyne lite in situ writer" OFF)
+option(BUILD_ANALYSIS_READER "Build the in-situ analysis reader" OFF)
 
 # --- Check for conflicting in situ library options ---
 set(INSITU_LIBRARIES_ENABLED 0)
@@ -140,15 +154,22 @@ endif()
 
 # ADIOS2 (Optional)
 if(ENABLE_ADIOS2)
-  find_package(ADIOS2 REQUIRED)
+  find_package(ADIOS2 REQUIRED COMPONENTS MPI)
 
   if(ADIOS2_FOUND)
-      message(STATUS "Found ADIOS2 version ${ADIOS2_VERSION}. Enabling ADIOS2 features.")
+      message(STATUS "Found ADIOS2 version ${ADIOS2_VERSION}.")
+    
+      if(ADIOS2_MPI_FOUND)
+        message(STATUS "ADIOS2 MPI support: ENABLED")
+      else()
+        message(WARNING "ADIOS2 MPI support: DISABLED. The 'mpi' DataPlane will be unavailable.")
+      endif()
+
   else()
       message(FATAL_ERROR "ADIOS2 not found. Set ADIOS2_DIR to the installation directory.")
   endif()
 
-  message(STATUS "ADIOS2 enabled.")
+  message(STATUS "ADIOS2 features enabled.")
 endif()
 
 
@@ -198,6 +219,7 @@ add_executable(kvvm-gray-scott ${SRC_FILES})
 # Linking
 #------------------------------------------------------------------------------#
 target_link_libraries(kvvm-gray-scott PRIVATE
+  common
   MPI::MPI_C
   ${VTK_LIBRARIES}
 )
@@ -225,6 +247,19 @@ if(ENABLE_KOMBYNELITE)
   target_link_libraries(kvvm-gray-scott PRIVATE kombynelite)
 endif()
 
+
+#------------------------------------------------------------------------------#
+# Analysis Reader (Optional)
+#------------------------------------------------------------------------------#
+if(BUILD_ANALYSIS_READER)
+  # The reader requires both ADIOS2 and Ascent to be enabled.
+  if(NOT ENABLE_ADIOS2 OR NOT ENABLE_ASCENT)
+    message(FATAL_ERROR "BUILD_ANALYSIS_READER requires both ENABLE_ADIOS2 and ENABLE_ASCENT to be ON.")
+  endif()
+  add_subdirectory(analysis)
+endif()
+
+
 #------------------------------------------------------------------------------#
 # Install Rules
 #------------------------------------------------------------------------------#
@@ -246,19 +281,23 @@ install(DIRECTORY configs/ascent_scripts/
         DESTINATION .
         FILES_MATCHING PATTERN "*.yaml")
 
-# Use OPTIONAL in case these directories don't exist yet.
 install(DIRECTORY configs/kombyne_scripts/
         DESTINATION .
-        FILES_MATCHING PATTERN "*.yaml"
-        OPTIONAL)
+        FILES_MATCHING PATTERN "*.yaml")
 
 install(DIRECTORY configs/adios2_configs/
         DESTINATION .
-        FILES_MATCHING PATTERN "*.xml"
-        OPTIONAL)
+        FILES_MATCHING PATTERN "*.xml")
+
+# Install script files
+install(DIRECTORY scripts/
+        DESTINATION .
+        FILES_MATCHING 
+        PATTERN "*.py"
+        PATTERN "*.sh")
 
 # Install miscellaneous top-level files that aren't in a subdirectory.
 install(FILES
-  configs/cleanupRun.sh
   README.md
   DESTINATION .
+)

@@ -43,9 +43,9 @@ void WriterAscent::write(int step, const GrayScott &sim, int rank, int numRanks)
     // move the final mesh fragments so that each domain is flush against all other domains.
     // this is necessary as we could not get ghost cells to work correctly, so with all
     // domains touching the visulaization is able to create its own
-    mesh["coordsets/coords/origin/x"] = (dx * spacing[0] - (dx/nx) * spacing[0]); //dx * spacing[0];
-    mesh["coordsets/coords/origin/y"] = (dy * spacing[1] - (dy/ny) * spacing[1]); //dy * spacing[1];
-    mesh["coordsets/coords/origin/z"] = (dz * spacing[2] - (dz/nz) * spacing[2]); //dz * spacing[2];
+    mesh["coordsets/coords/origin/x"] = (dx * spacing[0] - (dx / nx) * spacing[0]); // dx * spacing[0];
+    mesh["coordsets/coords/origin/y"] = (dy * spacing[1] - (dy / ny) * spacing[1]); // dy * spacing[1];
+    mesh["coordsets/coords/origin/z"] = (dz * spacing[2] - (dz / nz) * spacing[2]); // dz * spacing[2];
 
     mesh["topologies/mesh/type"] = "uniform";
     mesh["topologies/mesh/coordset"] = "coords";
@@ -77,15 +77,18 @@ void WriterAscent::write(int step, const GrayScott &sim, int rank, int numRanks)
     scenes["default_scene/plots/p1/type"] = "pseudocolor";
     scenes["default_scene/plots/p1/field"] = "u";
     scenes["default_scene/image_prefix"] = "writerAscent_builtin_scene_ts-";
-    
+
     // Publish the data and execute
     ascent.publish(data);
     ascent.execute(actions);
 
+    // print the conduit structure
+    // data.print();
+
     // used for debugging what ascent sees internally
-    //conduit::Node info;
-    //ascent.info(info);
-    //info.print();
+    // conduit::Node info;
+    // ascent.info(info);
+    // info.print();
 
     vtkLogEndScope("Writing: Ascent");
 }
