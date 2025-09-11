@@ -860,7 +860,45 @@ To open the plot in an interactive window (in addition to saving the file), use 
 python3 plot_ascent_performance.py ascent_timings_summary.json --show
 ```
 
----
+### Kombyne specific Performance Analysis
+
+Kombyne has a built-in timing infrastructure that can be used to generate detailed performance data. This document outlines how to enable these timers and use the provided script to visualize where time is being spent during a simulation.
+
+#### How to Enable Kombyne Timings
+
+To get performance data, simply export the following to your environment before execution: 
+
+When enabled, Kombyne will generate one `timings.####.txt` file for each MPI rank in your run directory. Each file contains a detailed, hierarchical breakdown of internal operations and the time each one took.
+
+*(Note: Please refer to your specific Kombyne simulation's documentation for the exact flag or option to enable timer output if it's not on by default.)*
+
+#### Visualizing the Performance Data
+
+The `kombyne_timings_plotter.py` script is an all-in-one tool that parses all raw `timings.*.txt` files, aggregates the total time spent in each operation across all ranks, and generates a sunburst plot summarizing the results.
+
+##### Dependencies
+
+Before running the script, you need to ensure you have the required Python packages installed. This script relies on `pandas` for data manipulation and `plotly` for plotting. To export the plot as a PDF, `kaleido` is also required. You can install all of them with the following command:
+
+```
+pip install --user pandas plotly "kaleido==0.1.*"
+
+```
+
+*(Note: A specific version of Kaleido is recommended for compatibility with recent Plotly versions.)*
+
+##### Usage
+
+Navigate to the directory containing the `timings.*.txt` files and run the script:
+
+```
+python3 kombyne_sunbukombyne_timings_plotter.py
+
+```
+
+This will process all timing files and save a PDF file named `kombyne_sunburst_performance.pdf`. This plot provides an intuitive, hierarchical view of the total time distribution.
+
+
 
 <br>
 
