@@ -12,7 +12,7 @@ public:
     ~WriterADIOS();
 
     // The base class interface remains unchanged.
-    void CreateWriter(const Settings &settings, const GrayScott &sim, int rank) override;
+    void CreateWriter(const Settings &settings, const GrayScott &sim, MPI_Comm comm, int rank) override;
     
     // Add a new public method specific to this class
     void SetADIOS(adios2::ADIOS &adios);

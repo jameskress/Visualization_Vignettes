@@ -2,7 +2,7 @@
 <adios-config>
 
     <!--============================================
-           Configuration for Gray-Scott and GS Plot
+           Configuration for Gray-Scott
         ============================================-->
 
     <io name="SimulationOutput">
@@ -54,16 +54,7 @@
         -->
     </io>
 
-    <!--====================================
-           Configuration for isosurface,
-           find_blobs and render_isosurface
-        ====================================-->
-
-    <io name="IsosurfaceOutput">
-        <engine type="BP5">
-        </engine>
-    </io>
-
+    
     <!--================================================
            Configuration for Gray-Scott (checkpointing)
         ================================================-->
@@ -129,8 +120,5 @@
 
         === InSituMPI ===
         One must launch producer and consumer as one MPI appliction in MPMD mode.
-        See Readme.md
-        Note: This engine does not support the high-level Python API in the plot
-        scripts, so it can only be used to couple the simulation and PDF calculation.
      -->
 </adios-config>

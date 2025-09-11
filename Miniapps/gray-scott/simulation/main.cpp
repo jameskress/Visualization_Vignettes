@@ -158,7 +158,7 @@ int main(int argc, char **argv)
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
 
     // Logic to get the application's color for splitting
-    int mpi_split_color = 0; // Default to 0 for writer
+    int mpi_split_color = 13; // Default to 13 for writer
     for (int i = 1; i < argc; ++i)
     {
         if (std::string(argv[i]) == "--mpi-split-color" && i + 1 < argc)
@@ -278,7 +278,7 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    writer_main->CreateWriter(settings, sim, rank);
+    writer_main->CreateWriter(settings, sim, app_comm, rank);
     perf.stop("create_writer");
 
     perf.start("writer_open");

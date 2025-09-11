@@ -3,7 +3,7 @@
 WriterADIOS::WriterADIOS() = default;
 WriterADIOS::~WriterADIOS() = default;
 
-void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, int rank)
+void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, MPI_Comm comm, int rank)
 {
     settings = _settings;
 

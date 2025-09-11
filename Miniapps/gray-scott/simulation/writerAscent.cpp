@@ -3,14 +3,14 @@
 #include <iostream>
 #include <exception>
 
-void WriterAscent::CreateWriter(const Settings &_settings, const GrayScott &sim, int rank)
+void WriterAscent::CreateWriter(const Settings &_settings, const GrayScott &sim, MPI_Comm comm, int rank)
 {
     settings = _settings;
     vtkLogStartScope(TRACE, "Create Ascent Writer");
 
     conduit::Node ascent_opts;
     ascent_opts["runtime/type"] = "ascent";
-    ascent_opts["mpi_comm"] = MPI_Comm_c2f(MPI_COMM_WORLD);
+    ascent_opts["mpi_comm"] = MPI_Comm_c2f(comm);
 
     ascent.open(ascent_opts);
 

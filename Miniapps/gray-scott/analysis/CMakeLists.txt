@@ -29,7 +29,12 @@ find_package(Ascent REQUIRED)
 #)
 
 # Create the executable
-add_executable(analysis-reader main.cpp)
+add_executable(analysis-reader 
+  main.cpp
+  adios_reader.cpp
+  ascent_backend.cpp
+  backend_factory.cpp
+)
 
 target_link_options(analysis-reader PRIVATE "-Wl,--disable-new-dtags")
 
@@ -64,6 +69,7 @@ target_link_libraries(analysis-reader PRIVATE
 
 # Optional Catalyst
 if(ENABLE_CATALYST)
+  target_sources(analysis-reader PRIVATE catalyst_backend.cpp)
   target_include_directories(analysis-reader PRIVATE ${catalyst_INCLUDE_DIRS})
   target_link_libraries(analysis-reader PRIVATE catalyst::catalyst)
 endif()

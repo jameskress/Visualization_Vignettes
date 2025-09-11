@@ -17,7 +17,7 @@
 class Writer
 {
 public:
-    virtual void CreateWriter(const Settings &settings, const GrayScott &sim, int rank) = 0;
+    virtual void CreateWriter(const Settings &settings, const GrayScott &sim, MPI_Comm comm, int rank) = 0;
     virtual void open(const std::string &fname, bool append, int rank) = 0;
     virtual void write(int step, const GrayScott &sim, int rank, int numRanks) = 0;
     virtual void close(int rank) = 0;

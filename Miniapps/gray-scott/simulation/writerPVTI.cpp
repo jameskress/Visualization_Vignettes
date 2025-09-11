@@ -177,7 +177,7 @@ int ImageSource::FillOutputPortInformation(int port, vtkInformation *info)
 //--------------------------------------------------------------
 //  Writer
 //--------------------------------------------------------------
-void WriterPVTI::CreateWriter(const Settings &_settings, const GrayScott &sim, int rank)
+void WriterPVTI::CreateWriter(const Settings &_settings, const GrayScott &sim, MPI_Comm comm, int rank)
 {
     settings = _settings;
     vtkLog(TRACE, "");

@@ -31,7 +31,7 @@ git checkout v6.0.0
 cd ..
 mkdir paraview-build
 cd paraview-build
-ccmake -DCMAKE_BUILD_TYPE=Release -DUSE_SYSTEM_mpi=ON -DUSE_SYSTEM_python3=ON -DENABLE_catalyst=ON -DENABLE_mpi=ON -DENABLE_netcdf=ON -DENABLE_hdf5=ON -DENABLE_python3=ON -DENABLE_openmp=ON  -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--no-gc-sections"  ../paraview-superbuild
+ccmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUSE_SYSTEM_mpi=ON -DUSE_SYSTEM_python3=ON -DENABLE_catalyst=ON -DENABLE_mpi=ON -DENABLE_netcdf=ON -DENABLE_hdf5=ON -DENABLE_python3=ON -DENABLE_openmp=ON  ../paraview-superbuild
 make -j
 ```
 
@@ -805,6 +805,60 @@ The summary image contains four plots providing a comprehensive overview of the 
 3. **System Stats per Step**: A dual-axis plot showing memory usage (RSS) and CPU time (user/system) per step.
 
 4. **Total Step Time by Rank**: A line plot showing the total wall-clock time for each step, with a separate line for each MPI rank. This is excellent for diagnosing load imbalance issues.
+
+
+### Ascent specific Performance Analysis
+Ascent has built in timings for filters, we can enable this and visualize where time is being spent in Ascent. 
+
+#### How to Enable Ascent Timings
+To get detailed performance data, you need to instruct Ascent to generate timing files. This is done by creating or editing an Ascent options file (commonly named `ascent_options.yaml`) in your run directory.
+
+Set the `timings` option to `"true"` as shown below.
+
+`ascent_options.yaml`:
+
+```yaml
+runtime:
+  type: "ascent"
+  vtkm:
+    backend: "openmp"
+actions_file: "ascent_actions.yaml" # Or your specific actions file
+messages: "quiet"
+timings: "true" # <-- This is the important flag
+```
+
+When you run your `analysis-reader` program with this file present, Ascent will generate one raw text file for each MPI rank. Each file contains a list of internal operations and the time each one took for every timestep.
+
+#### Parsing the Raw Timing Files
+The raw text files are not suitable for direct analysis. The `ascent_parse_timings.py` script reads all these files, correctly orders the data by MPI rank, and transposes it into a single, structured JSON file that is organized by operation and timestep.
+
+##### Usage
+Navigate to the directory containing the `ascent_filter_timings_*.csv` files and run the script:
+
+```bash
+python3 ascent_parse_timings.py
+```
+
+This will produce a single output file named `ascent_timings_summary.json`. This file is the input for the plotting script.
+
+#### Visualizing the Performance Data
+The `ascent_timings_plotter.py` script reads the `ascent_timings_summary.json` file and generates a multi-panel PNG image that provides a comprehensive overview of the performance.
+
+##### Usage
+To generate the plot image, run the script and provide the path to the JSON file:
+
+```bash
+python3 ascent_timings_plotter.py ascent_timings_summary.json
+```
+
+This will save a file named ascent_performance_breakdown.png.
+
+#### Interactive Plotting
+To open the plot in an interactive window (in addition to saving the file), use the `--show` flag:
+
+```bash
+python3 plot_ascent_performance.py ascent_timings_summary.json --show
+```
 
 ---
 

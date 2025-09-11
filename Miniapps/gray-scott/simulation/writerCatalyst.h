@@ -27,7 +27,7 @@
 class WriterCatalyst : public Writer
 {
     public:
-        void CreateWriter(const Settings &settings, const GrayScott &sim, int rank) override;
+        void CreateWriter(const Settings &settings, const GrayScott &sim, MPI_Comm comm, int rank) override;
         void open(const std::string &fname, bool append, int rank) override;
         void write(int step, const GrayScott &sim, int rank, int numRanks) override;
         void close(int rank) override;

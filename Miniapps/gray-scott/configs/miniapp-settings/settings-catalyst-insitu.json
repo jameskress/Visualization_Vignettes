@@ -11,7 +11,7 @@
     "output_file_name": "",
     "output_type": "catalyst_insitu",
     "catalyst_script_path": "catalyst-extract-jpg.py",
-    "catalyst_lib_path": "/home/kressjm/packages/paraview-src/build_5.13.3/install/lib/catalyst",
+    "catalyst_lib_path": "/home/kressjm/packages/paraview-src/build_6.0.0/install/lib/catalyst",
     "checkpoint": false,
     "checkpoint_freq": 0,
     "checkpoint_output": "",

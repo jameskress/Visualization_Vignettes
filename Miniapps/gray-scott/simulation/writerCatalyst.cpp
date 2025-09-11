@@ -12,11 +12,13 @@ namespace fs = std::filesystem;
 //--------------------------------------------------------------
 //  WriterCatalyst
 //--------------------------------------------------------------
-void WriterCatalyst::CreateWriter(const Settings &_settings, const GrayScott &sim, int rank)
+void WriterCatalyst::CreateWriter(const Settings &_settings, const GrayScott &sim, MPI_Comm comm, int rank)
 {
     settings = _settings;
     vtkLog(TRACE, "");
     conduit_cpp::Node node;
+
+    node["mpi_comm"] = MPI_Comm_c2f(comm);
 
     if (settings.output_type == "catalyst_io")
     {

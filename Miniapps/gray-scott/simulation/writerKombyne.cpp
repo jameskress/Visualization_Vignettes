@@ -4,21 +4,20 @@
 WriterKombyne::WriterKombyne() = default;
 WriterKombyne::~WriterKombyne() = default;
 
-void WriterKombyne::CreateWriter(const Settings &_settings, const GrayScott &sim, int rank)
+void WriterKombyne::CreateWriter(const Settings &_settings, const GrayScott &sim, MPI_Comm comm, int rank)
 {
     settings = _settings;
-    // The main initialization happens in open(), where the MPI communicator is available.
+
+    // Initialize the Kombyne Lite C API.
+    MPI_Comm split_comm;
+    kb_role role;
+    kb_initialize(comm, "producer", "Gray-Scott Kombyne Producer",
+                  KB_ROLE_SIMULATION_AND_ANALYSIS, 0, 0, "session.txt", &split_comm, &role);
 }
 
 void WriterKombyne::open(const std::string &fname, bool append, int rank)
 {
     vtkLog(INFO, "Initializing Kombyne Lite Session");
-
-    // Initialize the Kombyne Lite C API.
-    MPI_Comm split_comm;
-    kb_role role;
-    kb_initialize(MPI_COMM_WORLD, "producer", "Gray-Scott Kombyne Producer",
-                  KB_ROLE_SIMULATION_AND_ANALYSIS, 0, 0, "session.txt", &split_comm, &role);
 
     // Create and initialize a pipeline collection. This reads a configuration
     // file that tells Kombyne what in situ operations to perform.
