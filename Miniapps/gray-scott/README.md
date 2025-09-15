@@ -12,7 +12,147 @@ A reaction-diffusion system is a system in which a dynamical system is attached 
 
 <br>
 
-## How to build
+## Running with Docker
+
+This project provides a self-contained, portable, and reproducible scientific software environment using Docker. It includes pre-compiled versions of **ParaView 5.13.2**, **ADIOS2**, **Ascent**, and the **Gray-Scott Miniapp**, ensuring that users can run complex in-situ visualization workflows without needing to build the dependencies themselves.
+
+The Docker image can be built and run on **Linux, macOS, and Windows**.
+
+### 1. Prerequisites
+
+The only prerequisite is to have Docker installed on your system.
+
+* **Windows / macOS:** Install [**Docker Desktop**](https://www.docker.com/products/docker-desktop/).
+* **Linux:** Install [**Docker Engine**](https://docs.docker.com/engine/install/). It is also recommended to complete the [post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/) to run Docker without `sudo`.
+
+### 2. Quick Start: Running the Pre-Built Image (Recommended)
+
+This is the fastest and easiest way to get started. This workflow downloads the ready-to-use image, saving you hours of compilation time.
+
+#### Step 2.1: Download the Pre-Built Image
+
+Open a terminal or command prompt and run the following command to download the complete environment from the project's GitLab Container Registry.
+
+```bash
+docker pull [registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest](https://registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest)
+```
+
+#### Step 2.2: Run Simulations and Access Files
+
+To run the container, you will create a "shared folder" that links a directory on your computer to a directory inside the container. This makes it easy to access your output files and resolves file permission issues.
+
+1.  **Create a Local Data Directory:** On your computer, create a folder where you want your simulation outputs to be saved.
+    ```bash
+    mkdir data
+    ```
+
+2.  **Run the Container:** Use the command for your operating system to start the container. This command links your new `data` folder to `/app/data` inside the container and ensures you have the correct file permissions.
+
+    **On Linux or macOS (in any terminal):**
+    ```bash
+    docker run -it --rm \
+      -e HOST_UID=$(id -u) \
+      -e HOST_GID=$(id -g) \
+      -v "$(pwd)/data:/app/data" \
+      [registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest](https://registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest)
+    ```
+    **On Windows (in a PowerShell terminal):**
+    ```powershell
+    # Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
+    docker run -it --rm -v "${PWD}/data:/app/data" [registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest](https://registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest)
+    ```
+    **On Windows (in a Command Prompt `cmd.exe`):**
+    ```cmd
+    :: Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
+    docker run -it --rm -v "%cd%/data:/app/data" [registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest](https://registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest)
+    ```
+    You are now inside the container with a clean command prompt: `vizuser@<container_id>:/app/data$`.
+
+3.  **Set Up Your Run Directory:** The container includes a script to easily copy the application and its default settings into your shared folder. Run this script once.
+    ```bash
+    # Inside the container, set up your run directory
+    setup_rundir.sh
+    ```
+    You will now see the `kvvm-gray-scott` executable and all the `settings-*.json` files in your shared directory.
+
+4.  **Run a Simulation:** Now you can run the simulation using the local executable and settings files.
+    ```bash
+    # Navigate to the shared data directory
+    cd /app/data
+
+    # Run the simulation using the local executable and settings files
+    mpirun -np 2 ./kvvm-gray-scott --settings-file=./settings-catalyst-insitu.json
+    ```
+
+5.  **Exit and Access Your Files:** When the simulation is done, exit the container.
+    ```bash
+    exit
+    ```
+    Your output files (images, VTK files, etc.) are now in the `data` folder on your computer.
+
+### 3. For Developers: Building the Image from Source
+
+Follow these instructions if you need to modify the environment or build the image yourself.
+
+> **Warning:** This build process compiles several large scientific libraries. It can take a **very long time** (potentially several hours) and will consume a significant amount of disk space.
+
+#### Step 3.1: Clone and Build the Image
+
+1.  **Clone this Repository:**
+    ```bash
+    git clone [https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git](https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git)
+    cd KAUST_Visualization_Vignettes
+    ```
+
+2.  **Build the Image:** From the root directory of the repository, run the following command. This will create a local Docker image named `kaust-viz-app`.
+    ```bash
+    docker build -t kaust-viz-app .
+    ```
+
+#### Step 3.2: Run Simulations and Access Files
+
+This workflow is identical to the user workflow, but you will use your locally-built image name (`kaust-viz-app`) instead of the full registry path.
+
+1.  **Create a Local Data Directory:**
+    ```bash
+    mkdir data
+    ```
+
+2.  **Run the Container:**
+    **On Linux or macOS (in any terminal):**
+    ```bash
+    docker run -it --rm \
+      -e HOST_UID=$(id -u) \
+      -e HOST_GID=$(id -g) \
+      -v "$(pwd)/data:/app/data" \
+      kaust-viz-app
+    ```
+    **On Windows (in PowerShell or Command Prompt):**
+    ```bash
+    # PowerShell
+    docker run -it --rm -v "${PWD}/data:/app/data" kaust-viz-app
+
+    # Command Prompt
+    docker run -it --rm -v "%cd%/data:/app/data" kaust-viz-app
+    ```
+
+3.  **Set Up and Run a Simulation:**
+    ```bash
+    # Inside the container, set up your run directory
+    setup_rundir.sh
+
+    # Run the simulation
+    mpirun -np 2 ./kvvm-gray-scott --settings-file=./settings-catalyst-insitu.json
+    ```
+
+4.  **Exit and Access Your Files:**
+    ```bash
+    exit
+    ```
+
+<br>
+
+## How to build locally
 
 Make sure `MPI`, and `VTK` are installed. These are non-optional dependencies. You can also enable `Catalyst`, `Ascent`, or `Kombyne` for more visualization options.
 

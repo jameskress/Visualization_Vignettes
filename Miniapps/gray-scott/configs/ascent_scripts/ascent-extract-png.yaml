@@ -27,7 +27,7 @@
           image_width: 2113
           image_height: 1338
           annotations: "on"
-          image_prefix: "ascent_render_v_%06d.jpeg"
+          image_prefix: "ascent_render_v_%06d"
           camera:
             position: [9.742, 8.216, 10.431]
             look_at:  [3.25, 3.25, 3.25]

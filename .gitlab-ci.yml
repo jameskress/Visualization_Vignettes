@@ -1,28 +1,38 @@
-# This file is a template, and might need editing before it works on your project.
-# This is a sample GitLab CI/CD configuration file that should run without any modifications.
-# It demonstrates a basic 3 stage CI/CD pipeline. Instead of real tests or scripts,
-# it uses echo commands to simulate the pipeline execution.
-#
-# A pipeline is composed of independent jobs that run scripts, grouped into stages.
-# Stages run in sequential order, but jobs within stages run in parallel.
-#
-# For more information, see: https://docs.gitlab.com/ee/ci/yaml/index.html#stages
-#
-# You can copy and paste this template into a new `.gitlab-ci.yml` file.
-# You should not add this template to an existing `.gitlab-ci.yml` file by using the `include:` keyword.
-#
-# To contribute improvements to CI/CD templates, please follow the Development guide at:
-# https://docs.gitlab.com/ee/development/cicd/templates.html
-# This specific template is located at:
-# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Getting-Started.gitlab-ci.yml
+# This GitLab CI/CD configuration file includes three stages:
+# 1. build: Compiles the Docker image and pushes it to the GitLab Container Registry.
+# 2. test: Runs existing ParaView and VisIt tests.
 
 image: debian:12
 
 stages:          # List of stages for jobs, and their order of execution
+  - build
   - test
 
+docker_build:
+  # This job builds the Docker image from the Dockerfile and pushes it to the
+  # GitLab Container Registry. It only runs on the main/master branch.
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    # $CI_REGISTRY_USER, $CI_REGISTRY_PASSWORD, and $CI_REGISTRY are predefined
+    # GitLab CI/CD variables that allow Docker to log in to the project's registry.
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    # Build the Docker image. $CI_REGISTRY_IMAGE is a predefined variable that
+    # resolves to the correct registry path for this project. We explicitly add
+    # our desired image name, 'kaust-viz-app'.
+    - docker build -t "$CI_REGISTRY_IMAGE/kaust-viz-app:latest" -t "$CI_REGISTRY_IMAGE/kaust-viz-app:$CI_COMMIT_REF_SLUG" .
+    # Push both the 'latest' and the branch-specific tag to the registry.
+    - docker push "$CI_REGISTRY_IMAGE/kaust-viz-app:latest"
+    - docker push "$CI_REGISTRY_IMAGE/kaust-viz-app:$CI_COMMIT_REF_SLUG"
+  rules:
+    # This ensures the Docker image is only built for commits to the default branches.
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
 paraview-test-job:   # This job runs in the test stage.
-  stage: test    # It only starts when the job in the build stage completes successfully.
+  stage: test
   script:
     - echo "Running ParaView Tests"
     - apt update && apt -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
@@ -86,3 +96,4 @@ visit-test-job:
       - "VisIt_Vignettes/*/Testing/*.json"
       - "VisIt_Vignettes/*/Testing/*.log"
       - "Testing/*.json"
+

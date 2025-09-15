@@ -208,3 +208,15 @@ Running with MPMD SST
 mpirun -np 8 ./kvvm-gray-scott --settings-file=settings-adios-localcopy.json --mpi-split-color 0 \
  : \
  -np 3 ./analysis-reader --file=gs-adios-localcopy.bp --settings=settings-ascent.json --engine=SST --mpi-split-color 1
+
+
+
+# Docker
+Working on getting a docker image of this repo built so that the CI/CD pipeline will generate one on each commit allowing it to be downloaded and the code run with no building required. 
+
+**locally**
+From main dir run this to build the docker image locally for testing
+
+```
+docker build -t kaust-viz-app .
+```

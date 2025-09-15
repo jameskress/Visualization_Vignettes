@@ -212,14 +212,11 @@ void AscentBackend::Run()
             mesh_blueprint = BuildRepartitionedBlueprint(read_info_u, u_buf, &v_buf, step, current_opts);
         }
         else // preserve mode
-        {
-            std::cerr << __FILE__ << ":" << __LINE__  << std::endl;    
+        {    
             std::vector<BlockData<double>> blocks_u, blocks_v;
-            std::cerr << __FILE__ << ":" << __LINE__  << std::endl;
             size_t total_blocks_u = m_reader.ReadPreserve(current_opts.u_var, blocks_u);
-            std::cerr << __FILE__ << ":" << __LINE__  << std::endl;
             m_reader.ReadPreserve(current_opts.v_var, blocks_v);
-std::cerr << __FILE__ << ":" << __LINE__  << std::endl;
+
             // Add warning for inefficient process count
             if (rank == 0 && total_blocks_u > 0 && procs > total_blocks_u)
             {
