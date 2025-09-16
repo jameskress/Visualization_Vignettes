@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install all build-time dependencies
 # This includes compilers, CMake, Git, MPI, Python, HDF5, NetCDF, and OpenGL libraries
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y -qq \
     build-essential \
     cmake \
     git \
@@ -34,8 +34,8 @@ RUN apt-get update && apt-get install -y \
 # --- Install/Upgrade Python build dependencies needed by the superbuild ---
 # An older version of pip can cause issues with modern packages.
 # We upgrade pip and its core components, and ensure flit-core is present.
-RUN pip3 install --upgrade pip setuptools wheel
-RUN pip3 install flit-core
+RUN pip3 install --upgrade --quiet pip setuptools wheel
+RUN pip3 install --quiet flit-core
 
 # --- Upgrade CMake to a version required by ParaView Superbuild ---
 # The default Ubuntu 22.04 CMake is too old. We'll use the official Kitware APT repo.
@@ -51,7 +51,7 @@ WORKDIR /builds
 
 # --- Build and Install ADIOS2 ---
 # We will install it to a custom prefix to keep it organized
-RUN git clone https://github.com/ornladios/ADIOS2.git adios2-src
+RUN git clone --quiet https://github.com/ornladios/ADIOS2.git adios2-src
 RUN cmake -S adios2-src -B adios2-build \
     -DCMAKE_INSTALL_PREFIX=/opt/adios2 \
     -DADIOS2_USE_MPI=ON \
@@ -64,7 +64,7 @@ RUN cmake --install adios2-build
 # This is a major build and will take a significant amount of time.
 # The superbuild handles fetching and building ParaView, Catalyst, VTK, and other dependencies.
 ARG PARAVIELD_VERSION=v5.13.2
-RUN git clone --recursive -b ${PARAVIELD_VERSION} https://gitlab.kitware.com/paraview/paraview-superbuild.git
+RUN git clone --quiet --recursive -b ${PARAVIELD_VERSION} https://gitlab.kitware.com/paraview/paraview-superbuild.git
 WORKDIR /builds/paraview-superbuild/build
 RUN cmake \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
@@ -86,7 +86,7 @@ RUN cmake --build . -j2
 WORKDIR /builds
 
 # --- Build and Install Ascent ---
-RUN git clone --recursive https://github.com/alpine-dav/ascent.git ascent-src
+RUN git clone --quiet --recursive https://github.com/alpine-dav/ascent.git ascent-src
 WORKDIR /builds/ascent-src
 # Checkout a stable, tagged release instead of the main development branch
 RUN git checkout v0.9.5
@@ -116,7 +116,7 @@ FROM ubuntu:22.04
 
 # --- Install RUNTIME dependencies AND build tools for the user code ---
 # The -dev packages are needed to compile the user code against these libraries.
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y -qq \
     build-essential \
     libopenmpi-dev \
     openmpi-bin \
