@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y -qq \
     libnetcdf-dev \
     libhdf5-dev \
     libfmt-dev \
+    ninja-build \
     wget \
     ca-certificates \
     gpg \
@@ -67,6 +68,7 @@ ARG PARAVIELD_VERSION=v5.13.2
 RUN git clone --quiet --recursive -b ${PARAVIELD_VERSION} https://gitlab.kitware.com/paraview/paraview-superbuild.git
 WORKDIR /builds/paraview-superbuild/build
 RUN cmake \
+    -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DUSE_SYSTEM_mpi=ON \
     -DUSE_SYSTEM_python3=OFF \
@@ -92,7 +94,7 @@ WORKDIR /builds/ascent-src
 RUN git checkout v0.9.5
 # The build script uses environment variables for configuration.
 # We set the installation prefix to /opt/ascent to keep it organized.
-RUN env prefix=/opt/ascent enable_mpi=ON enable_openmp=ON ./scripts/build_ascent/build_ascent.sh
+RUN env prefix=/opt/ascent enable_mpi=ON enable_openmp=ON enable_verbose=OFF ./scripts/build_ascent/build_ascent.sh
 
 # Reset WORKDIR for any subsequent builds
 WORKDIR /builds

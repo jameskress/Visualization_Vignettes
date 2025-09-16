@@ -25,19 +25,19 @@ The only prerequisite is to have Docker installed on your system.
 * **Windows / macOS:** Install [**Docker Desktop**](https://www.docker.com/products/docker-desktop/).
 * **Linux:** Install [**Docker Engine**](https://docs.docker.com/engine/install/). It is also recommended to complete the [post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/) to run Docker without `sudo`.
 
-### 2. Quick Start: Running the Pre-Built Image (Recommended)
+## 2. Quick Start: Running the Pre-Built Image (Recommended)
 
 This is the fastest and easiest way to get started. This workflow downloads the ready-to-use image, saving you hours of compilation time.
 
-#### Step 2.1: Download the Pre-Built Image
+### Step 2.1: Download the Pre-Built Image
 
-Open a terminal or command prompt and run the following command to download the complete environment from the project's GitLab Container Registry.
+Open a terminal or command prompt and run the following command to download the complete environment from the project's public GitLab Container Registry.
 
 ```bash
-docker pull [registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest](https://registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest)
+docker pull gitlab.kitware.com:4567/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest
 ```
 
-#### Step 2.2: Run Simulations and Access Files
+### Step 2.2: Run Simulations and Access Files
 
 To run the container, you will create a "shared folder" that links a directory on your computer to a directory inside the container. This makes it easy to access your output files and resolves file permission issues.
 
@@ -54,17 +54,17 @@ To run the container, you will create a "shared folder" that links a directory o
       -e HOST_UID=$(id -u) \
       -e HOST_GID=$(id -g) \
       -v "$(pwd)/data:/app/data" \
-      [registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest](https://registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest)
+      gitlab.kitware.com:4567/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest
     ```
     **On Windows (in a PowerShell terminal):**
     ```powershell
     # Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
-    docker run -it --rm -v "${PWD}/data:/app/data" [registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest](https://registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest)
+    docker run -it --rm -v "${PWD}/data:/app/data" gitlab.kitware.com:4567/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest
     ```
     **On Windows (in a Command Prompt `cmd.exe`):**
     ```cmd
     :: Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
-    docker run -it --rm -v "%cd%/data:/app/data" [registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest](https://registry.gitlab.kitware.com/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest)
+    docker run -it --rm -v "%cd%/data:/app/data" gitlab.kitware.com:4567/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest
     ```
     You are now inside the container with a clean command prompt: `vizuser@<container_id>:/app/data$`.
 
@@ -100,7 +100,7 @@ Follow these instructions if you need to modify the environment or build the ima
 
 1.  **Clone this Repository:**
     ```bash
-    git clone [https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git](https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git)
+    git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git
     cd KAUST_Visualization_Vignettes
     ```
 

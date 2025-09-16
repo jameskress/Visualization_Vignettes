@@ -40,7 +40,7 @@ Ready to add or modify a vignette? Here is the standard workflow for submitting 
 1.  **Fork** this repository on GitLab to create your own personal copy.
 2.  **Clone** your fork to your local machine or a suitable location on a KAUST system:
     ```bash
-    git clone [https://gitlab.kitware.com/YOUR-USERNAME/KAUST_Visualization_Vignettes.git](https://gitlab.kitware.com/YOUR-USERNAME/KAUST_Visualization_Vignettes.git)
+    git clone https://gitlab.kitware.com/YOUR-USERNAME/KAUST_Visualization_Vignettes.git
     cd KAUST_Visualization_Vignettes
     ```
 
