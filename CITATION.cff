@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software for your research, please cite it as below."
+type: software
+authors:
+  - family-names: "Kress"
+    given-names: "James"
+    orcid: "https://orcid.org/0000-0002-9706-6182"
+title: "KAUST Visualization Vignettes"
+version: 0.1.0 
+date-released: 2025-09-17
+repository-code: "https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes"
+license: BSD-3-Clause
+keywords:
+  - "scientific visualization"
+  - "in situ"
+  - "in transit"
+  - "in line"
+  - "high-performance computing"
+  - "HPC"
+  - "ParaView"
+  - "VisIt"
+  - "VTK"
+  - "ADIOS2"
+  - "KAUST"
+  - "Cookbook"
+  - "Vignettes"
+  - "Tutorials"
