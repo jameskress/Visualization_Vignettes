@@ -28,14 +28,19 @@ This repository is broadly divided into two sections:
 
 * **Visualization Tool Vignettes**
   * [**ParaView Vignettes**](./ParaView_Vignettes/README.md)
+    * Details ParaView use on Ibex and Shaheen (both batch and interactively), as well as local workflows. 
   * [**VisIt Vignettes**](./VisIt_Vignettes/README.md)
+      * Details VisIt use on Ibex and Shaheen (both batch and interactively), as well as local workflows.
 
 * **In Situ Processing Vignettes**
   * [**In Situ Overview**](./Miniapps/gray-scott/README.md)
 
-* **Scripts & Data**
-  * [**Utility Scripts**](./Scripts/README.md)
-  * [**Example Data**](./data/README.md)
+* **Scripts**
+  * Scripts that can help with visualization or movie making outside of ParaView or VisIt.
+
+* **data**
+  * data used the byt ParaView and VisIt Vignettes.
+
 
 ## Getting Started
 
@@ -75,7 +80,7 @@ You can use the "Cite repository" feature on GitLab, which uses the included `CI
   year = {2025},
   publisher = {GitLab},
   version = {0.1.0},
-  url = {[https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes](https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes)}
+  url = {https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes}
 }
 ```
 

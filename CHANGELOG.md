@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
- - updated links and instructions in the Miniapps README.
+ - Updated links and instructions in the Miniapps README.
+ - Added project badges and citation information. 
 
 ## [0.1.0] - 2025-09-16
 
