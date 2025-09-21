@@ -1,152 +1,198 @@
 # ParaView_Vignettes
 
-[ParaView_Vignettes Repository](https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes/-/tree/master/ParaView_Vignettes?ref_type=heads)
+This guide is for the [ParaView_Vignettes Repository](https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes/-/tree/master/ParaView_Vignettes?ref_type=heads), which provides a collection of examples (vignettes) demonstrating how to use ParaView on KAUST's high-performance computing resources, including Ibex and Shaheen III. It covers running the examples and configuring ParaView for interactive use.
 
-## What is ParaView
-ParaView is an open-source, multi-platform data analysis and visualization application. ParaView users can quickly build visualizations to analyze their data using qualitative and quantitative techniques. The data exploration can be done interactively in 3D or programmatically using ParaView’s batch processing capabilities.
+<br>
 
-ParaView was developed to analyze extremely large datasets using distributed memory computing resources. KVL provides ParaView server installs on Ibex and Shaheen to facilitate large scale distributed visualizations. The ParaView server running on Ibex and Shaheen may be used in a headless batch processing mode or an interactive GUI mode.
+## What is ParaView?
+
+ParaView is an open-source, multi-platform data analysis and visualization application. It allows users to quickly build visualizations to analyze their data using qualitative and quantitative techniques. Developed to handle extremely large datasets, ParaView excels at using distributed memory computing resources, making it ideal for use on HPC systems.
+
+KAUST's Visualization Core Lab (KVL) provides ParaView server installations on Ibex and Shaheen to facilitate large-scale distributed visualizations, which can be run interactively through a GUI or non-interactively via batch scripts.
+
+<br>
+
+## Table of Contents
+- [Getting Started: Running the Examples](#getting-started-running-the-examples)
+- [In-Depth Guide: Using ParaView at KAUST](#in-depth-guide-using-paraview-at-kaust)
+  - [1. Interactive Use (Client/Server Mode)](#1-interactive-use-clientserver-mode)
+  - [2. Batch Processing Mode](#2-batch-processing-mode)
+- [Repository Reference](#repository-reference)
+- [Appendix: `pvbatch` vs. `pvpython`](#appendix-pvbatch-vs-pvpython)
 
 
-## Repo Organization
-This subfolder is organized as follows:
-- Individual examples each have their own directory. Each directory contains:
-    - ``ex*.py`` various example scripts showing the use of ParaView from python
-    - ``ex*_shaheen_runScript.sbat`` Shaheen batch scripts showing how to run ParaView with ``pvbatch``
-    - ``ex*_ibex_runScript.sbat`` Ibex batch scripts showing how to run ParaView with ``pvbatch``
-    - ``createParaViewMovie.sh`` Script to generate a movie from images generated with ParaView
-- ``MODULES.sh`` is a module file that the batch scripts use to load the correct versions of modules
-- Information on ParaView and how to use it on KAUST computing resources is given below
+<br>
+
+## Getting Started: Running the Examples
+
+This guide will walk you through cloning the repository and running one of the batch processing examples.
+
+### 1. Clone the Repository
+
+Log in to your target machine and clone this repository into your scratch space.
+
+* **On Ibex:**
+    ```bash
+    ssh <username>@glogin.ibex.kaust.edu.sa
+    cd /ibex/scratch/<username>/
+    git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git
+    cd KAUST_Visualization_Vignettes/ParaView_Vignettes
+    ```
+
+* **On Shaheen III:**
+    ```bash
+    ssh <username>@shaheen.hpc.kaust.edu.sa
+    cd /scratch/<username>/
+    git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git
+    cd KAUST_Visualization_Vignettes/ParaView_Vignettes
+    ```
+
+### 2. Load the ParaView Module
+
+Before running, you need to load the correct environment module. The `MODULES.sh` script handles this, but you can also do it manually:
+```bash
+module load paraview
+```
+
+### 3. Submit a Batch Job
+
+The repository includes run scripts for each example.
+
+* **On Ibex:**
+    Submit the job using `sbatch`. For example, to run `ex01`:
+    ```bash
+    sbatch ex01/ex01_ibex_runScript.sbat
+    ```
+
+* **On Shaheen III:**
+    First, you **must** edit the run script to include your project account. Replace `<##>` with your account ID.
+    ```bash
+    # Example for ex01
+    vim ex01/ex01_shaheen_runScript.sbat
+    # Change --account=<##> to your account, e.g., --account=k01
+    ```
+    Then, submit the job:
+    ```bash
+    sbatch ex01/ex01_shaheen_runScript.sbat
+    ```
+
+### 4. Check the Output
+
+The output logs and any generated images will appear in the example's directory.
+* Log files will be named like `ex01.ibex.<job_id>.out` or `ex01.shaheen_<job_id>.out`.
+* You can view generated images on the command line using `display *.png`.
+
+<br>
+
+## In-Depth Guide: Using ParaView at KAUST
+
+There are two primary ways to use ParaView: interactively with a GUI (client/server mode) or non-interactively via batch scripts.
+
+### 1. Interactive Use (Client/Server Mode)
+
+In this mode, the ParaView GUI runs on your local machine while the data processing and rendering happen on the powerful HPC resources.
+
+#### **One-Time Setup**
+
+You only need to do this once on your local computer.
+
+1.  **Install ParaView:** Download and install the ParaView client from the [official ParaView website](https://www.paraview.org/download/).
+    * **IMPORTANT:** The client version on your machine **must match** the version on the HPC system. Check the available versions on Ibex/Shaheen with `module avail paraview`.
+    * **macOS Users:** You must install [XQuartz (X11)](https://www.xquartz.org/) to handle the authentication pop-up window.
+
+2.  **Download Server Configuration Files:** Save the appropriate `.pvsc` file(s) to your computer.
+    | System        | Configuration File Link                                                                                                 |
+    |---------------|-------------------------------------------------------------------------------------------------------------------------|
+    | **Ibex** | [ibex_server.pvsc](https://gitlab.kaust.edu.sa/kvl/paraview-configs/-/blob/master/pvsc/ibex/default_servers.pvsc)         |
+    | **Shaheen III** | [shaheen_server.pvsc](https://gitlab.kaust.edu.sa/kvl/paraview-configs/-/blob/master/pvsc/ksl/default_servers.pvsc) |
+
+3.  **Import Servers into ParaView:**
+    * Open ParaView on your local machine.
+    * Go to `File -> Connect...`.
+    * Click `Load Servers` and select the `.pvsc` file(s) you just downloaded.
+
+#### **Connecting to an HPC System**
+
+After the one-time setup, follow these steps each time you want to start an interactive session.
+
+1.  In ParaView, go to `File -> Connect...`.
+2.  Select the server you want to connect to (e.g., `shaheen` or `ibex`) and click `Connect`.
+3.  An options dialog will appear. Configure your job settings.
+4.  After clicking `OK`, a terminal window (`xterm` or command prompt) will pop up. Enter your HPC password and DUO authentication code when prompted.
+5.  Once your job starts, you will have control of the ParaView GUI again. You can now open files located on the remote HPC system and visualize them.
+
+#### **Special Case: Using Shaheen III GPU Nodes**
+For GPU-accelerated rendering, you can connect to the PPN (Pre and Post-Processing Node) partition.
+
+**GPU Node Specifications:**
+* **Cores:** 192
+* **GPU:** 1 x NVIDIA L40
+* **RAM:** ~768 GB
+
+**Important Requirements & Limits:**
+* **Group Membership:** You must be in the `video` Linux group to use the GPUs. If you are not, please [submit a ticket to HPC support](mailto:help@hpc.kaust.edu.sa) to be added.
+* **Resource Allocation:** The PPN partition is a shared resource. Due to the QoS scheme, a single user cannot monopolize all nodes. It is strongly recommended to request only **1 node and 1 GPU** for your jobs.
+
+**Connection Settings for a Shaheen GPU Node:**
+When the connection dialog box appears, use these settings:
+1.  **User Name:** Your KAUST username.
+2.  **Queue Name:** Select `ppn`.
+3.  **Number of Nodes/GPU's:** `1` (recommended), `2` (max).
+4.  **Tasks Per Node/GPU:** `192` (to use all cores on the node).
+5.  **Account:** Your project account.
+6.  Click `OK` and proceed with authentication.
+
+<img src="../data/images/ParaView-shaheenConnection.png" alt="ParaView Shaheen III Connection Dialogue" width="25%" />
+
+You can verify that the GPU is being used by checking `Help -> About`. The `OpenGL Renderer` should list the NVIDIA GPU (e.g., L40).
+
+<img src="../data/images/ParaView-aboutView.png" alt="ParaView about view and memory inspector" width="50%" />
+
+### 2. Batch Processing Mode
+
+This mode is ideal for automated workflows, parameter sweeps, or generating animations without manual intervention. You write a Python script that ParaView executes on the cluster via a batch job.
+
+* **How it Works:** You submit a job to the scheduler (Slurm) which runs `pvbatch` with your Python script (`.py`) as input.
+* **Examples:** All the examples in this repository (`ex00` to `ex06`) are designed to be run in batch mode. See the "Getting Started" section above for instructions.
+
+#### Creating a Python Script with Tracing
+The easiest way to generate a Python script for batch processing is to perform the actions once in the interactive GUI and have ParaView automatically generate the code.
+
+1.  Start an interactive session.
+2.  In the GUI, go to `Tools -> Start Trace`. Keep the default settings and click `OK`.
+3.  Perform all your visualization steps: open files, apply filters, change colors, set camera angles, etc.
+4.  Once finished, go to `Tools -> Stop Trace`.
+5.  ParaView will display the generated Python script. Save this script (`.py`) to be used with `pvbatch`.
+
+<br>
+
+## Repository Reference
+
+### File Structure
+Each example directory (`ex*`) contains:
+-   `ex*.py`: The Python script that defines the ParaView visualization pipeline.
+-   `ex*_shaheen_runScript.sbat`: The Slurm batch script for running the example on Shaheen III.
+-   `ex*_ibex_runScript.sbat`: The Slurm batch script for running the example on Ibex.
+-   `createParaViewMovie.sh`: A utility script to stitch generated PNG images into an MP4 movie using `ffmpeg`.
 
 ### Example Details
-1. ``ex00`` - This script shows how to create a data source and query information about the mesh, variables, and more
-2. ``ex01`` - This script shows how to create a data source and create a screenshot and save it to disk
-3. ``ex02`` - This script shows how to create a data source and take a series of screenshots while moving the camera and createing a movie
-4. ``ex03`` - This script shows how to animate the visualization of multiple iso surface values, showing different segments of a static data set
-5. ``ex04`` - This script shows how to animate the progress of streamlines in a flow field
-6. ``ex05`` - This script shows how to load and step through a multi time step file and take a screenshot per step
-7. ``ex06`` - This script shows how to load and create a complex visualization for a large data file
+* `ex00`: Create a data source and query metadata (mesh info, variables).
+* `ex01`: Create a data source, generate a screenshot, and save it to a file.
+* `ex02`: Create an animation by moving the camera and capturing a series of screenshots.
+* `ex03`: Animate iso surface values to visualize different segments of a static dataset.
+* `ex04`: Animate the progression of streamlines in a vector field.
+* `ex05`: Load a multi-timestep dataset and save one screenshot per step.
+* `ex06`: A complex visualization pipeline for a large dataset.
 
+<br>
 
-## Overview of ParaView at KAUST
-There are essentially two ways to use ParaView at KAUST:
-1. Interactivelly
-    1. Locally on your laptop or desktop. You can download a binary from Kitware: [ParaView](https://www.paraview.org/download/)
-    2. Client/Server mode: a GUI client runs on your local machine and the data is processed on KAUST HPC resources.
-2. Batch mode: a python script is executed either locally or on KAUST HPC resources.
+## Appendix: `pvbatch` vs. `pvpython`
 
+ParaView provides two Python interpreters. The key difference is how they are designed to run:
 
-### Using ParaView Interactively on Ibex
-It is possible to run a local ParaView client to display and interact with your data while the ParaView server runs in an Ibex batch job (``client/server mode``), allowing interactive analysis of very large data sets. You will obtain the best performance by running the ParaView client on your local computer and running the server on Ibex with the same version of ParaView. It is *required* to check the available ParaView versions using ``module avail paraview`` on the system on which you plan to connect.
+-   **`pvpython`**: A **serial** application. It's like the standard ParaView client but with a Python interpreter instead of a GUI. It can connect to a remote `pvserver` but runs itself on a single node. Best for interactive scripting on a login node.
+-   **`pvbatch`**: A **parallel** MPI application. It is its own server and is designed to be launched with `srun` or `mpirun` across multiple nodes. This is the correct tool for large-scale, parallel batch processing.
 
-**WARNING**: Using a different version of ParaView than what is available on IBEX WILL fail.
+**The examples in this repository all use `pvbatch` for scalable performance.**
 
-**WARNING**: For macOS clients, it is necessary to install [XQuartz (X11)](https://www.xquartz.org/) to get a command prompt in which you will securely enter your credentials.
-
-After local installation you must give ParaView the relevant server information to be able to connect to KAUST systems (comparable to VisIt's system of host
-profiles). The following provides an example of doing so. Although several methods may be used, the one described should work in most cases.
-* Step 1: Save the following ``default_servers.pvsc`` file to your local computer: [ibex_server](https://gitlab.kaust.edu.sa/kvl/paraview-configs/-/blob/master/pvsc/ibex/default_servers.pvsc).
-* Step 2: Start ParaView and then select ``File/Connect`` to begin.
-* Step 3: Import Servers: Click ``Load Servers`` button and find the ``default_servers.pvsc`` file .
-
-After successfully completing the above steps, you should now be able to connect to Ibex.
-
-
-#### Remote GUI Usage
-After setting up and installing ParaView, you can connect to KAUST systems remotely to visualize your data interactively through ParaView's GUI.
-1. Go to ``File/Connect`` and select Ibex (provided it was successfully imported).
-2. Click on ``Connect`` and change the values in the Connection Options box.
-    1. A dialog box follows, in which you must enter in your username the number of nodes to reserve and a duration to reserve them for. This is also where you can also select which CPU or GPU partition to use.
-    2. It is recommended to use the CPU partition only, as the GPU partitions are VERY busy. To do this select **Node Group: CPU**.
-3. When you click OK, a windows command prompt or ``xterm`` pops up. In this window enter your credentials at the login prompt.
-4. When your job reaches the top of the queue, the main window will be returned to your control. At this point you are connected and can open files that reside there and visualize them interactively.
-
-
-### Using ParaView Interactively on Shaheen III
-It is possible to run a local ParaView client to display and interact with your data while the ParaView server runs in an Shaheen batch job (``client/server mode``), allowing interactive analysis of very large data sets. You will obtain the best performance by running the ParaView client on your local computer and running the server on Shaheen with the same version of ParaView. It is *required* to check the available ParaView versions using ``module avail paraview`` on the system on which you plan to connect.
-
-
-**WARNING**: Using a different version of ParaView than what is available on Shaheen WILL fail.
-
-**WARNING**: For macOS clients, it is necessary to install [XQuartz (X11)](https://www.xquartz.org/) to get a command prompt in which you will securely enter your credentials.
-
-After local installation you must give ParaView the relevant server information to be able to connect to KAUST systems (comparable to VisIt's system of host profiles). The following provides an example of doing so. Although several methods may be used, the one described should work in most cases.
-* Step 1: Save the following ``default_servers.pvsc`` file to your local computer: [shaheen_server](https://gitlab.kaust.edu.sa/kvl/paraview-configs/-/blob/master/pvsc/ksl/default_servers.pvsc).
-* Step 2: Start ParaView and then select ``File/Connect`` to begin.
-* Step 3: Import Servers: Click ``Load Servers`` button and find the ``default_servers.pvsc`` file .
-
-After successfully completing the above steps, you should now be able to connect to Shaheen.
-
-
-### Using ParaView on Shaheen III GPU's ###
-
-**Users must be in the `video` group**: All users who wish to use the PPN GPU's with ParaView must submit a ticket and ask to be part of the `video` group. Without this, ParaView will not find or use the GPU's.
-
-
-
-### Using ParaView in Batch Processing Mode ###
-See the examples in this repo for how to create a job script to run a ParaView python file.
-
-
-### Creating a Python Trace for Batch Processing
-One of the most convenient tools available in the GUI is the ability to convert (or "trace") interactive actions in ParaView to Python code. Users that repeat
-a sequence of actions in ParaView to visualize their data may find the Trace tool useful. The Trace tool creates a Python script that reflects most actions
-taken in ParaView, which then can be used by either PvPython or PvBatch (ParaView's Python interfaces) to accomplish the same actions.
-
-To start tracing from the GUI, click on ``Tools/Start Trace``. An options window will pop up and prompt for specific Trace settings other than the default. Upon
-starting the trace, any time you modify properties, create filters, open files, and hit Apply, etc., your actions will be translated into Python syntax. Once
-you are finished tracing the actions you want to script, click ``Tools/Stop Trace``. A Python script should then be displayed to you and can be saved.
-
-
-### Difference between ``pvbatch`` and ``pvpython``
-ParaView comes with two command line programs that execute Python scripts: ``pvpython`` and ``pvbatch``. They are similar to the ``python`` executable that comes with Python distributions in that they accept Python scripts either from the command line or from a file and they feed the scripts to the Python interpreter.
-
-The difference between ``pvpython`` and ``pvbatch`` is subtle and has to do with the way they establish the visualization service. ``pvpython`` is roughly equivalent to the paraview client GUI with the GUI replaced with the Python interpreter. It is a serial application that connects to a ParaView server (which can be either builtin or remote).
-
-``pvbatch`` is roughly equivalent to ``pvserver`` except that commands are taken from a Python script rather than from a socket connection to a ParaView client. It is a parallel application that can be launched with mpirun (assuming it was compiled with MPI), but it cannot connect to another server; it is its own server.
-
-In general, you should use ``pvpython`` if you will be using the interpreter interactively and ``pvbatch`` if you are running in parallel.
-
-These examples will only use ``pvbatch``, if you want to interactively use ParaView from the command line you can start ``pvpython`` and interact with the interpreter in the same way as these example scipts.
-
-
-### For more information on ParaView
-[Documentation](https://docs.paraview.org/en/latest/index.html)
-
-
-## How to Run Examples in This Repo
-
-### ex*.py
-1. Run scripts locally or log on to either Ibex (<username>@glogin.ibex.kaust.edu.sa) or Shaheen (<username>@shaheen.hpc.kaust.edu.sa)
-2. Clone this repo in your scratch directory
-    1. Locally wherever you like
-        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
-    2. Ibex:
-        * ``cd /ibex/scratch/<username>``
-        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
-    3. Shaheen
-        * ``cd /scratch/<username>``
-        * ``git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git``
-3. If using a cluster load the ParaView module file
-    1. Ibex:
-        * ``module load paraview``
-    2. Shaheen
-        * ``module load paraview``
-4. Run the example locally or on one of the clusters
-    1. Locally:
-        1. We can run the *.py script directly on the command line, not using a batch script
-    2. Clusters: From the scratch directory run the appropriate batch script for either Ibex or Shaheen:
-        1. Ibex: ``sbatch ex*_ibex_runScribt.sbat``
-        2. Shaheen:
-            * Edit each Shaheen batch script by adding your account: ``vim ex*_shaheen_runScribt.sbat`` , and replace ``--account=<##>`` with your account
-            * ``sbatch ex*_shaheen_runScribt.sbat``
-5. View the output messages from the tests:
-    1. Locally: the output will print live to the terminal while running
-    2. Ibex: ``cat ex*.ibex.<job_number>.out``
-    3. Shaheen: ``cat ex*.shaheen_<job_number>.out``
-6. View images from tests that write images:
-    1. Locally: use your preferred image viewer
-    2. Ibex: ``display *.png``
-        a. To view videos copy them to your local machine
-    3. Shaheen ``display  *.png``
-        a. To view videos copy them to your local machine
+For more details, see the official [ParaView Documentation](https://docs.paraview.org/en/latest/index.html).
