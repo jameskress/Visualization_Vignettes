@@ -174,7 +174,8 @@ RUN ln -s /opt/ascent/install/hdf5-* /opt/ascent/install/hdf5
 ENV PATH="/opt/paraview/bin:${PATH}"
 # The Ascent build script places many libraries in versioned subdirectories.
 # We add them all here using wildcards for resilience.
-ENV LD_LIBRARY_PATH="/opt/paraview/lib:/opt/adios2/lib:/opt/ascent/install/ascent-checkout/lib:/opt/ascent/install/conduit-*/lib:/opt/ascent/install/raja-*/lib:/opt/ascent/install/umpire-*/lib:/opt/ascent/install/mfem-*/lib:/opt/ascent/install/silo-*/lib:/opt/ascent/install/vtk-m-*/lib:/opt/ascent/install/zlib-*/lib:/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}"
+# Define the library path directly. It is empty by default.
+ENV LD_LIBRARY_PATH="/opt/paraview/lib:/opt/adios2/lib:/opt/ascent/install/ascent-checkout/lib:/opt/ascent/install/conduit-*/lib:/opt/ascent/install/raja-*/lib:/opt/ascent/install/umpire-*/lib:/opt/ascent/install/mfem-*/lib:/opt/ascent/install/silo-*/lib:/opt/ascent/install/vtk-m-*/lib:/opt/ascent/install/zlib-*/lib:/usr/lib/x86_64-linux-gnu"
 # The CMAKE_PREFIX_PATH helps CMake find all your custom-built packages
 # We add /opt/ascent/install so CMake can find Ascent's dependencies like Conduit.
 ENV CMAKE_PREFIX_PATH="/opt/ascent/install:/opt/paraview/lib/cmake/paraview-5.13:/opt/paraview/lib/cmake/catalyst-2.0:/opt/adios2/lib/cmake/adios2:/opt/ascent/lib/cmake/ascent"

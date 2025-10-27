@@ -10,11 +10,11 @@
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Cite this repository](https://img.shields.io/badge/Cite%20this-repository-blue)](./CITATION.cff)
 
-# Visualization Vignettes
-
-Welcome to the **Visualization Vignettes** repository! This project is a "cookbook" of examples, best practices, and training materials for scientific and in situ visualization workflows. It provides a comprehensive collection of examples demonstrating common visualization tasks and best practices for working with ParaView and VisIt in HPC environments.
 
 # Visualization Vignettes
+<p align="center">
+  <img src="data/images/visualization_vignettes_promo.png" alt="Visualization Vignettes Promo" style="max-width: 100%; height: auto;">
+</p>
 
 Welcome to the **Visualization Vignettes** repository! This project is a "cookbook" of examples, best practices, and training materials for scientific and in situ visualization workflows, valuable for a global audience of researchers, students, and developers.
 
