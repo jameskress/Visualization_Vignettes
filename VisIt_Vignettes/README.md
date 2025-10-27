@@ -1,43 +1,156 @@
 # VisIt Vignettes
 
-[VisIt_Vignettes Repository](https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes/-/tree/master/VisIt_Vignettes?ref_type=heads)
+[VisIt_Vignettes Repository](https://github.com/jameskress/Visualization_Vignettes/tree/master/VisIt_Vignettes)
 
 ## What is VisIt
 VisIt is an interactive, parallel analysis and visualization tool for scientific data. VisIt contains a rich set of visualization features so you can view your data in a variety of ways. It can be used to visualize scalar and vector fields defined on two- and three-dimensional (2D and 3D) structured and unstructured meshes.
 
-VisIt was developed to analyze extremely large datasets using distributed memory computing resources. KVL provides VisIt installs on Ibex and Shaheen to facilitate large scale distributed visualizations. The VisIt server running on Ibex and Shaheen may be used in a headless batch processing mode, however to use the GUI only Ibex is supported.
+VisIt was developed to analyze extremely large datasets using distributed memory computing resources. It can be run both in interactive GUI mode and headless batch processing mode, making it ideal for HPC environments. The examples in this repository demonstrate both interactive and batch processing workflows.
+
+## Getting Started
+
+This repository provides both generic setup instructions that work on any HPC system and detailed instructions for specific known HPC installations. Choose the appropriate section based on your needs:
+
+- [Generic HPC Setup](#generic-hpc-setup): Instructions for setting up VisIt on any HPC system
+- [KAUST HPC Systems](#kaust-hpc-systems): Specific instructions for KAUST's Ibex and Shaheen III clusters
+- [Example Details](#example-details): Information about the included visualization examples
+- [Advanced Topics](#advanced-topics): Advanced configuration and usage information
 
 
-## Repo Organization
-This subfolder is organized as follows:
-- Individual examples each have their own directory. Each directory contains:
-    - ``ex*.py`` various example scripts showing the use of VisIt from python
-    - ``ex*_shaheen_runScript.sbat`` Shaheen batch scripts showing how to run VisIt in ``batch``
-    - ``ex*_ibex_runScript.sbat`` Ibex batch scripts showing how to run VisIt in ``batch``
-    - ``createVisItMovie.sh`` is a script to generate a movie from images generated with VisIt
-- ``MODULES.sh`` is a module file that the batch scripts use to load the correct versions of modules
-- Information on VisIt and how to use it on KAUST computing resources is given below
+## Repository Organization
+
+Each example is self-contained in its own directory with the following structure:
+
+- `ex*.py`: Python script demonstrating VisIt functionality
+- `ex*_template_runScript.sbat`: Template batch script that can be customized for your HPC system
+- `README.md`: Detailed explanation of the example and how to run it
+- Additional helper scripts like `createVisItMovie.sh` for post-processing
+
+The `MODULES.sh` script provides a template for loading required modules on your HPC system. Modify this according to your system's module environment.
 
 ### Example Details
-1. ``ex00`` - This script shows how to load a data set and then query information about the mesh, variables, and more
-2. ``ex01`` - This script shows how to create a screenshot and save it to disk
-3. ``ex02`` - This script shows how to take a series of screenshots while moving the camera and createing a movie
-4. ``ex03`` - This script shows how to animate the visualization of multiple iso surface values, showing different segments of a static data set
-5. ``ex04`` - This script shows how to animate the progress of streamlines in a flow field
-6. ``ex05`` - This script shows how to load and step through a multi time step file and take a screenshot per step
-7. ``ex06`` - This script shows how to load and create a complex visualization for a large data file
+
+The examples progress from basic operations to more complex visualizations:
+
+1. `ex00_visitQuery`: Data loading and introspection
+    - Load datasets and query mesh information
+    - Access variable metadata
+    - Basic data inspection techniques
+
+2. `ex01_visitScreenshot`: Basic visualization and output
+    - Set up a basic visualization pipeline
+    - Configure view and display properties
+    - Save high-quality screenshots
+
+3. `ex02_visitAnimation`: Camera animation
+    - Create smooth camera movements
+    - Configure animation settings
+    - Generate image sequences for movies
+
+4. `ex03_visitIsosurfaceAnimation`: Advanced visualization techniques
+    - Create and animate isosurfaces
+    - Work with multiple visualization objects
+    - Time-varying visualization properties
+
+5. `ex04_visitStreamlineAnimation`: Flow visualization
+    - Generate and animate streamlines
+    - Work with vector fields
+    - Configure seed points and integration parameters
+
+6. `ex05_visitMultiTimeStepFile`: Time-varying data
+    - Load and process time-series data
+    - Time-dependent visualization
+    - Batch processing multiple timesteps
+
+7. `ex06_visitLargeData`: Production visualization
+    - Handle large-scale datasets
+    - Optimize performance
+    - Complex multi-stage visualization pipelines
 
 
-## Overview of VisIt at KAUST
-There are essentially two ways to use VisIt at KAUST:
-1. Interactivelly
-    1. Locally on your laptop or desktop. You can download a binary from the VisIt website: [VisIt](https://visit-dav.github.io/visit-website/releases-as-tables/#latest).
-    2. Client/Server mode: a GUI client runs on your local machine and the data is processed on KAUST HPC resources.
-2. Batch mode: a python script is executed either locally or on KAUST HPC resources.
+## Generic HPC Setup
 
+### Basic Setup Steps
 
-### Using VisIt Interactively on Ibex
-It is possible to run a local VisIt client to display and interact with your data while the VisIt server runs in an Ibex batch job (``client/server mode``), allowing interactive analysis of very large data sets. You will obtain the best performance by running the VisIt client on your local computer and running the server on Ibex with the same version of VisIt. It is highly recommended to check the available VisIt versions using ``module avail visit`` on the system you plan to connect to with VisIt.
+1. **Install Local VisIt Client:**
+   - Download from [VisIt website](https://visit-dav.github.io/visit-website/releases-as-tables/#latest)
+   - Choose version matching your HPC system's version
+
+2. **Configure Host Profile:**
+   ```xml
+   <?xml version="1.0"?>
+   <Object name="VIEWER">
+      <Field name="HOST_PROFILES" type="stringVector">
+         "my_hpc_system", "SLURM_SBATCH", "localhost",
+         "parallel", "SLURM", "", "/path/to/visit/install"
+      </Field>
+   </Object>
+   ```
+
+3. **Run Example Scripts:**
+   ```bash
+   # Load VisIt module (adjust name as needed)
+   module load visit
+   
+   # Run example in batch mode
+   visit -nowin -cli -s ex01_visitScreenshot.py
+   ```
+
+## KAUST HPC Systems
+
+### Ibex Cluster
+
+1. **Connect and Setup:**
+   ```bash
+   ssh <username>@ilogin.ibex.kaust.edu.sa
+   cd /ibex/scratch/<username>
+   git clone https://github.com/jameskress/Visualization_Vignettes.git
+   module load visit
+   ```
+
+2. **Client Configuration:**
+   - Click "Options → Host profiles and configuration setup"
+   - Select KAUST and click "Install"
+   - Save settings and restart VisIt
+
+3. **Run Examples:**
+   ```bash
+   cd Visualization_Vignettes/VisIt_Vignettes
+   sbatch ex01/ex01_ibex_runScript.sbat
+   ```
+
+### Shaheen III
+
+1. **Connect and Setup:**
+   ```bash
+   ssh <username>@shaheen.hpc.kaust.edu.sa
+   cd /scratch/<username>
+   git clone https://github.com/jameskress/Visualization_Vignettes.git
+   module load visit
+   ```
+
+2. **Client Configuration:**
+   - Use steps above for Ibex
+   - For VisIt < 3.4.1: Use [KAUST Shaheen 3 Profile](https://github.com/visit-dav/visit/blob/develop/src/resources/hosts/kaust/host_kaust_shaheen.xml)
+
+3. **Run Examples:**
+   ```bash
+   cd Visualization_Vignettes/VisIt_Vignettes
+   # Edit account information
+   vim ex01/ex01_shaheen_runScript.sbat
+   # Replace --account=<##> with your account
+   sbatch ex01/ex01_shaheen_runScript.sbat
+   ```
+
+**WARNING**: Version matching between client and server is critical. Always check available versions with `module avail visit`.
+
+### Client/Server Setup
+1. Install the VisIt client on your local machine
+2. Check available VisIt versions on your HPC system: `module avail visit`
+3. Download and install the matching client version
+4. Configure host profiles for your HPC systems (see template batch scripts)
+
+The examples in this repository include batch scripts that can be adapted for your specific HPC environment.
 
 **WARNING**: Using a different version of VisIt than what is available on IBEX WILL fail.
 

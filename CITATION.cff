@@ -5,10 +5,10 @@ authors:
   - family-names: "Kress"
     given-names: "James"
     orcid: "https://orcid.org/0000-0002-9706-6182"
-title: "KAUST Visualization Vignettes"
+title: "Visualization Vignettes"
 version: 0.1.0 
 date-released: 2025-09-17
-repository-code: "https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes"
+repository-code: "https://github.com/jameskress/Visualization_Vignettes"
 license: BSD-3-Clause
 keywords:
   - "scientific visualization"
@@ -21,7 +21,6 @@ keywords:
   - "VisIt"
   - "VTK"
   - "ADIOS2"
-  - "KAUST"
   - "Cookbook"
   - "Vignettes"
   - "Tutorials"

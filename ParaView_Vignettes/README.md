@@ -1,6 +1,6 @@
 # ParaView_Vignettes
 
-This guide is for the [ParaView_Vignettes Repository](https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes/-/tree/master/ParaView_Vignettes?ref_type=heads), which provides a collection of examples (vignettes) demonstrating how to use ParaView on KAUST's high-performance computing resources, including Ibex and Shaheen III. It covers running the examples and configuring ParaView for interactive use.
+This guide is for the [ParaView_Vignettes Repository](https://github.com/jameskress/Visualization_Vignettes/tree/master/ParaView_Vignettes), which provides a collection of examples (vignettes) demonstrating how to use ParaView on high-performance computing resources. It covers running the examples and configuring ParaView for interactive use in HPC environments.
 
 <br>
 
@@ -8,16 +8,30 @@ This guide is for the [ParaView_Vignettes Repository](https://gitlab.kitware.com
 
 ParaView is an open-source, multi-platform data analysis and visualization application. It allows users to quickly build visualizations to analyze their data using qualitative and quantitative techniques. Developed to handle extremely large datasets, ParaView excels at using distributed memory computing resources, making it ideal for use on HPC systems.
 
-KAUST's Visualization Core Lab (KVL) provides ParaView server installations on Ibex and Shaheen to facilitate large-scale distributed visualizations, which can be run interactively through a GUI or non-interactively via batch scripts.
+The examples in this repository demonstrate how to leverage ParaView for large-scale distributed visualizations, which can be run interactively through a GUI or non-interactively via batch scripts.
+
+## Getting Started
+
+This repository provides both generic instructions that work on any HPC system and detailed instructions for specific HPC installations:
+
+- [Generic HPC Setup](#generic-hpc-setup): Instructions for setting up ParaView on any HPC system
+- [KAUST HPC Systems](#kaust-hpc-systems): Specific instructions for KAUST's Ibex and Shaheen III clusters
+- [Example Details](#example-details): Information about the included visualization examples
+- [Advanced Topics](#advanced-topics): ParaView-specific configuration and usage guidance
 
 <br>
 
 ## Table of Contents
-- [Getting Started: Running the Examples](#getting-started-running-the-examples)
-- [In-Depth Guide: Using ParaView at KAUST](#in-depth-guide-using-paraview-at-kaust)
-  - [1. Interactive Use (Client/Server Mode)](#1-interactive-use-clientserver-mode)
-  - [2. Batch Processing Mode](#2-batch-processing-mode)
+- [Getting Started](#getting-started)
+  - [Generic Setup Instructions](#generic-setup-instructions)
+  - [Known HPC Systems](#known-hpc-systems)
+    - [KAUST Ibex Cluster](#kaust-ibex-cluster)
+    - [KAUST Shaheen III](#kaust-shaheen-iii)
+- [Using ParaView in HPC Environments](#using-paraview-in-hpc-environments)
+  - [Interactive Use (Client/Server Mode)](#1-interactive-use-clientserver-mode)
+  - [Batch Processing Mode](#2-batch-processing-mode)
 - [Repository Reference](#repository-reference)
+- [Example Details](#example-details)
 - [Appendix: `pvbatch` vs. `pvpython`](#appendix-pvbatch-vs-pvpython)
 
 
@@ -25,56 +39,107 @@ KAUST's Visualization Core Lab (KVL) provides ParaView server installations on I
 
 ## Getting Started: Running the Examples
 
-This guide will walk you through cloning the repository and running one of the batch processing examples.
+This guide will walk you through running the ParaView examples. We provide both generic instructions for any HPC system and specific instructions for known HPC installations.
 
-### 1. Clone the Repository
+### Generic Setup Instructions
 
-Log in to your target machine and clone this repository into your scratch space.
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/jameskress/Visualization_Vignettes.git
+   cd Visualization_Vignettes/ParaView_Vignettes
+   ```
 
-* **On Ibex:**
-    ```bash
-    ssh <username>@glogin.ibex.kaust.edu.sa
-    cd /ibex/scratch/<username>/
-    git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git
-    cd KAUST_Visualization_Vignettes/ParaView_Vignettes
-    ```
+2. **Environment Setup**
+   ```bash
+   # Load ParaView module (name may vary by system)
+   module load paraview
+   # Or source the provided environment script
+   source ../MODULES.sh
+   ```
 
-* **On Shaheen III:**
-    ```bash
-    ssh <username>@shaheen.hpc.kaust.edu.sa
-    cd /scratch/<username>/
-    git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git
-    cd KAUST_Visualization_Vignettes/ParaView_Vignettes
-    ```
+### Known HPC Systems
 
-### 2. Load the ParaView Module
+#### KAUST Ibex Cluster
 
-Before running, you need to load the correct environment module. The `MODULES.sh` script handles this, but you can also do it manually:
-```bash
-module load paraview
-```
+1. **Connect and Clone:**
+   ```bash
+   ssh <username>@glogin.ibex.kaust.edu.sa
+   cd /ibex/scratch/<username>/
+   git clone https://github.com/jameskress/Visualization_Vignettes.git
+   cd Visualization_Vignettes/ParaView_Vignettes
+   ```
 
-### 3. Submit a Batch Job
+2. **Load Modules:**
+   ```bash
+   module load paraview
+   ```
 
-The repository includes run scripts for each example.
+3. **Run Example:**
+   ```bash
+   sbatch ex01/ex01_ibex_runScript.sbat
+   ```
 
-* **On Ibex:**
-    Submit the job using `sbatch`. For example, to run `ex01`:
-    ```bash
-    sbatch ex01/ex01_ibex_runScript.sbat
-    ```
+#### KAUST Shaheen III
 
-* **On Shaheen III:**
-    First, you **must** edit the run script to include your project account. Replace `<##>` with your account ID.
-    ```bash
-    # Example for ex01
-    vim ex01/ex01_shaheen_runScript.sbat
-    # Change --account=<##> to your account, e.g., --account=k01
-    ```
-    Then, submit the job:
-    ```bash
-    sbatch ex01/ex01_shaheen_runScript.sbat
-    ```
+1. **Connect and Clone:**
+   ```bash
+   ssh <username>@shaheen.hpc.kaust.edu.sa
+   cd /scratch/<username>/
+   git clone https://github.com/jameskress/Visualization_Vignettes.git
+   cd Visualization_Vignettes/ParaView_Vignettes
+   ```
+
+2. **Configure and Run:**
+   ```bash
+   # Edit the run script to include your project account
+   vim ex01/ex01_shaheen_runScript.sbat
+   # Change --account=<##> to your account, e.g., --account=k01
+   
+   # Submit the job
+   sbatch ex01/ex01_shaheen_runScript.sbat
+   ```
+
+### 2. Set Up ParaView Environment
+
+Before running the examples, you'll need ParaView available in your environment:
+
+1. **Local Installation**: 
+   - Download from [ParaView's website](https://www.paraview.org/download/)
+   - Add ParaView's bin directory to your PATH
+
+2. **HPC Environment**:
+   - Most HPC systems provide ParaView as a module
+   - Use provided `MODULES.sh` or load manually:
+     ```bash
+     module load paraview    # Adjust module name as needed
+     ```
+
+### 3. Configure and Run Examples
+
+Each example includes a template batch script that can be customized for your system:
+
+1. **Copy the Template**:
+   ```bash
+   cp ex01/ex01_template_runScript.sbat ex01/my_runScript.sbat
+   ```
+
+2. **Customize the Script**:
+   - Set your job scheduler (Slurm, PBS, LSF, etc.)
+   - Configure resource requirements
+   - Adjust module loading commands
+   - Set project/account information
+
+3. **Submit the Job**:
+   ```bash
+   # For Slurm
+   sbatch ex01/my_runScript.sbat
+   
+   # For PBS
+   qsub ex01/my_runScript.pbs
+   
+   # For LSF
+   bsub < ex01/my_runScript.lsf
+   ```
 
 ### 4. Check the Output
 
@@ -84,32 +149,65 @@ The output logs and any generated images will appear in the example's directory.
 
 <br>
 
-## In-Depth Guide: Using ParaView at KAUST
+## Using ParaView in HPC Environments
 
-There are two primary ways to use ParaView: interactively with a GUI (client/server mode) or non-interactively via batch scripts.
+ParaView offers two primary modes of operation, each suited for different visualization needs. The following sections provide both generic setup instructions and specific configurations for known HPC systems.
 
 ### 1. Interactive Use (Client/Server Mode)
 
-In this mode, the ParaView GUI runs on your local machine while the data processing and rendering happen on the powerful HPC resources.
+Client/Server mode lets you interactively visualize data that lives on remote HPC resources while using a local GUI.
 
-#### **One-Time Setup**
+#### Generic Setup Instructions
 
-You only need to do this once on your local computer.
+1. **Install ParaView Locally:**
+   - Download from [ParaView website](https://www.paraview.org/download/)
+   - **Version Matching:** Your local client version MUST match the server version
+   - **Prerequisites:**
+     - Linux/Windows: No additional requirements
+     - macOS: Install [XQuartz (X11)](https://www.xquartz.org/)
 
-1.  **Install ParaView:** Download and install the ParaView client from the [official ParaView website](https://www.paraview.org/download/).
-    * **IMPORTANT:** The client version on your machine **must match** the version on the HPC system. Check the available versions on Ibex/Shaheen with `module avail paraview`.
-    * **macOS Users:** You must install [XQuartz (X11)](https://www.xquartz.org/) to handle the authentication pop-up window.
+2. **Configure Server Connection:**
+   - Create a server configuration (`.pvsc`) file
+   - Example template (`hpc_server.pvsc`):
+     ```xml
+     <Servers>
+       <Server name="HPC Cluster" resource="csrc://localhost">
+         <CommandStartup>
+           <Options>
+             <Option name="PV_SERVER_PORT" label="Server Port" skip="true">11111</Option>
+             <Option name="SCHEDULER" label="Job Scheduler" skip="true">SLURM</Option>
+           </Options>
+         </CommandStartup>
+       </Server>
+     </Servers>
+     ```
 
-2.  **Download Server Configuration Files:** Save the appropriate `.pvsc` file(s) to your computer.
-    | System        | Configuration File Link                                                                                                 |
-    |---------------|-------------------------------------------------------------------------------------------------------------------------|
-    | **Ibex** | [ibex_server.pvsc](https://gitlab.kaust.edu.sa/kvl/paraview-configs/-/blob/master/pvsc/ibex/default_servers.pvsc)         |
-    | **Shaheen III** | [shaheen_server.pvsc](https://gitlab.kaust.edu.sa/kvl/paraview-configs/-/blob/master/pvsc/ksl/default_servers.pvsc) |
+#### Known HPC Systems
 
-3.  **Import Servers into ParaView:**
-    * Open ParaView on your local machine.
-    * Go to `File -> Connect...`.
-    * Click `Load Servers` and select the `.pvsc` file(s) you just downloaded.
+##### KAUST Ibex
+1. **Download Server Configuration:**
+   - Save [ibex_server.pvsc](https://gitlab.kaust.edu.sa/kvl/paraview-configs/-/blob/master/pvsc/ibex/default_servers.pvsc)
+   - Version check: `module avail paraview` on Ibex
+
+2. **Import Configuration:**
+   - Open ParaView → `File` → `Connect...`
+   - Click `Load Servers`, select the `.pvsc` file
+   - Select "ibex" server and connect
+
+##### KAUST Shaheen III
+1. **Download Server Configuration:**
+   - Save [shaheen_server.pvsc](https://gitlab.kaust.edu.sa/kvl/paraview-configs/-/blob/master/pvsc/ksl/default_servers.pvsc)
+   - Version check: `module avail paraview` on Shaheen
+
+2. **GPU-Enabled Visualization:**
+   - **Hardware:** NVIDIA L40 GPU, 192 cores, ~768GB RAM
+   - **Requirements:** 
+     - `video` group membership (contact help@hpc.kaust.edu.sa)
+     - Use `ppn` partition
+   - **Settings:**
+     - Tasks per node: 192
+     - GPU nodes: 1-2 max
+     - Project account required
 
 #### **Connecting to an HPC System**
 
@@ -121,32 +219,42 @@ After the one-time setup, follow these steps each time you want to start an inte
 4.  After clicking `OK`, a terminal window (`xterm` or command prompt) will pop up. Enter your HPC password and DUO authentication code when prompted.
 5.  Once your job starts, you will have control of the ParaView GUI again. You can now open files located on the remote HPC system and visualize them.
 
-#### **Special Case: Using Shaheen III GPU Nodes**
-For GPU-accelerated rendering, you can connect to the PPN (Pre and Post-Processing Node) partition.
+#### **Using GPU-Accelerated Rendering**
 
-**GPU Node Specifications:**
-* **Cores:** 192
-* **GPU:** 1 x NVIDIA L40
-* **RAM:** ~768 GB
+For best rendering performance with large datasets, ParaView can utilize GPU acceleration when available.
 
-**Important Requirements & Limits:**
-* **Group Membership:** You must be in the `video` Linux group to use the GPUs. If you are not, please [submit a ticket to HPC support](mailto:help@hpc.kaust.edu.sa) to be added.
-* **Resource Allocation:** The PPN partition is a shared resource. Due to the QoS scheme, a single user cannot monopolize all nodes. It is strongly recommended to request only **1 node and 1 GPU** for your jobs.
+##### Generic GPU Setup
+1. **Requirements:**
+   - HPC nodes with GPU support
+   - ParaView built with GPU capabilities
+   - Required modules loaded
 
-**Connection Settings for a Shaheen GPU Node:**
-When the connection dialog box appears, use these settings:
-1.  **User Name:** Your KAUST username.
-2.  **Queue Name:** Select `ppn`.
-3.  **Number of Nodes/GPU's:** `1` (recommended), `2` (max).
-4.  **Tasks Per Node/GPU:** `192` (to use all cores on the node).
-5.  **Account:** Your project account.
-6.  Click `OK` and proceed with authentication.
+2. **Configuration:**
+   - Request GPU-enabled queue/partition
+   - Configure rendering backend in job script
+   - Verify GPU is detected in ParaView
 
-<img src="../data/images/ParaView-shaheenConnection.png" alt="ParaView Shaheen III Connection Dialogue" width="25%" />
+##### Shaheen III GPU Configuration
+For GPU-accelerated rendering on Shaheen III:
 
-You can verify that the GPU is being used by checking `Help -> About`. The `OpenGL Renderer` should list the NVIDIA GPU (e.g., L40).
+1. **Hardware Resources:**
+   - L40 GPU
+   - 192 CPU cores
+   - ~768 GB RAM
 
-<img src="../data/images/ParaView-aboutView.png" alt="ParaView about view and memory inspector" width="50%" />
+2. **Access Requirements:** 
+   - Must be in `video` Linux group
+     - Contact help@hpc.kaust.edu.sa for access
+   - Use `ppn` partition exclusively
+
+3. **Job Settings:**
+   - Tasks per node: 192 (recommended)
+   - Maximum nodes: 1-2
+   - Project account required
+
+4. **Verification:**
+   - Check `Help -> About` in ParaView
+   - OpenGL Renderer should show GPU device
 
 ### 2. Batch Processing Mode
 
@@ -168,21 +276,70 @@ The easiest way to generate a Python script for batch processing is to perform t
 
 ## Repository Reference
 
-### File Structure
-Each example directory (`ex*`) contains:
--   `ex*.py`: The Python script that defines the ParaView visualization pipeline.
--   `ex*_shaheen_runScript.sbat`: The Slurm batch script for running the example on Shaheen III.
--   `ex*_ibex_runScript.sbat`: The Slurm batch script for running the example on Ibex.
--   `createParaViewMovie.sh`: A utility script to stitch generated PNG images into an MP4 movie using `ffmpeg`.
+### Repository Structure
+
+Each example is organized as a self-contained module:
+
+```
+ex##_name/
+├── ex##_name.py                  # Main ParaView Python script
+├── ex##_template_runScript.sbat  # Template batch script for HPC systems
+├── README.md                     # Example documentation
+└── helper_scripts/               # Additional utilities
+    └── createParaViewMovie.sh    # Convert image sequences to MP4
+```
+
+Key Components:
+- **Python Script**: Core visualization logic using ParaView's Python API
+- **Template Script**: Customizable job script for different HPC environments
+- **Documentation**: Step-by-step guide and expected outputs
+- **Helper Scripts**: Utilities for post-processing and analysis
 
 ### Example Details
-* `ex00`: Create a data source and query metadata (mesh info, variables).
-* `ex01`: Create a data source, generate a screenshot, and save it to a file.
-* `ex02`: Create an animation by moving the camera and capturing a series of screenshots.
-* `ex03`: Animate iso surface values to visualize different segments of a static dataset.
-* `ex04`: Animate the progression of streamlines in a vector field.
-* `ex05`: Load a multi-timestep dataset and save one screenshot per step.
-* `ex06`: A complex visualization pipeline for a large dataset.
+
+The examples progress from basic operations to complex visualization workflows:
+
+1. `ex00_pvQuery`: Data Loading and Analysis
+   - Load and examine dataset structure
+   - Query mesh statistics and variables
+   - Access metadata and attributes
+   - Basic data inspection techniques
+
+2. `ex01_pvScreenshot`: Basic Visualization
+   - Set up visualization pipeline
+   - Configure display properties
+   - Generate high-quality screenshots
+   - Basic camera positioning
+
+3. `ex02_pvAnimation`: Camera Animation
+   - Create camera paths
+   - Control animation timing
+   - Generate image sequences
+   - Configure frame rates and quality
+
+4. `ex03_pvIsosurfaceAnimation`: Advanced Visualization
+   - Create and animate isosurfaces
+   - Work with multiple visualization objects
+   - Control opacity and coloring
+   - Animate filter parameters
+
+5. `ex04_pvStreamlineAnimation`: Flow Visualization
+   - Generate streamlines from vector fields
+   - Configure integration parameters
+   - Animate particle tracing
+   - Optimize seed placement
+
+6. `ex05_pvMultiTimeStepFile`: Time-Series Analysis
+   - Load time-varying datasets
+   - Configure temporal interpolation
+   - Process multiple timesteps
+   - Generate time-based animations
+
+7. `ex06_pvLargeData`: Production Visualization
+   - Handle large-scale datasets
+   - Optimize memory usage
+   - Configure parallel processing
+   - Complex multi-filter pipelines
 
 <br>
 

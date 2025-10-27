@@ -4,6 +4,10 @@
 # =========================================================================
 FROM ubuntu:22.04 AS builder
 
+LABEL org.opencontainers.image.source=https://github.com/jameskress/Visualization_Vignettes
+LABEL org.opencontainers.image.description="Scientific Visualization Examples and Best Practices"
+LABEL org.opencontainers.image.licenses=BSD-3-Clause
+
 # Set an environment variable to avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -64,8 +68,8 @@ RUN cmake --install adios2-build
 # --- Build and Install ParaView via Superbuild ---
 # This is a major build and will take a significant amount of time.
 # The superbuild handles fetching and building ParaView, Catalyst, VTK, and other dependencies.
-ARG PARAVIELD_VERSION=v5.13.2
-RUN git clone --quiet --recursive -b ${PARAVIELD_VERSION} https://gitlab.kitware.com/paraview/paraview-superbuild.git
+ARG PARAVIEW_VERSION=v5.13.2
+RUN git clone --quiet --recursive -b ${PARAVIEW_VERSION} https://gitlab.kitware.com/paraview/paraview-superbuild.git
 WORKDIR /builds/paraview-superbuild/build
 RUN cmake \
     -G Ninja \
