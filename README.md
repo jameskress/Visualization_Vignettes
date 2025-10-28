@@ -1,8 +1,8 @@
-[![Build Status](https://img.shields.io/github/actions/workflow/status/jameskress/Visualization_Vignettes/main.yml?branch=main)](https://github.com/jameskress/Visualization_Vignettes/actions) [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/jameskress/Visualization_Vignettes/main.yml?branch=master)](https://github.com/jameskress/Visualization_Vignettes/actions)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/jameskress/Visualization_Vignettes)](https://github.com/jameskress/Visualization_Vignettes/releases)
+[![Build Status](https://github.com/jameskress/Visualization_Vignettes/actions/workflows/main.yml/badge.svg)](https://github.com/jameskress/Visualization_Vignettes/actions)
+[![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/jameskress/Visualization_Vignettes)](https://github.com/jameskress/Visualization_Vignettes/tags)
 
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)](./Dockerfile)
-[![Docker Image Version](https://img.shields.io/docker/v/jameskress/visualization-vignettes?sort=semver)](https://github.com/jameskress/Visualization_Vignettes/pkgs/container/visualization-vignettes)
+[![Docker Image Version](https://img.shields.io/github/commit-sha/jameskress/Visualization_Vignettes/master)](https://github.com/jameskress/Visualization_Vignettes/pkgs/container/Visualization_Vignettes)
 
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](CONTRIBUTING.md)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
