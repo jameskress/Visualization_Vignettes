@@ -68,24 +68,27 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run ParaView Test Suite
-        shell: wsl -e bash {0}
-        run: |
-          echo "Running ParaView Tests"
-          sudo apt-get update && sudo apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
-          python3 -V
-          python3 -m venv test-venv
-          source test-venv/bin/activate
-          pip3 install pandas matplotlib psutil scipy
-          wget -O paraview.tar.gz "https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v5.13&type=binary&os=Linux&downloadFile=ParaView-5.13.1-osmesa-MPI-Linux-Python3.10-x86_64.tar.gz"
-          mkdir paraview
-          tar xf paraview.tar.gz -C paraview --strip-components 1
-          export PARAVIEW_DIR=$PWD/paraview/bin
-          $PARAVIEW_DIR/pvbatch --version
-          export PARAVIEW_PATH=$PARAVIEW_DIR
-          REPO_DIR=$PWD
-          cd Testing
-          python3 test_suite.py $REPO_DIR/ --test_type ParaView --paraview_version 5.13.1 --non_gpu_machine
-          echo "ParaView tests complete"
+        uses: GuilhemN/wsl-bash-action@v13
+        with:
+          # The -e flag ensures the script exits immediately if a command fails
+          wsl_shell_args: -e
+          script: |
+            echo "Running ParaView Tests"
+            sudo apt-get update && sudo apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
+            python3 -V
+            python3 -m venv test-venv
+            source test-venv/bin/activate
+            pip3 install pandas matplotlib psutil scipy
+            wget -O paraview.tar.gz "https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v5.13&type=binary&os=Linux&downloadFile=ParaView-5.13.1-osmesa-MPI-Linux-Python3.10-x86_64.tar.gz"
+            mkdir paraview
+            tar xf paraview.tar.gz -C paraview --strip-components 1
+            export PARAVIEW_DIR=$PWD/paraview/bin
+            $PARAVIEW_DIR/pvbatch --version
+            export PARAVIEW_PATH=$PARAVIEW_DIR
+            REPO_DIR=$PWD
+            cd Testing
+            python3 test_suite.py $REPO_DIR/ --test_type ParaView --paraview_version 5.13.1 --non_gpu_machine
+            echo "ParaView tests complete"
 
       - name: Upload ParaView Artifacts
         if: always() # Upload artifacts even if the tests fail
