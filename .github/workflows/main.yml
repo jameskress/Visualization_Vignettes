@@ -68,8 +68,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup WSL
+        uses: Vampire/setup-wsl@v1
       - name: Run ParaView Test Suite
-        shell: wsl.exe bash -ic "cd $(wslpath '${{ github.workspace }}') && {0}"
+        shell: wsl-bash {0}
         run: |
           echo "Running ParaView Tests"
           sudo apt-get update && sudo apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
@@ -111,8 +113,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup WSL
+        uses: Vampire/setup-wsl@v1
       - name: Run VisIt Test Suite
-        shell: wsl.exe bash -ic "cd $(wslpath '${{ github.workspace }}') && {0}"
+        shell: wsl-bash {0}
         run: |
           echo "Running VisIt Tests"
           sudo apt-get update && sudo apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 curl zip unzip libgl1-mesa-glx
