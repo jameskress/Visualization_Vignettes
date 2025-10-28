@@ -57,41 +57,39 @@ jobs:
           cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
 
   ############################################################################
-  # TEST JOBS: Run ParaView and VisIt tests.
+  # TEST JOB: Run ParaView tests
   ############################################################################
   paraview-test:
     name: ParaView Tests
-    needs: build # This job will only start after the 'build' job succeeds
+    needs: build
     runs-on: self-hosted
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Run ParaView Test Suite
-        uses: GuilhemN/wsl-bash-action@v13
-        with:
-          # The -e flag ensures the script exits immediately if a command fails
-          wsl_shell_args: -e
-          script: |
-            echo "Running ParaView Tests"
-            sudo apt-get update && sudo apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
-            python3 -V
-            python3 -m venv test-venv
-            source test-venv/bin/activate
-            pip3 install pandas matplotlib psutil scipy
-            wget -O paraview.tar.gz "https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v5.13&type=binary&os=Linux&downloadFile=ParaView-5.13.1-osmesa-MPI-Linux-Python3.10-x86_64.tar.gz"
-            mkdir paraview
-            tar xf paraview.tar.gz -C paraview --strip-components 1
-            export PARAVIEW_DIR=$PWD/paraview/bin
-            $PARAVIEW_DIR/pvbatch --version
-            export PARAVIEW_PATH=$PARAVIEW_DIR
-            REPO_DIR=$PWD
-            cd Testing
-            python3 test_suite.py $REPO_DIR/ --test_type ParaView --paraview_version 5.13.1 --non_gpu_machine
-            echo "ParaView tests complete"
+        shell: wsl -e bash {0}
+        run: |
+          echo "Running ParaView Tests"
+          sudo apt-get update && sudo apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
+          python3 -V
+          python3 -m venv test-venv
+          source test-venv/bin/activate
+          pip install pandas matplotlib psutil scipy
+          wget -O paraview.tar.gz "https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v5.13&type=binary&os=Linux&downloadFile=ParaView-5.13.1-osmesa-MPI-Linux-Python3.10-x86_64.tar.gz"
+          mkdir paraview
+          tar xf paraview.tar.gz -C paraview --strip-components 1
+          export PARAVIEW_DIR=$PWD/paraview/bin
+          $PARAVIEW_DIR/pvbatch --version
+          export PARAVIEW_PATH=$PARAVIEW_DIR
+          REPO_DIR=$PWD
+          cd Testing
+          python3 test_suite.py $REPO_DIR/ --test_type ParaView --paraview_version 5.13.1 --non_gpu_machine
+          echo "ParaView tests complete"
 
       - name: Upload ParaView Artifacts
-        if: always() # Upload artifacts even if the tests fail
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: paraview-test-results
@@ -101,10 +99,14 @@ jobs:
             Testing/*.json
           retention-days: 30
 
+  ############################################################################
+  # TEST JOB: Run VisIt tests
+  ############################################################################
   visit-test:
     name: VisIt Tests
-    needs: build # This job will only start after the 'build' job succeeds
+    needs: build
     runs-on: self-hosted
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -117,7 +119,7 @@ jobs:
           python3 -V
           python3 -m venv test-venv
           source test-venv/bin/activate
-          pip3 install pandas matplotlib psutil scipy
+          pip install pandas matplotlib psutil scipy
           wget -O visit.tar.gz "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz"
           mkdir visit
           tar xf visit.tar.gz -C visit --strip-components 1
@@ -130,7 +132,7 @@ jobs:
           echo "VisIt tests complete"
 
       - name: Upload VisIt Artifacts
-        if: always() # Upload artifacts even if the tests fail
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: visit-test-results
