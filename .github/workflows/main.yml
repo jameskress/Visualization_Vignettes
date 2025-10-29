@@ -126,7 +126,7 @@ jobs:
           python3 -m venv test-venv
           source test-venv/bin/activate
           pip install pandas matplotlib psutil scipy
-          wget -O visit.tar.gz "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz"
+          wget -O visit.tar.gz "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu20.tar.gz"
           mkdir visit
           tar xf visit.tar.gz -C visit --strip-components 1
           export VISIT_DIR=$PWD/visit/bin
