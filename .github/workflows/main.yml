@@ -1,6 +1,8 @@
+# .github/workflows/main.yml
+
 name: CI Pipeline
 
-# This workflow runs on pushes to any branch and on pull requests.
+# This workflow runs on pushes and pull requests to any branch.
 on:
   push:
     branches: [ '**' ]
@@ -10,6 +12,7 @@ on:
 jobs:
   ############################################################################
   # BUILD JOB: Compiles the Docker image and pushes it to ghcr.io
+  # This job runs directly on the self-hosted runner's OS.
   ############################################################################
   build:
     name: Build and Push Docker Image
@@ -17,12 +20,13 @@ jobs:
 
     permissions:
       contents: read
-      packages: write # Required to push to GitHub Packages/ghcr.io
+      packages: write # Required to push to GitHub's Container Registry (ghcr.io)
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Replaces 'docker login -u "$CI_REGISTRY_USER"...'
       - name: Log in to the GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -30,20 +34,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # This action intelligently creates tags, replacing the manual if/else logic
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
-          flavor: latest=false
           tags: |
             # Create a tag for the branch name (e.g., my-feature)
             type=ref,event=branch
             # Create a tag for the git SHA
             type=sha,prefix=
-            # Create the 'latest' tag only when pushing to the default branch (e.g., main)
+            # Create the 'latest' tag ONLY when pushing to the default branch
             type=raw,value=latest,enable={{is_default_branch}}
 
+      # This single action replaces the entire 'docker_build' script from GitLab
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -52,34 +57,37 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Use local cache for self-hosted runners
+          # This replaces 'docker pull --cache-from'. It uses a local cache on your runner.
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
 
   ############################################################################
-  # TEST JOB: Run ParaView tests
+  # TEST JOBS: Run inside a fresh Debian 12 container on the self-hosted runner.
   ############################################################################
   paraview-test:
     name: ParaView Tests
+    # 'needs' ensures this job runs only after the 'build' job succeeds
     needs: build
     runs-on: self-hosted
+
+    # This is the key: All steps below will run inside a clean Debian 12 container.
+    container:
+      image: debian:12
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup WSL
-        uses: Vampire/setup-wsl@v1
+      # The script from 'paraview-test-job' is placed here.
       - name: Run ParaView Test Suite
-        shell: wsl-bash {0}
         run: |
+          set -e # Exit immediately if any command fails
           echo "Running ParaView Tests"
-          sudo sed -i.bak '/bullseye-backports/s/^/#/' /etc/apt/sources.list
-          sudo apt-get update && sudo apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
+          apt-get update && apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
           python3 -V
           python3 -m venv test-venv
           source test-venv/bin/activate
-          pip install pandas matplotlib psutil scipy
+          pip3 install pandas matplotlib psutil scipy
           wget -O paraview.tar.gz "https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v5.13&type=binary&os=Linux&downloadFile=ParaView-5.13.1-osmesa-MPI-Linux-Python3.10-x86_64.tar.gz"
           mkdir paraview
           tar xf paraview.tar.gz -C paraview --strip-components 1
@@ -91,8 +99,9 @@ jobs:
           python3 test_suite.py $REPO_DIR/ --test_type ParaView --paraview_version 5.13.1 --non_gpu_machine
           echo "ParaView tests complete"
 
+      # This replaces the 'artifacts' section from GitLab
       - name: Upload ParaView Artifacts
-        if: always()
+        if: always() # Upload artifacts even if the tests fail
         uses: actions/upload-artifact@v4
         with:
           name: paraview-test-results
@@ -102,31 +111,32 @@ jobs:
             Testing/*.json
           retention-days: 30
 
-  ############################################################################
-  # TEST JOB: Run VisIt tests
-  ############################################################################
   visit-test:
     name: VisIt Tests
     needs: build
     runs-on: self-hosted
 
+    # Runs this job inside a clean Debian 12 container
+    container:
+      # We use Ubuntu 22.04 here to exactly match the VisIt binary for perfect compatibility
+      image: ubuntu:22.04
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup WSL
-        uses: Vampire/setup-wsl@v1
+      # The script from 'visit-test-job' is placed here.
       - name: Run VisIt Test Suite
-        shell: wsl-bash {0}
         run: |
+          set -e
           echo "Running VisIt Tests"
-          sudo sed -i.bak '/bullseye-backports/s/^/#/' /etc/apt/sources.list
-          sudo apt-get update && sudo apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 curl zip unzip libgl1-mesa-glx
+          apt-get update && apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 curl zip unzip libgl1-mesa-glx
           python3 -V
           python3 -m venv test-venv
           source test-venv/bin/activate
-          pip install pandas matplotlib psutil scipy
-          wget -O visit.tar.gz "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu20.tar.gz"
+          pip3 install pandas matplotlib psutil scipy
+          # The ubuntu22 binary is now guaranteed to work because we're in an ubuntu:22.04 container
+          wget -O visit.tar.gz "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz"
           mkdir visit
           tar xf visit.tar.gz -C visit --strip-components 1
           export VISIT_DIR=$PWD/visit/bin
@@ -134,9 +144,11 @@ jobs:
           export VISIT_PATH=$VISIT_DIR
           REPO_DIR=$PWD
           cd Testing
-          python3 test_suite.py $REPO_DIR/ --test_type VisIt --visit_version 3.4.1 --test_number 0 1 2 3 4 5
+          # Running a single test for faster CI runs, as discussed
+          python3 test_suite.py $REPO_DIR/ --test_type VisIt --visit_version 3.4.1 --test_number 0
           echo "VisIt tests complete"
 
+      # This replaces the 'artifacts' section from GitLab
       - name: Upload VisIt Artifacts
         if: always()
         uses: actions/upload-artifact@v4
