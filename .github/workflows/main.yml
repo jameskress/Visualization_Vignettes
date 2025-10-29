@@ -74,6 +74,7 @@ jobs:
         shell: wsl-bash {0}
         run: |
           echo "Running ParaView Tests"
+          sudo sed -i.bak '/bullseye-backports/s/^/#/' /etc/apt/sources.list
           sudo apt-get update && sudo apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
           python3 -V
           python3 -m venv test-venv
@@ -119,6 +120,7 @@ jobs:
         shell: wsl-bash {0}
         run: |
           echo "Running VisIt Tests"
+          sudo sed -i.bak '/bullseye-backports/s/^/#/' /etc/apt/sources.list
           sudo apt-get update && sudo apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 curl zip unzip libgl1-mesa-glx
           python3 -V
           python3 -m venv test-venv
