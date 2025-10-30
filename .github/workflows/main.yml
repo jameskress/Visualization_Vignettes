@@ -82,6 +82,7 @@ jobs:
             mkdir paraview
             tar xf paraview.tar.gz -C paraview --strip-components 1
             export PARAVIEW_DIR=$PWD/paraview/bin
+            export PATH="$PARAVIEW_DIR:$PATH"
             $PARAVIEW_DIR/pvbatch --version
             cd Testing
             python3 test_suite.py ../ --test_type ParaView --paraview_version 5.13.1 --non_gpu_machine
@@ -137,6 +138,7 @@ jobs:
             mkdir visit
             tar xf visit.tar.gz -C visit --strip-components 1
             export VISIT_DIR=$PWD/visit/bin
+            export PATH="$VISIT_DIR:$PATH"
             $VISIT_DIR/visit -version
             cd Testing
             python3 test_suite.py ../ --test_type VisIt --visit_version 3.4.1 --test_number 0
