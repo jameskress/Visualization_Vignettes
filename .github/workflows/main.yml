@@ -19,6 +19,11 @@ jobs:
       packages: write
 
     steps:
+      - name: Clean Workspace
+        run: |
+          echo "Cleaning up previous workspace artifacts..."
+          sudo rm -rf $GITHUB_WORKSPACE/*
+          sudo rm -rf $GITHUB_WORKSPACE/.* || true
       - name: Checkout repository
         uses: actions/checkout@v4
 
