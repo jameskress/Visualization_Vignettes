@@ -1,6 +1,5 @@
 name: CI Pipeline
 
-# This workflow runs on pushes and pull requests to any branch.
 on:
   push:
     branches: [ '**' ]
@@ -51,44 +50,46 @@ jobs:
           cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
 
   ############################################################################
-  # PARAVIEW TEST JOB: Runs inside a Debian container on the self-hosted runner.
+  # PARAVIEW TEST JOB: Runs inside a Debian container on the Linux runner.
   ############################################################################
   paraview-test:
     name: ParaView Tests
     needs: build
     runs-on: self-hosted
 
+    # This now works because the runner is on Linux.
+    # All steps below will run inside a clean Debian 12 container.
+    container:
+      image: debian:12
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run ParaView Test Suite inside a Docker Container
-        shell: 'C:\Program Files\Git\bin\bash.exe'
+      - name: Run ParaView Test Suite
         run: |
-          docker run --rm -v "$(pwd)":/workdir -w /workdir debian:12 bash -c "
-            set -e
-            echo 'Running ParaView Tests'
-            apt-get update && apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
-            
-            python3 -V
-            python3 -m venv test-venv
-            source test-venv/bin/activate
-            pip3 install pandas matplotlib psutil scipy
-            
-            wget -O paraview.tar.gz 'https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v5.13&type=binary&os=Linux&downloadFile=ParaView-5.13.1-osmesa-MPI-Linux-Python3.10-x86_64.tar.gz'
-            mkdir paraview
-            tar xf paraview.tar.gz -C paraview --strip-components 1
-            
-            export PARAVIEW_DIR=\$PWD/paraview/bin
-            \$PARAVIEW_DIR/pvbatch --version
-            
-            export PARAVIEW_PATH=\$PARAVIEW_DIR
-            REPO_DIR=\$PWD
-            cd Testing
-            
-            python3 test_suite.py \$REPO_DIR/ --test_type ParaView --paraview_version 5.13.1 --non_gpu_machine
-            echo 'ParaView tests complete'
-          "
+          set -e
+          echo "Running ParaView Tests inside a container"
+          apt-get update && apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
+          
+          python3 -V
+          python3 -m venv test-venv
+          source test-venv/bin/activate
+          pip3 install pandas matplotlib psutil scipy
+          
+          wget -O paraview.tar.gz 'https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v5.13&type=binary&os=Linux&downloadFile=ParaView-5.13.1-osmesa-MPI-Linux-Python3.10-x86_64.tar.gz'
+          mkdir paraview
+          tar xf paraview.tar.gz -C paraview --strip-components 1
+          
+          export PARAVIEW_DIR=$PWD/paraview/bin
+          $PARAVIEW_DIR/pvbatch --version
+          
+          export PARAVIEW_PATH=$PARAVIEW_DIR
+          REPO_DIR=$PWD
+          cd Testing
+          
+          python3 test_suite.py $REPO_DIR/ --test_type ParaView --paraview_version 5.13.1 --non_gpu_machine
+          echo "ParaView tests complete"
 
       - name: Upload ParaView Artifacts
         if: always()
@@ -102,44 +103,45 @@ jobs:
           retention-days: 30
 
   ############################################################################
-  # VISIT TEST JOB: Runs inside an Ubuntu container on the self-hosted runner.
+  # VISIT TEST JOB: Runs inside an Ubuntu container on the Linux runner.
   ############################################################################
   visit-test:
     name: VisIt Tests
     needs: build
     runs-on: self-hosted
 
+    # This also works now. All steps below will run inside a clean Ubuntu 22.04 container.
+    container:
+      image: ubuntu:22.04
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run VisIt Test Suite inside a Docker Container
-        shell: 'C:\Program Files\Git\bin\bash.exe'
+      - name: Run VisIt Test Suite
         run: |
-          docker run --rm -v "$(pwd)":/workdir -w /workdir ubuntu:22.04 bash -c "
-            set -e
-            echo 'Running VisIt Tests'
-            apt-get update && apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 curl zip unzip libgl1-mesa-glx
-            
-            python3 -V
-            python3 -m venv test-venv
-            source test-venv/bin/activate
-            pip3 install pandas matplotlib psutil scipy
-            
-            wget -O visit.tar.gz 'https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz'
-            mkdir visit
-            tar xf visit.tar.gz -C visit --strip-components 1
-            
-            export VISIT_DIR=\$PWD/visit/bin
-            \$VISIT_DIR/visit -version
-            
-            export VISIT_PATH=\$VISIT_DIR
-            REPO_DIR=\$PWD
-            cd Testing
-            
-            python3 test_suite.py \$REPO_DIR/ --test_type VisIt --visit_version 3.4.1 --test_number 0
-            echo 'VisIt tests complete'
-          "
+          set -e
+          echo "Running VisIt Tests inside a container"
+          apt-get update && apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 curl zip unzip libgl1-mesa-glx
+          
+          python3 -V
+          python3 -m venv test-venv
+          source test-venv/bin/activate
+          pip3 install pandas matplotlib psutil scipy
+          
+          wget -O visit.tar.gz 'https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz'
+          mkdir visit
+          tar xf visit.tar.gz -C visit --strip-components 1
+          
+          export VISIT_DIR=$PWD/visit/bin
+          $VISIT_DIR/visit -version
+          
+          export VISIT_PATH=$VISIT_DIR
+          REPO_DIR=$PWD
+          cd Testing
+          
+          python3 test_suite.py $REPO_DIR/ --test_type VisIt --visit_version 3.4.1 --test_number 0
+          echo "VisIt tests complete"
 
       - name: Upload VisIt Artifacts
         if: always()
