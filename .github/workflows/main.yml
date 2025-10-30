@@ -42,37 +42,51 @@ jobs:
     name: ParaView Tests
     needs: build
     runs-on: self-hosted
-    container:
-      image: debian:12
-      options: --user ${{ runner.uid }}:${{ runner.gid }}
     steps:
       - uses: actions/checkout@v4
       - name: Run ParaView Test Suite
-        shell: bash
         run: |
-          set -e
-          echo "Running ParaView Tests as a non-root user"
-          # The non-root user can't run 'apt-get', so we temporarily use sudo.
-          # We must install 'sudo' first.
-          USER_ID=$(id -u)
-          if [ "$USER_ID" -ne 0 ]; then
-            apt-get update && apt-get install -y sudo
-            echo "ALL            ALL = (ALL) NOPASSWD: ALL" >> /etc/sudoers
-          fi
-          
-          sudo apt-get update && sudo apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 libgl1-mesa-glx
-          
-          python3 -m venv test-venv
-          source test-venv/bin/activate
-          pip3 install pandas matplotlib psutil scipy
-          wget -O paraview.tar.gz "https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v5.13&type=binary&os=Linux&downloadFile=ParaView-5.13.1-osmesa-MPI-Linux-Python3.10-x86_64.tar.gz"
-          mkdir paraview
-          tar xf paraview.tar.gz -C paraview --strip-components 1
-          export PARAVIEW_DIR=$PWD/paraview/bin
-          $PARAVIEW_DIR/pvbatch --version
-          cd Testing
-          python3 test_suite.py ../ --test_type ParaView --paraview_version 5.13.1 --non_gpu_machine
-          echo "ParaView tests complete"
+          # Create a custom Dockerfile to prepare our test environment
+          cat <<EOF > Dockerfile.paraview.test
+          FROM debian:12
+          # Install dependencies as root
+          RUN apt-get update && apt-get install -y --no-install-recommends \
+              wget make autoconf gfortran libmpich-dev python3-full python3-pip \
+              ffmpeg libsm6 libxext6 libgl1-mesa-glx \
+           && rm -rf /var/lib/apt/lists/*
+          # Create a non-root user matching the host runner's user ID
+          ARG USER_ID
+          ARG GROUP_ID
+          RUN addgroup --gid \$GROUP_ID user && \
+              adduser --disabled-password --gecos '' --uid \$USER_ID --gid \$GROUP_ID user
+          # Switch to the non-root user for subsequent commands
+          USER user
+          WORKDIR /workdir
+          EOF
+
+          # Build the test image, passing the host's UID/GID as build arguments
+          docker build \
+            --build-arg USER_ID=$(id -u) \
+            --build-arg GROUP_ID=$(id -g) \
+            -t paraview-test-env -f Dockerfile.paraview.test .
+
+          # Run the test script inside the new container.
+          # It runs as the non-root 'user', so all created files will have the correct ownership.
+          docker run --rm -v "$(pwd)":/workdir paraview-test-env bash -c '
+            set -e
+            echo "Running ParaView Tests as a non-root user"
+            python3 -m venv test-venv
+            source test-venv/bin/activate
+            pip3 install pandas matplotlib psutil scipy
+            wget -O paraview.tar.gz "https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v5.13&type=binary&os=Linux&downloadFile=ParaView-5.13.1-osmesa-MPI-Linux-Python3.10-x86_64.tar.gz"
+            mkdir paraview
+            tar xf paraview.tar.gz -C paraview --strip-components 1
+            export PARAVIEW_DIR=$PWD/paraview/bin
+            $PARAVIEW_DIR/pvbatch --version
+            cd Testing
+            python3 test_suite.py ../ --test_type ParaView --paraview_version 5.13.1 --non_gpu_machine
+            echo "ParaView tests complete"
+          '
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -86,36 +100,48 @@ jobs:
     name: VisIt Tests
     needs: build
     runs-on: self-hosted
-    container:
-      image: ubuntu:22.04
-      options: --user ${{ runner.uid }}:${{ runner.gid }}
     steps:
       - uses: actions/checkout@v4
       - name: Run VisIt Test Suite
-        shell: bash
         run: |
-          set -e
-          echo "Running VisIt Tests as a non-root user"
-          # Temporarily grant sudo access to the non-root user to install packages.
-          USER_ID=$(id -u)
-          if [ "$USER_ID" -ne 0 ]; then
-            apt-get update && apt-get install -y sudo
-            echo "ALL            ALL = (ALL) NOPASSWD: ALL" >> /etc/sudoers
-          fi
+          # Create a custom Dockerfile for the VisIt test environment
+          cat <<EOF > Dockerfile.visit.test
+          FROM ubuntu:22.04
+          ENV DEBIAN_FRONTEND=noninteractive
+          RUN apt-get update && apt-get install -y --no-install-recommends \
+              wget make autoconf gfortran libmpich-dev python3-full python3-pip \
+              ffmpeg libsm6 libxext6 curl zip unzip libgl1-mesa-glx \
+           && rm -rf /var/lib/apt/lists/*
+          ARG USER_ID
+          ARG GROUP_ID
+          RUN addgroup --gid \$GROUP_ID user && \
+              adduser --disabled-password --gecos '' --uid \$USER_ID --gid \$GROUP_ID user
+          USER user
+          WORKDIR /workdir
+          EOF
+
+          # Build the VisIt test image
+          docker build \
+            --build-arg USER_ID=$(id -u) \
+            --build-arg GROUP_ID=$(id -g) \
+            -t visit-test-env -f Dockerfile.visit.test .
           
-          sudo apt-get update && sudo apt-get -y install wget make autoconf gfortran libmpich-dev python3-full python3-pip ffmpeg libsm6 libxext6 curl zip unzip libgl1-mesa-glx
-          
-          python3 -m venv test-venv
-          source test-venv/bin/activate
-          pip3 install pandas matplotlib psutil scipy
-          wget -O visit.tar.gz "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz"
-          mkdir visit
-          tar xf visit.tar.gz -C visit --strip-components 1
-          export VISIT_DIR=$PWD/visit/bin
-          $VISIT_DIR/visit -version
-          cd Testing
-          python3 test_suite.py ../ --test_type VisIt --visit_version 3.4.1 --test_number 0
-          echo "VisIt tests complete"
+          # Run the test script inside the new container
+          docker run --rm -v "$(pwd)":/workdir visit-test-env bash -c '
+            set -e
+            echo "Running VisIt Tests as a non-root user"
+            python3 -m venv test-venv
+            source test-venv/bin/activate
+            pip3 install pandas matplotlib psutil scipy
+            wget -O visit.tar.gz "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz"
+            mkdir visit
+            tar xf visit.tar.gz -C visit --strip-components 1
+            export VISIT_DIR=$PWD/visit/bin
+            $VISIT_DIR/visit -version
+            cd Testing
+            python3 test_suite.py ../ --test_type VisIt --visit_version 3.4.1 --test_number 0
+            echo "VisIt tests complete"
+          '
       - uses: actions/upload-artifact@v4
         if: always()
         with:
