@@ -2,7 +2,8 @@
 [![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/jameskress/Visualization_Vignettes)](https://github.com/jameskress/Visualization_Vignettes/tags)
 
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)](./Dockerfile)
-[![Docker Image Version](https://img.shields.io/github/commit-sha/jameskress/Visualization_Vignettes/master?label=latest%20build)](https://github.com/users/jameskress/packages/container/package/visualization_vignettes)
+![Docker Image](https://img.shields.io/endpoint?url=https://jameskress.github.io/Visualization_Vignettes/docker-latest.json)
+
 
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](CONTRIBUTING.md)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
