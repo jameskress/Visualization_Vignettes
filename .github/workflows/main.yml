@@ -51,7 +51,7 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: badges       # creates or updates a 'badges' branch
+          publish_branch: gh-pages
           publish_dir: badges
 
   paraview-test:
