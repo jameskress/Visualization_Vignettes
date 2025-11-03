@@ -83,6 +83,8 @@ RUN cmake \
     -DENABLE_python3=ON \
     -DENABLE_openmp=ON \
     -DENABLE_osmesa=ON \
+    -DUSE_SYSTEM_netcdf=ON \
+    -DUSE_SYSTEM_hdf5=ON \
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     ..
 # Limiting parallel jobs to 2 to avoid running out of memory, a common issue on large builds.

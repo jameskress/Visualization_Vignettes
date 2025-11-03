@@ -1,299 +1,262 @@
 # Regression and Performance Testing
 
-This `test_suite.py` is designed to allow us to track the performance and regression testing of installations of **VisIt** and **ParaView** on **Ibex** and **Shaheen**. These tests can also be run on your local machine, and make for a conveneint method to run each of the exampels in either the **ParaView** or **VisIt** directories without manually running each of them
+This `test_suite.py` script runs performance and regression tests for **VisIt** and **ParaView** on **Ibex** and **Shaheen**. It also provides a convenient method to run all examples in the **ParaView** or **VisIt** directories without running each one manually.
 
-## ParaView Testing
+> ⚠️ **Important:** In all examples below, replace paths like `/ibex/scratch/kressjm/` or `/home/kressjm/` with your own user paths.
 
-### Local Machine Test Runs
+---
 
-- Export the path to your ParaView install and run the ParaView tests:
+## 🐍 Initial Setup: Python Environments
+
+Before running tests on HPC systems, you need to create Python virtual environments (`venv`) to install necessary packages.
+
+> 💡 **Note:** On systems like Shaheen, compute nodes do not have internet access. You **must run the `pip install` commands on a login node** *after* creating the environment.
+
+### 1. ParaView Environment
+
+This environment is needed for all ParaView HPC test runs.
+
 ```bash
-export PARAVIEW_PATH="/home/kressjm/packages/ParaView-5.13.1-MPI-Linux-Python3.10-x86_64/bin"
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1
+# Create the environment
+python3 -m venv /ibex/scratch/kressjm/testing_paraview_env
+
+# Activate it
+source /ibex/scratch/kressjm/testing_paraview_env/bin/activate
+
+# Install packages (run on a login node)
+pip3 install pandas matplotlib psutil scipy
+
+# You can now deactivate
+deactivate
 ```
 
-### Ibex CPU Test Runs
+### 2. VisIt Environment
 
-- First, load the necessary modules:
+This environment is needed for all VisIt HPC test runs.
+
 ```bash
+# Create the environment
+python3 -m venv /ibex/scratch/kressjm/testing_visit_env
+
+# Activate it
+source /ibex/scratch/kressjm/testing_visit_env/bin/activate
+
+# Install packages (run on a login node)
+# We install the superset of packages needed for both Ibex and Shaheen
+pip3 install pytz six pyparsing psutil pandas matplotlib scipy
+
+# You can now deactivate
+deactivate
+```
+
+---
+
+## 🧪 Running the Tests
+
+### 💻 Local Machine
+
+#### ParaView
+```bash
+export PARAVIEW_PATH="<path-to-your-paraview-install>/bin"
+source <path-to-your-paraview-venv>/bin/activate
+cd Visualization_Vignettes/Testing
+python test_suite.py /ibex/scratch/kressjm/Visualization_Vignettes/ \
+  --test_type ParaView \
+  --paraview_version 5.13.1
+```
+
+#### VisIt
+```bash
+export VISIT_PATH="<path-to-your-visit-install>/bin/"
+source <path-to-your-visit-venv>/bin/activate
+cd Visualization_Vignettes/Testing
+python test_suite.py /ibex/scratch/kressjm/Visualization_Vignettes/ \
+  --test_type VisIt \
+  --visit_version 3.4.1
+```
+
+---
+
+### Ibex
+
+#### Ibex CPU (ParaView)
+```bash
+# 1. Load module
 module load paraview/5.13.1-gnu-mesa
+
+# 2. Request an interactive job
+srun --cpus-per-task=12 --ntasks=1 --time=00:40:00 --mem=100G --pty /bin/bash
+
+# 3. Once in the job, run the tests
+source /ibex/scratch/kressjm/testing_paraview_env/bin/activate
+cd Visualization_Vignettes/Testing
+python test_suite.py /ibex/scratch/kressjm/Visualization_Vignettes/ \
+  --test_type ParaView \
+  --paraview_version 5.13.1 \
+  --machine_name ibex-cpu \
+  --non_gpu_machine
 ```
 
-- Next, create a python virtual environment so that the necessary python packages exist:
+#### Ibex CPU (VisIt)
 ```bash
-python3 -m venv /ibex/scratch/kressjm/kvv_testing_paraview_env
-cd kvv_testing_paraview_env/bin
-source activate
-pip3 install pandas
-pip3 install matplotlib
-pip3 install psutil
-pip3 install scipy
+# 1. Load modules
+module load visit/3.4.1
+module load ffmpeg
+
+# 2. Request an interactive job
+srun --cpus-per-task=12 --ntasks=1 --time=00:40:00 --mem=100G --pty /bin/bash
+
+# 3. Once in the job, run the tests
+source /ibex/scratch/kressjm/testing_visit_env/bin/activate
+cd Visualization_Vignettes/Testing
+python test_suite.py /ibex/scratch/kressjm/Visualization_Vignettes/ \
+  --test_type VisIt \
+  --visit_version 3.4.1 \
+  --machine_name ibex-cpu
 ```
 
-- When you are done testing and want to exit the `venv` do:
-```bash
-deactivate
-```
+#### Ibex GPU (ParaView)
 
-- Next, run the ParaView tests with the python virtual environment active:
-```bash
-srun   --cpus-per-task=12 --ntasks=1  --time=00:40:00  --mem=100G --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name ibex-cpu --non_gpu_machine
-```
+This test can be run on multiple GPU types.
 
-### Ibex GPU Test Runs
-
-- First, load the necessary modules:
 ```bash
+# 1. Load module
 module load paraview/5.13.1-gnu-egl
+
+# 2. Request an interactive GPU job
+#    Replace <gpu-flag> with the correct value from the table below
+srun <gpu-flag> --cpus-per-task=12 --ntasks=1 --time=00:40:00 --mem=100G --pty /bin/bash
+
+# 3. Once in the job, run the tests
+#    Replace <machine-name> with the correct value from the table below
+source /ibex/scratch/kressjm/testing_paraview_env/bin/activate
+cd Visualization_Vignettes/Testing
+python test_suite.py /ibex/scratch/kressjm/Visualization_Vignettes/ \
+  --test_type ParaView \
+  --paraview_version 5.13.1 \
+  --machine_name <machine-name>
 ```
 
-- Next, create a python virtual environment so that the necessary python packages exist:
+**GPU Options:**
+
+| GPU Type | `srun` Flag (`<gpu-flag>`) | Python Flag (`<machine-name>`) |
+| :--- | :--- | :--- |
+| v100 | `--gres=gpu:v100:1` | `ibex-egl-v100` |
+| rtx2080ti | `--gres=gpu:rtx2080ti:1` | `ibex-egl-rtx2080ti` |
+| p6000 | `--gres=gpu:p6000:1` | `ibex-egl-p6000` |
+| p100 | `--gres=gpu:p100:1` | `ibex-egl-p100` |
+| gtx1080ti | `--gres=gpu:gtx1080ti:1`| `ibex-egl-gtx1080ti` |
+| a100 | `--gres=gpu:a100:1` | `ibex-egl-a100` |
+
+#### Ibex GPU (VisIt)
 ```bash
-python3 -m venv /ibex/scratch/kressjm/kvv_testing_paraview_env
-cd kvv_testing_paraview_env/bin
-source activate
-pip3 install pandas
-pip3 install matplotlib
-pip3 install psutil
-pip3 install scipy
+# 1. Load modules
+module load visit/3.4.1
+module load ffmpeg
+
+# 2. Request an interactive job (any GPU)
+srun --gres=gpu:1 --cpus-per-task=12 --ntasks=1 --time=00:40:00 --mem=100G --pty /bin/bash
+
+# 3. Once in the job, run the tests
+source /ibex/scratch/kressjm/testing_visit_env/bin/activate
+cd Visualization_Vignettes/Testing
+python test_suite.py /ibex/scratch/kressjm/Visualization_Vignettes/ \
+  --test_type VisIt \
+  --visit_version 3.4.1 \
+  --machine_name ibex-gpu
 ```
+---
 
-- When you are done testing and want to exit the `venv` do:
+### Shaheen3
+
+#### Shaheen3 CPU (ParaView)
 ```bash
-deactivate
-```
-
-- Next, run the ParaView tests on the `v100 gpu`:
-```bash
-srun  --gres=gpu:v100:1  --cpus-per-task=12 --ntasks=1  --time=00:40:00 --mem=100G --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name ibex-egl-v100
-```
-
-- Next, run the ParaView tests on the `rtx2080ti gpu`:
-```bash
-srun  --gres=gpu:rtx2080ti:1  --cpus-per-task=12 --ntasks=1  --time=00:40:00 --mem=100G --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name ibex-egl-rtx2080ti
-```
-
-- Next, run the ParaView tests on the `p6000 gpu`:
-```bash
-srun  --gres=gpu:p6000:1  --cpus-per-task=12 --ntasks=1  --time=00:40:00 --mem=100G --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name ibex-egl-p6000
-```
-
-- Next, run the ParaView tests on the `p100 gpu`:
-```bash
-srun --gres=gpu:p100:1  --cpus-per-task=12 --ntasks=1  --time=00:40:00 --mem=100G --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name ibex-egl-p100
-```
-
-- Next, run the ParaView tests on the `gtx1080ti gpu`:
-```bash
-srun --gres=gpu:gtx1080ti:1  --cpus-per-task=12 --ntasks=1  --time=00:40:00 --mem=100G --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name ibex-egl-gtx1080ti
-```
-
-- Next, run the ParaView tests on the `a100 gpu`:
-```bash
-srun --gres=gpu:a100:1  --cpus-per-task=12 --ntasks=1  --time=00:40:00 --mem=100G --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name ibex-egl-a100
-```
-
-
-### Shaheen3 CPU Test Runs ###
-
-- First, load the necessary modules:
-```bash
+# 1. Load module
 module load paraview/5.13.1-mesa
-```
 
-- Next, create a python virtual environment so that the necessary python packages exist:
-```bash
-python3 -m venv /scratch/kressjm/kvv_testing_paraview_env
-cd kvv_testing_paraview_env/bin
-source activate
-pip3 install pandas
-pip3 install matplotlib
-pip3 install psutil
-pip3 install scipy
-```
-
-- When you are done testing and want to exit the `venv` do:
-```bash
-deactivate
-```
-
-- Next, run the ParaView tests on the `workq` nodes with the python virtual environment active:
-```bash
-srun --cpus-per-task=32 --ntasks=2  --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name shaheen3-cpu --non_gpu_machine
-```
-
-- Next, run the ParaView tests on the `PPN` CPU nodes with the python virtual environment active:
-```bash
+# 2. Request an interactive job (choose workq or ppn)
+#    For workq nodes:
+srun --cpus-per-task=32 --ntasks=2 -p workq --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
+#    For PPN nodes:
 srun --cpus-per-task=32 --ntasks=2 -p ppn --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name shaheen3-mesa-ppn --non_gpu_machine
+
+# 3. Once in the job, run the tests (use the matching machine_name)
+source /scratch/kressjm/testing_paraview_env/bin/activate
+cd Visualization_Vignettes/Testing
+
+#    If on workq:
+python test_suite.py /scratch/kressjm/testing/Visualization_Vignettes/ \
+  --test_type ParaView \
+  --paraview_version 5.13.1 \
+  --machine_name shaheen3-cpu \
+  --non_gpu_machine
+
+#    If on PPN:
+python test_suite.py /scratch/kressjm/testing/Visualization_Vignettes/ \
+  --test_type ParaView \
+  --paraview_version 5.13.1 \
+  --machine_name shaheen3-mesa-ppn \
+  --non_gpu_machine
 ```
 
-### Shaheen3 GPU Test Runs ###
-
-- First, load the necessary modules:
+#### Shaheen3 CPU (VisIt)
 ```bash
-module load paraview/5.13.1-egl
-```
-
-- Next, create a python virtual environment so that the necessary python packages exist:
-```bash
-python3 -m venv /scratch/kressjm/kvv_testing_paraview_gpu_env
-cd kvv_testing_paraview_gpu_env/bin
-source activate
-pip3 install pandas
-pip3 install matplotlib
-pip3 install psutil
-pip3 install scipy
-```
-
-- When you are done testing and want to exit the `venv` do:
-```bash
-deactivate
-```
-
-- Next, run the ParaView tests on the `PPN` GPU nodes with the python virtual environment active:
-```bash
-srun --cpus-per-task=32 --ntasks=1 -p ppn -G 1 --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name shaheen3-mesa-ppn-gpu
-```
-
-
-## VisIt Testing
-
-### Local Machine Test Runs
-
-- Export the path to your VisIt install and run the VisIt tests:
-```bash
-export VISIT_PATH="/home/kressjm/packages/visit3_4_1.linux-x86_64/bin/"
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type VisIt --visit_version 3.4.1
-```
-
-### Ibex CPU Test Runs
-
-- First, load the necessary modules:
-```bash
+# 1. Load module
 module load visit/3.4.1
-module load ffmpeg
-```
 
-- Next, create a python virtual environment so that the necessary python packages exist:
-```bash
-python3 -m venv /ibex/scratch/kressjm/kvv_testing_visit_env
-cd kvv_testing_visit_env/bin
-source activate
-pip3 install pytz
-pip3 install six
-pip3 install pyparsing
-pip3 install psutil
-```
-
-- When you are done testing and want to exit the `venv` do:
-```bash
-deactivate
-``
-
-- Next, run the VisIt tests with the python virtual environment active:
-```bash
-srun   --cpus-per-task=12 --ntasks=1  --time=00:40:00  --mem=100G --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type VisIt --visit_version 3.4.1  --machine_name ibex-cpu
-```
-
-
-### Ibex GPU Test Runs
-
-- First, load the necessary modules:
-```bash
-module load visit/3.4.1
-module load ffmpeg
-```
-
-- Next, create a python virtual environment so that the necessary python packages exist:
-```bash
-python3 -m venv /ibex/scratch/kressjm/kvv_testing_visit_env
-cd kvv_testing_visit_env/bin
-source activate
-pip3 install pytz
-pip3 install six
-pip3 install pyparsing
-pip3 install psutil
-```
-
-- When you are done testing and want to exit the `venv` do:
-```bash
-deactivate
-```
-
-- Next, run the VisIt tests:
-```bash
-srun   --cpus-per-task=12 --ntasks=1  --time=00:40:00  --mem=100G --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python test_suite.py /ibex/scratch/kressjm/KAUST_Visualization_Vignettes/ --test_type VisIt --visit_version 3.4.1  --machine_name ibex-gpu
-```
-
-
-### Shaheen3 CPU Test Runs ###
-
-- First, load the necessary modules:
-```bash
-module load visit/3.4.1
-```
-
-- Next, create a python virtual environment so that the necessary python packages exist (do this on a login node as compute nodes do not have network access):
-```bash
-python3 -m venv /scratch/kressjm/kvv_testing_visit_env
-cd kvv_testing_visit_env/bin
-source activate
-pip3 install pytz
-pip3 install pyparsing
-pip3 install six
-pip3 install psutil
-pip3 install pandas
-pip3 install matplotlib
-pip3 install scipy
-```
-
-- When you are done testing and want to exit the `venv` do:
-```bash
-deactivate
-```
-
-- Next, run the VisIt tests on the `workq` nodes with the python virtual environment active:
-```bash
-srun --cpus-per-task=32 --ntasks=2  -p workq --time=00:40:00 --mem=300G -A k01 --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python3 test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type VisIt --visit_version 3.4.1 --machine_name shaheen3-cpu
-```
-
-- Next, run the VisIt tests on the `PPN` nodes with the python virtual environment active:
-```bash
+# 2. Request an interactive job (choose workq or ppn)
+#    For workq nodes:
+srun --cpus-per-task=32 --ntasks=2 -p workq --time=00:40:00 --mem=300G -A k01 --pty /bin/bash
+#    For PPN nodes:
 srun --cpus-per-task=32 --ntasks=2 -p ppn --time=00:40:00 --mem=300G -A k01 --pty /bin/bash
-cd KAUST_Visualization_Vignettes/Testing
-python3 test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type VisIt --visit_version 3.4.1 --machine_name shaheen3-ppn
 
+# 3. Once in the job, run the tests (use the matching machine_name)
+source /scratch/kressjm/testing_visit_env/bin/activate
+cd Visualization_Vignettes/Testing
+
+#    If on workq:
+python3 test_suite.py /scratch/kressjm/testing/Visualization_Vignettes/ \
+  --test_type VisIt \
+  --visit_version 3.4.1 \
+  --machine_name shaheen3-cpu
+
+#    If on PPN:
+python3 test_suite.py /scratch/kressjm/testing/Visualization_Vignettes/ \
+  --test_type VisIt \
+  --visit_version 3.4.1 \
+  --machine_name shaheen3-ppn
 ```
+
+#### Shaheen3 GPU (ParaView)
+```bash
+# 1. Load module
+module load paraview/5.13.1-egl
+
+# 2. Request an interactive GPU job
+srun --cpus-per-task=32 --ntasks=1 -p ppn -G 1 --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
+
+# 3. Once in the job, run the tests
+source /scratch/kressjm/testing_paraview_gpu_env/bin/activate
+cd Visualization_Vignettes/Testing
+python test_suite.py /scratch/kressjm/testing/Visualization_Vignettes/ \
+  --test_type ParaView \
+  --paraview_version 5.13.1 \
+  --machine_name shaheen3-mesa-ppn-gpu
+```
+
+---
 
 ## Continuous Integration
-A GitLab CI pipeline is setup to run each time this repo is committed. It uses a GitLab Runner setup on an internal KVL system, `render-01`. This pipeline runs the `test_suite.py` for both ParaView and VisIt. The artifacts from these runs are saved for review. If the tests pass the CI pipeline will pass.
 
-Pipeline artifacts can be found here: https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes/-/artifacts
+A **GitHub Actions workflow** is set up to run automatically on each commit to this repository. This workflow runs the `test_suite.py` for both ParaView and VisIt. If all tests pass, the workflow run will be marked as successful (with a green check).
+
+Artifacts from these runs are saved for review. Please note: **GitHub artifacts are temporary and automatically expire** (the default is 90 days).
+
+### How to Find Build Artifacts
+
+Unlike GitLab, GitHub does not have a single, permanent URL for artifacts. Instead, artifacts are attached to the specific workflow run that created them.
+
+1.  Click the **"Actions"** tab at the top of the repository.
+2.  Click on the specific **workflow run** you want to inspect.
+3.  On the summary page for that run, scroll to the bottom to find the **"Artifacts"** section.
+4.  You can download the files (usually as a `.zip` archive) from there.

@@ -94,7 +94,7 @@ jobs:
             python3 -m venv test-venv
             source test-venv/bin/activate
             pip3 install pandas matplotlib psutil scipy
-            wget -O paraview.tar.gz "https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v5.13&type=binary&os=Linux&downloadFile=ParaView-5.13.1-osmesa-MPI-Linux-Python3.10-x86_64.tar.gz"
+            wget -O paraview.tar.gz "https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v6.0&type=binary&os=Linux&downloadFile=ParaView-6.0.1-MPI-Linux-Python3.12-x86_64.tar.gz"
             mkdir paraview
             tar xf paraview.tar.gz -C paraview --strip-components 1
             export PARAVIEW_DIR=$PWD/paraview/bin
