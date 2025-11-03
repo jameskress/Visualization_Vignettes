@@ -36,7 +36,7 @@ pip3 install scipy
 deactivate
 ```
 
-- Next, run the ParaView tests:
+- Next, run the ParaView tests with the python virtual environment active:
 ```bash
 srun   --cpus-per-task=12 --ntasks=1  --time=00:40:00  --mem=100G --pty /bin/bash
 cd KAUST_Visualization_Vignettes/Testing
@@ -132,14 +132,14 @@ pip3 install scipy
 deactivate
 ```
 
-- Next, run the ParaView tests on the `workq` nodes:
+- Next, run the ParaView tests on the `workq` nodes with the python virtual environment active:
 ```bash
 srun --cpus-per-task=32 --ntasks=2  --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
 cd KAUST_Visualization_Vignettes/Testing
 python test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type ParaView --paraview_version 5.13.1  --machine_name shaheen3-cpu --non_gpu_machine
 ```
 
-- Next, run the ParaView tests on the `PPN` CPU nodes:
+- Next, run the ParaView tests on the `PPN` CPU nodes with the python virtual environment active:
 ```bash
 srun --cpus-per-task=32 --ntasks=2 -p ppn --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
 cd KAUST_Visualization_Vignettes/Testing
@@ -169,7 +169,7 @@ pip3 install scipy
 deactivate
 ```
 
-- Next, run the ParaView tests on the `PPN` GPU nodes:
+- Next, run the ParaView tests on the `PPN` GPU nodes with the python virtual environment active:
 ```bash
 srun --cpus-per-task=32 --ntasks=1 -p ppn -G 1 --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
 cd KAUST_Visualization_Vignettes/Testing
@@ -212,7 +212,7 @@ pip3 install psutil
 deactivate
 ``
 
-- Next, run the VisIt tests:
+- Next, run the VisIt tests with the python virtual environment active:
 ```bash
 srun   --cpus-per-task=12 --ntasks=1  --time=00:40:00  --mem=100G --pty /bin/bash
 cd KAUST_Visualization_Vignettes/Testing
@@ -278,14 +278,14 @@ pip3 install scipy
 deactivate
 ```
 
-- Next, run the VisIt tests on the `workq` nodes:
+- Next, run the VisIt tests on the `workq` nodes with the python virtual environment active:
 ```bash
 srun --cpus-per-task=32 --ntasks=2  -p workq --time=00:40:00 --mem=300G -A k01 --pty /bin/bash
 cd KAUST_Visualization_Vignettes/Testing
 python3 test_suite.py /scratch/kressjm/testing/KAUST_Visualization_Vignettes/ --test_type VisIt --visit_version 3.4.1 --machine_name shaheen3-cpu
 ```
 
-- Next, run the VisIt tests on the `PPN` nodes:
+- Next, run the VisIt tests on the `PPN` nodes with the python virtual environment active:
 ```bash
 srun --cpus-per-task=32 --ntasks=2 -p ppn --time=00:40:00 --mem=300G -A k01 --pty /bin/bash
 cd KAUST_Visualization_Vignettes/Testing
