@@ -157,19 +157,6 @@ RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/nul
 COPY --from=builder /opt/adios2 /opt/adios2
 COPY --from=builder /builds/paraview-superbuild/build/install /opt/paraview
 COPY --from=builder /opt/ascent /opt/ascent
-# Add COPY lines for your other installed dependencies here
-# COPY --from=builder /opt/fides /opt/fides
-# COPY --from=builder /opt/viskores /opt/viskores
-# ... etc.
-
-# --- Install Python plotting libraries into ParaView's Python ---
-# We must use the pip associated with ParaView's self-contained Python to install packages.
-RUN /opt/paraview/bin/python3 -m pip install numpy pandas matplotlib
-
-# --- Create a stable symlink to the versioned HDF5 directory ---
-# This makes the environment resilient to minor version changes from the Ascent build.
-# We remove the trailing slash from the source path glob for robustness.
-RUN ln -s /opt/ascent/install/hdf5-* /opt/ascent/install/hdf5
 
 # --- IMPORTANT: Set Environment Variables ---
 # This makes the installed libraries and executables discoverable by the system.
@@ -187,6 +174,15 @@ ENV CMAKE_PREFIX_PATH="/opt/ascent/install:/opt/paraview/lib/cmake/paraview-6.0:
 # library from Ascent's installation before it finds the older system version.
 # We use the stable symlink created above for resilience.
 ENV LD_PRELOAD="/opt/ascent/install/hdf5/lib/libhdf5.so"
+
+# --- Install Python plotting libraries into ParaView's Python ---
+# We must use the pip associated with ParaView's self-contained Python to install packages.
+RUN /opt/paraview/bin/python3 -m pip install numpy pandas matplotlib
+
+# --- Create a stable symlink to the versioned HDF5 directory ---
+# This makes the environment resilient to minor version changes from the Ascent build.
+# We remove the trailing slash from the source path glob for robustness.
+RUN ln -s /opt/ascent/install/hdf5-* /opt/ascent/install/hdf5
 
 # --- Create a non-root user that will be modified by the entrypoint script ---
 # The -m flag creates a home directory, which is needed by applications like Matplotlib.
