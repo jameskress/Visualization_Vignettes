@@ -68,7 +68,7 @@ jobs:
           # Install dependencies as root
           RUN apt-get update && apt-get install -y --no-install-recommends \
               wget make autoconf gfortran libmpich-dev python3-full python3-pip \
-              ffmpeg libsm6 libxext6 libgl1-mesa-glx \
+              ffmpeg libsm6 libxext6 libgl1-mesa-glx libosmesa6 libegl1-mesa \
            && rm -rf /var/lib/apt/lists/*
           # Create a non-root user matching the host runner's user ID
           ARG USER_ID
@@ -127,7 +127,7 @@ jobs:
           ENV DEBIAN_FRONTEND=noninteractive
           RUN apt-get update && apt-get install -y --no-install-recommends \
               wget make autoconf gfortran libmpich-dev python3-full python3-pip \
-              ffmpeg libsm6 libxext6 curl zip unzip libgl1-mesa-glx \
+              ffmpeg libsm6 libxext6 curl zip unzip libgl1-mesa-glx libosmesa6 libegl1-mesa \
            && rm -rf /var/lib/apt/lists/*
           ARG USER_ID
           ARG GROUP_ID
