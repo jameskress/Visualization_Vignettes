@@ -38,7 +38,7 @@ export CATALYST_DEBUG=1
 
 See if the following work
 export CATALYST_IMPLEMENTATION_PATHS="<paraview-install-dir>/lib/catalyst"
-export CATALYST_IMPLEMENTATION_NAME=paraview/home/kressjm/packages/gray-scott/KAUST_Visualization_Vignettes/Miniapps/gray-scott/README.md
+export CATALYST_IMPLEMENTATION_NAME=paraview/home/kressjm/packages/gray-scott/Visualization_Vignettes/Miniapps/gray-scott/README.md
 
 # Ibex setup
 
@@ -180,8 +180,8 @@ git lfs install
 git lfs pull
 mkdir fides-build && cd fides-build
 cmake \
-    -DADIOS2_DIR=/home/kressjm/packages/KAUST_Visualization_Vignettes/adios2-build \
-    -DViskores_DIR=/home/kressjm/packages/KAUST_Visualization_Vignettes/viskores/viskores-install/lib/cmake/viskores-1.0 \
+    -DADIOS2_DIR=/home/kressjm/packages/Visualization_Vignettes/adios2-build \
+    -DViskores_DIR=/home/kressjm/packages/Visualization_Vignettes/viskores/viskores-install/lib/cmake/viskores-1.0 \
     -DCMAKE_INSTALL_PREFIX=../fides-install \
     -DCMAKE_BUILD_TYPE=Release \
      ../.
@@ -194,8 +194,8 @@ Current error in Fides:
 INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include;${_IMPORT_PREFIX}/include/fides/predefined;${_IMPORT_PREFIX}/include/fides/xgc"
 ```
 
--DFides_DIR=/home/kressjm/packages/KAUST_Visualization_Vignettes/fides/fides-install/lib/cmake/fides \
--DViskores_DIR=/home/kressjm/packages/KAUST_Visualization_Vignettes/viskores/viskores-install/lib/cmake/viskores-1.0 \
+-DFides_DIR=/home/kressjm/packages/Visualization_Vignettes/fides/fides-install/lib/cmake/fides \
+-DViskores_DIR=/home/kressjm/packages/Visualization_Vignettes/viskores/viskores-install/lib/cmake/viskores-1.0 \
 
 Running with SST evpath
 Reader
@@ -218,5 +218,5 @@ Working on getting a docker image of this repo built so that the CI/CD pipeline 
 From main dir run this to build the docker image locally for testing
 
 ```
-docker build -t kaust-viz-app .
+docker build -t visualization-vignettes-app .
 ```

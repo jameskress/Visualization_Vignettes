@@ -1,4 +1,4 @@
-# KAUST Visualization Vignettes Miniapp - gray-scott
+# Visualization Vignettes Miniapp - gray-scott
 
 This is a 3D 7-point stencil code to simulate the following [Gray-Scott
 reaction diffusion model](https://doi.org/10.1126/science.261.5118.189):
@@ -14,7 +14,7 @@ A reaction-diffusion system is a system in which a dynamical system is attached 
 
 ## Running with Docker
 
-This project provides a self-contained, portable, and reproducible scientific software environment using Docker. It includes pre-compiled versions of **ParaView 5.13.2**, **ADIOS2**, **Ascent**, and the **Gray-Scott Miniapp**, ensuring that users can run complex in-situ visualization workflows without needing to build the dependencies themselves.
+This project provides a self-contained, portable, and reproducible scientific software environment using Docker. It includes pre-compiled versions of **ParaView**, **ADIOS2**, **Ascent**, and the **Gray-Scott Miniapp**, ensuring that users can run complex in-situ visualization workflows without needing to build the dependencies themselves.
 
 The Docker image can be built and run on **Linux, macOS, and Windows**.
 
@@ -23,6 +23,7 @@ The Docker image can be built and run on **Linux, macOS, and Windows**.
 The only prerequisite is to have Docker installed on your system.
 
 * **Windows / macOS:** Install [**Docker Desktop**](https://www.docker.com/products/docker-desktop/).
+
 * **Linux:** Install [**Docker Engine**](https://docs.docker.com/engine/install/). It is also recommended to complete the [post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/) to run Docker without `sudo`.
 
 ## 2. Quick Start: Running the Pre-Built Image (Recommended)
@@ -31,64 +32,76 @@ This is the fastest and easiest way to get started. This workflow downloads the 
 
 ### Step 2.1: Download the Pre-Built Image
 
-Open a terminal or command prompt and run the following command to download the complete environment from the project's public GitLab Container Registry.
+Open a terminal or command prompt and run the following command to download the complete environment from the project's public GitHub Container Registry.
 
-```bash
-docker pull gitlab.kitware.com:4567/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest
+```
+docker pull ghcr.io/jameskress/visualization_vignettes:latest
 ```
 
 ### Step 2.2: Run Simulations and Access Files
 
 To run the container, you will create a "shared folder" that links a directory on your computer to a directory inside the container. This makes it easy to access your output files and resolves file permission issues.
 
-1.  **Create a Local Data Directory:** On your computer, create a folder where you want your simulation outputs to be saved.
-    ```bash
-    mkdir data
-    ```
+1. **Create a Local Data Directory:** On your computer, create a folder where you want your simulation outputs to be saved.
 
-2.  **Run the Container:** Use the command for your operating system to start the container. This command links your new `data` folder to `/app/data` inside the container and ensures you have the correct file permissions.
+   ```
+   mkdir data
+   ```
 
-    **On Linux or macOS (in any terminal):**
-    ```bash
-    docker run -it --rm \
-      -e HOST_UID=$(id -u) \
-      -e HOST_GID=$(id -g) \
-      -v "$(pwd)/data:/app/data" \
-      gitlab.kitware.com:4567/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest
-    ```
-    **On Windows (in a PowerShell terminal):**
-    ```powershell
-    # Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
-    docker run -it --rm -v "${PWD}/data:/app/data" gitlab.kitware.com:4567/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest
-    ```
-    **On Windows (in a Command Prompt `cmd.exe`):**
-    ```cmd
-    :: Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
-    docker run -it --rm -v "%cd%/data:/app/data" gitlab.kitware.com:4567/jameskress/kaust_visualization_vignettes/kaust-viz-app:latest
-    ```
-    You are now inside the container with a clean command prompt: `vizuser@<container_id>:/app/data$`.
+2. **Run the Container:** Use the command for your operating system to start the container. This command links your new `data` folder to `/app/data` inside the container and ensures you have the correct file permissions.
 
-3.  **Set Up Your Run Directory:** The container includes a script to easily copy the application and its default settings into your shared folder. Run this script once.
-    ```bash
-    # Inside the container, set up your run directory
-    setup_rundir.sh
-    ```
-    You will now see the `kvvm-gray-scott` executable and all the `settings-*.json` files in your shared directory.
+   **On Linux or macOS (in any terminal):**
 
-4.  **Run a Simulation:** Now you can run the simulation using the local executable and settings files.
-    ```bash
-    # Navigate to the shared data directory
-    cd /app/data
+   ```
+   docker run -it --rm \
+     -e HOST_UID=$(id -u) \
+     -e HOST_GID=$(id -g) \
+     -v "$(pwd)/data:/app/data" \
+     ghcr.io/jameskress/visualization_vignettes:latest
+   ```
 
-    # Run the simulation using the local executable and settings files
-    mpirun -np 2 ./kvvm-gray-scott --settings-file=./settings-catalyst-insitu.json
-    ```
+   **On Windows (in a PowerShell terminal):**
 
-5.  **Exit and Access Your Files:** When the simulation is done, exit the container.
-    ```bash
-    exit
-    ```
-    Your output files (images, VTK files, etc.) are now in the `data` folder on your computer.
+   ```
+   # Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
+   docker run -it --rm -v "${PWD}/data:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
+   ```
+
+   **On Windows (in a Command Prompt `cmd.exe`):**
+
+   ```
+   :: Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
+   docker run -it --rm -v "%cd%/data:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
+   ```
+
+   You are now inside the container with a clean command prompt: `vizuser@<container_id>:/app/data$`.
+
+3. **Set Up Your Run Directory:** The container includes a script to easily copy the application and its default settings into your shared folder. Run this script once.
+
+   ```
+   # Inside the container, set up your run directory
+   setup_rundir.sh
+   ```
+
+   You will now see the `kvvm-gray-scott` executable and all the `settings-*.json` files in your shared directory.
+
+4. **Run a Simulation:** Now you can run the simulation using the local executable and settings files.
+
+   ```
+   # Navigate to the shared data directory
+   cd /app/data
+   
+   # Run the simulation using the local executable and settings files
+   mpirun -np 2 ./kvvm-gray-scott --settings-file=./settings-catalyst-insitu.json
+   ```
+
+5. **Exit and Access Your Files:** When the simulation is done, exit the container.
+
+   ```
+   exit
+   ```
+
+   Your output files (images, VTK files, etc.) are now in the `data` folder on your computer.
 
 ### 3. For Developers: Building the Image from Source
 
@@ -98,57 +111,65 @@ Follow these instructions if you need to modify the environment or build the ima
 
 #### Step 3.1: Clone and Build the Image
 
-1.  **Clone this Repository:**
-    ```bash
-    git clone https://gitlab.kitware.com/jameskress/KAUST_Visualization_Vignettes.git
-    cd KAUST_Visualization_Vignettes
-    ```
+1. **Clone this Repository:**
 
-2.  **Build the Image:** From the root directory of the repository, run the following command. This will create a local Docker image named `kaust-viz-app`.
-    ```bash
-    docker build -t kaust-viz-app .
-    ```
+   ```
+   git clone [https://github.com/jameskress/Visualization_Vignettes.git](https://github.com/jameskress/Visualization_Vignettes.git)
+   cd Visualization_Vignettes
+   ```
+
+2. **Build the Image:** From the root directory of the repository, run the following command. This will create a local Docker image named `visualization-vignettes-app`.
+
+   ```
+   docker build -t visualization-vignettes-app .
+   ```
 
 #### Step 3.2: Run Simulations and Access Files
 
-This workflow is identical to the user workflow, but you will use your locally-built image name (`kaust-viz-app`) instead of the full registry path.
+This workflow is an identical to the user workflow, but you will use your locally-built image name (`visualization-vignettes-app`) instead of the full registry path.
 
-1.  **Create a Local Data Directory:**
-    ```bash
-    mkdir data
-    ```
+1. **Create a Local Data Directory:**
 
-2.  **Run the Container:**
-    **On Linux or macOS (in any terminal):**
-    ```bash
-    docker run -it --rm \
-      -e HOST_UID=$(id -u) \
-      -e HOST_GID=$(id -g) \
-      -v "$(pwd)/data:/app/data" \
-      kaust-viz-app
-    ```
-    **On Windows (in PowerShell or Command Prompt):**
-    ```bash
-    # PowerShell
-    docker run -it --rm -v "${PWD}/data:/app/data" kaust-viz-app
+   ```
+   mkdir data
+   ```
 
-    # Command Prompt
-    docker run -it --rm -v "%cd%/data:/app/data" kaust-viz-app
-    ```
+2. **Run the Container:**
+   **On Linux or macOS (in any terminal):**
 
-3.  **Set Up and Run a Simulation:**
-    ```bash
-    # Inside the container, set up your run directory
-    setup_rundir.sh
+   ```
+   docker run -it --rm \
+     -e HOST_UID=$(id -u) \
+     -e HOST_GID=$(id -g) \
+     -v "$(pwd)/data:/app/data" \
+     visualization-vignettes-app
+   ```
 
-    # Run the simulation
-    mpirun -np 2 ./kvvm-gray-scott --settings-file=./settings-catalyst-insitu.json
-    ```
+   **On Windows (in PowerShell or Command Prompt):**
 
-4.  **Exit and Access Your Files:**
-    ```bash
-    exit
-    ```
+   ```
+   # PowerShell
+   docker run -it --rm -v "${PWD}/data:/app/data" visualization-vignettes-app
+   
+   # Command Prompt
+   docker run -it --rm -v "%cd%/data:/app/data" visualization-vignettes-app
+   ```
+
+3. **Set Up and Run a Simulation:**
+
+   ```
+   # Inside the container, set up your run directory
+   setup_rundir.sh
+   
+   # Run the simulation
+   mpirun -np 2 ./kvvm-gray-scott --settings-file=./settings-catalyst-insitu.json
+   ```
+
+4. **Exit and Access Your Files:**
+
+   ```
+   exit
+   ```
 
 <br>
 
@@ -224,7 +245,7 @@ cmake \
 -Dcatalyst_DIR=/home/kressjm/packages/paraview-src/build_5.13.3/install/lib/cmake/catalyst-2.0 \
 -DVTK_DIR=/home/kressjm/packages/paraview-src/build_5.13.3/install/lib/cmake/paraview-5.13/vtk \
 -DAscent_DIR=/home/kressjm/packages/ascent/build/install/ascent-checkout/lib/cmake/ascent \
--DADIOS2_DIR=/home/kressjm/packages/KAUST_Visualization_Vignettes/adios2-build \
+-DADIOS2_DIR=/home/kressjm/packages/Visualization_Vignettes/adios2-build \
 -Dkombynelite_DIR=/home/kressjm/packages/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite \
 -DENABLE_TIMERS=1 \
 -DCMAKE_BUILD_TYPE=DEBUG \
@@ -273,7 +294,7 @@ cmake \
 -Dcatalyst_DIR=/home/kressjm/packages/paraview-src/build_5.13.3/install/lib/cmake/catalyst-2.0 \
 -DVTK_DIR=/home/kressjm/packages/paraview-src/build_5.13.3/install/lib/cmake/paraview-5.13/vtk \
 -DAscent_DIR=/home/kressjm/packages/ascent/build/install/ascent-checkout/lib/cmake/ascent \
--DADIOS2_DIR=/home/kressjm/packages/KAUST_Visualization_Vignettes/adios2-build \
+-DADIOS2_DIR=/home/kressjm/packages/Visualization_Vignettes/adios2-build \
 -DENABLE_TIMERS=1 \
 -DCMAKE_BUILD_TYPE=DEBUG \
 -DENABLE_ASCENT=ON \
@@ -624,7 +645,7 @@ Dv:                   0.1
 noise:                1e-07
 output_file_name:     grayScott-%04ts.vtpd
 output_type:          catalyst
-catalyst_script_path: /home/kressjm/packages/gray-scott/KAUST_Visualization_Vignettes/Miniapps/gray-scott/configs/catalyst_scripts/catalyst-extract-contour_v.py
+catalyst_script_path: /home/kressjm/packages/gray-scott/Visualization_Vignettes/Miniapps/gray-scott/configs/catalyst_scripts/catalyst-extract-contour_v.py
 catalyst_script:      catalyst-extract-contour_v.py
 catalyst_lib_path:    /home/kressjm/packages/paraview-src/build_5.11.1/install/lib/catalyst
 process layout:       2x2x1
@@ -707,7 +728,7 @@ Dv:                   0.1
 noise:                1e-07
 output_file_name:     grayScott-%04ts.vtpd
 output_type:          catalyst
-catalyst_script_path: /home/kressjm/packages/gray-scott/KAUST_Visualization_Vignettes/Miniapps/gray-scott/configs/catalyst_scripts/catalyst-extract-contour_v.py
+catalyst_script_path: /home/kressjm/packages/gray-scott/Visualization_Vignettes/Miniapps/gray-scott/configs/catalyst_scripts/catalyst-extract-contour_v.py
 catalyst_script:      catalyst-extract-contour_v.py
 catalyst_lib_path:    /home/kressjm/packages/paraview-src/build_5.11.1/install/lib/catalyst
 process layout:       2x2x1
