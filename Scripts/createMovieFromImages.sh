@@ -1,9 +1,8 @@
 #!/bin/bash
 #
-# KAUST Visualization Vignettes
+# Visualization Vignettes
 #
-# Author: James Kress, <james.kress@kaust.edu.sa>
-# Copyright KAUST
+# Author: James Kress, <james@jameskress.com>
 #
 
 # Store the initial physical working directory

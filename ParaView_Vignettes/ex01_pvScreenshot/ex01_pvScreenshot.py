@@ -1,8 +1,7 @@
 #
-# KAUST Visualization Vignettes
+# Visualization Vignettes
 #
-# Author: James Kress, <james.kress@kaust.edu.sa>
-# Copyright KAUST
+# Author: James Kress, <james@jameskress.com>
 #
 import sys
 from pathlib import *

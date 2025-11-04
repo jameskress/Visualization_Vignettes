@@ -1,9 +1,8 @@
 #!/bin/bash
 #
-# KAUST Visualization Vignettes
+# Visualization Vignettes
 #
-# Author: James Kress, <james.kress@kaust.edu.sa>
-# Copyright KAUST
+# Author: James Kress, <james@jameskress.com>
 #
 OSVERSION=$( < /etc/os-release awk -F 'NAME=' '{print $2; exit;}')
 echo "Loading modules for OS Version: $OSVERSION"
