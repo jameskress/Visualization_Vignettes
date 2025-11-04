@@ -5,7 +5,7 @@
 
 cmake_minimum_required(VERSION 3.12)
 
-project(KAUST_Visualization_Vignettes_Miniapp
+project(Visualization_Vignettes_Miniapp
         VERSION 0.1.0
         LANGUAGES C CXX)
 
@@ -213,38 +213,38 @@ if(ENABLE_KOMBYNELITE)
   list(APPEND SRC_FILES simulation/writerKombyne.cpp)
 endif()
 
-add_executable(kvvm-gray-scott ${SRC_FILES})
+add_executable(gray-scott ${SRC_FILES})
 
 #------------------------------------------------------------------------------#
 # Linking
 #------------------------------------------------------------------------------#
-target_link_libraries(kvvm-gray-scott PRIVATE
+target_link_libraries(gray-scott PRIVATE
   common
   MPI::MPI_C
   ${VTK_LIBRARIES}
 )
 
-target_include_directories(kvvm-gray-scott PRIVATE
+target_include_directories(gray-scott PRIVATE
   ${VTK_INCLUDE_DIRS}
 )
 
 if(ENABLE_CATALYST)
-  target_link_libraries(kvvm-gray-scott PRIVATE catalyst::catalyst)
+  target_link_libraries(gray-scott PRIVATE catalyst::catalyst)
 endif()
 
 if(ENABLE_ASCENT)
-  target_link_libraries(kvvm-gray-scott PRIVATE
+  target_link_libraries(gray-scott PRIVATE
     ascent::ascent_mpi
     conduit::conduit_mpi
   )
 endif()
 
 if(ENABLE_ADIOS2)
-  target_link_libraries(kvvm-gray-scott PRIVATE adios2::cxx11_mpi)
+  target_link_libraries(gray-scott PRIVATE adios2::cxx11_mpi)
 endif()
 
 if(ENABLE_KOMBYNELITE)
-  target_link_libraries(kvvm-gray-scott PRIVATE kombynelite)
+  target_link_libraries(gray-scott PRIVATE kombynelite)
 endif()
 
 
@@ -263,7 +263,7 @@ endif()
 #------------------------------------------------------------------------------#
 # Install Rules
 #------------------------------------------------------------------------------#
-install(TARGETS kvvm-gray-scott
+install(TARGETS gray-scott
         RUNTIME DESTINATION .)
 
 # Install config files and scripts from their respective directories.

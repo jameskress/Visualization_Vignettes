@@ -195,7 +195,7 @@ git clone https://github.com/ornladios/ADIOS2.git
 mkdir adios2-build
 cd adios2-build
 cmake ../ADIOS2/ -DADIOS2_USE_MPI=ON -DADIOS2_BUILD_EXAMPLES=ON -DCMAKE_INSTALL_PREFIX=../adios2-install
-make -j
+make -j install
 ```
 
 ### Kombyne

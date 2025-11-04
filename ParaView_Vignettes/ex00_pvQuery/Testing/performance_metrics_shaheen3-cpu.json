@@ -32,5 +32,22 @@
             "paraview_version": "5.13.1",
             "visit_version": null
         }
+    },
+    "2025-11-04T12:49:38.927899": {
+        "test_name": "ex00_pvQuery",
+        "execution_time": 4.02682089805603,
+        "memory_usage": 102711296,
+        "memory_usage_mb": 97.953125,
+        "cpu_usage_percent": 0.4,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid04604",
+            "release": "5.14.21-150500.55.80_13.0.77-cray_shasta_c",
+            "version": "#1 SMP Wed Oct 9 14:29:14 UTC 2024 (2e04538)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null
+        }
     }
 }

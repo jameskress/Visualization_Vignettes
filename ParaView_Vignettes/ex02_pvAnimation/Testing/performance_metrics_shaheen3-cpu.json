@@ -32,5 +32,22 @@
             "paraview_version": "5.13.1",
             "visit_version": null
         }
+    },
+    "2025-11-04T12:50:46.331395": {
+        "test_name": "ex02_pvAnimation",
+        "execution_time": 61.38256239891052,
+        "memory_usage": 167391232,
+        "memory_usage_mb": 159.63671875,
+        "cpu_usage_percent": 1.6,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid04604",
+            "release": "5.14.21-150500.55.80_13.0.77-cray_shasta_c",
+            "version": "#1 SMP Wed Oct 9 14:29:14 UTC 2024 (2e04538)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null
+        }
     }
 }

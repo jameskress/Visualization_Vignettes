@@ -32,5 +32,22 @@
             "paraview_version": "5.13.1",
             "visit_version": null
         }
+    },
+    "2025-11-04T13:24:57.908366": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "execution_time": 15.320388793945312,
+        "memory_usage": 188108800,
+        "memory_usage_mb": 179.39453125,
+        "cpu_usage_percent": 0.7,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn13",
+            "release": "5.14.21-150500.55.80_13.0.77-cray_shasta_c",
+            "version": "#1 SMP Wed Oct 9 14:29:14 UTC 2024 (2e04538)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null
+        }
     }
 }

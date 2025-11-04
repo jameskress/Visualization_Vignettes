@@ -98,6 +98,25 @@ def generate_individual_graphs(test_directory, current_sub_test):
 
     # Ensure the output directory exists before saving the plots
     os.makedirs(testing_dir, exist_ok=True)
+    
+    # --- NEW LOGIC: CREATE CATEGORICAL AXIS ---
+    
+    # 1. Collect all unique dates from ALL machines
+    all_timestamps = set()
+    for df in all_data.values():
+        all_timestamps.update(df.index)
+
+    # 2. Sort them to create a master list of x-axis ticks
+    sorted_unique_dates = sorted(list(all_timestamps))
+
+    # 3. Create a map from the date to its integer index (0, 1, 2, ...)
+    date_to_index_map = {date: i for i, date in enumerate(sorted_unique_dates)}
+    
+    # 4. Create the labels for the x-axis
+    # You can change the format string
+    x_tick_labels = [date.strftime('%Y-%m-%d %H:%M') for date in sorted_unique_dates]
+    
+    # --- END NEW LOGIC ---
 
     # Create subplots for execution_time, memory_usage_mb, and cpu_usage_percent comparisons across machines
     metrics = {
@@ -119,38 +138,45 @@ def generate_individual_graphs(test_directory, current_sub_test):
         for i, machine_name in enumerate(sorted_machines):
             df = all_data[machine_name]
             if metric in df.columns:
-                # Plot the line first to connect the points
+                
+                # --- PLOTTING LOGIC CHANGED ---
+                # Get the integer x-values for this machine's dates
+                x_values = [date_to_index_map[date] for date in df.index]
+
+                # Plot the line for this machine
                 plt.plot(
-                    df.index,
+                    x_values,
                     df[metric],
                     linestyle="-",
                     linewidth=2,
                     color=colors[i],
                     alpha=0.5,
                 )
-
+                
+                # Plot the markers
                 for j in range(len(df)):
-                    # Get the entire row of data for the current index
                     row_data = df.iloc[j]
-                    timestamp = df.index[j]  # Get the timestamp for the current row
-                    value = row_data[metric]  # Get the metric value
-                    # print(row_data)
+                    timestamp = df.index[j]
+                    value = row_data[metric]
+                    
+                    # Get the x-axis position from our map
+                    x_val = date_to_index_map[timestamp]
 
                     marker_shape, returned_version = get_marker_shape(
                         row_data, marker_map
-                    )  # Get the marker shape dynamically based on version
+                    )
 
-                    # Plot the point with the selected marker
                     plt.plot(
-                        timestamp,
+                        x_val,  # Use the integer index
                         value,
                         marker=marker_shape,
                         color=colors[i],
                         markersize=8,
+                        linestyle='None'
                     )
 
-                    # Track version and marker shape for the second legend
                     version_shapes[returned_version] = marker_shape
+                # --- END PLOTTING LOGIC CHANGE ---
 
             # only add the label once
             if machine_name not in added_labels:
@@ -165,10 +191,21 @@ def generate_individual_graphs(test_directory, current_sub_test):
                 added_labels.add(machine_name)  # Mark this label as added
 
         plt.title(f"{ylabel} Over Time - {current_sub_test}", fontsize=18)
-        plt.xlabel("Date and Time", fontsize=14)
+        
+        # --- X-AXIS LABELS CHANGED ---
+        plt.xlabel("Test Run Date (Not to scale)", fontsize=14)
         plt.ylabel(ylabel, fontsize=14)
-        plt.xticks(rotation=45, ha="right", fontsize=12)
-        plt.xticks(fontsize=12)
+        
+        # Set the x-ticks to our integer indices and the labels to our date strings
+        plt.xticks(
+            ticks=np.arange(len(x_tick_labels)), 
+            labels=x_tick_labels, 
+            rotation=45, 
+            ha="right", 
+            fontsize=12
+        )
+        
+        # --- END X-AXIS CHANGE ---
 
         # Add the main legend for machines
         main_legend = plt.legend(
