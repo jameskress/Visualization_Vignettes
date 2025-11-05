@@ -32,5 +32,22 @@
             "paraview_version": null,
             "visit_version": "3.4.1"
         }
+    },
+    "2025-11-05T11:35:03.703207": {
+        "test_name": "ex02_visitAnimation",
+        "execution_time": 39.165119886398315,
+        "memory_usage": 152956928,
+        "memory_usage_mb": 145.87109375,
+        "cpu_usage_percent": 1.4,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00826",
+            "release": "5.14.21-150500.55.80_13.0.77-cray_shasta_c",
+            "version": "#1 SMP Wed Oct 9 14:29:14 UTC 2024 (2e04538)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        }
     }
 }

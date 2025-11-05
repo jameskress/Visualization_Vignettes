@@ -32,5 +32,22 @@
             "paraview_version": null,
             "visit_version": "3.4.1"
         }
+    },
+    "2025-11-05T11:36:57.967285": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "execution_time": 16.18052315711975,
+        "memory_usage": 194654208,
+        "memory_usage_mb": 185.63671875,
+        "cpu_usage_percent": 0.6,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00826",
+            "release": "5.14.21-150500.55.80_13.0.77-cray_shasta_c",
+            "version": "#1 SMP Wed Oct 9 14:29:14 UTC 2024 (2e04538)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        }
     }
 }

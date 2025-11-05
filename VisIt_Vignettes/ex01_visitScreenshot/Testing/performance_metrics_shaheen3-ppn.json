@@ -15,5 +15,22 @@
             "paraview_version": null,
             "visit_version": "3.4.1"
         }
+    },
+    "2025-11-05T11:26:59.411183": {
+        "test_name": "ex01_visitScreenshot",
+        "execution_time": 2.7383995056152344,
+        "memory_usage": 125513728,
+        "memory_usage_mb": 119.69921875,
+        "cpu_usage_percent": 1.0,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn1",
+            "release": "5.14.21-150500.55.80_13.0.77-cray_shasta_c",
+            "version": "#1 SMP Wed Oct 9 14:29:14 UTC 2024 (2e04538)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        }
     }
 }

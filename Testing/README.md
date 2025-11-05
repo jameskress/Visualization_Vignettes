@@ -1,9 +1,10 @@
-<div>
-<pre><code># Regression and Performance Testing
+# Regression and Performance Testing
 
 This `test_suite.py` script runs performance and regression tests for **VisIt** and **ParaView** on **Ibex** and **Shaheen**. It also provides a convenient method to run all examples in the **ParaView** or **VisIt** directories without running each one manually.
 
 > ⚠️ **Important:** In all examples below, replace paths like `~/Visualization_Vignettes/` with the actual path to your cloned repository. HPC paths are written using variables like `$SCRATCH` to be easily copy-pasted.
+
+> ⚠️ **Important:** You must use the `fetchData.sh` script before running these tests for them all to work. 
 
 ---
 
@@ -288,6 +289,3 @@ Artifacts (logs, plots, and data) are attached to the specific workflow run that
 4.  You can download the files (usually as a `.zip` archive) from there.
 
 > 💡 **Note:** GitHub artifacts are temporary and automatically expire (default is 90 days).
-</code></pre>
-</div>
-

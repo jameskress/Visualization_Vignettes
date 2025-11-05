@@ -15,5 +15,22 @@
             "paraview_version": null,
             "visit_version": "3.4.1"
         }
+    },
+    "2025-11-05T11:29:12.867428": {
+        "test_name": "ex04_visitStreamlineAnimation",
+        "execution_time": 68.92157983779907,
+        "memory_usage": 189288448,
+        "memory_usage_mb": 180.51953125,
+        "cpu_usage_percent": 1.2,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn1",
+            "release": "5.14.21-150500.55.80_13.0.77-cray_shasta_c",
+            "version": "#1 SMP Wed Oct 9 14:29:14 UTC 2024 (2e04538)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        }
     }
 }

@@ -32,5 +32,22 @@
             "paraview_version": null,
             "visit_version": "3.4.1"
         }
+    },
+    "2025-11-05T11:35:24.256999": {
+        "test_name": "ex03_visitIsosurfaceAnimation",
+        "execution_time": 16.279444932937622,
+        "memory_usage": 185929728,
+        "memory_usage_mb": 177.31640625,
+        "cpu_usage_percent": 1.0,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00826",
+            "release": "5.14.21-150500.55.80_13.0.77-cray_shasta_c",
+            "version": "#1 SMP Wed Oct 9 14:29:14 UTC 2024 (2e04538)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        }
     }
 }
