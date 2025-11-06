@@ -28,7 +28,8 @@ void to_json(nlohmann::json &j, const Settings &s)
                        {"adios_span", s.adios_span},
                        {"adios_memory_selection", s.adios_memory_selection},
                        {"mesh_type", s.mesh_type},
-                       {"kombynelite_script_path", s.kombynelite_script_path}};
+                       {"kombynelite_script_path", s.kombynelite_script_path},
+                       {"burn_in_steps", s.burn_in_steps}};
 }
 
 void from_json(const nlohmann::json &j, Settings &s)
@@ -56,6 +57,7 @@ void from_json(const nlohmann::json &j, Settings &s)
     j.at("adios_memory_selection").get_to(s.adios_memory_selection);
     j.at("mesh_type").get_to(s.mesh_type);
     j.at("kombynelite_script_path").get_to(s.kombynelite_script_path);
+    s.burn_in_steps = j.value("burn_in_steps", 0);
 }
 
 Settings::Settings()
@@ -83,6 +85,7 @@ Settings::Settings()
     adios_memory_selection = false;
     mesh_type = "image";
     kombynelite_script_path = "";
+    burn_in_steps = 0;
 }
 
 Settings Settings::from_json(const std::string &fname)

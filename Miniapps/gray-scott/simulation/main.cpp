@@ -123,6 +123,7 @@ void print_settings(const Settings &s, int restart_step)
         std::cout << "checkpoint_output:    " << s.checkpoint_output << std::endl;
     }
     std::cout << "steps:                " << s.steps << std::endl;
+    std::cout << "burn_in_steps:        " << s.burn_in_steps << std::endl;
     std::cout << "plotgap:              " << s.plotgap << std::endl;
     std::cout << "F:                    " << s.F << std::endl;
     std::cout << "k:                    " << s.k << std::endl;
@@ -309,7 +310,7 @@ int main(int argc, char **argv)
 
         MPI_Barrier(app_comm);
 
-        if (it % settings.plotgap == 0)
+        if (it >= settings.burn_in_steps && it % settings.plotgap == 0)
         {
             if (rank == 0)
                 vtkLog(INFO, "Simulation at step " << it << " writing output step " << it / settings.plotgap);

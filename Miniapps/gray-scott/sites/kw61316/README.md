@@ -88,6 +88,16 @@ env prefix=build env enable_mpi=ON enable_openmp=ON  ./scripts/build_ascent/buil
 export Ascent_DIR=/home/kressjm/packages/ascent/build/install/ascent-checkout/lib/cmake/ascent
 ```
 
+To use a newer cmake
+```bash
+env PATH="/home/kressjm/packages/cmake-3.28.1-linux-x86_64/bin:$PATH" \
+    prefix=build \
+    enable_mpi=ON \
+    enable_openmp=ON \
+    ./scripts/build_ascent/build_ascent.sh
+```
+
+
 # adioscatalyst setup (This was an experiment, and does not work yet)
 
 export ADIOS2_DIR=/home/kressjm/spack/opt/spack/linux-ubuntu22.04-zen2/gcc-9.5.0/adios2-2.8.0-ir6hgwpiqtyqpavutzj7asibbjqbfjzf

@@ -83,7 +83,7 @@ To run the container, you will create a "shared folder" that links a directory o
    setup_rundir.sh
    ```
 
-   You will now see the `kvvm-gray-scott` executable and all the `settings-*.json` files in your shared directory.
+   You will now see the `gray-scott` executable and all the `settings-*.json` files in your shared directory.
 
 4. **Run a Simulation:** Now you can run the simulation using the local executable and settings files.
 
@@ -92,7 +92,7 @@ To run the container, you will create a "shared folder" that links a directory o
    cd /app/data
    
    # Run the simulation using the local executable and settings files
-   mpirun -np 2 ./kvvm-gray-scott --settings-file=./settings-catalyst-insitu.json
+   mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json
    ```
 
 5. **Exit and Access Your Files:** When the simulation is done, exit the container.
@@ -162,7 +162,7 @@ This workflow is an identical to the user workflow, but you will use your locall
    setup_rundir.sh
    
    # Run the simulation
-   mpirun -np 2 ./kvvm-gray-scott --settings-file=./settings-catalyst-insitu.json
+   mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json
    ```
 
 4. **Exit and Access Your Files:**
@@ -352,7 +352,7 @@ cd run-adios
 ln -s ../configs/adios2_configs/adios2.xml .
 
 # Run the simulation (example uses the zero-copy settings)
-mpirun -np 16 ../kvvm-gray-scott --settings-file=../configs/miniapp-settings/settings-adios-memselect.json
+mpirun -np 16 ../gray-scott --settings-file=../configs/miniapp-settings/settings-adios-memselect.json
 ```
 
 #### Step 3: ✅ Verify and Visualize
@@ -424,7 +424,7 @@ Run the simulation using the same number of processes that the checkpoint was cr
 
 ```bash
 # Example command to restart from a checkpoint
-mpirun -np 16 kvvm-gray-scott --settings-file=settings-vtk-pvti.json --logging-level=INFO
+mpirun -np 16 gray-scott --settings-file=settings-vtk-pvti.json --logging-level=INFO
 ```
 
 #### Step 3: ✅ Verify the Restart
@@ -477,7 +477,7 @@ mkdir run-vtk
 cd run-vtk
 
 # Run the simulation with 32 processes using the vtk settings file
-mpirun -np 32 ../kvvm-gray-scott --settings-file=../settings-vtk-pvti.json --logging-level=INFO
+mpirun -np 32 ../gray-scott --settings-file=../settings-vtk-pvti.json --logging-level=INFO
 ```
 
 #### Step 3: ✅ Verify the Output
@@ -546,7 +546,7 @@ mkdir run-catalyst-io
 cd run-catalyst-io
 
 # Run the simulation with 4 processes
-mpirun -np 4 ../kvvm-gray-scott --settings-file=../settings-catalyst-file-io.json --logging-level=INFO
+mpirun -np 4 ../gray-scott --settings-file=../settings-catalyst-file-io.json --logging-level=INFO
 ```
 
 #### Step 3: ✅ Verify the Output
@@ -621,7 +621,7 @@ mkdir run-catalyst-insitu
 cd run-catalyst-insitu
 
 # Run the simulation with 4 processes
-mpirun -np 4 ../kvvm-gray-scott --settings-file=../settings-catalyst-insitu.json --logging-level=INFO
+mpirun -np 4 ../gray-scott --settings-file=../settings-catalyst-insitu.json --logging-level=INFO
 ```
 
 #### Step 3: ✅ Verify the Output
@@ -708,7 +708,7 @@ Finally, with ParaView waiting for a connection, go back to your first terminal 
 
 ```bash
 # This command is run in the same terminal where you set CATALYST_CLIENT
-mpirun -np 4 ../kvvm-gray-scott --settings-file=../settings-catalyst-insitu.json --logging-level=INFO
+mpirun -np 4 ../gray-scott --settings-file=../settings-catalyst-insitu.json --logging-level=INFO
 ```
 
 <details>
@@ -800,7 +800,7 @@ ln -s ../configs/ascent_scripts/ascent-multi-pipeline.yaml .
 ln -s ../configs/ascent_scripts/ascent-save-data.yaml .
 
 # Run the simulation with 4 processes
-mpirun -np 4 ../kvvm-gray-scott --settings-file=../configs/miniapp-settings/settings-ascent.json --logging-level=INFO
+mpirun -np 4 ../gray-scott --settings-file=../configs/miniapp-settings/settings-ascent.json --logging-level=INFO
 ```
 
 ### Step 3: ✅ Verify the Output
@@ -886,7 +886,7 @@ ln -s ../configs/kombyne_scripts/kombyne-multi-pipeline.yaml .
 ln -s ../configs/kombyne_scripts/kombyne-save-data.yaml .
 
 # Run the simulation with 4 processes
-mpirun -np 4 ../kvvm-gray-scott --settings-file=../configs/miniapp-settings/settings-kombyne.json --logging-level=INFO
+mpirun -np 4 ../gray-scott --settings-file=../configs/miniapp-settings/settings-kombyne.json --logging-level=INFO
 ```
 
 ### Step 3: ✅ Verify the Output
@@ -1095,6 +1095,7 @@ These control the simulation's execution length and how data is saved or process
 | ------------------------- | ------------------------------------------------------------------------------------------- |
 | `steps`                   | The total number of timesteps to simulate.                                                  |
 | `plotgap`                 | How often to save output (e.g., a value of 10 saves data every 10 steps).                   |
+| `burn_in_steps`           | The number of simulation steps to run before starting any visualization or output.          |
 | `output_file_name`        | A template for the output filename, ending in `.vti`, `.vtpd`, or `.bp`.                    |
 | `output_type`             | The output mode: `pvti`, `catalyst_io`, `catalyst_insitu`, `adios`, `ascent`, or `kombyne`. |
 | `catalyst_script_path`    | **(Catalyst Only)** The absolute path to the Python Catalyst pipeline script.               |
