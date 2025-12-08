@@ -1,3 +1,4 @@
+
 # Visualization Vignettes Miniapp - gray-scott
 
 This is a 3D 7-point stencil code to simulate the following [Gray-Scott
@@ -34,7 +35,7 @@ This is the fastest and easiest way to get started. This workflow downloads the 
 
 Open a terminal or command prompt and run the following command to download the complete environment from the project's public GitHub Container Registry.
 
-```
+```bash
 docker pull ghcr.io/jameskress/visualization_vignettes:latest
 ```
 
@@ -44,7 +45,7 @@ To run the container, you will create a "shared folder" that links a directory o
 
 1. **Create a Local Data Directory:** On your computer, create a folder where you want your simulation outputs to be saved.
 
-   ```
+   ```bash
    mkdir data
    ```
 
@@ -52,7 +53,7 @@ To run the container, you will create a "shared folder" that links a directory o
 
    **On Linux or macOS (in any terminal):**
 
-   ```
+   ```bash
    docker run -it --rm \
      -e HOST_UID=$(id -u) \
      -e HOST_GID=$(id -g) \
@@ -62,14 +63,14 @@ To run the container, you will create a "shared folder" that links a directory o
 
    **On Windows (in a PowerShell terminal):**
 
-   ```
+   ```powershell
    # Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
    docker run -it --rm -v "${PWD}/data:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
    ```
 
    **On Windows (in a Command Prompt `cmd.exe`):**
 
-   ```
+   ```cmd
    :: Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
    docker run -it --rm -v "%cd%/data:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
    ```
@@ -78,7 +79,7 @@ To run the container, you will create a "shared folder" that links a directory o
 
 3. **Set Up Your Run Directory:** The container includes a script to easily copy the application and its default settings into your shared folder. Run this script once.
 
-   ```
+   ```bash
    # Inside the container, set up your run directory
    setup_rundir.sh
    ```
@@ -87,7 +88,7 @@ To run the container, you will create a "shared folder" that links a directory o
 
 4. **Run a Simulation:** Now you can run the simulation using the local executable and settings files.
 
-   ```
+   ```bash
    # Navigate to the shared data directory
    cd /app/data
    
@@ -97,7 +98,7 @@ To run the container, you will create a "shared folder" that links a directory o
 
 5. **Exit and Access Your Files:** When the simulation is done, exit the container.
 
-   ```
+   ```bash
    exit
    ```
 
@@ -113,14 +114,14 @@ Follow these instructions if you need to modify the environment or build the ima
 
 1. **Clone this Repository:**
 
-   ```
+   ```bash
    git clone [https://github.com/jameskress/Visualization_Vignettes.git](https://github.com/jameskress/Visualization_Vignettes.git)
    cd Visualization_Vignettes
    ```
 
 2. **Build the Image:** From the root directory of the repository, run the following command. This will create a local Docker image named `visualization-vignettes-app`.
 
-   ```
+   ```bash
    docker build -t visualization-vignettes-app .
    ```
 
@@ -130,14 +131,14 @@ This workflow is an identical to the user workflow, but you will use your locall
 
 1. **Create a Local Data Directory:**
 
-   ```
+   ```bash
    mkdir data
    ```
 
 2. **Run the Container:**
    **On Linux or macOS (in any terminal):**
 
-   ```
+   ```bash
    docker run -it --rm \
      -e HOST_UID=$(id -u) \
      -e HOST_GID=$(id -g) \
@@ -147,7 +148,7 @@ This workflow is an identical to the user workflow, but you will use your locall
 
    **On Windows (in PowerShell or Command Prompt):**
 
-   ```
+   ```powershell
    # PowerShell
    docker run -it --rm -v "${PWD}/data:/app/data" visualization-vignettes-app
    
@@ -157,7 +158,7 @@ This workflow is an identical to the user workflow, but you will use your locall
 
 3. **Set Up and Run a Simulation:**
 
-   ```
+   ```bash
    # Inside the container, set up your run directory
    setup_rundir.sh
    
@@ -167,7 +168,7 @@ This workflow is an identical to the user workflow, but you will use your locall
 
 4. **Exit and Access Your Files:**
 
-   ```
+   ```bash
    exit
    ```
 
@@ -183,10 +184,10 @@ Make sure `MPI`, and `VTK` are installed. These are non-optional dependencies. Y
 
 The easiest way to get `Catalyst` and `VTK` is to use the `ParaView Superbuild`. This will also enable easy live viewing from `Catalyst` in `ParaView`.
 
-```
-Catalyst needs to be built with the SAME MPI compiler as gray-scott
+```bash
+# Catalyst needs to be built with the SAME MPI compiler as gray-scott
 
-git clone --recursive https://gitlab.kitware.com/paraview/paraview-superbuild.git
+git clone --recursive [https://gitlab.kitware.com/paraview/paraview-superbuild.git](https://gitlab.kitware.com/paraview/paraview-superbuild.git)
 cd paraview-superbuild
 git checkout v6.0.0
 cd ..
@@ -200,8 +201,8 @@ make -j
 
 To build `Ascent`, follow one of the methods listed in the [documentation](https://ascent.readthedocs.io/en/latest/#). Below is the method that we have tested.
 
-```
-git clone --recursive https://github.com/alpine-dav/ascent.git
+```bash
+git clone --recursive [https://github.com/alpine-dav/ascent.git](https://github.com/alpine-dav/ascent.git)
 cd ascent
 env prefix=build env enable_mpi=ON enable_openmp=ON  ./scripts/build_ascent/build_ascent.sh
 export Ascent_DIR=/home/kressjm/packages/ascent/build/install/ascent-checkout/lib/cmake/ascent
@@ -211,8 +212,8 @@ export Ascent_DIR=/home/kressjm/packages/ascent/build/install/ascent-checkout/li
 
 To build `ADIOS2`, follow one of the methods listed in the [documentation](https://adios2.readthedocs.io/en/latest/). Below is the method that we have tested.
 
-```
-git clone https://github.com/ornladios/ADIOS2.git
+```bash
+git clone [https://github.com/ornladios/ADIOS2.git](https://github.com/ornladios/ADIOS2.git)
 mkdir adios2-build
 cd adios2-build
 cmake ../ADIOS2/ -DADIOS2_USE_MPI=ON -DADIOS2_BUILD_EXAMPLES=ON -DCMAKE_INSTALL_PREFIX=../adios2-install
@@ -223,21 +224,21 @@ make -j install
 
 `Kombyne` is a closed source, paid, commercial in situ software. They do have a `lite` version, which we make use of in this repo, that is free. We cannot distribute the source, as such you have to get your free download from there [here](https://www.ilight.com/kombyne-lite-downloads-4/).
 
-```
-Download Kombyne-Lite from the Inteligent Light website.
+```bash
+# Download Kombyne-Lite from the Inteligent Light website.
 
 cd /path/to/install
 tar zxvf kombyne-lite-1.0.0-ubuntu18-gcc7.5-openmpi.tar.gz
 
-Then, in your cmake configuration file, just set the location, for example:
-kombynelite_DIR=/home/kressjm/packages/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite
+# Then, in your cmake configuration file, just set the location, for example:
+# kombynelite_DIR=/home/kressjm/packages/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite
 ```
 
 ### Building Gray-Scott
 
 > 💡 **Note:** `Ascent` and `Kombyne` cannot be enabled at the same time due to library conflicts.
 
-```
+```bash
 cd <path_to_gray-scott>
 mkdir build
 cd build
@@ -272,21 +273,21 @@ This is an optional extension to Gray-Scott, if you want to test in transit visu
 
 The reader requires the following libraries to be installed. Follow the instructions in this `README` to get them ready:
 
-- MPI
-- ADIOS2
-- Ascent (& Conduit, which is part of the Ascent build)
+* MPI
+* ADIOS2
+* Ascent (& Conduit, which is part of the Ascent build)
 
 #### Step 2: Configure and Build
 
 If you have `ADIOS2` and `Ascent` built all you have to do is enable one more flag in the main cmake invocation to enable the analysis reader.
 
-```
+```bash
 -DBUILD_ANALYSIS_READER=ON
 ```
 
 For example:
 
-```
+```bash
 cd <path_to_gray-scott>
 mkdir build
 cd build
@@ -317,8 +318,8 @@ make install
 
 `ADIOS2` is an optional dependency that enables high-performance, parallel I/O. If enabled during compilation, it provides two major features:
 
-1.  **High-Performance Visualization Output:** Writing data to scalable and self-describing ADIOS BP files.
-2.  **Checkpoint/Restart:** The ability to save and restore the complete simulation state.
+1. **High-Performance Visualization Output:** Writing data to scalable and self-describing ADIOS BP files.
+2. **Checkpoint/Restart:** The ability to save and restore the complete simulation state.
 
 The behavior of the ADIOS2 engine (e.g., transport method, performance tuning) can be modified at runtime by editing the **`/configs/adios2_configs/adios2.xml`** file, without needing to recompile the simulation.
 
@@ -333,8 +334,8 @@ To use the ADIOS2 writer, you must set the `output_type` to `"adios"` in your JS
 | Strategy                    | Description                                                                                                                                  | JSON Flags                                               |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | **Zero-Copy (Recommended)** | Highest performance. ADIOS2 reads data directly from the simulation's memory, avoiding any data copies.                                      | `"adios_memory_selection": true`, `"adios_span": false`  |
-| **ADIOS-Managed (Span)**    | ADIOS2 provides a memory buffer, and the application copies its data into it. Avoids memory allocations in the application's I/O path.       | `"adios_memory_selection": false`, `"adios_span": true`  |
-| **Local Copy (Default)**    | A local copy of the data is created and passed to ADIOS2. Easiest to understand but less performant due to the extra memory allocation/copy. | `"adios_memory_selection": false`, `"adios_span": false` |
+| **ADIOS-Managed (Span)** | ADIOS2 provides a memory buffer, and the application copies its data into it. Avoids memory allocations in the application's I/O path.       | `"adios_memory_selection": false`, `"adios_span": true`  |
+| **Local Copy (Default)** | A local copy of the data is created and passed to ADIOS2. Easiest to understand but less performant due to the extra memory allocation/copy. | `"adios_memory_selection": false`, `"adios_span": false` |
 
 #### Step 2: 🚀 Execute the Simulation
 
@@ -359,7 +360,7 @@ mpirun -np 16 ../gray-scott --settings-file=../configs/miniapp-settings/settings
 
 You can inspect the contents of the output file with the `bpls` command-line tool and visualize the data in ParaView.
 
-1.  **Inspect with `bpls`:**
+1. **Inspect with `bpls`:**
 
     ```bash
     bpls -al gs-adios-memselect.bp
@@ -368,7 +369,7 @@ You can inspect the contents of the output file with the `bpls` command-line too
     <details>
     <summary>Click to see sample bpls output</summary>
 
-    ```
+    ```bash
     File info:
       of variables:   3
       of attributes:  15
@@ -395,12 +396,12 @@ You can inspect the contents of the output file with the `bpls` command-line too
 
     </details>
 
-2.  **Visualize in ParaView:**
-    1.  Open your `.bp` file in ParaView (e.g., `gs-adios-memselect.bp`).
-    2.  In the "Open File" dialog, make sure to select the **`ADIOS2FidesReader`** or **`FidesReader`** depending on ParaView version.
-    3.  You will initially see the data with visible gaps between the blocks from each MPI rank.
-    4.  To create a seamless image, select the dataset in the `Pipeline Browser` and apply the filter **`Filters` -> `Data Analysis` -> `Stitch Image Data With Ghosts`**.
-    5.  The output of the `Stitch` filter will be a single, continuous grid ready for further visualization.
+2. **Visualize in ParaView:**
+    1. Open your `.bp` file in ParaView (e.g., `gs-adios-memselect.bp`).
+    2. In the "Open File" dialog, make sure to select the **`ADIOS2FidesReader`** or **`FidesReader`** depending on ParaView version.
+    3. You will initially see the data with visible gaps between the blocks from each MPI rank.
+    4. To create a seamless image, select the dataset in the `Pipeline Browser` and apply the filter **`Filters` -> `Data Analysis` -> `Stitch Image Data With Ghosts`**.
+    5. The output of the `Stitch` filter will be a single, continuous grid ready for further visualization.
 
 ---
 
@@ -410,13 +411,13 @@ You can inspect the contents of the output file with the `bpls` command-line too
 
 To save or restore a simulation, edit the relevant flags in your JSON settings file.
 
-- **To Save Checkpoints:**
-  - `"checkpoint": true`
-  - `"checkpoint_freq": 100` (Save every 100 steps)
-  - `"checkpoint_output": "ckpt.bp"` (The output filename)
-- **To Restart from a Checkpoint:**
-  - `"restart": true`
-  - `"restart_input": "ckpt.bp"` (The file to read from)
+* **To Save Checkpoints:**
+  * `"checkpoint": true`
+  * `"checkpoint_freq": 100` (Save every 100 steps)
+  * `"checkpoint_output": "ckpt.bp"` (The output filename)
+* **To Restart from a Checkpoint:**
+  * `"restart": true`
+  * `"restart_input": "ckpt.bp"` (The file to read from)
 
 #### Step 2: 🚀 Execute the Simulation
 
@@ -530,8 +531,8 @@ This method uses Catalyst's file I/O capabilities to save the simulation's outpu
 
 Before running, you must edit the **`configs/miniapp-settings/settings-catalyst-file-io.json`** file.
 
-1.  Ensure the `output_type` is set to `"catalyst_io"`.
-2.  Set the `catalyst_lib_path` to the absolute path of your ParaView/Catalyst library installation.
+1. Ensure the `output_type` is set to `"catalyst_io"`.
+2. Set the `catalyst_lib_path` to the absolute path of your ParaView/Catalyst library installation.
 
 #### Step 2: 🚀 Execute the Simulation
 
@@ -595,8 +596,8 @@ This guide explains how to run the simulation with live, in-situ visualization a
 
 Before running, you must edit the **`configs/miniapp-settings/settings-catalyst-insitu.json`** file.
 
-1.  Set the `catalyst_lib_path` to the absolute path of your ParaView/Catalyst library installation.
-2.  Set the `catalyst_script_path` to the absolute path of the pipeline script you wish to use from the options below.
+1. Set the `catalyst_lib_path` to the absolute path of your ParaView/Catalyst library installation.
+2. Set the `catalyst_script_path` to the absolute path of the pipeline script you wish to use from the options below.
 
 ##### Available Pipeline Scripts
 
@@ -667,12 +668,12 @@ This guide explains how to connect a ParaView GUI to the simulation in real-time
 
 First, prepare the simulation environment. This involves editing the configuration file and setting an environment variable to tell the simulation where to find your ParaView session.
 
-1.  **Edit the settings file:** Open **`configs/miniapp-settings/settings-catalyst-insitu.json`**.
+1. **Edit the settings file:** Open **`configs/miniapp-settings/settings-catalyst-insitu.json`**.
 
-    - Set the `catalyst_lib_path` to the absolute path of your ParaView/Catalyst library installation.
-    - Set the `catalyst_script_path` to the absolute path of the pipeline script you wish to use (e.g., `catalyst-multi-pipeline.py`).
+    * Set the `catalyst_lib_path` to the absolute path of your ParaView/Catalyst library installation.
+    * Set the `catalyst_script_path` to the absolute path of the pipeline script you wish to use (e.g., `catalyst-multi-pipeline.py`).
 
-2.  **Prepare the run directory:** In your terminal, create a directory for the run and set the `CATALYST_CLIENT` environment variable. This variable must be the **IP address of the machine running the ParaView GUI**.
+2. **Prepare the run directory:** In your terminal, create a directory for the run and set the `CATALYST_CLIENT` environment variable. This variable must be the **IP address of the machine running the ParaView GUI**.
 
     ```bash
     # Navigate to your project's installation directory
@@ -690,17 +691,17 @@ First, prepare the simulation environment. This involves editing the configurati
 
 Next, open the ParaView application and prepare it to receive the connection from the simulation.
 
-1.  **Launch ParaView:** Start the ParaView GUI on your viewing machine.
+1. **Launch ParaView:** Start the ParaView GUI on your viewing machine.
 
-2.  **Start the Catalyst Connection:**
-    - Go to the menu `Catalyst` -> `Connect`.
-    - ParaView will now pause and wait for the simulation to connect to it.
+2. **Start the Catalyst Connection:**
+    * Go to the menu `Catalyst` -> `Connect`.
+    * ParaView will now pause and wait for the simulation to connect to it.
 
 > **💡 Important MPI Note:** If your simulation will run in parallel with MPI (e.g., `mpirun -np 4`), you must first start a parallel ParaView server (`pvserver`) and connect to it. If you skip this, you will only see data from a single process.
 >
-> 1.  In a **separate terminal**, start `pvserver`: `mpirun -np 4 pvserver`
-> 2.  In the ParaView GUI, connect to this server (`File` -> `Connect`).
-> 3.  _Then_, proceed with `Catalyst` -> `Connect`.
+> 1. In a **separate terminal**, start `pvserver`: `mpirun -np 4 pvserver`
+> 2. In the ParaView GUI, connect to this server (`File` -> `Connect`).
+> 3. _Then_, proceed with `Catalyst` -> `Connect`.
 
 #### Step 3: 🚀 Run the Simulation & View Results
 
@@ -752,8 +753,8 @@ Ascent is an optional dependency and will allow you to use the power of Ascent, 
 
 Ascent uses a two-file system:
 
-1.  **`ascent_options.yaml`**: A controller file that tells Ascent which actions to perform.
-2.  **Actions File**: A YAML file (e.g., `ascent-extract-png.yaml`) containing the actual visualization and I/O instructions.
+1. **`ascent_options.yaml`**: A controller file that tells Ascent which actions to perform.
+2. **Actions File**: A YAML file (e.g., `ascent-extract-png.yaml`) containing the actual visualization and I/O instructions.
 
 To choose which visualization to run, you must edit **`ascent_options.yaml`** and change the `actions_file` key to point to one of the scripts listed below.
 
@@ -763,7 +764,7 @@ To choose which visualization to run, you must edit **`ascent_options.yaml`** an
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ascent-extract-png.yaml`    | **(Image Export)** Performs a volume rendering of the **'v'** scalar field and saves the visualization as a series of PNG images.                                         |
 | `ascent-multi-pipeline.yaml` | **(Advanced Visualization)** Renders both a semi-transparent volume and a solid clipped surface of the **'u'** field into a single composite PNG image for each timestep. |
-| `ascent-save-data.yaml`      | **(Data Export)** Saves the simulation data to an HDF5 file. **Known Limitation:** This script overwrites its output file at each timestep.                               |
+| `ascent-save-data.yaml`      | **(Data Export)** Saves the simulation data to an HDF5 file.                               |
 
 ### Step 2: 🚀 Execute the Simulation
 
@@ -945,13 +946,13 @@ A Python script is provided to easily parse all the generated timer files and cr
 
 The script depends on the **pandas**, **matplotlib**, and **numpy** libraries. You can install them using pip:
 
-```
+```bash
 pip install pandas matplotlib numpy
 ```
 
 #### Running the Script
 
-```
+```bash
 python3 visualize-gray-scott-timers.py
 ```
 
@@ -967,11 +968,12 @@ The summary image contains four plots providing a comprehensive overview of the 
 
 4. **Total Step Time by Rank**: A line plot showing the total wall-clock time for each step, with a separate line for each MPI rank. This is excellent for diagnosing load imbalance issues.
 
-
 ### Ascent specific Performance Analysis
-Ascent has built in timings for filters, we can enable this and visualize where time is being spent in Ascent. 
+
+Ascent has built in timings for filters, we can enable this and visualize where time is being spent in Ascent.
 
 #### How to Enable Ascent Timings
+
 To get detailed performance data, you need to instruct Ascent to generate timing files. This is done by creating or editing an Ascent options file (commonly named `ascent_options.yaml`) in your run directory.
 
 Set the `timings` option to `"true"` as shown below.
@@ -991,9 +993,11 @@ timings: "true" # <-- This is the important flag
 When you run your `analysis-reader` program with this file present, Ascent will generate one raw text file for each MPI rank. Each file contains a list of internal operations and the time each one took for every timestep.
 
 #### Parsing the Raw Timing Files
+
 The raw text files are not suitable for direct analysis. The `ascent_parse_timings.py` script reads all these files, correctly orders the data by MPI rank, and transposes it into a single, structured JSON file that is organized by operation and timestep.
 
 ##### Usage
+
 Navigate to the directory containing the `ascent_filter_timings_*.csv` files and run the script:
 
 ```bash
@@ -1003,9 +1007,11 @@ python3 ascent_parse_timings.py
 This will produce a single output file named `ascent_timings_summary.json`. This file is the input for the plotting script.
 
 #### Visualizing the Performance Data
+
 The `ascent_timings_plotter.py` script reads the `ascent_timings_summary.json` file and generates a multi-panel PNG image that provides a comprehensive overview of the performance.
 
 ##### Usage
+
 To generate the plot image, run the script and provide the path to the JSON file:
 
 ```bash
@@ -1015,6 +1021,7 @@ python3 ascent_timings_plotter.py ascent_timings_summary.json
 This will save a file named ascent_performance_breakdown.png.
 
 #### Interactive Plotting
+
 To open the plot in an interactive window (in addition to saving the file), use the `--show` flag:
 
 ```bash
@@ -1027,11 +1034,11 @@ Kombyne has a built-in timing infrastructure that can be used to generate detail
 
 #### How to Enable Kombyne Timings
 
-To get performance data, simply export the following to your environment before execution: 
+To get performance data, simply export the following to your environment before execution:
 
 When enabled, Kombyne will generate one `timings.####.txt` file for each MPI rank in your run directory. Each file contains a detailed, hierarchical breakdown of internal operations and the time each one took.
 
-*(Note: Please refer to your specific Kombyne simulation's documentation for the exact flag or option to enable timer output if it's not on by default.)*
+_(Note: Please refer to your specific Kombyne simulation's documentation for the exact flag or option to enable timer output if it's not on by default.)_
 
 #### Visualizing the Performance Data
 
@@ -1041,25 +1048,21 @@ The `kombyne_timings_plotter.py` script is an all-in-one tool that parses all ra
 
 Before running the script, you need to ensure you have the required Python packages installed. This script relies on `pandas` for data manipulation and `plotly` for plotting. To export the plot as a PDF, `kaleido` is also required. You can install all of them with the following command:
 
-```
+```bash
 pip install --user pandas plotly "kaleido==0.1.*"
-
 ```
 
-*(Note: A specific version of Kaleido is recommended for compatibility with recent Plotly versions.)*
+_(Note: A specific version of Kaleido is recommended for compatibility with recent Plotly versions.)_
 
 ##### Usage
 
 Navigate to the directory containing the `timings.*.txt` files and run the script:
 
-```
+```bash
 python3 kombyne_sunbukombyne_timings_plotter.py
-
 ```
 
 This will process all timing files and save a PDF file named `kombyne_sunburst_performance.pdf`. This plot provides an intuitive, hierarchical view of the total time distribution.
-
-
 
 <br>
 
@@ -1098,6 +1101,7 @@ These control the simulation's execution length and how data is saved or process
 | `burn_in_steps`           | The number of simulation steps to run before starting any visualization or output.          |
 | `output_file_name`        | A template for the output filename, ending in `.vti`, `.vtpd`, or `.bp`.                    |
 | `output_type`             | The output mode: `pvti`, `catalyst_io`, `catalyst_insitu`, `adios`, `ascent`, or `kombyne`. |
+| `overwrite_last_step`     | **(All Backends)** Set to `true` to overwrite the previous output file at each step. This ensures only the most recent data exists on disk, useful for storage-constrained environments. |
 | `catalyst_script_path`    | **(Catalyst Only)** The absolute path to the Python Catalyst pipeline script.               |
 | `catalyst_lib_path`       | **(Catalyst Only)** The absolute path to your Catalyst library installation.                |
 | `kombynelite_script_path` | **(Kombyne Only)** The path to the Kombyne Lite Python script.                              |
@@ -1207,11 +1211,3 @@ F: 0.02
 k: 0.06
 
 ![](img/example5.jpg?raw=true)
-
-</td>
-<td valign="top" width="50%">
-<!-- Empty cell for alignment -->
-</td>
-</tr>
-</tbody>
-</table>

@@ -133,6 +133,7 @@ void print_settings(const Settings &s, int restart_step)
     std::cout << "noise:                " << s.noise << std::endl;
     std::cout << "output_file_name:     " << s.output_file_name << std::endl;
     std::cout << "output_type:          " << s.output_type << std::endl;
+    std::cout << "overwrite_last_step:  " << (s.overwrite_last_step ? "yes" : "no") << std::endl;
 #ifdef USE_CATALYST
     std::cout << "catalyst_script_path: " << s.catalyst_script_path << std::endl;
     std::cout << "catalyst_lib_path:    " << s.catalyst_lib_path << std::endl;

@@ -22,5 +22,6 @@
     "adios_memory_selection": true,
     "mesh_type": "",
     "kombynelite_script_path": "kombyne-multi-pipeline.yaml",
-    "burn_in_steps": 0
+    "burn_in_steps": 0,
+    "overwrite_last_step": false
 }

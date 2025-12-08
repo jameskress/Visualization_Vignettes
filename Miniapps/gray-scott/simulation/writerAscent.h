@@ -19,6 +19,10 @@ public:
 
 private:
     ascent::Ascent ascent;
+    Settings settings;
+    MPI_Comm comm;
+
+    void ManualOverwrite(conduit::Node &mesh, const std::string &base_path, const std::string &protocol, MPI_Comm comm);
 };
 
 #endif

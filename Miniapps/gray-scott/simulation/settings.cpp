@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "json.hpp"
+#include <iostream>
 
 void to_json(nlohmann::json &j, const Settings &s)
 {
@@ -29,7 +30,8 @@ void to_json(nlohmann::json &j, const Settings &s)
                        {"adios_memory_selection", s.adios_memory_selection},
                        {"mesh_type", s.mesh_type},
                        {"kombynelite_script_path", s.kombynelite_script_path},
-                       {"burn_in_steps", s.burn_in_steps}};
+                       {"burn_in_steps", s.burn_in_steps},
+                       {"overwrite_last_step", s.overwrite_last_step}};
 }
 
 void from_json(const nlohmann::json &j, Settings &s)
@@ -58,6 +60,7 @@ void from_json(const nlohmann::json &j, Settings &s)
     j.at("mesh_type").get_to(s.mesh_type);
     j.at("kombynelite_script_path").get_to(s.kombynelite_script_path);
     s.burn_in_steps = j.value("burn_in_steps", 0);
+    s.overwrite_last_step = j.value("overwrite_last_step", false);
 }
 
 Settings::Settings()
@@ -86,14 +89,41 @@ Settings::Settings()
     mesh_type = "image";
     kombynelite_script_path = "";
     burn_in_steps = 0;
+    overwrite_last_step = false;
 }
 
 Settings Settings::from_json(const std::string &fname)
 {
     std::ifstream ifs(fname);
     nlohmann::json j;
-
-    ifs >> j;
+    
+    if (!ifs.is_open()) 
+    {
+        // Provide a clear, actionable error message to the user/console.
+        // It's critical to report the *missing* file.
+        std::string err_msg = "Error: Settings file not found or could not be opened: " + fname;
+        
+        std::cerr << err_msg << std::endl;
+        exit(1);
+    }
+    
+    // Attempt to parse the JSON from the file stream
+    try {
+        ifs >> j;
+    } catch (const nlohmann::detail::parse_error& e) {
+        // This catches the original 'parse error' but now tells the user *which* file failed.
+        std::string err_msg = "JSON Parse Error in file '" + fname + "': " + e.what();
+        std::cerr << err_msg << std::endl;
+        exit(1);
+    }
+    
+    // If the file was opened but was empty, the `ifs >> j;` will likely 
+    // throw the parse_error caught above. But as a safeguard:
+    if (ifs.fail() && ifs.eof() && j.empty()) {
+        std::string err_msg = "Error: Settings file is empty: " + fname;
+        std::cerr << err_msg << std::endl;
+        exit(1);
+    }
 
     return j.get<Settings>();
 }

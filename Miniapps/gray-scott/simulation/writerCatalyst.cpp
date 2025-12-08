@@ -26,6 +26,10 @@ void WriterCatalyst::CreateWriter(const Settings &_settings, const GrayScott &si
         node["catalyst/pipelines/0/type"].set("io");
         node["catalyst/pipelines/0/filename"].set(settings.output_file_name);
         node["catalyst/pipelines/0/channel"].set("grid");
+        if (settings.overwrite_last_step)
+        {
+            node["catalyst/pipelines/0/mode"].set("update");
+        }
         vtkLogStartScope(TRACE, "after script");
     }
     else if (settings.output_type == "catalyst_insitu")
@@ -34,7 +38,8 @@ void WriterCatalyst::CreateWriter(const Settings &_settings, const GrayScott &si
         const auto script_name = path.substr(path.find_last_of("/\\") + 1);
 
         // Verify the script file exists
-        if (!fs::exists(path)) {
+        if (!fs::exists(path))
+        {
             vtkLog(ERROR, "Catalyst script not found at path: " << path);
             throw std::runtime_error("Missing Catalyst script file: " + path);
         }
@@ -87,6 +92,29 @@ void WriterCatalyst::write(int step, const GrayScott &sim, int rank, int numRank
     // add optional exectution parameters passed to catalyst
     state["parameters"].append().set_string("timeParam=" + std::to_string(step));
 
+    // We only force the timestep to 0 if:
+    // 1. The user requested an overwrite.
+    // 2. We are in the automated "catalyst_io" mode.
+    //
+    // If we are in "catalyst_insitu" (Python script), we pass the REAL step
+    // so the script can decide what to do (e.g. annotations).
+    if (settings.overwrite_last_step && settings.output_type == "catalyst_io")
+    {
+        state["timestep"].set(0);
+        state["time"].set(0.0);
+
+        // Pass the real step as a parameter just in case
+        state["parameters"].append().set_string("real_step=" + std::to_string(step));
+    }
+    else
+    {
+        // Standard Behavior
+        state["timestep"].set(step);
+        state["time"].set(static_cast<double>(step));
+        state["parameters"].append().set_string("timeParam=" + std::to_string(step));
+    }
+    // =================================================================
+
     // Add channels.
     // We only have 1 channel here. Let's name it 'grid'.
     auto channel = exec_params["catalyst/channels/grid"];
@@ -104,36 +132,35 @@ void WriterCatalyst::write(int step, const GrayScott &sim, int rank, int numRank
 
     int origin[3] = {0, 0, 0};
     float spacing[3] = {0.1, 0.1, 0.1};
-    //For no_ghost use
+    // For no_ghost use
     int nx = sim.size_x + 0, ny = sim.size_y + 0, nz = sim.size_z + 0;
 
-    //int nx = sim.size_x + 2, ny = sim.size_y + 2, nz = sim.size_z + 2;
+    // int nx = sim.size_x + 2, ny = sim.size_y + 2, nz = sim.size_z + 2;
     int dx = sim.offset_x, dy = sim.offset_y, dz = sim.offset_z;
     int wholeExtent[6] = {0, (int)settings.L, 0, (int)settings.L, 0, (int)settings.L};
     vtkLog(TRACE, "" << "size " << nx << " " << ny << " " << nz);
     vtkLog(TRACE, "" << "offsets " << dx << " " << dy << " " << dz);
     vtkLog(TRACE, "" << "local dims "
-                          << dx << " "
-                          << nx + dx << " "
-                          << dy << " "
-                          << ny + dy << " "
-                          << dz << " "
-                          << nz + dz);
+                     << dx << " "
+                     << nx + dx << " "
+                     << dy << " "
+                     << ny + dy << " "
+                     << dz << " "
+                     << nz + dz);
     vtkLog(TRACE, "" << "global dims "
-                          << 0 << " "
-                          << (int)settings.L << " "
-                          << 0 << " "
-                          << (int)settings.L << " "
-                          << 0 << " "
-                          << (int)settings.L);
-
+                     << 0 << " "
+                     << (int)settings.L << " "
+                     << 0 << " "
+                     << (int)settings.L << " "
+                     << 0 << " "
+                     << (int)settings.L);
 
     // move the final mesh fragments so that each domain is flush against all other domains.
     // this is necessary as we could not get ghost cells to work correctly, so with all
     // domains touching the visulaization is able to create its own
-    mesh["coordsets/coords/origin/x"].set(dx * spacing[0] - (dx/nx) * spacing[0]);
-    mesh["coordsets/coords/origin/y"].set(dy * spacing[1] - (dy/ny) * spacing[1]);
-    mesh["coordsets/coords/origin/z"].set(dz * spacing[2] - (dz/nz) * spacing[2]);
+    mesh["coordsets/coords/origin/x"].set(dx * spacing[0] - (dx / nx) * spacing[0]);
+    mesh["coordsets/coords/origin/y"].set(dy * spacing[1] - (dy / ny) * spacing[1]);
+    mesh["coordsets/coords/origin/z"].set(dz * spacing[2] - (dz / nz) * spacing[2]);
 
     // mesh["coordsets/coords/origin/x"].set(dx * spacing[0]);
     // mesh["coordsets/coords/origin/y"].set(dy * spacing[1]);
@@ -156,13 +183,13 @@ void WriterCatalyst::write(int step, const GrayScott &sim, int rank, int numRank
     fields["v/association"].set("vertex");
     fields["v/topology"].set("mesh");
     fields["v/volume_dependent"].set("false");
-    //fields["v/values"].set_external(sim.v_ghost().data(), sim.v_ghost().size());
+    // fields["v/values"].set_external(sim.v_ghost().data(), sim.v_ghost().size());
     fields["v/values"].set(sim.v_noghost().data(), sim.v_noghost().size());
 
     fields["u/association"].set("vertex");
     fields["u/topology"].set("mesh");
     fields["u/volume_dependent"].set("false");
-    //fields["u/values"].set_external(sim.u_ghost().data(), sim.u_ghost().size());
+    // fields["u/values"].set_external(sim.u_ghost().data(), sim.u_ghost().size());
     fields["u/values"].set(sim.u_noghost().data(), sim.u_noghost().size());
 
     // std::cerr << __FILE__ << __LINE__ << std::endl;

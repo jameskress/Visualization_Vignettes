@@ -40,18 +40,18 @@ public:
     enum EWriterType
     {
         WRITER_TYPE_PVTI = 0,
-    #ifdef USE_CATALYST
+#ifdef USE_CATALYST
         WRITER_TYPE_CATALYST = 1,
-    #endif
-    #ifdef USE_ASCENT
+#endif
+#ifdef USE_ASCENT
         WRITER_TYPE_ASCENT = 2,
-    #endif
-    #ifdef USE_ADIOS2
+#endif
+#ifdef USE_ADIOS2
         WRITER_TYPE_ADIOS = 3,
-    #endif
-    #ifdef USE_KOMBYNE
+#endif
+#ifdef USE_KOMBYNE
         WRITER_TYPE_KOMBYNE = 4
-    #endif
+#endif
     };
 
     static std::shared_ptr<Writer> Create(EWriterType type)
@@ -61,25 +61,25 @@ public:
         case WRITER_TYPE_PVTI:
             return std::make_shared<WriterPVTI>();
 
-        #ifdef USE_CATALYST
+#ifdef USE_CATALYST
         case WRITER_TYPE_CATALYST:
             return std::make_shared<WriterCatalyst>();
-        #endif
+#endif
 
-        #ifdef USE_ASCENT
+#ifdef USE_ASCENT
         case WRITER_TYPE_ASCENT:
             return std::make_shared<WriterAscent>();
-        #endif
+#endif
 
-        #ifdef USE_ADIOS2
+#ifdef USE_ADIOS2
         case WRITER_TYPE_ADIOS:
             return std::make_shared<WriterADIOS>();
-        #endif
+#endif
 
-        #ifdef USE_KOMBYNE
+#ifdef USE_KOMBYNE
         case WRITER_TYPE_KOMBYNE:
             return std::make_shared<WriterKombyne>();
-        #endif      
+#endif
 
         default:
             return nullptr;

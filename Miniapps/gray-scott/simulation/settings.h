@@ -29,6 +29,7 @@ struct Settings
     std::string mesh_type;
     std::string kombynelite_script_path;
     int burn_in_steps;
+    bool overwrite_last_step;
 
     Settings();
     static Settings from_json(const std::string &fname);

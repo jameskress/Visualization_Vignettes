@@ -135,7 +135,7 @@ int ImageSource::RequestInformation(vtkInformation *, vtkInformationVector **, v
 
 /**
  * Converting double result to float to save space
-*/
+ */
 void ImageSource::ExecuteDataWithInformation(vtkDataObject *, vtkInformation *outInfo)
 {
     vtkImageData *imageData = vtkImageData::GetData(outInfo);
@@ -211,18 +211,51 @@ void WriterPVTI::write(int step, const GrayScott &sim, int rank, int numRanks)
     ImageSource *source = new ImageSource(int(settings.L), sim, rank);
     vtkLogEndScope("Creating custom ImageSource object");
 
-    char str[1024];
-    sprintf(str, "grayScott_step-%06d.pvti", step);
+    // =================================================================
+    // LOGIC: Overwrite Logic (Filename Masking)
+    // =================================================================
 
-    writer->SetFileName(str);
+    // 1. Determine the Step Index
+    // If we want to overwrite, we force the index to 0.
+    // This ensures the filename string is identical every time (e.g. "output-0000.pvti")
+    int file_step_idx = (settings.overwrite_last_step) ? 0 : step;
+
+    // 2. Prepare the Filename Pattern
+    std::string fmt = settings.output_file_name;
+
+    // Simple fix: Replace "ts" with "d" if it looks like a format specifier
+    size_t pos = fmt.find("ts");
+    if (pos != std::string::npos && pos > 0)
+    {
+        // Replace 'ts' with 'd' (e.g., %04ts -> %04d)
+        fmt.replace(pos, 2, "d");
+    }
+
+    // Ensure the extension is .pvti for parallel writing
+    size_t ext_pos = fmt.rfind(".vti");
+    if (ext_pos != std::string::npos)
+    {
+        fmt.replace(ext_pos, 4, ".pvti");
+    }
+
+    // 3. Generate the Filename
+    char filename[1024];
+    snprintf(filename, sizeof(filename), fmt.c_str(), file_step_idx);
+
+    // =================================================================
+
+    writer->SetFileName(filename);
     writer->SetInputConnection(source->GetOutputPort());
     writer->SetNumberOfPieces(numRanks);
     writer->SetStartPiece(rank);
     writer->SetEndPiece(rank);
     writer->SetGhostLevel(0);
+
     writer->SetUseSubdirectory(true);
+
     writer->SetCompressorTypeToNone();
     writer->Write();
+
     vtkLogEndScope("Writing: VTK");
 
     source->Delete();
