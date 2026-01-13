@@ -77,13 +77,18 @@ Use this section if you want to run the provided example scripts (`ex01`, `ex02`
     sbatch ex01/ex01_shaheen_runScript.sbat
     ```
 
+> **IMPORTANT: GPU Access & The "Video" Group**
+> If you intend to use the `ppn` partition (GPU nodes) on Shaheen III for hardware-accelerated rendering, you must be a member of the **`video`** Unix group.
+> * **How to check:** Run the command `groups` in your terminal. If you see `video`, you have access.
+> * **How to apply:** Send an email to **help@hpc.kaust.edu.sa** requesting addition to the `video` group for visualization purposes.
+
 <br>
 
 ---
 
 # Part 2: Interactive ParaView
 
-Use this section if you want to use the ParaView GUI on your laptop or desktop to visualize data stored on the supercomputer (Client-Server mode).
+Use this section if you want to use the ParaView GUI on your laptop to visualize data stored on the supercomputer (Client-Server mode).
 
 ### Connection Setup
 
@@ -104,9 +109,9 @@ When you click **Connect**, a dialog will appear asking for job settings. Use th
 
 | Option | Setting | Description |
 | :--- | :--- | :--- |
-| **Queue Name** | `workq` | **Recommended.** Standard exclusive access node. |
+| **Queue Name** | `workq` | **Recommended.** Standard exclusive access node. Uses CPU rendering (Mesa). |
 | | `shared` | Good for small jobs or quick checks. |
-| | `ppn` | **GPU Node.** Only use for heavy volume rendering. Requires `video` group access. |
+| | `ppn` | **GPU Node.** Use only for heavy volume rendering. **Requires `video` group (see Part 1).** |
 | **Tasks Per Node** | `192` | For `workq`. Uses all CPU cores for processing. |
 | | `128` | For `ppn` (GPU nodes have fewer CPU cores). |
 | | `16` | For `shared`. |
@@ -135,6 +140,7 @@ Use this cheat sheet to determine the resources you need for your job (Interacti
 * **EGL (Hardware/GPU Rendering):**
     * **Use for:** Volume Rendering (Fog/Clouds/Fire) or massive triangle counts (>50M).
     * **Target:** Shaheen `ppn` or Ibex `gpu`.
+    * **Note:** Shaheen `ppn` requires `video` group membership.
 
 ### 2. Shaheen Configuration Strategy
 *Metric: Tasks = CPU Threads*
