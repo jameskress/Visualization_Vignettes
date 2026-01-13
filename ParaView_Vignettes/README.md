@@ -1,30 +1,34 @@
 # ParaView_Vignettes
 
-This guide is for the [ParaView_Vignettes Repository](https://github.com/jameskress/Visualization_Vignettes/tree/master/ParaView_Vignettes).
+This repository serves two primary purposes for High Performance Computing (HPC) visualization:
+1.  **The Vignettes:** A collection of self-contained examples demonstrating how to run ParaView scripts in batch mode on HPC resources.
+2.  **Interactive Guide:** Documentation on configuring local ParaView clients to connect to remote KAUST HPC clusters (Ibex and Shaheen III).
 
-**What is this repo?**
-This repository provides a collection of self-contained examples ("vignettes") that demonstrate how to use ParaView on high-performance computing resources. Unlike standard tutorials, these examples are designed specifically for distributed memory environments (MPI) and cover the transition from interactive GUI work to automated batch processing.
-
-**What is ParaView?**
-ParaView is an open-source, multi-platform data analysis and visualization application. It allows users to quickly build visualizations using qualitative and quantitative techniques. Developed to handle extremely large datasets, ParaView excels at using distributed memory computing resources, making it ideal for HPC systems like Shaheen III and Ibex.
-
----
+<br>
 
 ## Table of Contents
 
-1. [Getting Started (Run the Examples)](#1-getting-started)
-2. [Performance Cheat Sheet](#2-performance-cheat-sheet)
-3. [Interactive Configuration Guide (GUI)](#3-interactive-configuration-guide-gui)
-4. [The Vignettes (Example Details)](#4-the-vignettes-example-details)
-5. [Appendix: Batch Mode & pvbatch](#appendix-batch-mode--pvbatch)
+* [**Part 1: Running the Vignettes**](#part-1-running-the-vignettes) (Batch Processing)
+    * [Generic / Local Setup](#generic--local-setup)
+    * [KAUST Ibex Setup](#kaust-ibex-setup)
+    * [KAUST Shaheen III Setup](#kaust-shaheen-iii-setup)
+* [**Part 2: Interactive ParaView**](#part-2-interactive-paraview) (Client-Server Mode)
+    * [Connection Setup](#connection-setup)
+    * [KAUST Connection Guide (GUI Options)](#kaust-connection-guide-gui-options)
+* [**Part 3: HPC Resource Strategy**](#part-3-hpc-resource-strategy) (Performance Cheat Sheet)
+* [**Appendix**](#appendix) (Example Details & Reference)
+
+<br>
 
 ---
 
-## 1. Getting Started
+# Part 1: Running the Vignettes
 
-These instructions will get you running the provided examples immediately.
+Use this section if you want to run the provided example scripts (`ex01`, `ex02`, etc.) on a cluster. These examples are designed to run in **Batch Mode** (non-interactively).
 
-### Generic HPC Setup
+### Generic / Local Setup
+*Use this for your local machine or non-KAUST clusters.*
+
 1.  **Clone the Repository:**
     ```bash
     git clone [https://github.com/jameskress/Visualization_Vignettes.git](https://github.com/jameskress/Visualization_Vignettes.git)
@@ -32,153 +36,147 @@ These instructions will get you running the provided examples immediately.
     ```
 2.  **Environment Setup:**
     ```bash
-    module load paraview  # or source ../MODULES.sh
+    # Load ParaView module (system dependent)
+    module load paraview
+    # Or source the provided environment script
+    source ../MODULES.sh
     ```
 3.  **Run an Example:**
-    Copy the template script from an example folder (e.g., `ex01`), edit the account/scheduler settings, and submit.
+    Copy the template script inside an example folder (e.g., `ex01/ex01_template_runScript.sbat`), customize it for your scheduler, and submit it.
 
-### KAUST Specific Setup
+### KAUST Ibex Setup
 
-#### Shaheen III
-1.  **Connect:** `ssh <user>@shaheen.hpc.kaust.edu.sa` -> `cd /scratch/<user>/`
-2.  **Clone:** Follow Generic steps above.
-3.  **Run:**
+1.  **Connect:** `ssh <user>@glogin.ibex.kaust.edu.sa`
+2.  **Clone:**
     ```bash
-    # Edit script to add your project account (e.g., --account=k01)
-    vim ex01/ex01_shaheen_runScript.sbat
-    sbatch ex01/ex01_shaheen_runScript.sbat
+    cd /ibex/scratch/<username>/
+    git clone [https://github.com/jameskress/Visualization_Vignettes.git](https://github.com/jameskress/Visualization_Vignettes.git)
+    cd Visualization_Vignettes/ParaView_Vignettes
     ```
-
-#### Ibex Cluster
-1.  **Connect:** `ssh <user>@glogin.ibex.kaust.edu.sa` -> `cd /ibex/scratch/<user>/`
-2.  **Clone:** Follow Generic steps above.
 3.  **Run:**
     ```bash
+    module load paraview
     sbatch ex01/ex01_ibex_runScript.sbat
     ```
 
----
+### KAUST Shaheen III Setup
 
-## 2. Performance Cheat Sheet
+1.  **Connect:** `ssh <user>@shaheen.hpc.kaust.edu.sa`
+2.  **Clone:**
+    ```bash
+    cd /scratch/<username>/
+    git clone [https://github.com/jameskress/Visualization_Vignettes.git](https://github.com/jameskress/Visualization_Vignettes.git)
+    cd Visualization_Vignettes/ParaView_Vignettes
+    ```
+3.  **Configure & Run:**
+    ```bash
+    # You MUST edit the script to add your Project Account (e.g., k01)
+    vim ex01/ex01_shaheen_runScript.sbat
+    # Change: #SBATCH --account=k##
+    
+    sbatch ex01/ex01_shaheen_runScript.sbat
+    ```
 
-Use this guide to determine how many nodes and tasks you need based on your data size and rendering needs.
-
-### **Hardware & Rendering Basics**
-
-* **Mesa (Software Rendering) - PREFERRED:**
-    * **Best for:** **95% of use cases.** Standard isosurfaces, slices, clips, and general data analysis.
-    * **System Config:** Shaheen `workq`/`shared` or Ibex `cpu`.
-* **EGL (Hardware Rendering):**
-    * **Best for:** Strictly for Volume Rendering (fog/clouds) or massive geometry (>50 million triangles).
-    * **System Config:** Shaheen `ppn` (requires `video` group) or Ibex `gpu`.
-
-### **System Specifications**
-
-* **Shaheen III:**
-    * **CPU:** 192 Cores per node (AMD Genoa). *Note: `ppn` nodes have 128 Cores.*
-    * **RAM:** 384 GB per node.
-    * **GPU:** NVIDIA L40 (Available only on `ppn` partition).
-    * **Filesystem Critical Note:** On compute nodes, `/project` is **Read-Only**. You MUST write all output data to `/scratch`.
-* **Ibex:**
-    * **CPU:** Varies (Intel/AMD).
-    * **RAM:** Varies significantly (384 GB up to 3 TB on large-mem nodes).
-    * **GPU:** V100, A100, RTX 2080Ti, etc.
-
-### **Shaheen III Configuration Strategy**
-*Shaheen scripts use threading. "Tasks" here refers to CPU threads per MPI process.*
-
-| Scenario | Queue | Nodes | Tasks/GPU (Threads) | Actionable Advice |
-| :--- | :--- | :--- | :--- | :--- |
-| **Small Data**<br>(< 16 GB) | `shared` | 1 | **16** | Fast queue times. Uses a slice of a node. |
-| **Standard Vis**<br>(16 GB - 350 GB) | `workq` | 1 | **192** | **Recommended.** Data fits in one node's RAM (384GB). Set threads to 192 to use all physical cores. |
-| **Large Data**<br>(> 350 GB) | `workq` | 2+ | **192** | Data exceeds single-node RAM. Increase Node count to distribute memory load. |
-| **GPU Rendering** | `ppn` | 1 | **128** | **Avoid unless necessary.** Use only for heavy volume rendering. Requires `video` group. |
-
-### **Ibex Configuration Strategy**
-*Ibex scripts use MPI. "Tasks" here refers to distinct MPI processes.*
-
-| Scenario | Queue | Nodes | Tasks/GPU (MPI Ranks) | Actionable Advice |
-| :--- | :--- | :--- | :--- | :--- |
-| **Standard Analysis** | `batch` | 1 | **4** | Balanced approach (4 processes, ~12 threads each). |
-| **High RAM Needs**<br>(> 100 GB per process) | `batch` | 1+ | **1** | **Crucial:** By setting tasks to 1, a single ParaView process gets access to 100% of the node's RAM (e.g., 384GB). Setting tasks to 40 would split that RAM 40 ways. |
-| **Hardware Rendering** | `batch` | 1 | **1** | Maps 1 ParaView process to 1 GPU. Ideal for V100/A100 nodes. |
-| **Multi-GPU Node** | `batch` | 1 | **4** | Only use if the specific node has 4 GPUs (e.g., `gpu:v100`). |
+<br>
 
 ---
 
-## 3. Interactive Configuration Guide (GUI)
+# Part 2: Interactive ParaView
 
-When using `File -> Connect` to launch a remote server, use these descriptions to understand the specific GUI options for KAUST systems.
+Use this section if you want to use the ParaView GUI on your laptop or desktop to visualize data stored on the supercomputer (Client-Server mode).
 
-### **Shaheen III Options**
-* **Queue Name:**
-    * `workq`: **Primary choice.** Exclusive access. Use this for almost all visualization tasks.
-    * `shared`: Shared access. Good for small jobs.
-    * `ppn`: GPU nodes. **Limited Availability.** Select this ONLY if you strictly need GPU acceleration (EGL).
-* **Tasks Per Node/GPU:**
-    * This controls **Threading** (OpenMP).
-    * **Recommendation:**
-        * If `workq`: Set to **192**.
-        * If `ppn`: Set to **128**.
-        * If `shared`: Set to **8** or **16**.
+### Connection Setup
 
-### **Ibex Options**
-* **Node Group:**
-    * `cpu`: Uses Mesa (Software) rendering. Select this for most standard analysis jobs.
-    * `gpu:v100/a100`: Uses EGL (Hardware) rendering. Select this only if rendering performance is the bottleneck.
-* **GPUs / Tasks Per Node:**
-    * This controls **MPI Ranks**.
-    * **Recommendation:** Keep this number low (1 to 4). Increasing this does *not* always speed up data analysis and often leads to "Out of Memory" errors because the RAM is split into smaller chunks.
+1.  **Install ParaView Locally:**
+    * Download from [ParaView.org](https://www.paraview.org/download/).
+    * **Crucial:** Your local version MUST match the HPC version (check `module avail paraview` on the cluster).
+2.  **Get Server Configs (`.pvsc`):**
+    * **Ibex:** Download [ibex_server.pvsc](https://gitlab.kaust.edu.sa/kvl/paraview-configs/-/blob/master/pvsc/ibex/default_servers.pvsc)
+    * **Shaheen:** Download [shaheen_server.pvsc](https://gitlab.kaust.edu.sa/kvl/paraview-configs/-/blob/master/pvsc/ksl/default_servers.pvsc)
+3.  **Load Configs:**
+    * Open ParaView → `File` → `Connect...` → `Load Servers` → Select the `.pvsc` file.
 
----
+### KAUST Connection Guide (GUI Options)
 
-## 4. The Vignettes (Example Details)
+When you click **Connect**, a dialog will appear asking for job settings. Use this guide to choose the right options.
 
-The core of this repository is the examples. Each folder (`ex##`) is a self-contained module containing a Python script and a template SLURM script.
+#### **For Shaheen III**
 
-### **ex00_pvQuery: Data Loading & Inspection**
-* **Goal:** Learn how to probe data without rendering images.
-* **Concepts:** Loading data, querying mesh statistics (points/cells), accessing data arrays, and printing metadata to stdout.
+| Option | Setting | Description |
+| :--- | :--- | :--- |
+| **Queue Name** | `workq` | **Recommended.** Standard exclusive access node. |
+| | `shared` | Good for small jobs or quick checks. |
+| | `ppn` | **GPU Node.** Only use for heavy volume rendering. Requires `video` group access. |
+| **Tasks Per Node** | `192` | For `workq`. Uses all CPU cores for processing. |
+| | `128` | For `ppn` (GPU nodes have fewer CPU cores). |
+| | `16` | For `shared`. |
 
-### **ex01_pvScreenshot: Basic Rendering**
-* **Goal:** The "Hello World" of visualization.
-* **Concepts:** Setting up a render view, changing background colors, simple camera positioning, and saving a `.png` file.
+#### **For Ibex**
 
-### **ex02_pvAnimation: Camera Movements**
-* **Goal:** Create a video by moving the camera around a static object.
-* **Concepts:** Orbiting, camera paths, setting resolution/framerates, and saving animation frames.
+| Option | Setting | Description |
+| :--- | :--- | :--- |
+| **Node Group** | `cpu` | **Recommended.** Uses software rendering (Mesa). Good for 95% of tasks. |
+| | `gpu` | Uses hardware rendering. Only for massive geometry or volume rendering. |
+| **Tasks/Rank** | `1` to `4` | **Keep this low.** Setting this high splits the RAM too many times and causes crashes. |
 
-### **ex03_pvIsosurfaceAnimation: Animating Filters**
-* **Goal:** Animate the data processing itself, not just the camera.
-* **Concepts:** Using the `Contour` filter and automating changes to the "Isovalue" over time to show internal data structures.
-
-### **ex04_pvStreamlineAnimation: Flow Visualization**
-* **Goal:** Visualize vector fields (velocity).
-* **Concepts:** Seeding streamlines (StreamTracer), generating tubes from lines, and animating the flow.
-
-### **ex05_pvMultiTimeStepFile: Time-Series Data**
-* **Goal:** Handle data that changes over time (simulations).
-* **Concepts:** Loading file series (`data_01.vtk`, `data_02.vtk`...), managing timesteps, and ensuring consistent coloring across time.
-
-### **ex06_pvLargeData: Production/Parallel Optimization**
-* **Goal:** Best practices for "Hero Runs" (massive data).
-* **Concepts:** Ghost cells, balancing memory usage, parallel rendering parameters, and optimizing for the specific HPC interconnect.
+<br>
 
 ---
 
-## Appendix: Batch Mode & pvbatch
+# Part 3: HPC Resource Strategy
 
-ParaView includes two Python interpreters. For this repository, **we always use `pvbatch`**.
+Use this cheat sheet to determine the resources you need for your job (Interactive or Batch).
 
-1.  **`pvpython` (Serial):**
-    * Runs on a single core.
-    * Behaves like the GUI client but without a window.
-    * *Use case:* Testing scripts on a login node or converting file formats.
+### 1. Rendering Backend: Mesa vs. EGL
+* **Mesa (Software Rendering):**
+    * **Use for:** Isosurfaces, Slices, Clips, and general analysis.
+    * **Why:** It is faster and more stable for geometry-heavy workflows on modern CPUs.
+    * **Target:** Shaheen `workq` or Ibex `cpu`.
+* **EGL (Hardware/GPU Rendering):**
+    * **Use for:** Volume Rendering (Fog/Clouds/Fire) or massive triangle counts (>50M).
+    * **Target:** Shaheen `ppn` or Ibex `gpu`.
 
-2.  **`pvbatch` (Parallel):**
-    * Runs with MPI (`mpirun` or `srun`).
-    * Automatically handles data distribution across nodes.
-    * *Use case:* Running visualizations on the cluster.
+### 2. Shaheen Configuration Strategy
+*Metric: Tasks = CPU Threads*
 
-**How to generate scripts:**
-The easiest way to write code for these examples is to use the **Python Trace** feature in the ParaView GUI (`Tools -> Start Trace`), perform your actions, and then save the resulting Python code.
+| Data Size | Queue | Nodes | Tasks Setting |
+| :--- | :--- | :--- | :--- |
+| **< 16 GB** | `shared` | 1 | 16 |
+| **16 GB - 350 GB** | `workq` | 1 | 192 |
+| **> 350 GB** | `workq` | 2+ | 192 |
+
+### 3. Ibex Configuration Strategy
+*Metric: Tasks = MPI Ranks*
+
+| Goal | Queue | Tasks Setting | Note |
+| :--- | :--- | :--- | :--- |
+| **Standard Vis** | `batch` | 4 | Balanced CPU/RAM usage. |
+| **High RAM** | `batch` | 1 | Gives 100% of node RAM to a single process. |
+
+<br>
+
+---
+
+# Appendix
+
+### Repository Structure
+```
+ex##_name/
+├── ex##_name.py                  # Main ParaView Python script
+├── ex##_template_runScript.sbat  # Template batch script
+├── README.md                     # Specific documentation
+└── helper_scripts/               # Utilities
+```
+
+### Example Details
+1.  **ex00_pvQuery**: Loading data and querying mesh statistics/metadata.
+2.  **ex01_pvScreenshot**: Basic rendering pipeline and saving images.
+3.  **ex02_pvAnimation**: Camera path animation.
+4.  **ex03_pvIsosurfaceAnimation**: Animating filter parameters (Isovalues).
+5.  **ex04_pvStreamlineAnimation**: Flow visualization and particle tracing.
+6.  **ex05_pvMultiTimeStepFile**: Handling time-series datasets.
+7.  **ex06_pvLargeData**: Optimization for massive datasets (ghost cells, parallel rendering).
+
+### `pvbatch` vs. `pvpython`
+* **`pvpython`**: Serial. Runs on one core. Use for testing on login nodes.
+* **`pvbatch`**: Parallel. Runs with MPI. **Always use this for these examples.**
