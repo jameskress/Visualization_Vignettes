@@ -1,3 +1,4 @@
+<div style="white-space: pre-wrap">
 # ParaView_Vignettes
 
 This repository serves two primary purposes for High Performance Computing (HPC) visualization:
@@ -13,6 +14,7 @@ This repository serves two primary purposes for High Performance Computing (HPC)
     * [KAUST Ibex Setup](#kaust-ibex-setup)
     * [KAUST Shaheen III Setup](#kaust-shaheen-iii-setup)
 * [**Part 2: Interactive ParaView**](#part-2-interactive-paraview) (Client-Server Mode)
+    * [Client Installation & Prerequisites](#client-installation--prerequisites)
     * [Connection Setup](#connection-setup)
     * [KAUST Connection Guide (GUI Options)](#kaust-connection-guide-gui-options)
 * [**Part 3: HPC Resource Strategy**](#part-3-hpc-resource-strategy) (Performance Cheat Sheet)
@@ -90,16 +92,31 @@ Use this section if you want to run the provided example scripts (`ex01`, `ex02`
 
 Use this section if you want to use the ParaView GUI on your laptop to visualize data stored on the supercomputer (Client-Server mode).
 
+### Client Installation & Prerequisites
+
+Before connecting, you must prepare your local machine (laptop/desktop).
+
+1.  **Install ParaView:**
+    * Download the client from [ParaView.org](https://www.paraview.org/download/).
+    * **Crucial:** Your local client version **MUST** match the version on the HPC system (check `module avail paraview` on the cluster).
+
+2.  **OS-Specific Requirements:**
+    * **macOS Users:** You **MUST** install [XQuartz (X11)](https://www.xquartz.org/). ParaView requires X11 to display the authentication window and handle the connection tunnel.
+    * **Windows Users:** You need a terminal client to handle authentication.
+        * **CRITICAL PITFALL:** The standard Windows Command Prompt or PowerShell often **fails** to correctly handle the **reverse connection tunnel** required by ParaView (due to issues with the native OpenSSH implementation).
+        * **SOLUTION:** You **MUST** install and use [PuTTY](https://www.putty.org/) to ensure the connection works reliably.
+    * **Linux:** No additional software is typically required.
+
 ### Connection Setup
 
-1.  **Install ParaView Locally:**
-    * Download from [ParaView.org](https://www.paraview.org/download/).
-    * **Crucial:** Your local version MUST match the HPC version (check `module avail paraview` on the cluster).
-2.  **Get Server Configs (`.pvsc`):**
+1.  **Get Server Configs (`.pvsc`):**
     * **Ibex:** Download [ibex_server.pvsc](https://gitlab.kaust.edu.sa/kvl/paraview-configs/-/blob/master/pvsc/ibex/default_servers.pvsc)
     * **Shaheen:** Download [shaheen_server.pvsc](https://gitlab.kaust.edu.sa/kvl/paraview-configs/-/blob/master/pvsc/ksl/default_servers.pvsc)
-3.  **Load Configs:**
-    * Open ParaView → `File` → `Connect...` → `Load Servers` → Select the `.pvsc` file.
+2.  **Load Configs:**
+    * Open ParaView → `File` → `Connect...`
+    * Click `Load Servers` → Select the downloaded `.pvsc` file.
+3.  **Connect:**
+    * Select the server (e.g., `shaheen`) from the list and click `Connect`.
 
 ### KAUST Connection Guide (GUI Options)
 
@@ -186,3 +203,4 @@ ex##_name/
 ### `pvbatch` vs. `pvpython`
 * **`pvpython`**: Serial. Runs on one core. Use for testing on login nodes.
 * **`pvbatch`**: Parallel. Runs with MPI. **Always use this for these examples.**
+</div>
