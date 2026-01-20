@@ -118,38 +118,35 @@ jobs:
     name: VisIt Tests
     needs: build
     runs-on: self-hosted
-    # define version here so we only change it in one place
     env:
       VISIT_VER: "3.4.1" 
       VISIT_URL: "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz"
-      CACHE_DIR: "/opt/ci-cache" # or use "$HOME/ci-cache" if you don't have root access
+      # FIX: Use $HOME instead of /opt so we don't need sudo
+      CACHE_DIR: "$HOME/ci-cache"
 
     steps:
       - uses: actions/checkout@v4
 
-      # --- NEW STEP: Intelligent Caching ---
       - name: Ensure VisIt is Cached on Host
         run: |
-          # Create cache dir if it doesn't exist
+          # The runner interprets $HOME automatically
           mkdir -p ${{ env.CACHE_DIR }}
           
-          # Define the target filename based on version
           FILENAME="visit-${{ env.VISIT_VER }}.tar.gz"
           FILEPATH="${{ env.CACHE_DIR }}/$FILENAME"
 
-          # Check if we already have this specific version
           if [ -f "$FILEPATH" ]; then
             echo "✅ Cache Hit: Found $FILENAME. Skipping download."
           else
             echo "⚠️ Cache Miss: Downloading $FILENAME..."
-            # Use curl with retry logic to be robust against blips
-            curl -L -C - --retry 5 --retry-delay 5 -o "$FILEPATH" "${{ env.VISIT_URL }}"
-            echo "✅ Download complete and cached."
+            # Added -L to follow redirects and -O to specify output
+            curl -L --retry 5 --retry-delay 5 -o "$FILEPATH" "${{ env.VISIT_URL }}"
+            echo "✅ Download complete."
           fi
 
       - name: Run VisIt Test Suite
         run: |
-          # Create a custom Dockerfile for the VisIt test environment
+          # ... (Your existing Dockerfile creation code) ...
           cat <<EOF > Dockerfile.visit.test
           FROM ubuntu:22.04
           ENV DEBIAN_FRONTEND=noninteractive
@@ -165,17 +162,14 @@ jobs:
           WORKDIR /workdir
           EOF
 
-          # Build the VisIt test image
           docker build \
             --build-arg USER_ID=$(id -u) \
             --build-arg GROUP_ID=$(id -g) \
             -t visit-test-env -f Dockerfile.visit.test .
           
-          # Target filename for mounting
           FILENAME="visit-${{ env.VISIT_VER }}.tar.gz"
 
-          # Run the test script inside the new container
-          # We mount the CACHE_DIR (Read-Only) to ensure the container can't delete it
+          # Run docker mounting the $HOME cache
           docker run --rm \
             -v "$(pwd)":/workdir \
             -v ${{ env.CACHE_DIR }}:/data-cache:ro \
@@ -186,7 +180,6 @@ jobs:
             source test-venv/bin/activate
             pip3 install pandas matplotlib psutil scipy
             
-            # Copy from the mounted cache to the working directory
             echo "Extracting VisIt from cache..."
             cp /data-cache/'"$FILENAME"' visit.tar.gz
             
