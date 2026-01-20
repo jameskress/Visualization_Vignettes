@@ -118,8 +118,35 @@ jobs:
     name: VisIt Tests
     needs: build
     runs-on: self-hosted
+    # define version here so we only change it in one place
+    env:
+      VISIT_VER: "3.4.1" 
+      VISIT_URL: "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz"
+      CACHE_DIR: "/opt/ci-cache" # or use "$HOME/ci-cache" if you don't have root access
+
     steps:
       - uses: actions/checkout@v4
+
+      # --- NEW STEP: Intelligent Caching ---
+      - name: Ensure VisIt is Cached on Host
+        run: |
+          # Create cache dir if it doesn't exist
+          mkdir -p ${{ env.CACHE_DIR }}
+          
+          # Define the target filename based on version
+          FILENAME="visit-${{ env.VISIT_VER }}.tar.gz"
+          FILEPATH="${{ env.CACHE_DIR }}/$FILENAME"
+
+          # Check if we already have this specific version
+          if [ -f "$FILEPATH" ]; then
+            echo "✅ Cache Hit: Found $FILENAME. Skipping download."
+          else
+            echo "⚠️ Cache Miss: Downloading $FILENAME..."
+            # Use curl with retry logic to be robust against blips
+            curl -L -C - --retry 5 --retry-delay 5 -o "$FILEPATH" "${{ env.VISIT_URL }}"
+            echo "✅ Download complete and cached."
+          fi
+
       - name: Run VisIt Test Suite
         run: |
           # Create a custom Dockerfile for the VisIt test environment
@@ -127,8 +154,8 @@ jobs:
           FROM ubuntu:22.04
           ENV DEBIAN_FRONTEND=noninteractive
           RUN apt-get update && apt-get install -y --no-install-recommends \
-              wget make autoconf gfortran libmpich-dev python3-full python3-pip \
-              ffmpeg libsm6 libxext6 curl zip unzip libgl1-mesa-glx libosmesa6 libegl1-mesa \
+              make autoconf gfortran libmpich-dev python3-full python3-pip \
+              ffmpeg libsm6 libxext6 zip unzip libgl1-mesa-glx libosmesa6 libegl1-mesa \
            && rm -rf /var/lib/apt/lists/*
           ARG USER_ID
           ARG GROUP_ID
@@ -144,23 +171,35 @@ jobs:
             --build-arg GROUP_ID=$(id -g) \
             -t visit-test-env -f Dockerfile.visit.test .
           
+          # Target filename for mounting
+          FILENAME="visit-${{ env.VISIT_VER }}.tar.gz"
+
           # Run the test script inside the new container
-          docker run --rm -v "$(pwd)":/workdir visit-test-env bash -c '
+          # We mount the CACHE_DIR (Read-Only) to ensure the container can't delete it
+          docker run --rm \
+            -v "$(pwd)":/workdir \
+            -v ${{ env.CACHE_DIR }}:/data-cache:ro \
+            visit-test-env bash -c '
             set -e
-            echo "Running VisIt Tests as a non-root user"
+            echo "Running VisIt Tests..."
             python3 -m venv test-venv
             source test-venv/bin/activate
             pip3 install pandas matplotlib psutil scipy
-            wget -O visit.tar.gz "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz"
+            
+            # Copy from the mounted cache to the working directory
+            echo "Extracting VisIt from cache..."
+            cp /data-cache/'"$FILENAME"' visit.tar.gz
+            
             mkdir visit
             tar xf visit.tar.gz -C visit --strip-components 1
             export VISIT_DIR=$PWD/visit/bin
             export PATH="$VISIT_DIR:$PATH"
             $VISIT_DIR/visit -version
             cd Testing
-            python3 test_suite.py ../ --test_type VisIt --visit_version 3.4.1 --test_number 0
+            python3 test_suite.py ../ --test_type VisIt --visit_version ${{ env.VISIT_VER }} --test_number 0
             echo "VisIt tests complete"
           '
+      
       - uses: actions/upload-artifact@v4
         if: always()
         with:
