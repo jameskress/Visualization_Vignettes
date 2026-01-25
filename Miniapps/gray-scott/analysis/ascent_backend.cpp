@@ -201,11 +201,12 @@ void AscentBackend::Run()
         }
 
         conduit::Node mesh_blueprint;
+        std::vector<double> u_buf, v_buf;
+        std::vector<BlockData<double>> blocks_u, blocks_v;
         m_perf_logger.start("Blueprint_Time");
 
         if (current_opts.block_mode == "repartition")
         {
-            std::vector<double> u_buf, v_buf;
             RepartitionInfo read_info_u, read_info_v;
             m_reader.ReadRepartition(current_opts.u_var, u_buf, read_info_u);
             m_reader.ReadRepartition(current_opts.v_var, v_buf, read_info_v);
@@ -213,7 +214,6 @@ void AscentBackend::Run()
         }
         else // preserve mode
         {    
-            std::vector<BlockData<double>> blocks_u, blocks_v;
             size_t total_blocks_u = m_reader.ReadPreserve(current_opts.u_var, blocks_u);
             m_reader.ReadPreserve(current_opts.v_var, blocks_v);
 

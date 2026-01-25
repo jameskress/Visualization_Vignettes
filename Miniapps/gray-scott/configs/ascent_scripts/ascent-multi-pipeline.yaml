@@ -51,7 +51,7 @@
           image_width: 2113
           image_height: 1338
           annotations: "on"
-          image_prefix: "ascent_multi_render_%06d.png"
+          image_prefix: "ascent_multi_render"
           
           camera:
             zoom: 2.0

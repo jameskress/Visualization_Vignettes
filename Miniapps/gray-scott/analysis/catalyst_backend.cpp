@@ -106,6 +106,7 @@ CatalystBackend::CatalystBackend(const BackendOptions &opts)
         const std::string script_name = script_path.filename().string();
         const std::string name = "catalyst/scripts/script" + script_name;
         init_params[name + "/filename"].set_string(path_str);
+        init_params[name + "/args"].append().set_string("--channel-name=grid");
     }
     else
     {
