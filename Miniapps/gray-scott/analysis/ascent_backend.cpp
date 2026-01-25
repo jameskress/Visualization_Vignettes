@@ -18,7 +18,7 @@ namespace
         const BackendOptions &opts)
     {
         conduit::Node domain;
-        domain["state/step"] = static_cast<long long>(step);
+        domain["state/cycle"] = static_cast<long long>(step);
 
         std::array<double, 3> global_origin = opts.origin.value_or(std::array<double, 3>{0.0, 0.0, 0.0});
         std::array<double, 3> spacing = opts.spacing.value_or(std::array<double, 3>{0.1, 0.1, 0.1});
@@ -97,7 +97,7 @@ namespace
         {
             const auto &block = blocks_u[i];
             conduit::Node &domain = multi_mesh.append();
-            domain["state/step"] = static_cast<long long>(step);
+            domain["state/cycle"] = static_cast<long long>(step);
 
             std::array<double, 3> local_origin = global_origin;
             if (block.start.size() >= 3)
