@@ -160,7 +160,7 @@ COPY --from=builder /opt/ascent /opt/ascent
 
 # --- IMPORTANT: Set Environment Variables ---
 # This makes the installed libraries and executables discoverable by the system.
-ENV PATH="/opt/paraview/bin:${PATH}"
+ENV PATH="/opt/paraview/bin:/opt/adios2/bin:${PATH}"
 # The Ascent build script places many libraries in versioned subdirectories.
 # We add them all here using wildcards for resilience.
 # Define the library path directly. It is empty by default.
