@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <numeric>
 #include <algorithm>
+#include <cmath>
 
 namespace
 {
@@ -29,7 +30,18 @@ namespace
             for (size_t i = 0; i < read_info.local_start.size(); ++i)
             {
                 size_t dim_idx = read_info.local_start.size() - 1 - i;
-                local_origin[dim_idx] += read_info.local_start[i] * spacing[dim_idx];
+                size_t start_offset = read_info.local_start[i];
+                size_t block_dim = read_info.local_dims[i];
+                double physical_origin = start_offset * spacing[dim_idx];
+                
+                local_origin[dim_idx] += physical_origin;
+                
+                // stitch the blocks together, shift back by one spacing unit per block index
+                if (block_dim > 0)
+                {
+                    double correction = std::round(static_cast<double>(start_offset) / block_dim) * spacing[dim_idx];
+                    local_origin[dim_idx] -= correction;
+                }
             }
         }
 
@@ -110,7 +122,7 @@ namespace
                     double physical_origin = start_offset * spacing[dim_idx];
                     if (block_dim > 0)
                     {
-                        double correction = (start_offset / block_dim) * spacing[dim_idx];
+                        double correction = std::round(static_cast<double>(start_offset) / block_dim) * spacing[dim_idx];
                         local_origin[dim_idx] += (physical_origin - correction);
                     }
                     else
