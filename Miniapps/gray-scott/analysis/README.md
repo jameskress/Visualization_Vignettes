@@ -102,10 +102,11 @@ The simulation and analysis processes are launched in a single `mpirun` command 
 **Example (16 sim ranks, 4 analysis ranks):**
 ```
 # Make sure the simulation settings file specifies the SST engine.
-mpirun -n 16 ./simulation --settings=settings-adios-span.json \
-    : -n 4 ./analysis-reader --file=gs.bp \
+mpirun -n 16 ./gray-scott --settings-file=./settings-adios-memselect.json \
+    : -n 4 ./analysis-reader --file=gs-adios-memselect.bp \
         --settings=settings-ascent.json \
         --engine=SST \
+        --block-mode repartition \
         --mpi-split-color=1
 ```
 
@@ -116,12 +117,13 @@ The simulation and analysis codes are launched as separate jobs. They discover e
 **Example (16 sim ranks, 4 analysis ranks):**
 ```
 # Launch simulation in the background
-mpirun -n 16 ./simulation --settings=settings-sim-sst.json &
+mpirun -n 16 ./gray-scott --settings-file=./settings-adios-memselect.json &
 
 # Launch the reader to connect to the stream
-mpirun -n 4 ./analysis-reader --file=gs.bp \
-        --settings=settings-sim-sst.json \
-        --engine=SST
+mpirun -n 4 ./analysis-reader --file=gs-adios-memselect.bp \
+        --settings=settings-ascent.json \
+        --engine=SST \
+        --block-mode repartition
 ```
 
 **ADIOS2 XML Configuration for In-Transit**
@@ -144,6 +146,11 @@ For in-transit runs, the simulation code needs an `adios2.xml` configuration fil
     </io>
 </adios-config>
 ```
+
+> [!WARNING]
+> **SST Engine Limitations:** The ADIOS2 SST engine does **not** support "Span" mode (zero-copy buffer management). 
+> Ensure that `"adios_span": false` is set in your simulation's JSON settings file when running in-transit. 
+> Enabling it will cause the simulation to crash with an `Engine SstWriter does not support DoPut` exception.
 
 > [!CAUTION]
 > If there is a leftover `*.sst` file in your run directory your runs may fail immediately. If your runs are failing unexpectedly, check for this file. 
