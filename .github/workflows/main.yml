@@ -55,11 +55,21 @@ jobs:
           publish_dir: badges
           force_orphan: true
 
+      - name: Prune Docker System
+        if: always()  # Run this even if the build fails
+        run: |
+          echo "Pruning Docker images/containers to free space..."
+          docker system prune -f
+
   paraview-test:
     name: ParaView Tests
     needs: build
     runs-on: self-hosted
     steps:
+      - name: Clean workspace
+        run: |
+          rm -rf "${{ github.workspace }}"
+          mkdir -p "${{ github.workspace }}"
       - uses: actions/checkout@v4
       - name: Run ParaView Test Suite
         run: |
@@ -125,8 +135,12 @@ jobs:
       CACHE_DIR: "$HOME/ci-cache"
 
     steps:
+      - name: Clean workspace
+        run: |
+          # Nuke the workspace directory to ensure a fresh start and save space
+          rm -rf "${{ github.workspace }}"
+          mkdir -p "${{ github.workspace }}"
       - uses: actions/checkout@v4
-
       - name: Ensure VisIt is Cached on Host
         run: |
           # The runner interprets $HOME automatically
