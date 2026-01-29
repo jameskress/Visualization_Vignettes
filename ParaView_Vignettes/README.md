@@ -1,4 +1,3 @@
-<div style="white-space: pre-wrap">
 # ParaView_Vignettes
 
 This repository serves two primary purposes for High Performance Computing (HPC) visualization:
@@ -203,4 +202,3 @@ ex##_name/
 ### `pvbatch` vs. `pvpython`
 * **`pvpython`**: Serial. Runs on one core. Use for testing on login nodes.
 * **`pvbatch`**: Parallel. Runs with MPI. **Always use this for these examples.**
-</div>
