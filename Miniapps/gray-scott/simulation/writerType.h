@@ -15,8 +15,9 @@
 #include <vtkLogger.h>
 #include <vtkMPIController.h>
 
-// Always include VTK writer
+// Always include VTK writer and "none" writer
 #include "../../gray-scott/simulation/writerPVTI.h"
+#include "../../gray-scott/simulation/writerNone.h"
 
 #ifdef USE_CATALYST
 #include "../../gray-scott/simulation/writerCatalyst.h"
@@ -52,6 +53,7 @@ public:
 #ifdef USE_KOMBYNE
         WRITER_TYPE_KOMBYNE = 4
 #endif
+        WRITER_TYPE_NONE = 5
     };
 
     static std::shared_ptr<Writer> Create(EWriterType type)
@@ -80,7 +82,9 @@ public:
         case WRITER_TYPE_KOMBYNE:
             return std::make_shared<WriterKombyne>();
 #endif
-
+        case WRITER_TYPE_NONE:
+            return std::make_shared<WriterNone>();
+            
         default:
             return nullptr;
         }

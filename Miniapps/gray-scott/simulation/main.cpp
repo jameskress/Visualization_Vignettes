@@ -274,6 +274,10 @@ int main(int argc, char **argv)
         writer_main = WriterType::Create(WriterType::WRITER_TYPE_KOMBYNE);
     }
 #endif
+    else if (settings.output_type == "none")
+    {
+        writer_main = WriterType::Create(WriterType::WRITER_TYPE_NONE);
+    }
     else
     {
         std::cerr << "Invalid output_type: " << settings.output_type << std::endl;
