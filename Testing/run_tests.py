@@ -43,6 +43,9 @@ def run_local_visit(script_path, args, output_dir):
     cmd = [visit_exec, "-cli", "-nowin", "-s", script_path]
     cmd.extend(args)
 
+    # log run command
+    print(f"Executing: {' '.join(cmd)}")
+    
     with open(os.path.join(output_dir, "output.log"), "w") as stdout_file, open(
         os.path.join(output_dir, "error.log"), "w"
     ) as stderr_file:
@@ -104,6 +107,9 @@ def run_local_paraview(script_path, args, output_dir):
     env["OMP_NUM_THREADS"] = "32"
     env["TBB_NUM_THREADS"] = "32"
 
+    # log run command
+    print(f"Executing: {' '.join(cmd)}")
+    
     with open(os.path.join(output_dir, "output.log"), "w") as stdout_file, open(
         os.path.join(output_dir, "error.log"), "w"
     ) as stderr_file:
