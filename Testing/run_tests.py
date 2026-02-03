@@ -91,7 +91,7 @@ def run_local_paraview(script_path, args, output_dir):
             "--cpus-per-task=32",
             "--ntasks-per-core=1",
             "--mem-bind=v,none",
-            "--cpu-bind=v,cores",
+            "--cpu-bind=v,none",
             pvbatch_exec,
             "--force-offscreen-rendering",
             script_path,
