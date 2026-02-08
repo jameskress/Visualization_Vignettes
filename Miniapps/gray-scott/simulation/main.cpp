@@ -326,7 +326,7 @@ int main(int argc, char **argv)
         }
 
 #ifdef USE_ADIOS2
-        if (settings.checkpoint && (it % settings.checkpoint_freq) == 0)
+        if (settings.checkpoint && (it > 0) && (it % settings.checkpoint_freq) == 0)
         {
             perf.start("create_checkpoint");
             vtkLog(INFO, "Writing checkpoint at step " << it);
@@ -346,6 +346,19 @@ int main(int argc, char **argv)
 
         perf.logStep(it);
     }
+
+    // FInal checkpoint check
+    #ifdef USE_ADIOS2
+    // Check if the final step (which happens after the loop ends) matches the frequency
+    // e.g. steps=100, freq=100. Loop 0-99. End is 100. 100%100==0. Write.
+    if (settings.checkpoint && (settings.steps % settings.checkpoint_freq) == 0)
+    {
+        perf.start("create_checkpoint");
+        vtkLog(INFO, "Writing final checkpoint at step " << settings.steps);
+        WriteCkpt(app_comm, settings.steps, settings, sim, io_ckpt);
+        perf.stop("create_checkpoint");
+    }
+#endif
 
     writer_main->close(rank);
     perf.finalize();
