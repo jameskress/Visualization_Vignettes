@@ -65,6 +65,18 @@ void WriterCatalyst::CreateWriter(const Settings &_settings, const GrayScott &si
     if (err != catalyst_status_ok)
     {
         vtkLog(ERROR, "Failed to initialize Catalyst: " << err);
+        
+        if (err == catalyst_status_error_not_found)
+        {
+            std::cerr << "=============================================================" << std::endl;
+            std::cerr << "CRITICAL ERROR: Catalyst returned status 3 (Not Found)." << std::endl;
+            std::cerr << "The simulation could not locate the Catalyst implementation library." << std::endl;
+            std::cerr << "Possible fixes:" << std::endl;
+            std::cerr << "  1. Ensure 'catalyst_lib_path' in the json points to your catalyst dir" << std::endl;
+            std::cerr << "  2. Or export CATALYST_IMPLEMENTATION_PATHS=/path/to/paraview/catalyst/" << std::endl;
+            std::cerr << "=============================================================" << std::endl;
+        }
+        
         vtkLog(ERROR, "...checkout error code to find out why... ");
         throw std::exception();
     }
