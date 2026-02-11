@@ -199,7 +199,7 @@ int main(int argc, char **argv)
     vtkLogger::SetThreadName("Rank_" + std::to_string(rank));
 
     // Put every log message in "everything.log":
-    vtkLogger::LogToFile("everything.log", vtkLogger::APPEND, vtkLogger::VERBOSITY_MAX);
+    vtkLogger::LogToFile("everything.log", vtkLogger::APPEND, vtkLogger::ConvertToVerbosity(loggingLevel.c_str()));
     // Only log INFO, WARNING, ERROR to "latest_readable.log":
     vtkLogger::LogToFile("latest_readable.log", vtkLogger::TRUNCATE, vtkLogger::VERBOSITY_INFO);
 
