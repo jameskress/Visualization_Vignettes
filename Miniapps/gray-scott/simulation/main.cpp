@@ -315,10 +315,13 @@ int main(int argc, char **argv)
 
         MPI_Barrier(app_comm);
 
+	if (rank == 0)
+            vtkLog(INFO, "Simulation at step " << it);
+
         if (it >= settings.burn_in_steps && it % settings.plotgap == 0)
         {
             if (rank == 0)
-                vtkLog(INFO, "Simulation at step " << it << " writing output step " << it / settings.plotgap);
+                vtkLog(INFO, "\t Processing sim data using Writer interface @ output step " << it / settings.plotgap);
 
             perf.start("write_step");
             writer_main->write(it, sim, rank, procs);
