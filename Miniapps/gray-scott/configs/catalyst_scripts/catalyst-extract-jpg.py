@@ -57,13 +57,18 @@ SetActiveView(renderView1)
 # 'CatalystAdaptor'.
 producer = TrivialProducer(registrationName="grid")
 
+# create a new 'Ghost Cells' filter
+ghostCells1 = GhostCells(registrationName='GhostCells1', Input=producer)
+
+# create a new 'Cell Data to Point Data' filter
+cellDatatoPointData1 = CellDatatoPointData(registrationName='CellDatatoPointData1', Input=ghostCells1)
+cellDatatoPointData1.ProcessAllArrays = 1
 
 # ----------------------------------------------------------------
 # setup the visualization in view 'renderView1'
 # ----------------------------------------------------------------
 
-# show data from grid
-gridDisplay = Show(producer, renderView1, "UniformGridRepresentation")
+gridDisplay = Show(cellDatatoPointData1, renderView1, "UniformGridRepresentation")
 
 # get 2D transfer function for 'v'
 vTF2D = GetTransferFunction2D("v")
@@ -170,11 +175,6 @@ vLUTColorBar.Visibility = 1
 gridDisplay.SetScalarBarVisibility(renderView1, True)
 
 # ----------------------------------------------------------------
-# setup color maps and opacity mapes used in the visualization
-# note: the Get..() functions create a new object, if needed
-# ----------------------------------------------------------------
-
-# ----------------------------------------------------------------
 # setup extractors
 # ----------------------------------------------------------------
 
@@ -213,9 +213,11 @@ options.CatalystLiveURL = str(clienthost) + ":" + str(clientport)
 
 
 def catalyst_execute(info):
-    global producer
+    global producer, cellDatatoPointData1
 
     producer.UpdatePipeline()
+    # Ensure the filter pipeline updates so we can query the ranges below
+    cellDatatoPointData1.UpdatePipeline()
 
     # get params as example of a parameter changing during the simulation
     params = get_execute_params()
@@ -226,9 +228,10 @@ def catalyst_execute(info):
     print("pipeline parameters:")
     print("\n".join(params))
     print("-----")
-    print("bounds:", producer.GetDataInformation().GetBounds())
-    print("v-range:", producer.PointData["v"].GetRange(-1))
-    print("u-range:", producer.PointData["u"].GetRange(-1))
+    # Updated to query the converted filter data
+    print("bounds:", cellDatatoPointData1.GetDataInformation().GetBounds())
+    print("v-range:", cellDatatoPointData1.PointData["v"].GetRange(-1))
+    print("u-range:", cellDatatoPointData1.PointData["u"].GetRange(-1))
     print("===================================\n")
     # slow things down for live view
     time.sleep(1)
