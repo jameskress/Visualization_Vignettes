@@ -113,11 +113,11 @@ Next, wer have to tell Jupyter to use your wrapper script instead of the default
 python -m ipykernel install --user --name paraview_system --display-name "ParaView System (Wrapper)"
 
 # 2. Overwrite the kernel.json to use our wrapper
-# (Adjust the path to /home/YOUR_USERNAME/pv_kernel_wrapper.sh if needed)
-cat <<EOF > ~/.local/share/jupyter/kernels/paraview_system/kernel.json
+# (Adjust the path to /scratch/YOUR_USERNAME/pv_kernel_wrapper.sh if needed)
+cat <<EOF > /scratch/$USER/.local/share/jupyter/kernels/paraview_system/kernel.json
 {
  "argv": [
-  "/home/$USER/pv_kernel_wrapper.sh",
+  "/scratch/$USER/pv_kernel_wrapper.sh",
   "{connection_file}"
  ],
  "display_name": "ParaView System (Wrapper)",
