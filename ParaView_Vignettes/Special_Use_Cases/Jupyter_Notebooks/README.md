@@ -84,18 +84,23 @@ Create a file named `~/pv_kernel_wrapper.sh`. This script sets up the environmen
 ```bash
 #!/bin/bash
 
-# --- A. Load System ParaView ---
-# This automatically sets PYTHONPATH, LD_LIBRARY_PATH, and MPI paths
+# --- 1. Load the Module ---
+# This automatically sets LD_LIBRARY_PATH and PYTHONPATH to the current version.
 module load paraview
 
-# --- B. Force Headless Rendering ---
+# --- 2. The Filter ---
+# The module adds two paths:
+# This command rewrites PYTHONPATH to keep ONLY paths containing "site-packages".
+export PYTHONPATH=$(echo $PYTHONPATH | tr ':' '\n' | grep "site-packages" | paste -sd: -)
+
+# --- 3. Force Headless Rendering ---
 # Crucial for Shaheen compute nodes which have no display attached
 export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
 
-# --- C. Run the Conda Python Kernel ---
+# --- 4. Run the Conda Python Kernel ---
 # UPDATE THE PATH BELOW to match your specific Conda environment location!
 # Example: /scratch/your_username/miniconda3/envs/pv_env/bin/python
-exec /scratch/$USER/miniconda3/envs/pv_env/bin/python -m ipykernel_launcher -f "$1"
+exec /scratch/$USER/paraviewConda/miniconda3/envs/pv_env/bin/python -m ipykernel_launcher -f "$1"
 ```
 
 **Make it executable:**
