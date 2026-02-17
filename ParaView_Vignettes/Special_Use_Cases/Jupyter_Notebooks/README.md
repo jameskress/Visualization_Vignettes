@@ -47,7 +47,7 @@ First, login to shaheen, and navigate to your scrith directory. Next, follow the
 cd ${SCRATCH_IOPS}
 
 # 1. Download the Miniconda installer
-wget [https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh](https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh)
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 
 # 2. Run the installer (install to your SCRATCH directory to save HOME quota)
 # Follow the prompts. When asked for install location, use something like: /scratch/$USER/miniconda3
