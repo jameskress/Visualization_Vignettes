@@ -77,9 +77,9 @@ conda install -c conda-forge jupyterlab ipykernel
 
 ### 3. Create the Wrapper Script
 
-Create a file named `~/pv_kernel_wrapper.sh`. This script sets up the environment for every notebook cell. This is can be placed in your miniconda folder for eas of access:
+Create a file named `pv_kernel_wrapper.sh`. This script sets up the environment for every notebook cell. This is can be placed in your miniconda folder for eas of access:
 
-**File Content for `~/pv_kernel_wrapper.sh`:**
+**File Content for `pv_kernel_wrapper.sh`:**
 
 ```bash
 #!/bin/bash
@@ -105,7 +105,7 @@ exec ${SCRATCH_IOPS}/miniconda3/envs/pv_env/bin/python -m ipykernel_launcher -f 
 **Make it executable:**
 
 ```bash
-chmod +x ~/pv_kernel_wrapper.sh
+chmod +x pv_kernel_wrapper.sh
 ```
 
 ### 4. Register the Kernel with Jupyter
