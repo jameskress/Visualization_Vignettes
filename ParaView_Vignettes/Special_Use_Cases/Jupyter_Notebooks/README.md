@@ -44,17 +44,17 @@ First, login to shaheen, and navigate to your scrith directory. Next, follow the
 *If you do not have Conda installed, follow these steps.*
 
 ```bash
-cd /scratch/<user>
+cd ${SCRATCH_IOPS}
 
 # 1. Download the Miniconda installer
 wget [https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh](https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh)
 
 # 2. Run the installer (install to your SCRATCH directory to save HOME quota)
 # Follow the prompts. When asked for install location, use something like: /scratch/$USER/miniconda3
-bash Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh -b -p ${SCRATCH_IOPS}/miniconda3
 
 # 3. Initialize Conda (and restart your shell afterwards)
-source /scratch/$USER/miniconda3/bin/activate
+source ${SCRATCH_IOPS}/miniconda3/bin/activate
 conda init
 ```
 
@@ -65,7 +65,7 @@ conda init
 ```bash
 # Load Conda
 # (Adjust this path if you installed Miniconda somewhere else)
-source /scratch/$USER/miniconda3/etc/profile.d/conda.sh
+source ${SCRATCH_IOPS}/miniconda3/etc/profile.d/conda.sh
 
 # Create environment
 conda create -n pv_env python=3.12
@@ -77,7 +77,7 @@ conda install -c conda-forge jupyterlab ipykernel
 
 ### 3. Create the Wrapper Script
 
-Create a file named `~/pv_kernel_wrapper.sh`. This script sets up the environment for every notebook cell. This is can be placed in your miniconda folder if you wish:
+Create a file named `~/pv_kernel_wrapper.sh`. This script sets up the environment for every notebook cell. This is can be placed in your miniconda folder for eas of access:
 
 **File Content for `~/pv_kernel_wrapper.sh`:**
 
@@ -99,8 +99,7 @@ export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
 
 # --- 4. Run the Conda Python Kernel ---
 # UPDATE THE PATH BELOW to match your specific Conda environment location!
-# Example: /scratch/your_username/miniconda3/envs/pv_env/bin/python
-exec /scratch/$USER/paraviewConda/miniconda3/envs/pv_env/bin/python -m ipykernel_launcher -f "$1"
+exec ${SCRATCH_IOPS}/miniconda3/envs/pv_env/bin/python -m ipykernel_launcher -f "$1"
 ```
 
 **Make it executable:**
@@ -115,14 +114,14 @@ Next, wer have to tell Jupyter to use your wrapper script instead of the default
 
 ```bash
 # 1. Create the kernel directory
-python -m ipykernel install --user --name paraview_system --display-name "ParaView System (Wrapper)"
+python -m ipykernel install --prefix "${SCRATCH_IOPS}" --name paraview_system --display-name "ParaView System (Wrapper)"
 
 # 2. Overwrite the kernel.json to use our wrapper
-# (Adjust the path to /scratch/YOUR_USERNAME/pv_kernel_wrapper.sh if needed)
-cat <<EOF > /scratch/$USER/.local/share/jupyter/kernels/paraview_system/kernel.json
+# (Adjust the path to pv_kernel_wrapper.sh if needed)
+cat <<EOF > ${SCRATCH_IOPS}/share/jupyter/kernels/paraview_system/kernel.json
 {
  "argv": [
-  "/scratch/$USER/pv_kernel_wrapper.sh",
+  "${SCRATCH_IOPS}/miniconda3/pv_kernel_wrapper.sh",
   "{connection_file}"
  ],
  "display_name": "ParaView System (Wrapper)",
@@ -160,16 +159,16 @@ echo "Setting up Conda"
 # We unset PYTHONPATH so Conda doesn't get confused during startup
 unset PYTHONPATH
 # UPDATE THIS PATH to your conda installation
-source /scratch/$USER/miniconda3/etc/profile.d/conda.sh
+source ${SCRATCH_IOPS}/miniconda3/etc/profile.d/conda.sh
 conda activate pv_env
 
 # --- 2. JUPYTER CONFIG ---
 echo "Setting up Jupyter configs"
-# Redirect config to SCRATCH to avoid HOME quota limits
-export JUPYTER_CONFIG_DIR=${SCRATCH_IOPS}/.jupyter
-export JUPYTER_DATA_DIR=${SCRATCH_IOPS}/.local/share/jupyter
-export JUPYTER_RUNTIME_DIR=${SCRATCH_IOPS}/.local/share/jupyter/runtime
-export IPYTHONDIR=${SCRATCH_IOPS}/.ipython
+export JUPYTER_CONFIG_DIR="${SCRATCH_IOPS}/.jupyter"
+export JUPYTER_DATA_DIR="${SCRATCH_IOPS}/.local/share/jupyter"
+export JUPYTER_RUNTIME_DIR="${SCRATCH_IOPS}/.local/share/jupyter/runtime"
+export IPYTHONDIR="${SCRATCH_IOPS}/.ipython"
+export JUPYTER_PATH="${SCRATCH_IOPS}/share/jupyter:${JUPYTER_PATH}"
 
 # --- 3. LAUNCH ---
 echo "Launching Jupyter Lab"
