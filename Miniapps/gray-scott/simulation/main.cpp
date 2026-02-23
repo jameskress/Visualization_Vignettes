@@ -198,10 +198,13 @@ int main(int argc, char **argv)
     vtkLogger::SetStderrVerbosity(vtkLogger::ConvertToVerbosity(loggingLevel.c_str()));
     vtkLogger::SetThreadName("Rank_" + std::to_string(rank));
 
-    // Put every log message in "everything.log":
-    vtkLogger::LogToFile("everything.log", vtkLogger::APPEND, vtkLogger::ConvertToVerbosity(loggingLevel.c_str()));
-    // Only log INFO, WARNING, ERROR to "latest_readable.log":
-    vtkLogger::LogToFile("latest_readable.log", vtkLogger::TRUNCATE, vtkLogger::VERBOSITY_INFO);
+    // Only Rank 0 gets to write to write to reduce contention. Update this if you want to seee more
+    if (rank == 0) {
+        // Put every log message in "everything.log":
+        vtkLogger::LogToFile("everything.log", vtkLogger::APPEND, vtkLogger::ConvertToVerbosity(loggingLevel.c_str()));
+        // Only log INFO, WARNING, ERROR to "latest_readable.log":
+        vtkLogger::LogToFile("latest_readable.log", vtkLogger::TRUNCATE, vtkLogger::VERBOSITY_INFO);
+    }
 
     //----Print run setup info
     if (rank == 0)
@@ -316,6 +319,7 @@ int main(int argc, char **argv)
         MPI_Barrier(app_comm);
 
 	if (rank == 0)
+	    std::cout << "\tSimulation at step " << it << std::endl;
             vtkLog(INFO, "Simulation at step " << it);
 
         if (it >= settings.burn_in_steps && it % settings.plotgap == 0)

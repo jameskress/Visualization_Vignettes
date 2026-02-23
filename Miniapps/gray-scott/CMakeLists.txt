@@ -176,7 +176,7 @@ endif()
 # Kombyne (Optional)
 if(ENABLE_KOMBYNELITE)
   find_package(kombynelite REQUIRED)
-
+  
   if(kombynelite_FOUND)
     message(STATUS "Kombyne lite found: kombynelite")
   else()

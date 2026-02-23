@@ -27,3 +27,19 @@ env prefix=build enable_mpi=ON enable_openmp=ON \
 
 # ADIOS2
 ADIOS worked following the README instructions.
+
+
+
+# Performance scripts
+
+## Creating python environment
+cd /scratch/kressjm
+module load python
+python3 -m venv perf_env
+source perf_env/bin/activate
+pip install --upgrade pip
+pip install pandas numpy matplotlib
+
+## Generate the stats
+python3 /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/reduce_timers.py writer_timers/ summary_baseline.csv
+python3 plot_performance.py

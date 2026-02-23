@@ -51,7 +51,7 @@ public:
         WRITER_TYPE_ADIOS = 3,
 #endif
 #ifdef USE_KOMBYNE
-        WRITER_TYPE_KOMBYNE = 4
+        WRITER_TYPE_KOMBYNE = 4,
 #endif
         WRITER_TYPE_NONE = 5
     };

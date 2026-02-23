@@ -247,3 +247,4 @@ void WriterCatalyst::printSelf()
 {
     vtkLog(TRACE, "This is writer type Catalyst ");
 }
+
