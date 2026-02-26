@@ -1,83 +1,110 @@
 #include "restart.h"
-
 #include <stdexcept>
+#include <vector>
 #include <vtkLogger.h>
 
-/**
- * @brief Writes a checkpoint file using ADIOS2.
- */
-void WriteCkpt(MPI_Comm comm, const int step, const Settings &settings,
-               const GrayScott &sim, adios2::IO &io)
+// Helper to get MPI Cartesian Coordinates
+void GetCartInfo(MPI_Comm comm, int &px, int &py, int &pz, int &rx, int &ry, int &rz)
 {
     int rank, nproc;
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &nproc);
+    
+    int dims[3] = {0, 0, 0};
+    int periods[3] = {0, 0, 0};
+    int coords[3] = {0, 0, 0};
+    
+    // We assume the comm passed in is a Cartesian Communicator
+    MPI_Cart_get(comm, 3, dims, periods, coords);
+    
+    px = dims[0]; py = dims[1]; pz = dims[2];
+    rx = coords[0]; ry = coords[1]; rz = coords[2];
+}
 
-    vtkLog(INFO, "Checkpointing at step " << step << " to file "
-                                          << settings.checkpoint_output);
+void WriteCkpt(MPI_Comm comm, const int step, const Settings &settings,
+               const GrayScott &sim, adios2::IO &io)
+{
+    int rank;
+    MPI_Comm_rank(comm, &rank);
+
+    vtkLog(INFO, "Checkpointing at step " << step << " to file " << settings.checkpoint_output);
 
     try
     {
-        adios2::Engine writer =
-            io.Open(settings.checkpoint_output, adios2::Mode::Write);
+        adios2::Engine writer = io.Open(settings.checkpoint_output, adios2::Mode::Write);
+        if (!writer) throw std::runtime_error("ADIOS2 engine could not be created.");
 
-        if (!writer)
-        {
-            throw std::runtime_error("ADIOS2 engine could not be created.");
-        }
+        // --- 1. Calculate Global Topology ---
+        // We need to know WHERE this rank fits in the Global Grid
+        int px, py, pz, rx, ry, rz;
+        GetCartInfo(comm, px, py, pz, rx, ry, rz);
 
-        // Define variables for checkpointing. This can be done on every call;
-        // ADIOS2 is smart enough to only write the metadata once.
-        const size_t X = sim.size_x + 2;
-        const size_t Y = sim.size_y + 2;
-        const size_t Z = sim.size_z + 2;
-        const size_t R = static_cast<size_t>(rank);
-        const size_t N = static_cast<size_t>(nproc);
+        // Global Dimensions (The full simulation size, e.g., 2048x2048x2048)
+        // Note: Assuming uniform decomposition.
+        // If your sim stores global L, use that. Here we derive it.
+        const size_t GX = sim.size_x * px;
+        const size_t GY = sim.size_y * py;
+        const size_t GZ = sim.size_z * pz;
 
-        // Inquire for variables. This returns a handle if it exists, or nullptr if not.
+        // Local Dimensions (The interior size of THIS rank, without ghosts)
+        const size_t LX = sim.size_x;
+        const size_t LY = sim.size_y;
+        const size_t LZ = sim.size_z;
+
+        // Global Offsets (Where this rank starts in the global grid)
+        const size_t OX = rx * LX;
+        const size_t OY = ry * LY;
+        const size_t OZ = rz * LZ;
+
+        // --- 2. Define Global Array Variables ---
+        // We define a 3D Global Array, NOT a 4D Rank Array
         auto var_u = io.InquireVariable<double>("U");
         auto var_v = io.InquireVariable<double>("V");
         auto var_step = io.InquireVariable<int>("step");
 
-        // If the variables don't exist (e.g., on the first call), define them.
         if (!var_u)
         {
-            var_u = io.DefineVariable<double>("U", {N, X, Y, Z}, {R, 0, 0, 0},
-                                              {1, X, Y, Z});
+            // Define shape: {Global}, {Start}, {Count}
+            var_u = io.DefineVariable<double>("U", {GX, GY, GZ}, {OX, OY, OZ}, {LX, LY, LZ});
         }
         if (!var_v)
         {
-            var_v = io.DefineVariable<double>("V", {N, X, Y, Z}, {R, 0, 0, 0},
-                                              {1, X, Y, Z});
+            var_v = io.DefineVariable<double>("V", {GX, GY, GZ}, {OX, OY, OZ}, {LX, LY, LZ});
         }
         if (!var_step)
         {
             var_step = io.DefineVariable<int>("step");
         }
 
+        // --- 3. Handle Ghost Cells (Memory Selection) ---
+        // The data in memory (sim.u_ghost) HAS ghost cells. The file should NOT.
+        // We tell ADIOS: "The memory buffer is larger than what we are writing."
+        
+        // Memory Dimensions: (LX+2, LY+2, LZ+2)
+        // Memory Start: (1, 1, 1) -> Skip the first ghost layer
+        // Memory Count: (LX, LY, LZ) -> Write the interior
+        var_u.SetMemorySelection({{1, 1, 1}, {LX, LY, LZ}});
+        var_v.SetMemorySelection({{1, 1, 1}, {LX, LY, LZ}});
+        
+        // Note: We need to tell ADIOS the shape of the memory buffer too
+        // assuming sim.u_ghost() is a flat vector of size (LX+2)*(LY+2)*(LZ+2)
+        // We treat it as a 3D block in memory.
+        
         writer.BeginStep();
         writer.Put(var_step, &step);
+        
+        // Put expects the pointer to the START of the vector, ADIOS handles the stride/skipping
         writer.Put(var_u, sim.u_ghost().data());
         writer.Put(var_v, sim.v_ghost().data());
         writer.EndStep();
-
         writer.Close();
     }
     catch (std::exception &e)
     {
-        // For a write failure, we log an error but do not abort the simulation,
-        // as the simulation can often continue without a successful checkpoint.
-        vtkLog(ERROR, "Could not write checkpoint file '"
-                          << settings.checkpoint_output << "'. Reason: " << e.what());
+        vtkLog(ERROR, "Checkpoint write failed: " << e.what());
     }
 }
 
-/**
- * @brief Reads a restart file using ADIOS2.
- *
- * This function handles errors gracefully. If the restart file does not exist
- * or is invalid, it logs a ERROR error via vtkLog and aborts the MPI job.
- */
 int ReadRestart(MPI_Comm comm, const Settings &settings, GrayScott &sim,
                 adios2::IO &io)
 {
@@ -85,69 +112,64 @@ int ReadRestart(MPI_Comm comm, const Settings &settings, GrayScott &sim,
     int rank;
     MPI_Comm_rank(comm, &rank);
 
-    if (settings.restart_input.empty())
-    {
-        vtkLogF(ERROR,
-                "Restart is enabled, but no 'restart_input' file was "
-                "specified in the settings.");
+    if (settings.restart_input.empty()) {
         MPI_Abort(comm, 1);
+        return 0;
     }
-
-    vtkLog(INFO, "Attempting to restart from file: " << settings.restart_input);
 
     try
     {
         io.SetParameter("OpenTimeoutSecs", "5.0");
-        adios2::Engine reader =
-            io.Open(settings.restart_input, adios2::Mode::ReadRandomAccess);
+        adios2::Engine reader = io.Open(settings.restart_input, adios2::Mode::ReadRandomAccess);
 
-        if (!reader)
-        {
-            throw std::runtime_error("ADIOS2 engine could not be opened. "
-                                     "File may not exist or is inaccessible.");
-        }
+        if (!reader) throw std::runtime_error("Could not open restart file.");
 
-        adios2::Variable<int> var_step = io.InquireVariable<int>("step");
-        adios2::Variable<double> var_u = io.InquireVariable<double>("U");
-        adios2::Variable<double> var_v = io.InquireVariable<double>("V");
+        auto var_step = io.InquireVariable<int>("step");
+        auto var_u = io.InquireVariable<double>("U");
+        auto var_v = io.InquireVariable<double>("V");
 
-        if (!var_step || !var_u || !var_v)
-        {
-            throw std::runtime_error(
-                "One or more required variables (step, U, V) not found in "
-                "the checkpoint file.");
-        }
+        if (!var_step || !var_u || !var_v) throw std::runtime_error("Missing variables.");
 
-        const size_t X = sim.size_x + 2;
-        const size_t Y = sim.size_y + 2;
-        const size_t Z = sim.size_z + 2;
-        const size_t R = static_cast<size_t>(rank);
+        // --- 1. Calculate New Topology ---
+        // We calculate "Where am I NOW?"
+        int px, py, pz, rx, ry, rz;
+        GetCartInfo(comm, px, py, pz, rx, ry, rz);
 
-        std::vector<double> u, v;
-        u.reserve(X * Y * Z);
-        v.reserve(X * Y * Z);
+        const size_t LX = sim.size_x;
+        const size_t LY = sim.size_y;
+        const size_t LZ = sim.size_z;
 
-        var_u.SetSelection({{R, 0, 0, 0}, {1, X, Y, Z}});
-        var_v.SetSelection({{R, 0, 0, 0}, {1, X, Y, Z}});
+        const size_t OX = rx * LX;
+        const size_t OY = ry * LY;
+        const size_t OZ = rz * LZ;
+
+        // --- 2. Select the Data Region ---
+        // "Give me the data at offset (OX, OY, OZ) of size (LX, LY, LZ)"
+        // ADIOS maps this request to the file, regardless of how it was written.
+        var_u.SetSelection({{OX, OY, OZ}, {LX, LY, LZ}});
+        var_v.SetSelection({{OX, OY, OZ}, {LX, LY, LZ}});
+
+        // --- 3. Read into Ghosted Buffer ---
+        // We read the INTERIOR data from file into the INTERIOR of our ghosted vector
+        std::vector<double> u = sim.u_ghost(); // Pre-allocate with existing size (incl ghosts)
+        std::vector<double> v = sim.v_ghost();
+
+        var_u.SetMemorySelection({{1, 1, 1}, {LX, LY, LZ}});
+        var_v.SetMemorySelection({{1, 1, 1}, {LX, LY, LZ}});
 
         reader.Get(var_step, step);
-        reader.Get(var_u, u);
-        reader.Get(var_v, v);
-
+        reader.Get(var_u, u.data());
+        reader.Get(var_v, v.data());
         reader.Close();
 
-        vtkLog(INFO, "Successfully read checkpoint. Restarting from step " << step);
+        // Update the simulation object
         sim.restart(u, v);
+        
+        if(rank==0) vtkLog(INFO, "Restarted from step " << step);
     }
     catch (std::exception &e)
     {
-        // On failure, log a single ERROR message from rank 0 and abort all processes.
-        if (rank == 0)
-        {
-            vtkLog(ERROR, "Failed to read restart file '"
-                              << settings.restart_input << "'. Reason: " << e.what()
-                              << ". Please check that the file exists and is valid.");
-        }
+        if (rank == 0) vtkLog(ERROR, "Restart read failed: " << e.what());
         MPI_Abort(comm, 1);
     }
 
