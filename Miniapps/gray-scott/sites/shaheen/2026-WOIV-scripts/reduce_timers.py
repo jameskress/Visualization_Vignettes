@@ -39,14 +39,17 @@ def reduce_run_data(run_dir, output_csv):
     # 2. Concatenate into one master dataframe
     full_df = pd.concat(dfs, ignore_index=True)
     
+    # Define the exhaustive statistical metrics we want for every column
+    metrics = ['mean', 'min', 'max', p25, p75]
+    
     # 3. Group by step and calculate aggregations across all 3000+ ranks
     summary = full_df.groupby('step').agg({
-        'total_step':   ['mean', 'min', 'max', p25, p75],
-        'compute_step': ['mean'],
-        'write_step':   ['mean'],
-        'init_writer':  ['mean', 'max'], 
-        'writer_open':  ['mean', 'max'],
-        'rss_MB':       ['mean', 'max'] 
+        'total_step':   metrics,
+        'compute_step': metrics,
+        'write_step':   metrics,
+        'init_writer':  metrics, 
+        'writer_open':  metrics,
+        'rss_MB':       metrics 
     })
     
     # Flatten the multi-level column names (e.g., 'total_step', 'mean' -> 'total_step_mean')
@@ -54,7 +57,7 @@ def reduce_run_data(run_dir, output_csv):
     
     # Save to a tiny summary file
     summary.to_csv(output_csv)
-    print(f"Success! Saved summary to: {output_csv}\n")
+    print(f"Success! Saved exhaustive summary to: {output_csv}\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Reduce thousands of Gray-Scott rank CSVs into one summary file.")

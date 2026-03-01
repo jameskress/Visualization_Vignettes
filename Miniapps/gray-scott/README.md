@@ -405,27 +405,66 @@ You can inspect the contents of the output file with the `bpls` command-line too
 
 ---
 
-### Checkpoint & Restart
+### Checkpoint & Restart (N-to-M)
+
+The Gray-Scott miniapp utilizes ADIOS2 Global Arrays for checkpointing. This allows you to perform **N-to-M restarts**: you can generate a checkpoint file on $N$ processors and restart the simulation on $M$ processors without losing spatial awareness.
+
+#### ⚠️ The Golden Rule of Restarts: Grid Divisibility
+
+To successfully restart a simulation across different node counts, **your global grid dimension (`L`) must be perfectly divisible by the 3D MPI processor topology.**
+
+The miniapp relies on strict integer math. If `MPI_Dims_create` generates a 3D grid where a dimension does not evenly divide `L`, the remainder cells are truncated.
+
+* **The Result:** Lost data during the write phase, resulting in skewed, striped, or "NaN" artifacts when reading the data on a different node count.
+
+**The "Factor of 3" Trap:**
+Many modern HPC nodes have core counts that are multiples of 3 (e.g., AMD Genoa with 192 cores). If you naively assign 48 or 192 MPI tasks per node, your total rank count will contain a factor of 3. `MPI_Dims_create` will create grid dimensions like 24 or 48. If your `L` is a pure power of 2 (e.g., `L=2048` or `L=4096`), dividing by 24 results in a decimal ($4096 / 24 = 170.66$). The simulation will truncate this, drop the remaining cells, and corrupt your checkpoint.
+
+#### ✅ Recommended Hardware Mapping (e.g., AMD Genoa / Rome)
+
+To guarantee perfect integer division while fully utilizing modern 192-core or 128-core architectures, **force your MPI task count to be a power of 2.**
+
+For a 192-core node (like Shaheen III), use **32 MPI Tasks × 6 OpenMP Threads**. This fully utilizes the hardware while ensuring your total rank count remains a pure power of 2, guaranteeing perfect grid division for any `L` that is also a power of 2.
+
+```bash
+# Example SLURM Script (192-core node)
+#SBATCH --nodes=256
+#SBATCH --ntasks-per-node=32   # Power of 2!
+#SBATCH --cpus-per-task=6      # 32 * 6 = 192 cores used
+
+export OMP_NUM_THREADS=6
+export OMP_PLACES=cores
+export OMP_PROC_BIND=close
+
+# Launch
+srun --ntasks-per-node=32 --cpus-per-task=6 ./gray-scott settings.json
+```
 
 #### Step 1: ⚙️ Configure Checkpointing
 
 To save or restore a simulation, edit the relevant flags in your JSON settings file.
 
 * **To Save Checkpoints:**
+
   * `"checkpoint": true`
+
   * `"checkpoint_freq": 100` (Save every 100 steps)
+
   * `"checkpoint_output": "ckpt.bp"` (The output filename)
+
 * **To Restart from a Checkpoint:**
+
   * `"restart": true`
+
   * `"restart_input": "ckpt.bp"` (The file to read from)
 
 #### Step 2: 🚀 Execute the Simulation
 
-Run the simulation using the same number of processes that the checkpoint was created with.
+Run the simulation. If you followed the hardware mapping advice above, you can safely restart this on any node count that is a power of 2!
 
 ```bash
 # Example command to restart from a checkpoint
-mpirun -np 16 gray-scott --settings-file=settings-vtk-pvti.json --logging-level=INFO
+mpirun -np 32 gray-scott --settings-file=settings-vtk-pvti.json --logging-level=INFO
 ```
 
 #### Step 3: ✅ Verify the Restart
@@ -438,7 +477,7 @@ The console will print messages confirming that it is reading the checkpoint fil
 ```bash
 (   0.258s) [Rank_0         ]            restart.cpp:81    INFO| Attempting to restart from file: ckpt.bp
 (   0.318s) [Rank_0          ]            restart.cpp:124   INFO| Successfully read checkpoint. Restarting from step 10000
-(   0.269s) [Rank_0         ]               main.cpp:239   INFO| Restarting simulation from step 10000
+(   0.269s) [Rank_0         ]                main.cpp:239   INFO| Restarting simulation from step 10000
 
 ========================================
 grid:                 128x128x128
@@ -448,6 +487,7 @@ restart:          from step 10000
 ```
 
 </details>
+
 
 ---
 

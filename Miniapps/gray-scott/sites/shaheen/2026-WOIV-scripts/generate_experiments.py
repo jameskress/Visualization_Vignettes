@@ -11,8 +11,8 @@ SYSTEM_CONFIG = {
     "partition": "workq",
     "constraints": "",
     "cores_per_node": 192,   
-    "mpi_per_node": 48,      
-    "omp_threads": 4,        
+    "mpi_per_node": 64,      # Increased to 64 for performance; still power-of-two (2^6)
+    "omp_threads": 3,        # Adjusted to 3 to saturate 192 cores (64 * 3)
     "time_limit": "20:00:00"  # 20 hours for all runs to ensure completion
 }
 
@@ -81,7 +81,7 @@ ADIOS_XML_TEMPLATE = """<?xml version="1.0"?>
             <parameter key="QueueFullPolicy" value="Block"/>
             <parameter key="DataTransport" value="MPI"/>
             <parameter key="OpenTimeoutSecs" value="60.0"/>
-            <parameter key="NumAggregators" value="1"/>
+            <parameter key="NumAggregators" value="64"/>
             <parameter key="AsyncWrite" value="false"/>
         </engine>
     </io>
@@ -281,10 +281,10 @@ pipelines:
 SBATCH_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name={id}
 #SBATCH --account={account}
-#SBATCH --partition=workq
+#SBATCH --partition={partition}
 #SBATCH --nodes={total_nodes}
-#SBATCH --ntasks-per-node=48
-#SBATCH --cpus-per-task=4
+#SBATCH --ntasks-per-node={mpi_per_node}
+#SBATCH --cpus-per-task={omp_threads}
 #SBATCH --time={time_limit}
 #SBATCH --hint=nomultithread
 #SBATCH --output={output_dir}/slurm-%j.out
@@ -299,7 +299,7 @@ export GS_CATALYST_BACKEND=osmesa
 export GALLIUM_DRIVER=softpipe
 export LP_NUM_THREADS=1
 
-export OMP_NUM_THREADS=4
+export OMP_NUM_THREADS={omp_threads}
 export OMP_PLACES=threads
 export OMP_PROC_BIND=spread
 export PYTHONDONTWRITEBYTECODE=1
@@ -333,7 +333,8 @@ SIM_PID=$!
 srun --hint=nomultithread --nodes={stage_nodes} --ntasks={stage_ranks} --mem-bind=v,local --cpu-bind=threads \\
     $EXE_STAGE \\
     --settings $OUTPUT_DIR/settings-stage.json \\
-    --file $OUTPUT_DIR/data/grayScott.bp \\
+    --file $OUTPUT_DIR/data/grayScott \\
+    --block-mode repartition \\
     --engine SST &
 STAGE_PID=$!
 
@@ -465,7 +466,6 @@ def copy_pipeline_files(exp, output_dir, repo_root):
         elif effective_backend == 'catalyst':
             if exp['workload'] == 'rendering' or 'render' in pipeline_key:
                 with open(dst_action, "w") as f:
-                    # UPDATED: Double-braced timestep inside the template string logic
                     f.write(CATALYST_RENDER_TEMPLATE.format(cam_x=cam_x, cam_y=cam_y, cam_z=cam_z, center=center_val, parallel_scale=parallel_scale, cam_up_x=cam_up_x, cam_up_y=cam_up_y, cam_up_z=cam_up_z, slice_offset=slice_offset_val))
                 files_to_copy['pipeline'] = dst_action
             
@@ -539,9 +539,37 @@ def generate_scripts(args):
         copied_files = copy_pipeline_files(exp, run_output_dir, args.repo_path)
         generate_settings_json(exp, run_output_dir, copied_files, args)
         total_nodes = exp['sim_nodes'] + exp.get('stage_nodes', 0)
-        command = (CMD_INTRANSIT if exp['type'] == 'intransit' else CMD_INLINE).format(sim_nodes=exp['sim_nodes'], sim_ranks=sim_ranks, stage_nodes=exp.get('stage_nodes', 0), stage_ranks=exp.get('stage_nodes', 0)*SYSTEM_CONFIG['mpi_per_node'], total_ranks=sim_ranks, grid_size=exp['grid_size'], logging_level=GLOBAL_SETTINGS['logging_level'])
-        script_content = SBATCH_TEMPLATE.format(id=exp['id'], account=args.account, partition=SYSTEM_CONFIG['partition'], total_nodes=total_nodes, mpi_per_node=SYSTEM_CONFIG['mpi_per_node'], omp_threads=SYSTEM_CONFIG['omp_threads'], time_limit=SYSTEM_CONFIG['time_limit'], output_dir=run_output_dir, repo_path=args.repo_path, bin_path=args.bin_path, command=command, catalyst_lib_path=CATALYST_LIB_PATH)
-        with open(f"{args.output_dir}/{exp['id']}.sbat", "w") as f: f.write(script_content)
+        
+        # Build command based on type
+        command = (CMD_INTRANSIT if exp['type'] == 'intransit' else CMD_INLINE).format(
+            sim_nodes=exp['sim_nodes'], 
+            sim_ranks=sim_ranks, 
+            stage_nodes=exp.get('stage_nodes', 0), 
+            stage_ranks=exp.get('stage_nodes', 0) * SYSTEM_CONFIG['mpi_per_node'], 
+            total_ranks=sim_ranks, 
+            grid_size=exp['grid_size'], 
+            logging_level=GLOBAL_SETTINGS['logging_level']
+        )
+        
+        # Format the SBATCH template with current configuration
+        script_content = SBATCH_TEMPLATE.format(
+            id=exp['id'], 
+            account=args.account, 
+            partition=SYSTEM_CONFIG['partition'], 
+            total_nodes=total_nodes, 
+            mpi_per_node=SYSTEM_CONFIG['mpi_per_node'], 
+            omp_threads=SYSTEM_CONFIG['omp_threads'], 
+            time_limit=SYSTEM_CONFIG['time_limit'], 
+            output_dir=run_output_dir, 
+            repo_path=args.repo_path, 
+            bin_path=args.bin_path, 
+            command=command, 
+            catalyst_lib_path=CATALYST_LIB_PATH
+        )
+        
+        with open(f"{args.output_dir}/{exp['id']}.sbat", "w") as f: 
+            f.write(script_content)
+            
     print(f"Generated {len(EXPERIMENTS)} scripts in {args.output_dir}")
 
 if __name__ == "__main__":

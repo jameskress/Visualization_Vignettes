@@ -1,65 +1,29 @@
 #include "restart.h"
 #include <stdexcept>
 #include <vector>
-#include <cmath>
-#include <algorithm> // For std::swap if needed
 #include <vtkLogger.h>
 
-// --- Helper: Crash-Proof Topology Calculation ---
-void GetDecomposition(MPI_Comm comm, int nproc, int rank, 
-                      int &px, int &py, int &pz, 
-                      int &rx, int &ry, int &rz)
+// --- Accurate Topology Matcher ---
+void GetOffsets(MPI_Comm comm, int nproc, int rank, size_t L,
+                size_t &ox, size_t &oy, size_t &oz)
 {
-    int status;
-    // 1. Check if the communicator even HAS a topology
-    MPI_Topo_test(comm, &status);
+    // 1. Let MPI calculate the exact 3D division the simulation is using
+    int dims[3] = {0, 0, 0};
+    MPI_Dims_create(nproc, 3, dims); 
 
-    if (status == MPI_CART)
-    {
-        // Safe to call MPI_Cart_get
-        int dims[3] = {0, 0, 0};
-        int periods[3] = {0, 0, 0};
-        int coords[3] = {0, 0, 0};
-        MPI_Cart_get(comm, 3, dims, periods, coords);
-        
-        px = dims[0]; py = dims[1]; pz = dims[2];
-        rx = coords[0]; ry = coords[1]; rz = coords[2];
-    }
-    else
-    {
-        // FALLBACK: Manual Calculation (The "Chicken and Egg" Fix)
-        // We assume a standard block decomposition.
-        
-        // A. Factorize NPROC into px * py * pz (Targeting a cube)
-        px = 1; py = 1; pz = 1;
-        int temp = nproc;
-        
-        // Simple logic: maintain cubic aspect ratio
-        while(temp > 1) {
-            if (px <= py && px <= pz) { px *= 2; }
-            else if (py <= px && py <= pz) { py *= 2; }
-            else { pz *= 2; }
-            temp /= 2;
-        }
+    // 2. Create a temporary grid to get our exact X, Y, Z coordinates
+    MPI_Comm cart_comm;
+    int periods[3] = {1, 1, 1};
+    MPI_Cart_create(comm, 3, dims, periods, 0, &cart_comm);
+    
+    int coords[3] = {0, 0, 0};
+    MPI_Cart_coords(cart_comm, rank, 3, coords);
+    MPI_Comm_free(&cart_comm); // Clean up
 
-        // B. Calculate Rank Coordinates (Standard Row-Major mapping)
-        // This assumes the simulation fills X first, then Y, then Z.
-        // If your sim fills Z first, swap these! 
-        // Standard for most Gray-Scott miniapps:
-        // Rank = rx + ry*px + rz*px*py
-        
-        rx = rank % px;
-        ry = (rank / px) % py;
-        rz = rank / (px * py);
-        
-        // Sanity Check
-        if (px * py * pz != nproc) {
-            // If nproc isn't a power of 2, this simple loop fails. 
-            // Fallback to 1D strip if complex math fails.
-            px = nproc; py = 1; pz = 1;
-            rx = rank; ry = 0; rz = 0;
-        }
-    }
+    // 3. Calculate spatial offsets based on the global size (L)
+    ox = coords[0] * (L / dims[0]);
+    oy = coords[1] * (L / dims[1]);
+    oz = coords[2] * (L / dims[2]);
 }
 
 void WriteCkpt(MPI_Comm comm, const int step, const Settings &settings,
@@ -76,29 +40,41 @@ void WriteCkpt(MPI_Comm comm, const int step, const Settings &settings,
         adios2::Engine writer = io.Open(settings.checkpoint_output, adios2::Mode::Write);
         if (!writer) throw std::runtime_error("ADIOS2 engine creation failed.");
 
-        int px, py, pz, rx, ry, rz;
-        GetDecomposition(comm, nproc, rank, px, py, pz, rx, ry, rz);
+        // Global Dimensions are FIXED to settings.L
+        const size_t GX = settings.L;
+        const size_t GY = settings.L;
+        const size_t GZ = settings.L;
+        
+        // Get our exact starting coordinates
+        size_t OX, OY, OZ;
+        GetOffsets(comm, nproc, rank, settings.L, OX, OY, OZ);
 
+        // Local dimensions (how much this specific rank owns)
         const size_t LX = sim.size_x;
         const size_t LY = sim.size_y;
         const size_t LZ = sim.size_z;
         
-        const size_t GX = LX * px;
-        const size_t GY = LY * py;
-        const size_t GZ = LZ * pz;
-        const size_t OX = rx * LX;
-        const size_t OY = ry * LY;
-        const size_t OZ = rz * LZ;
-
         auto var_u = io.InquireVariable<double>("U");
         auto var_v = io.InquireVariable<double>("V");
         auto var_step = io.InquireVariable<int>("step");
 
-        if (!var_u) var_u = io.DefineVariable<double>("U", {GX, GY, GZ}, {OX, OY, OZ}, {LX, LY, LZ});
-        if (!var_v) var_v = io.DefineVariable<double>("V", {GX, GY, GZ}, {OX, OY, OZ}, {LX, LY, LZ});
+        // ADIOS2 uses C-order (Row-Major). The slowest moving dimension in our loops is Z.
+        if (!var_u) var_u = io.DefineVariable<double>("U", {GZ, GY, GX}, {OZ, OY, OX}, {LZ, LY, LX});
+        if (!var_v) var_v = io.DefineVariable<double>("V", {GZ, GY, GX}, {OZ, OY, OX}, {LZ, LY, LX});
         if (!var_step) var_step = io.DefineVariable<int>("step");
 
-        // Copy to contiguous buffer (Strip Ghosts)
+        // --- ADD METADATA ATTRIBUTES ---
+        if (!io.InquireAttribute<size_t>("L")) {
+            io.DefineAttribute<size_t>("L", settings.L);
+            io.DefineAttribute<double>("F", settings.F);
+            io.DefineAttribute<double>("k", settings.k);
+            io.DefineAttribute<double>("dt", settings.dt);
+            io.DefineAttribute<double>("Du", settings.Du);
+            io.DefineAttribute<double>("Dv", settings.Dv);
+            io.DefineAttribute<double>("noise", settings.noise);
+        }
+
+        // Copy data to strip out ghost cells safely
         std::vector<double> buf_u(LX * LY * LZ);
         std::vector<double> buf_v(LX * LY * LZ);
         const std::vector<double> &u_src = sim.u_ghost();
@@ -151,19 +127,42 @@ int ReadRestart(MPI_Comm comm, const Settings &settings, GrayScott &sim,
 
         if (!var_step || !var_u || !var_v) throw std::runtime_error("Missing variables.");
 
-        // --- SAFE DECOMPOSITION ---
-        int px, py, pz, rx, ry, rz;
-        GetDecomposition(comm, nproc, rank, px, py, pz, rx, ry, rz);
+        // --- VALIDATE METADATA ---
+        auto attr_L = io.InquireAttribute<size_t>("L");
+        if (attr_L && attr_L.Data()[0] != settings.L) {
+            throw std::runtime_error("FATAL: Grid size mismatch! File L=" + 
+                                     std::to_string(attr_L.Data()[0]) + 
+                                     ", Settings L=" + std::to_string(settings.L));
+        }
+
+        if (rank == 0) {
+            auto attr_F = io.InquireAttribute<double>("F");
+            auto attr_k = io.InquireAttribute<double>("k");
+            auto attr_dt = io.InquireAttribute<double>("dt");
+            
+            if (attr_F && attr_F.Data()[0] != settings.F) {
+                vtkLog(WARNING, "Physics mismatch: File F=" << attr_F.Data()[0] << ", Settings F=" << settings.F);
+            }
+            if (attr_k && attr_k.Data()[0] != settings.k) {
+                vtkLog(WARNING, "Physics mismatch: File k=" << attr_k.Data()[0] << ", Settings k=" << settings.k);
+            }
+            if (attr_dt && attr_dt.Data()[0] != settings.dt) {
+                vtkLog(WARNING, "Physics mismatch: File dt=" << attr_dt.Data()[0] << ", Settings dt=" << settings.dt);
+            }
+        }
+        // --- END METADATA VALIDATION ---
+
+        // Get our new coordinates based on the current number of nodes
+        size_t OX, OY, OZ;
+        GetOffsets(comm, nproc, rank, settings.L, OX, OY, OZ);
 
         const size_t LX = sim.size_x;
         const size_t LY = sim.size_y;
         const size_t LZ = sim.size_z;
-        const size_t OX = rx * LX;
-        const size_t OY = ry * LY;
-        const size_t OZ = rz * LZ;
 
-        var_u.SetSelection({{OX, OY, OZ}, {LX, LY, LZ}});
-        var_v.SetSelection({{OX, OY, OZ}, {LX, LY, LZ}});
+        // Match the Row-Major {Z, Y, X} order used during write
+        var_u.SetSelection({{OZ, OY, OX}, {LZ, LY, LX}});
+        var_v.SetSelection({{OZ, OY, OX}, {LZ, LY, LX}});
 
         std::vector<double> buf_u(LX * LY * LZ);
         std::vector<double> buf_v(LX * LY * LZ);
@@ -173,7 +172,7 @@ int ReadRestart(MPI_Comm comm, const Settings &settings, GrayScott &sim,
         reader.Get(var_v, buf_v.data());
         reader.Close();
 
-        // Reconstruct Ghosts
+        // Reconstruct the array with ghost cell padding
         std::vector<double> u = sim.u_ghost();
         std::vector<double> v = sim.v_ghost();
         
@@ -190,7 +189,7 @@ int ReadRestart(MPI_Comm comm, const Settings &settings, GrayScott &sim,
         }
         
         sim.restart(u, v);
-        if(rank==0) vtkLog(INFO, "Restarted from step " << step);
+        if(rank==0) vtkLog(INFO, "Restarted successfully from step " << step);
     }
     catch (std::exception &e)
     {

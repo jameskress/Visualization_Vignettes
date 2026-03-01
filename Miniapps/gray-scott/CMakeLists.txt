@@ -269,6 +269,8 @@ if(ENABLE_KOMBYNELITE)
       ${KOMBYNE_BUNDLED_LIBS}
       MPI::MPI_CXX          
   )
+
+  target_link_options(gray-scott PRIVATE "-Wl,--allow-shlib-undefined")
 endif()
 
 
