@@ -179,6 +179,13 @@ void AdiosReader::ReadRepartition(const std::string &var_name, std::vector<T> &b
         size_t remainder = read_info.global_dims[0] % size;
         read_info.local_start[0] = rank * slab_size + std::min((size_t)rank, remainder);
         read_info.local_dims[0] = slab_size + (rank < remainder ? 1 : 0);
+
+	// Fetch one extra overlapping point to close the physical gap between ranks.
+        // We do this for everyone EXCEPT the very last rank (which is at the global boundary).
+	if (rank != size - 1)
+        {
+            read_info.local_dims[0] += 1;
+        }
     }
 
     size_t local_count = productDims(read_info.local_dims);
