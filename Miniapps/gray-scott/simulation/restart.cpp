@@ -3,8 +3,7 @@
 #include <vector>
 #include <vtkLogger.h>
 
-// --- 100% Accurate Topology Matcher ---
-// This perfectly mimics how the Gray-Scott app calculates its grid
+// --- Accurate Topology Matcher ---
 void GetOffsets(MPI_Comm comm, int nproc, int rank, size_t L,
                 size_t &ox, size_t &oy, size_t &oz)
 {
@@ -41,7 +40,7 @@ void WriteCkpt(MPI_Comm comm, const int step, const Settings &settings,
         adios2::Engine writer = io.Open(settings.checkpoint_output, adios2::Mode::Write);
         if (!writer) throw std::runtime_error("ADIOS2 engine creation failed.");
 
-        // Global Dimensions are FIXED to settings.L (e.g., 2048 x 2048 x 2048)
+        // Global Dimensions are FIXED to settings.L
         const size_t GX = settings.L;
         const size_t GY = settings.L;
         const size_t GZ = settings.L;
@@ -59,9 +58,21 @@ void WriteCkpt(MPI_Comm comm, const int step, const Settings &settings,
         auto var_v = io.InquireVariable<double>("V");
         auto var_step = io.InquireVariable<int>("step");
 
-        if (!var_u) var_u = io.DefineVariable<double>("U", {GX, GY, GZ}, {OX, OY, OZ}, {LX, LY, LZ});
-        if (!var_v) var_v = io.DefineVariable<double>("V", {GX, GY, GZ}, {OX, OY, OZ}, {LX, LY, LZ});
+        // ADIOS2 uses C-order (Row-Major). The slowest moving dimension in our loops is Z.
+        if (!var_u) var_u = io.DefineVariable<double>("U", {GZ, GY, GX}, {OZ, OY, OX}, {LZ, LY, LX});
+        if (!var_v) var_v = io.DefineVariable<double>("V", {GZ, GY, GX}, {OZ, OY, OX}, {LZ, LY, LX});
         if (!var_step) var_step = io.DefineVariable<int>("step");
+
+        // --- ADD METADATA ATTRIBUTES ---
+        if (!io.InquireAttribute<size_t>("L")) {
+            io.DefineAttribute<size_t>("L", settings.L);
+            io.DefineAttribute<double>("F", settings.F);
+            io.DefineAttribute<double>("k", settings.k);
+            io.DefineAttribute<double>("dt", settings.dt);
+            io.DefineAttribute<double>("Du", settings.Du);
+            io.DefineAttribute<double>("Dv", settings.Dv);
+            io.DefineAttribute<double>("noise", settings.noise);
+        }
 
         // Copy data to strip out ghost cells safely
         std::vector<double> buf_u(LX * LY * LZ);
@@ -116,6 +127,31 @@ int ReadRestart(MPI_Comm comm, const Settings &settings, GrayScott &sim,
 
         if (!var_step || !var_u || !var_v) throw std::runtime_error("Missing variables.");
 
+        // --- VALIDATE METADATA ---
+        auto attr_L = io.InquireAttribute<size_t>("L");
+        if (attr_L && attr_L.Data()[0] != settings.L) {
+            throw std::runtime_error("FATAL: Grid size mismatch! File L=" + 
+                                     std::to_string(attr_L.Data()[0]) + 
+                                     ", Settings L=" + std::to_string(settings.L));
+        }
+
+        if (rank == 0) {
+            auto attr_F = io.InquireAttribute<double>("F");
+            auto attr_k = io.InquireAttribute<double>("k");
+            auto attr_dt = io.InquireAttribute<double>("dt");
+            
+            if (attr_F && attr_F.Data()[0] != settings.F) {
+                vtkLog(WARNING, "Physics mismatch: File F=" << attr_F.Data()[0] << ", Settings F=" << settings.F);
+            }
+            if (attr_k && attr_k.Data()[0] != settings.k) {
+                vtkLog(WARNING, "Physics mismatch: File k=" << attr_k.Data()[0] << ", Settings k=" << settings.k);
+            }
+            if (attr_dt && attr_dt.Data()[0] != settings.dt) {
+                vtkLog(WARNING, "Physics mismatch: File dt=" << attr_dt.Data()[0] << ", Settings dt=" << settings.dt);
+            }
+        }
+        // --- END METADATA VALIDATION ---
+
         // Get our new coordinates based on the current number of nodes
         size_t OX, OY, OZ;
         GetOffsets(comm, nproc, rank, settings.L, OX, OY, OZ);
@@ -124,9 +160,9 @@ int ReadRestart(MPI_Comm comm, const Settings &settings, GrayScott &sim,
         const size_t LY = sim.size_y;
         const size_t LZ = sim.size_z;
 
-        // Tell ADIOS to fetch exactly the block of data this rank needs
-        var_u.SetSelection({{OX, OY, OZ}, {LX, LY, LZ}});
-        var_v.SetSelection({{OX, OY, OZ}, {LX, LY, LZ}});
+        // Match the Row-Major {Z, Y, X} order used during write
+        var_u.SetSelection({{OZ, OY, OX}, {LZ, LY, LX}});
+        var_v.SetSelection({{OZ, OY, OX}, {LZ, LY, LX}});
 
         std::vector<double> buf_u(LX * LY * LZ);
         std::vector<double> buf_v(LX * LY * LZ);

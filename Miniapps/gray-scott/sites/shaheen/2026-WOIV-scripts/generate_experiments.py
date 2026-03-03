@@ -11,24 +11,23 @@ SYSTEM_CONFIG = {
     "partition": "workq",
     "constraints": "",
     "cores_per_node": 192,   
-    "mpi_per_node": 48,      
-    "omp_threads": 4,        
-    "time_limit": "20:00:00"  # 20 hours for all runs to ensure completion
+    "mpi_per_node": 64,      # 64 ranks: Power-of-two (2^6) for clean 3D decomposition
+    "omp_threads": 3,        # 3 threads: Saturates 192 cores (64 * 3)
+    "time_limit": "20:00:00" 
 }
 
 # =============================================================================
 # GLOBAL SETTINGS
 # =============================================================================
 GLOBAL_SETTINGS = {
-    "init_steps": 65000,      # Standardized to 65k to ensure L=8192 pattern stabilization
+    "init_steps": 65000,      
     "init_burn_in": 0,        
-    "run_steps": 501,         # Performance benchmark duration
+    "run_steps": 501,         
     "plotgap": 20,            
     "output_type": "adhoc",
     "logging_level": "info"
 }
 
-# Mapping grid sizes to efficient node counts for the shared initialization phase.
 INIT_NODE_MAP = {
     1024: 8,
     2048: 64,
@@ -71,6 +70,7 @@ PIPELINE_FILES = {
 # =============================================================================
 # TEMPLATES
 # =============================================================================
+# EXASCALE FIX: DataTransport="RDMA" with ControlModule="epoll"
 ADIOS_XML_TEMPLATE = """<?xml version="1.0"?>
 <adios-config>
     <io name="SimulationOutput">
@@ -79,9 +79,9 @@ ADIOS_XML_TEMPLATE = """<?xml version="1.0"?>
             <parameter key="RendezvousReaderCount" value="{rendezvous}"/>
             <parameter key="QueueLimit" value="1"/>
             <parameter key="QueueFullPolicy" value="Block"/>
-            <parameter key="DataTransport" value="MPI"/>
-            <parameter key="OpenTimeoutSecs" value="60.0"/>
-            <parameter key="NumAggregators" value="1"/>
+            <parameter key="DataTransport" value="RDMA"/>
+            <parameter key="ControlModule" value="epoll"/>
+            <parameter key="OpenTimeoutSecs" value="600.0"/>
             <parameter key="AsyncWrite" value="false"/>
         </engine>
     </io>
@@ -169,6 +169,7 @@ ASCENT_RENDER_TEMPLATE = """
             zoom: 2.0
 """
 
+# RESTORED: Exact user Catalyst script with full slices and LUT definitions
 CATALYST_RENDER_TEMPLATE = """
 from paraview import catalyst
 from paraview.simple import *
@@ -278,13 +279,14 @@ pipelines:
               color_table: "cool to warm"
 """
 
+# EXASCALE FIX: Included full Libfabric tuning for Slingshot 11 + MPMD + Silence logs
 SBATCH_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name={id}
 #SBATCH --account={account}
-#SBATCH --partition=workq
+#SBATCH --partition={partition}
 #SBATCH --nodes={total_nodes}
-#SBATCH --ntasks-per-node=48
-#SBATCH --cpus-per-task=4
+#SBATCH --ntasks={total_ranks}
+#SBATCH --cpus-per-task={omp_threads}
 #SBATCH --time={time_limit}
 #SBATCH --hint=nomultithread
 #SBATCH --output={output_dir}/slurm-%j.out
@@ -299,7 +301,21 @@ export GS_CATALYST_BACKEND=osmesa
 export GALLIUM_DRIVER=softpipe
 export LP_NUM_THREADS=1
 
-export OMP_NUM_THREADS=4
+# --- Exascale Slingshot-11 OFI Tuning ---
+export FI_CXI_RX_MATCH_MODE=software
+export FI_CXI_DEFAULT_CQ_SIZE=131072
+export FI_CXI_OFLOW_BUF_SIZE=8388608
+export FI_CXI_CQ_FILL_PERCENT=20
+export FI_TCP_IFACE=hsn0
+export CM_DISABLE_SHM=1
+ulimit -n 131072
+
+# --- Silencing ADIOS2 Logs ---
+export SST_VERBOSE=0
+export ADIOS2_LOG_LEVEL=1
+
+export MPICH_MAX_THREAD_SAFETY=multiple
+export OMP_NUM_THREADS={omp_threads}
 export OMP_PLACES=threads
 export OMP_PROC_BIND=spread
 export PYTHONDONTWRITEBYTECODE=1
@@ -307,6 +323,9 @@ export PYTHONDONTWRITEBYTECODE=1
 EXE_SIM="{bin_path}/gray-scott"
 EXE_STAGE="{bin_path}/analysis-reader"
 OUTPUT_DIR="{output_dir}"
+
+# Ensure a clean slate for SST contact files
+rm -f $OUTPUT_DIR/data/*.sst
 
 mkdir -p $OUTPUT_DIR/data
 lfs setstripe -c -1 $OUTPUT_DIR
@@ -317,28 +336,27 @@ echo "Starting Run: {id}"
 """
 
 CMD_INLINE = """
-srun --hint=nomultithread --ntasks={total_ranks} --mem-bind=v,local --cpu-bind=threads \\
+srun --propagate=NOFILE --hint=nomultithread --ntasks={sim_ranks} --mem-bind=v,local --cpu-bind=threads \\
     $EXE_SIM \\
     --logging-level={logging_level} \\
     --settings-file=$OUTPUT_DIR/settings.json
 """
 
 CMD_INTRANSIT = """
-srun --hint=nomultithread --nodes={sim_nodes} --ntasks={sim_ranks} --mem-bind=v,local --cpu-bind=threads \\
+srun --propagate=NOFILE --hint=nomultithread \\
+    --nodes={sim_nodes} --ntasks={sim_ranks} --mem-bind=v,local --cpu-bind=threads \\
     $EXE_SIM \\
     --logging-level={logging_level} \\
-    --settings-file=$OUTPUT_DIR/settings.json &
-SIM_PID=$!
-
-srun --hint=nomultithread --nodes={stage_nodes} --ntasks={stage_ranks} --mem-bind=v,local --cpu-bind=threads \\
+    --settings-file=$OUTPUT_DIR/settings.json \\
+    : \\
+    --nodes={stage_nodes} --ntasks={stage_ranks} --mem-bind=v,local --cpu-bind=threads \\
     $EXE_STAGE \\
     --settings $OUTPUT_DIR/settings-stage.json \\
-    --file $OUTPUT_DIR/data/grayScott.bp \\
-    --engine SST &
-STAGE_PID=$!
-
-wait $SIM_PID
-wait $STAGE_PID
+    --file $OUTPUT_DIR/data/grayScott \\
+    --block-mode repartition \\
+    --engine SST \\
+    --mpi-split-color=1 \\
+    --adios-verbose 0
 """
 
 def generate_settings_json(exp, output_dir, copied_files, args):
@@ -465,7 +483,6 @@ def copy_pipeline_files(exp, output_dir, repo_root):
         elif effective_backend == 'catalyst':
             if exp['workload'] == 'rendering' or 'render' in pipeline_key:
                 with open(dst_action, "w") as f:
-                    # UPDATED: Double-braced timestep inside the template string logic
                     f.write(CATALYST_RENDER_TEMPLATE.format(cam_x=cam_x, cam_y=cam_y, cam_z=cam_z, center=center_val, parallel_scale=parallel_scale, cam_up_x=cam_up_x, cam_up_y=cam_up_y, cam_up_z=cam_up_z, slice_offset=slice_offset_val))
                 files_to_copy['pipeline'] = dst_action
             
@@ -534,14 +551,46 @@ def generate_scripts(args):
 
     for exp in EXPERIMENTS:
         sim_ranks = exp['sim_nodes'] * SYSTEM_CONFIG['mpi_per_node']
+        total_stage_ranks = exp.get('stage_nodes', 0) * SYSTEM_CONFIG['mpi_per_node']
+        
         run_output_dir = f"{args.results_dir}/{exp['id']}"
         os.makedirs(run_output_dir, exist_ok=True)
         copied_files = copy_pipeline_files(exp, run_output_dir, args.repo_path)
         generate_settings_json(exp, run_output_dir, copied_files, args)
         total_nodes = exp['sim_nodes'] + exp.get('stage_nodes', 0)
-        command = (CMD_INTRANSIT if exp['type'] == 'intransit' else CMD_INLINE).format(sim_nodes=exp['sim_nodes'], sim_ranks=sim_ranks, stage_nodes=exp.get('stage_nodes', 0), stage_ranks=exp.get('stage_nodes', 0)*SYSTEM_CONFIG['mpi_per_node'], total_ranks=sim_ranks, grid_size=exp['grid_size'], logging_level=GLOBAL_SETTINGS['logging_level'])
-        script_content = SBATCH_TEMPLATE.format(id=exp['id'], account=args.account, partition=SYSTEM_CONFIG['partition'], total_nodes=total_nodes, mpi_per_node=SYSTEM_CONFIG['mpi_per_node'], omp_threads=SYSTEM_CONFIG['omp_threads'], time_limit=SYSTEM_CONFIG['time_limit'], output_dir=run_output_dir, repo_path=args.repo_path, bin_path=args.bin_path, command=command, catalyst_lib_path=CATALYST_LIB_PATH)
-        with open(f"{args.output_dir}/{exp['id']}.sbat", "w") as f: f.write(script_content)
+        combined_total_ranks = sim_ranks + total_stage_ranks
+        
+        # Build command based on type
+        command = (CMD_INTRANSIT if exp['type'] == 'intransit' else CMD_INLINE).format(
+            sim_nodes=exp['sim_nodes'], 
+            sim_ranks=sim_ranks, 
+            stage_nodes=exp.get('stage_nodes', 0), 
+            stage_ranks=total_stage_ranks,
+            total_ranks=combined_total_ranks if exp['type'] == 'intransit' else sim_ranks, 
+            grid_size=exp['grid_size'], 
+            logging_level=GLOBAL_SETTINGS['logging_level']
+        )
+        
+        # Format the SBATCH template with current configuration
+        script_content = SBATCH_TEMPLATE.format(
+            id=exp['id'], 
+            account=args.account, 
+            partition=SYSTEM_CONFIG['partition'], 
+            total_nodes=total_nodes,
+            total_ranks=combined_total_ranks if exp['type'] == 'intransit' else sim_ranks, 
+            mpi_per_node=SYSTEM_CONFIG['mpi_per_node'], 
+            omp_threads=SYSTEM_CONFIG['omp_threads'], 
+            time_limit=SYSTEM_CONFIG['time_limit'], 
+            output_dir=run_output_dir, 
+            repo_path=args.repo_path, 
+            bin_path=args.bin_path, 
+            command=command, 
+            catalyst_lib_path=CATALYST_LIB_PATH
+        )
+        
+        with open(f"{args.output_dir}/{exp['id']}.sbat", "w") as f: 
+            f.write(script_content)
+            
     print(f"Generated {len(EXPERIMENTS)} scripts in {args.output_dir}")
 
 if __name__ == "__main__":

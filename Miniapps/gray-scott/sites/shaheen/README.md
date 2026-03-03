@@ -41,5 +41,10 @@ pip install --upgrade pip
 pip install pandas numpy matplotlib
 
 ## Generate the stats
-python3 /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/reduce_timers.py writer_timers/ summary_baseline.csv
+python3 reduce_timers.py paper1_func_N0064_baseline/writer_timers summary_baseline.csv
+python3 reduce_timers.py paper1_func_N0064_inline_adios_data/writer_timers summary_adios_data.csv
+python3 reduce_timers.py paper1_func_N0064_inline_ascent_data/writer_timers summary_ascent_data.csv
+python3 reduce_timers.py paper1_func_N0064_inline_ascent_render/writer_timers summary_ascent_render.csv
+python3 reduce_timers.py paper1_func_N0064_inline_catalyst_data/writer_timers summary_catalyst_data.csv
+python3 reduce_timers.py paper1_func_N0064_inline_catalyst_render/writer_timers summary_catalyst_render.csv
 python3 plot_performance.py
