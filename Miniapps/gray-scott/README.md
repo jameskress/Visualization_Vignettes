@@ -396,12 +396,11 @@ You can inspect the contents of the output file with the `bpls` command-line too
 
     </details>
 
-2. **Visualize in ParaView:**
+2. **Visualize in ParaView (Not applicable to restart files):**
     1. Open your `.bp` file in ParaView (e.g., `gs-adios-memselect.bp`).
     2. In the "Open File" dialog, make sure to select the **`ADIOS2FidesReader`** or **`FidesReader`** depending on ParaView version.
-    3. You will initially see the data with visible gaps between the blocks from each MPI rank.
-    4. To create a seamless image, select the dataset in the `Pipeline Browser` and apply the filter **`Filters` -> `Data Analysis` -> `Stitch Image Data With Ghosts`**.
-    5. The output of the `Stitch` filter will be a single, continuous grid ready for further visualization.
+    3. In the fides reader click the option that says **`Create shared points`**.
+    4. The output of the reader will be a continuous grid ready for further visualization.
 
 ---
 
