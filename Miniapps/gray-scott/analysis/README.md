@@ -97,7 +97,7 @@ This is the **true in-transit mode**, where the simulation and analysis codes ru
 The simulation and analysis processes are launched in a single `mpirun` command and are assigned different "colors" to partition them into separate communicators.
 
 > [!CAUTION]
-> Catalyst does not work in MPMD mode due to underlying MPI conflicts, launch as two separate processes. 
+> This launch method may be necessary if your system restricts communication between mpi jobs, even mpi jobs in the same job script. If you have problems initializing ADIOS communication this may be the issue. 
 
 **Example (16 sim ranks, 4 analysis ranks):**
 ```

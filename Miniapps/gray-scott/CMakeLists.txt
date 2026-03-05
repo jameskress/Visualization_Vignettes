@@ -176,14 +176,34 @@ endif()
 # Kombyne (Optional)
 if(ENABLE_KOMBYNELITE)
   find_package(kombynelite REQUIRED)
-
+  
   if(kombynelite_FOUND)
-    message(STATUS "Kombyne lite found: kombynelite")
+    message(STATUS "Kombyne lite found config at: ${kombynelite_DIR}")
+
+    # 1. Calculate the installation root
+    # kombynelite_DIR is likely .../lib/cmake/kombynelite
+    # We need to go up 3 levels to get to the base folder
+    get_filename_component(KOMBYNE_INSTALL_ROOT "${kombynelite_DIR}/../../.." ABSOLUTE)
+    
+    message(STATUS "Kombyne Install Root: ${KOMBYNE_INSTALL_ROOT}")
+
+    # 2. Manually define the Bundled Conduit Libraries
+    # Order matters for static linking! 
+    # Usually: Relay -> Blueprint -> Conduit
+    set(KOMBYNE_BUNDLED_LIBS 
+        "${KOMBYNE_INSTALL_ROOT}/lib/libconduit_relay.a"
+        "${KOMBYNE_INSTALL_ROOT}/lib/libconduit_blueprint.a"
+        "${KOMBYNE_INSTALL_ROOT}/lib/libconduit.a"
+    )
+
+    # 3. Add the include directory so we can find conduit headers
+    include_directories("${KOMBYNE_INSTALL_ROOT}/include")
+
   else()
-    message(FATAL_ERROR "Kombyne lite not found. Set kombynelite_DIR to the installation directory.")
+    message(FATAL_ERROR "Kombyne lite not found. Set kombynelite_DIR.")
   endif()
 
-  message(STATUS "Kombyne lite enabled.")
+  message(STATUS "Kombyne lite enabled with bundled Conduit.")
 endif()
 
 #------------------------------------------------------------------------------#
@@ -244,7 +264,13 @@ if(ENABLE_ADIOS2)
 endif()
 
 if(ENABLE_KOMBYNELITE)
-  target_link_libraries(gray-scott PRIVATE kombynelite)
+  target_link_libraries(gray-scott PRIVATE 
+      kombynelite
+      ${KOMBYNE_BUNDLED_LIBS}
+      MPI::MPI_CXX          
+  )
+
+  target_link_options(gray-scott PRIVATE "-Wl,--allow-shlib-undefined")
 endif()
 
 

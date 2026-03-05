@@ -27,3 +27,28 @@ env prefix=build enable_mpi=ON enable_openmp=ON \
 
 # ADIOS2
 ADIOS worked following the README instructions.
+
+
+
+# Performance scripts
+
+## Creating python environment
+cd /scratch/kressjm
+module load python
+python3 -m venv perf_env
+source perf_env/bin/activate
+pip install --upgrade pip
+pip install pandas numpy matplotlib
+
+## Generate the stats
+python3 reduce_timers.py paper1_func_N0064_baseline/writer_timers summary_baseline.csv
+python3 reduce_timers.py paper1_func_N0064_inline_adios_data/writer_timers summary_adios_data.csv
+python3 reduce_timers.py paper1_func_N0064_inline_ascent_data/writer_timers summary_ascent_data.csv
+python3 reduce_timers.py paper1_func_N0064_inline_ascent_render/writer_timers summary_ascent_render.csv
+python3 reduce_timers.py paper1_func_N0064_inline_catalyst_data/writer_timers summary_catalyst_data.csv
+python3 reduce_timers.py paper1_func_N0064_inline_catalyst_render/writer_timers summary_catalyst_render.csv
+python3 reduce_timers.py paper1_func_N0064_transit_catalyst_render/writer_timers summary_catalyst_intransit_render.csv
+python3 reduce_timers.py paper1_func_N0064_transit_ascent_render/writer_timers summary_ascent_intransit_render.csv
+python3 reduce_timers.py paper1_func_N0064_inline_kombyne_data/writer_timers summary_kombyne_data.csv
+python3 reduce_timers.py paper1_func_N0064_inline_kombyne_render/writer_timers summary_kombyne_render.csv
+python3 plot_performance.py

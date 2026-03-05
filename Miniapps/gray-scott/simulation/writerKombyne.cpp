@@ -52,7 +52,6 @@ void WriterKombyne::write(int step, const GrayScott &sim, int rank, int numRanks
 
     if (settings.overwrite_last_step)
     {
-        // Force constant index for file overwriting
         output_step = 0;
         if (rank == 0)
             vtkLog(INFO, "Kombyne: Executing OVERWRITE step " << input_step << " (Output Index: 0)");
@@ -63,14 +62,12 @@ void WriterKombyne::write(int step, const GrayScott &sim, int rank, int numRanks
             vtkLog(INFO, "Kombyne: Co-processing data for step " << input_step);
     }
 
-    // Check plotgap. (Assumed already checked by main.cpp for the call, but kept as a safeguard)
     bool is_plot_step = (step >= settings.burn_in_steps && step % settings.plotgap == 0);
     if (!is_plot_step)
         return;
 
-    // --- DATA PACKAGING (MUST BE HERE AND USE COPY FOR SAFETY) ---
+    // --- DATA PACKAGING ---
 
-    // Allocate Kombyne data handles
     auto pipeline_data = kb_pipeline_data_alloc();
     kb_pipeline_data_set_promises(pipeline_data, KB_PROMISE_STATIC_FIELDS);
 
@@ -80,29 +77,33 @@ void WriterKombyne::write(int step, const GrayScott &sim, int rank, int numRanks
     auto var_u = kb_var_alloc();
     auto var_v = kb_var_alloc();
 
-    // 2. Describe the structured grid
-    int nx = sim.size_x + 2, ny = sim.size_y + 2, nz = sim.size_z + 2;
+    // 2. Describe the structured grid (Use VALID dimensions, excluding ghosts)
+    int nx = sim.size_x;
+    int ny = sim.size_y;
+    int nz = sim.size_z;
     int dims[3] = {nx, ny, nz};
     kb_sgrid_set_dims(sgrid, dims);
 
-    // 3. Generate coordinates
+    // 3. Generate coordinates for VALID points only
+    float spacing = 0.1f;
     std::vector<float> coords;
     coords.reserve(nx * ny * nz * 3);
     for (int k = 0; k < nz; ++k)
         for (int j = 0; j < ny; ++j)
             for (int i = 0; i < nx; ++i)
             {
-                coords.push_back(static_cast<float>(sim.offset_x + i));
-                coords.push_back(static_cast<float>(sim.offset_y + j));
-                coords.push_back(static_cast<float>(sim.offset_z + k));
+                coords.push_back(static_cast<float>(sim.offset_x + i) * spacing);
+                coords.push_back(static_cast<float>(sim.offset_y + j) * spacing);
+                coords.push_back(static_cast<float>(sim.offset_z + k) * spacing);
             }
 
     kb_var_setf(hcoords, KB_MEM_COPY, 3, coords.size() / 3, coords.data());
     kb_sgrid_set_coords(sgrid, hcoords);
 
-    // 4. Package the field data
-    std::vector<double> u_data = sim.u_ghost();
-    std::vector<double> v_data = sim.v_ghost();
+    // 4. Package the field data (Use NOGHOST data)
+    // u_noghost() returns a copy of the data without the halo layers.
+    std::vector<double> u_data = sim.u_noghost();
+    std::vector<double> v_data = sim.v_noghost();
 
     kb_var_setd(var_u, KB_MEM_COPY, 1, u_data.size(), u_data.data());
     kb_var_setd(var_v, KB_MEM_COPY, 1, v_data.size(), v_data.data());
@@ -111,14 +112,13 @@ void WriterKombyne::write(int step, const GrayScott &sim, int rank, int numRanks
     kb_fields_add_var(fields, "V", KB_CENTERING_POINTS, var_v);
     kb_sgrid_set_fields(sgrid, fields);
 
-    // 5. Add mesh to pipeline data (Uses corrected output_step)
+    // 5. Add mesh to pipeline data
     double time = static_cast<double>(input_step) * settings.dt;
     kb_pipeline_data_add(pipeline_data, rank, numRanks, output_step, time, (kb_mesh_handle)sgrid);
 
-    // 6. Execute the in situ step
+    // 6. Execute
     kb_simulation_execute(m_pipeline_collection, pipeline_data, KB_HANDLE_NULL);
 
-    // Free per-step allocations
     kb_pipeline_data_free(pipeline_data);
 }
 
