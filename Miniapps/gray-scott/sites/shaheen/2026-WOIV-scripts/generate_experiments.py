@@ -31,7 +31,7 @@ GLOBAL_SETTINGS = {
 INIT_NODE_MAP = {
     1024: 8,
     2048: 64,
-    4096: 512,  
+    4096: 1024,  # Increased from 512 to 1024 nodes for 20hr time limit
     8192: 2048  
 }
 
@@ -48,10 +48,11 @@ WEAK_SCALING_CONFIGS = [
     (4096, 8192)
 ]
 
+# Updated to exact 32:1 ratio from Paper 2 scaling tables
 TRANSIT_CONFIGS = [
-    ("small", 64, 2048, 4),
-    ("hero", 4096, 8192, 128),
-    ("compressed", 512, 8192, 16) 
+    ("small", 64, 2048, 2),        # Weak Scaling Start (32:1)
+    ("compressed", 512, 8192, 16), # Strong Scaling Start (32:1)
+    ("hero", 4096, 8192, 128)      # Weak/Strong Scaling End (32:1)
 ]
 
 CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
@@ -169,7 +170,6 @@ ASCENT_RENDER_TEMPLATE = """
             zoom: 2.0
 """
 
-# RESTORED: Exact user Catalyst script with full slices and LUT definitions
 CATALYST_RENDER_TEMPLATE = """
 from paraview import catalyst
 from paraview.simple import *
@@ -252,31 +252,105 @@ if __name__ == "__main__":
 
 KOMBYNE_RENDER_TEMPLATE = """
 pipelines:
-  - type: "3slice"
-    enabled: "true"
+  # -------------------------------------------------------------------------
+  # Pipeline 1: X-Normal Slice (YZ Plane)
+  # -------------------------------------------------------------------------
+  - type: "slice"
+    enabled: true
     attributes:
-      x_offset: {slice_offset}
-      y_offset: {slice_offset}
-      z_offset: {slice_offset}
+      origin: [{slice_offset}, {slice_offset}, {slice_offset}]
+      normal: [1.0, 0.0, 0.0]
     outputs:
       - type: "render"
         enabled: true
-        file_pattern: "data/kombyne_threeslice_v_ts_%ts.png"
+        file_pattern: "data/kombyne_slice_x_ts_%ts.png"
         file_format: "png"
         attributes:
           width: 2048
           height: 2048
           scene:
+            colors:
+              background: [0.0, 0.0, 0.0]
             camera:
-              position: [{cam_x}, {cam_y}, {cam_z}]
-              focus: [{center}, {center}, {center}]
-              up: [{cam_up_x}, {cam_up_y}, {cam_up_z}]
+              # Looking straight down the X axis
+              position: [{cam_dist}, {center}, {center}]
+              focus: [{slice_offset}, {center}, {center}]
+              up: [0.0, 0.0, 1.0]
               fov: 30.0
             pseudocolor:
-              variable: "v"
-              min: 0.0
-              max: 1.0
-              color_table: "cool to warm"
+              variable: "V"
+              color_table: "hot_desaturated"
+
+  # -------------------------------------------------------------------------
+  # Pipeline 2: Y-Normal Slice (XZ Plane)
+  # -------------------------------------------------------------------------
+  - type: "slice"
+    enabled: true
+    attributes:
+      origin: [{slice_offset}, {slice_offset}, {slice_offset}]
+      normal: [0.0, 1.0, 0.0]
+    outputs:
+      - type: "render"
+        enabled: true
+        file_pattern: "data/kombyne_slice_y_ts_%ts.png"
+        file_format: "png"
+        attributes:
+          width: 2048
+          height: 2048
+          scene:
+            colors:
+              background: [0.0, 0.0, 0.0]
+            camera:
+              # Looking straight down the Y axis
+              position: [{center}, {cam_dist}, {center}]
+              focus: [{center}, {slice_offset}, {center}]
+              up: [0.0, 0.0, 1.0]
+              fov: 30.0
+            pseudocolor:
+              variable: "V"
+              color_table: "hot_desaturated"
+
+  # -------------------------------------------------------------------------
+  # Pipeline 3: Z-Normal Slice (XY Plane)
+  # -------------------------------------------------------------------------
+  - type: "slice"
+    enabled: true
+    attributes:
+      origin: [{slice_offset}, {slice_offset}, {slice_offset}]
+      normal: [0.0, 0.0, 1.0]
+    outputs:
+      - type: "render"
+        enabled: true
+        file_pattern: "data/kombyne_slice_z_ts_%ts.png"
+        file_format: "png"
+        attributes:
+          width: 2048
+          height: 2048
+          scene:
+            colors:
+              background: [0.0, 0.0, 0.0]
+            camera:
+              # Looking straight down the Z axis
+              position: [{center}, {center}, {cam_dist}]
+              focus: [{center}, {center}, {slice_offset}]
+              up: [0.0, 1.0, 0.0]
+              fov: 30.0
+            pseudocolor:
+              variable: "V"
+              color_table: "hot_desaturated"
+"""
+
+KOMBYNE_DATA_TEMPLATE = """
+pipelines:
+  - type: "null"
+    enabled: "true"
+    frequency: 1 # Process every step the simulation sends
+    outputs:
+      - type: "export"
+        file_pattern: "data/full_grid.%ts"
+        file_format: "vtk"
+        attributes:
+          binary: "true"
 """
 
 # EXASCALE FIX: Included full Libfabric tuning for Slingshot 11 + MPMD + Silence logs
@@ -343,7 +417,7 @@ srun --propagate=NOFILE --hint=nomultithread --ntasks={sim_ranks} --mem-bind=v,l
 """
 
 CMD_INTRANSIT = """
-srun --propagate=NOFILE --hint=nomultithread \\
+srun --propagate=NOFILE --hint=nomultithread --kill-on-bad-exit=1 --wait=0 \\
     --nodes={sim_nodes} --ntasks={sim_ranks} --mem-bind=v,local --cpu-bind=threads \\
     $EXE_SIM \\
     --logging-level={logging_level} \\
@@ -451,6 +525,7 @@ def copy_pipeline_files(exp, output_dir, repo_root):
     cam_x, cam_y, cam_z = center_val - (physical_L * 1.85), center_val + (physical_L * 1.10), center_val + (physical_L * 1.85)
     cam_up_x, cam_up_y, cam_up_z = 0.206668, 0.933382, -0.293403
     parallel_scale, slice_offset_val = physical_L * 1.60, center_val + (mesh_spacing * 6.5)
+    cam_dist_val = center_val * 4.88 # Dynamically maps to the ~500.0 distance for Kombyne camera
     
     generate_adios_xml(exp, output_dir)
 
@@ -487,9 +562,14 @@ def copy_pipeline_files(exp, output_dir, repo_root):
                 files_to_copy['pipeline'] = dst_action
             
         elif effective_backend == 'kombyne':
-            with open(dst_action, "w") as f:
-                f.write(KOMBYNE_RENDER_TEMPLATE.format(cam_x=cam_x, cam_y=cam_y, cam_z=cam_z, center=center_val, cam_up_x=cam_up_x, cam_up_y=cam_up_y, cam_up_z=cam_up_z, slice_offset=slice_offset_val))
-            files_to_copy['pipeline'] = dst_action
+            if exp['workload'] == 'rendering' or 'render' in pipeline_key:
+                with open(dst_action, "w") as f:
+                    f.write(KOMBYNE_RENDER_TEMPLATE.format(cam_dist=cam_dist_val, center=center_val, slice_offset=slice_offset_val))
+                files_to_copy['pipeline'] = dst_action
+            elif 'data' in pipeline_key:
+                with open(dst_action, "w") as f:
+                    f.write(KOMBYNE_DATA_TEMPLATE)
+                files_to_copy['pipeline'] = dst_action
         else:
             shutil.copy2(os.path.join(repo_root, "Miniapps/gray-scott", PIPELINE_FILES[pipeline_key]), dst_action)
             files_to_copy['pipeline'] = dst_action
@@ -509,6 +589,7 @@ def generate_scripts(args):
             init_info[grid_size] = (init_id, GLOBAL_SETTINGS['init_steps'])
         return init_info[grid_size]
 
+    # --- Paper 1 Generation ---
     p1_nodes, p1_grid, p1_stage = 64, 2048, 4
     pid, p1_init_steps = ensure_init(p1_grid)
     p1_target = p1_init_steps + GLOBAL_SETTINGS['run_steps']
@@ -521,6 +602,8 @@ def generate_scripts(args):
         EXPERIMENTS.append({ "id": f"paper1_func_N{p1_nodes:04d}_inline_{backend}_render", "paper": "paper1", "type": "inline", "backend": backend, "workload": "rendering", "sim_nodes": p1_nodes, "grid_size": p1_grid, "parent_id": pid, "total_steps": p1_target })
         EXPERIMENTS.append({ "id": f"paper1_func_N{p1_nodes:04d}_transit_{backend}_render", "paper": "paper1", "type": "intransit", "backend": "adios", "workload": "rendering", "sim_nodes": p1_nodes, "stage_nodes": p1_stage, "grid_size": p1_grid, "stage_pipeline": f"{backend}_render", "parent_id": pid, "total_steps": p1_target })
 
+    # --- Paper 2 Generation ---
+    # Strong Scaling Inline
     for nodes in STRONG_SCALING_NODES:
         grid = STRONG_GRID
         pid, p_init_steps = ensure_init(grid)
@@ -528,25 +611,32 @@ def generate_scripts(args):
         base_id = f"paper2_strong_N{nodes:04d}"
         EXPERIMENTS.append({ "id": f"{base_id}_baseline", "paper": "paper2", "type": "inline", "backend": "baseline", "workload": "none", "sim_nodes": nodes, "grid_size": grid, "parent_id": pid, "total_steps": target_steps })
         EXPERIMENTS.append({ "id": f"{base_id}_adios_data", "paper": "paper2", "type": "inline", "backend": "adios", "workload": "data_save", "sim_nodes": nodes, "grid_size": grid, "parent_id": pid, "total_steps": target_steps })
-        for backend in ["ascent", "catalyst", "kombyne"]:
+        for backend in ["ascent", "catalyst"]: # Kombyne explicitly removed for Paper 2
             EXPERIMENTS.append({ "id": f"{base_id}_{backend}_data", "paper": "paper2", "type": "inline", "backend": backend, "workload": "data_save", "sim_nodes": nodes, "grid_size": grid, "parent_id": pid, "total_steps": target_steps })
             EXPERIMENTS.append({ "id": f"{base_id}_{backend}_render", "paper": "paper2", "type": "inline", "backend": backend, "workload": "rendering", "sim_nodes": nodes, "grid_size": grid, "parent_id": pid, "total_steps": target_steps })
 
+    # Weak Scaling Inline
     for nodes, grid in WEAK_SCALING_CONFIGS:
         pid, p_init_steps = ensure_init(grid)
         target_steps = p_init_steps + GLOBAL_SETTINGS['run_steps']
         base_id = f"paper2_weak_N{nodes:04d}"
         EXPERIMENTS.append({ "id": f"{base_id}_baseline", "paper": "paper2", "type": "inline", "backend": "baseline", "workload": "none", "sim_nodes": nodes, "grid_size": grid, "parent_id": pid, "total_steps": target_steps })
         EXPERIMENTS.append({ "id": f"{base_id}_adios_data", "paper": "paper2", "type": "inline", "backend": "adios", "workload": "data_save", "sim_nodes": nodes, "grid_size": grid, "parent_id": pid, "total_steps": target_steps })
-        for backend in ["ascent", "catalyst", "kombyne"]:
+        for backend in ["ascent", "catalyst"]: # Kombyne explicitly removed for Paper 2
             EXPERIMENTS.append({ "id": f"{base_id}_{backend}_data", "paper": "paper2", "type": "inline", "backend": backend, "workload": "data_save", "sim_nodes": nodes, "grid_size": grid, "parent_id": pid, "total_steps": target_steps })
             EXPERIMENTS.append({ "id": f"{base_id}_{backend}_render", "paper": "paper2", "type": "inline", "backend": backend, "workload": "rendering", "sim_nodes": nodes, "grid_size": grid, "parent_id": pid, "total_steps": target_steps })
 
+    # Transit Runs (Weak and Strong Combined)
     for name, nodes, grid, stage_nodes in TRANSIT_CONFIGS:
         pid, p_init_steps = ensure_init(grid)
         target_steps = p_init_steps + GLOBAL_SETTINGS['run_steps']
         base_id = f"paper2_transit_{name}_N{nodes:04d}"
-        for backend in ["ascent", "catalyst", "kombyne"]:
+        
+        # ADIOS Data Save Transit (Baseline Transport)
+        EXPERIMENTS.append({ "id": f"{base_id}_adios_data", "paper": "paper2", "type": "intransit", "backend": "adios", "workload": "data_save", "sim_nodes": nodes, "stage_nodes": stage_nodes, "grid_size": grid, "stage_pipeline": "adios_data", "parent_id": pid, "total_steps": target_steps })
+
+        # Rendering Transit (Ascent & Catalyst, Kombyne explicitly removed)
+        for backend in ["ascent", "catalyst"]: 
             EXPERIMENTS.append({ "id": f"{base_id}_{backend}_render", "paper": "paper2", "type": "intransit", "backend": "adios", "workload": "rendering", "sim_nodes": nodes, "stage_nodes": stage_nodes, "grid_size": grid, "stage_pipeline": f"{backend}_render", "parent_id": pid, "total_steps": target_steps })
 
     for exp in EXPERIMENTS:

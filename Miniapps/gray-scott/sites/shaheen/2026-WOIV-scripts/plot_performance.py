@@ -3,6 +3,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import ScalarFormatter
 
+# ---------------------------------------------------------
+# HPC PERFORMANCE TUNING (Add these to your SLURM script)
+# ---------------------------------------------------------
+# export FI_CXI_RX_MATCH_MODE=hybrid      # Prevents hardware queue exhaustion
+# export FI_CXI_RDZV_THRESHOLD=16384      # Optimizes small vs large message handling
+# export MPICH_OFI_CXI_COUNTER_REPORT=2   # Provides detailed timeout diagnostics
+# ---------------------------------------------------------
+
 # SETTINGS FOR THE PAPER
 STEADY_STATE_START = 65021  # Start at step 65021 to ensure all init is complete
 NORMALIZE_X_AXIS = True      # Align all runs to start at "Step 0" (Steps since restart)
@@ -18,19 +26,37 @@ runs = {
     "Ascent (In Transit)": "summary_ascent_intransit_render.csv",
     "Catalyst (Data)": "summary_catalyst_data.csv",
     "Catalyst (Render)": "summary_catalyst_render.csv",
-    "Catalyst (In Transit)": "summary_catalyst_intransit_render.csv"
+    "Catalyst (In Transit)": "summary_catalyst_intransit_render.csv",
+    "Kombyne (Data)": "summary_kombyne_data.csv",
+    "Kombyne (Render)": "summary_kombyne_render.csv"
 }
 
-# Define a clean color palette for the 8 runs
+# Define a clean color palette for the 10 runs
+# Ascent family uses greens, Catalyst family uses blues
 colors = {
     "Baseline": "#808080",              # Grey
     "ADIOS (Data)": "#d62728",          # Red
-    "Ascent (Data)": "#98df8a",         # Light Green
-    "Ascent (Render)": "#2ca02c",       # Dark Green
-    "Ascent (In Transit)": "#999999",   # Light Grey
-    "Catalyst (Data)": "#aec7e8",       # Light Blue
-    "Catalyst (Render)": "#1f77b4",     # Dark Blue
-    "Catalyst (In Transit)": "#555555"  # Dark Slate Grey
+    "Ascent (Data)": "#a1d99b",         # Light Green
+    "Ascent (Render)": "#41ab5d",       # Medium Green
+    "Ascent (In Transit)": "#006d2c",   # Dark Green
+    "Catalyst (Data)": "#9ecae1",       # Light Blue
+    "Catalyst (Render)": "#4292c6",     # Medium Blue
+    "Catalyst (In Transit)": "#084594",  # Dark Blue
+    "Kombyne (Data)": "#fccde5",        # Light Purple/Pink
+    "Kombyne (Render)": "#bc80bd"       # Medium Purple
+}
+
+labels = {
+    "Baseline": "Baseline",
+    "ADIOS (Data)": "ADIOS (Data)",
+    "Ascent (Data)": "Ascent (Data)",
+    "Ascent (Render)": "Ascent (Render)",
+    "Ascent (In Transit)": "Ascent (In Transit)",
+    "Catalyst (Data)": "Catalyst (Data)",
+    "Catalyst (Render)": "Catalyst (Render)",
+    "Catalyst (In Transit)": "Catalyst (In Transit)",
+    "Kombyne (Data)": "Kombyne (Data)",
+    "Kombyne (Render)": "Kombyne (Render)"
 }
 
 dataframes = {}
@@ -49,7 +75,6 @@ if not dataframes:
 # ---------------------------------------------------------
 print("\n=== PUBLICATION STATISTICS (TOTAL ACCUMULATED TIME) ===")
 for name, df in dataframes.items():
-    
     print(f"\n[{name}]")
     
     # Memory (Peak across the run)
@@ -78,40 +103,39 @@ for name, df in dataframes.items():
 
 
 # ---------------------------------------------------------
-# 3. Figure 1: The Heartbeat Plot (Subplots per Run)
+# 3. Figure 1: The Heartbeat Plot (3-Column Layout, Frameworks by Row)
 # ---------------------------------------------------------
-heartbeat_order = [
-    "Baseline", "ADIOS (Data)",
-    "Ascent (Render)", "Ascent (Data)",
-    "Catalyst (Render)", "Catalyst (Data)",
-    "Ascent (In Transit)", "Catalyst (In Transit)"
+# Reorganized to populate row-by-row:
+# Row 1: All Ascent
+# Row 2: All Catalyst
+# Row 3: Kombyne + ADIOS (Baseline removed as requested)
+heartbeat_layout = [
+    "Ascent (Data)",       "Ascent (Render)",       "Ascent (In Transit)",
+    "Catalyst (Data)",     "Catalyst (Render)",     "Catalyst (In Transit)",
+    "Kombyne (Data)",      "Kombyne (Render)",      "ADIOS (Data)"
 ]
 
-loaded_names = [name for name in heartbeat_order if name in dataframes]
+# Only plot if the data exists
+loaded_hb_names = [name for name in heartbeat_layout if name in dataframes]
 
-num_plots = len(loaded_names)
-ncols = 2
-nrows = (num_plots + ncols - 1) // ncols
+ncols = 3
+nrows = (len(loaded_hb_names) + ncols - 1) // ncols
 
-fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(14, 3.5 * nrows), sharex=True)
+fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(18, 3.5 * nrows), sharex=True)
 axes = np.atleast_1d(axes).flatten()
 
-for i, name in enumerate(loaded_names):
+for i, name in enumerate(loaded_hb_names):
     df = dataframes[name]
     ax = axes[i]
     c = colors.get(name, '#333333')
     
     # Filter to show only steady state
     df_plot = df[df.index >= STEADY_STATE_START]
+    if df_plot.empty: df_plot = df
     
-    if df_plot.empty:
-        print(f"Warning: No data found for {name} after step {STEADY_STATE_START}")
-        df_plot = df
-    
-    # Normalize X-axis to steps since restart (e.g. starting at 21)
+    # Normalize X-axis
     plot_index = df_plot.index
     if NORMALIZE_X_AXIS:
-        # Subtract the original min to show relative progress
         plot_index = df_plot.index - df.index.min()
 
     ax.fill_between(plot_index, 
@@ -124,36 +148,33 @@ for i, name in enumerate(loaded_names):
     ax.set_ylabel('Time (s)', fontsize=10)
     ax.set_title(name, fontsize=12, fontweight='bold', loc='left', pad=3)
     ax.grid(True, which="both", ls="--", alpha=0.5)
-    ax.set_ylim(bottom=0)
+    
+    # Consistent 20% Y-padding
+    ax.set_ylim(bottom=0, top=df_plot['total_step_mean'].max() * 1.20)
     
     formatter = ScalarFormatter()
     formatter.set_scientific(False)
     ax.yaxis.set_major_formatter(formatter)
-    ax.legend(loc='upper right', fontsize=9)
+    ax.legend(loc='upper right', fontsize=8)
 
 # Clean up unused subplots
-for i in range(num_plots, len(axes)):
+for i in range(len(loaded_hb_names), len(axes)):
     fig.delaxes(axes[i])
-    if i - ncols >= 0:
-        axes[i - ncols].tick_params(labelbottom=True)
-        axes[i - ncols].set_xlabel('Steps Since Restart', fontsize=12)
 
-for i in range(num_plots):
-    if i >= num_plots - ncols or (i + ncols >= num_plots):
+# Set x-labels for the bottom row
+for i in range(len(loaded_hb_names)):
+    if i >= len(loaded_hb_names) - ncols:
         axes[i].set_xlabel('Steps Since Restart', fontsize=12)
 
-# Updated title per user request
-fig.suptitle('Steady-State Execution Heartbeat (excluding initialization steps)', 
+fig.suptitle('Steady-State Execution Heartbeat (excluding initialization)', 
              fontsize=16, fontweight='bold', y=1.02)
 plt.tight_layout()
-
 plt.savefig("fig_heartbeat_plot.png", dpi=300, bbox_inches='tight')
-print(f"\nSaved heartbeat plot to 'fig_heartbeat_plot.png' (Starting from step {STEADY_STATE_START})")
 
 # ---------------------------------------------------------
-# 4. Figure 2: Detailed Stacked Bar Chart (Amortized Overhead)
+# 4. Figure 2: Detailed Stacked Bar Chart (Total Overhead)
 # ---------------------------------------------------------
-plt.figure(figsize=(12, 7))
+plt.figure(figsize=(12, 8)) 
 names = list(dataframes.keys())
 
 compute_times = [dataframes[n]['compute_step_mean'].sum() for n in names]
@@ -171,7 +192,7 @@ baseline_gap = raw_gaps[baseline_idx]
 sim_overhead_times = [min(baseline_gap, g) for g in raw_gaps]
 implicit_io_times  = [max(0, g - baseline_gap) for g in raw_gaps]
 
-bar_width = 0.6
+bar_width = 0.8
 x_pos = np.arange(len(names))
 
 plt.bar(x_pos, compute_times, width=bar_width, color='#D3D3D3', edgecolor='black', label='Simulation Compute', zorder=3)
@@ -188,16 +209,22 @@ plt.bar(x_pos, write_times, bottom=b_write, width=bar_width, color='#4682B4', ed
 
 stack_totals = np.add(b_write, write_times)
 for i, total in enumerate(stack_totals):
-    plt.text(x_pos[i], total + (max(stack_totals) * 0.02), f"{total:.1f}s", ha='center', va='bottom', fontweight='bold', fontsize=11, zorder=4)
+    label = f"{total:.1f}s"
+    if "Kombyne" in names[i]: label += "*"
+    plt.text(x_pos[i], total + (max(stack_totals) * 0.015), label, ha='center', va='bottom', fontweight='bold', fontsize=11, zorder=4)
 
 plt.ylabel('Total Accumulated Time (seconds)', fontsize=12)
 plt.title('Total Execution Time Breakdown (Sum of All Steps)', fontsize=14, fontweight='bold')
-plt.xticks(x_pos, names, fontsize=11, rotation=20, ha='right')
-plt.ylim(0, max(stack_totals) * 1.25)
-leg = plt.legend(loc='upper left', fontsize=11, framealpha=0.9, edgecolor='black')
-leg.set_zorder(5)
+plt.xticks(x_pos, names, fontsize=10, rotation=25, ha='right')
+plt.ylim(0, max(stack_totals) * 1.12)
+plt.legend(loc='upper left', fontsize=10, framealpha=0.9, edgecolor='black').set_zorder(5)
 plt.grid(axis='y', linestyle='--', alpha=0.7, zorder=0)
-plt.tight_layout()
 
+if any("Kombyne" in n for n in names):
+    plt.figtext(0.1, 0.02, "* Note: Kombyne runs executed on 1024 procs (32 nodes) vs. 4096 procs (64 nodes) for other runs.", 
+                ha="left", fontsize=9, style='italic')
+
+plt.tight_layout(rect=[0, 0.05, 1, 1])
 plt.savefig("fig_overhead_stacked_bar.png", dpi=300, bbox_inches='tight')
-print("Saved detailed stacked bar chart to 'fig_overhead_stacked_bar.png'")
+
+print("Final publication figures generated.")
