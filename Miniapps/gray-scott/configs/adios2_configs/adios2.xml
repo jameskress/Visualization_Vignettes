@@ -54,6 +54,14 @@
         -->
     </io>
 
+    <io name="AnalysisOutput">
+        <engine type="BP5">
+            <parameter key="verbose" value="0"/>
+            <parameter key="DataTransport" value="MPI"/>
+            <parameter key="NumAggregators" value="1"/> 
+            <parameter key="AsyncWrite" value="false"/>
+        </engine>
+    </io>
     
     <!--================================================
            Configuration for Gray-Scott (checkpointing)

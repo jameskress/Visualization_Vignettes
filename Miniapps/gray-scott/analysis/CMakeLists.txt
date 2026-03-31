@@ -33,6 +33,7 @@ add_executable(analysis-reader
   main.cpp
   adios_reader.cpp
   ascent_backend.cpp
+  adios_writer_backend.cpp
   backend_factory.cpp
 )
 

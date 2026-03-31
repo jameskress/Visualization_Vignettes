@@ -199,6 +199,12 @@ int main(int argc, char **argv)
                     std::cout << std::setw(24) << "  Script Path" << ": " << opts.catalyst_script_path << "\n";
                 }
             }
+            if (opts.output_type == "adios_writer")
+            {
+                std::cout << "\n"
+                          << std::setw(22) << "--- ADIOS Staging Writer" << "---\n"
+                          << std::setw(24) << "  Output File" << ": " << opts.adios_output_file << "\n";
+            }
             std::cout << "\n"
                       << std::setw(22) << "--- Debugging" << "---\n"
                       << std::setw(24) << "  ADIOS Verbosity" << ": " << opts.adios_verbose << "\n"

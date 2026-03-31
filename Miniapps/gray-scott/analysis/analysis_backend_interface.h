@@ -43,6 +43,7 @@ struct BackendOptions
     std::string catalyst_lib_path;
     std::string catalyst_output_file;
     std::string output_type;
+    std::string adios_output_file = "staged_output.bp";
     MPI_Comm comm = MPI_COMM_WORLD;
 
     static BackendOptions FromSettingsFile(const std::string &settings_path)
