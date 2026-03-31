@@ -211,9 +211,8 @@ int main(int argc, char **argv)
     }
     catch (const std::exception &e)
     {
-        if (global_rank == 0)
-            std::cerr << "Fatal error: " << e.what() << "\n";
-        MPI_Abort(MPI_COMM_WORLD, -1);
+        std::cerr << "Fatal error on Rank " << global_rank << ": " << e.what() << "\n";
+	MPI_Abort(MPI_COMM_WORLD, -1);
     }
     MPI_Finalize();
     return 0;

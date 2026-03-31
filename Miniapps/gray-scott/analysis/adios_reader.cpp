@@ -17,10 +17,15 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
 
     // Automatically set a short OpenTimeout for non-streaming engines.
     // This prevents the application from hanging indefinitely on corrupt/inaccessible files.
-    // For SST, we let it use its default blocking behavior.
+    // For SST, we let it use longer blocking behavior
     if (m_opts.adios_engine != "SST")
     {
         m_io->SetParameter("OpenTimeoutSecs", "5.0");
+    }
+    else
+    {
+        // Force SST readers to wait up to 10 minutes for the sim to initialize
+        m_io->SetParameter("OpenTimeoutSecs", "600.0");
     }
 
     m_engine = std::make_unique<adios2::Engine>(m_io->Open(m_opts.adios_file, adios2::Mode::Read));
