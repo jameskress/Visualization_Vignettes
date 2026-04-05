@@ -59,6 +59,8 @@ WORKDIR /builds
 RUN git clone --quiet https://github.com/ornladios/ADIOS2.git adios2-src
 RUN cmake -S adios2-src -B adios2-build \
     -DCMAKE_INSTALL_PREFIX=/opt/adios2 \
+    -DCMAKE_C_FLAGS="-Dsys_icache_invalidate(a,s)=__builtin___clear_cache((char*)(a),(char*)(a)+(s))" \
+    -DCMAKE_CXX_FLAGS="-Dsys_icache_invalidate(a,s)=__builtin___clear_cache((char*)(a),(char*)(a)+(s))" \
     -DADIOS2_USE_MPI=ON \
     -DBUILD_TESTING=OFF
 RUN cmake --build adios2-build -j$(nproc)
