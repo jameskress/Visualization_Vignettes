@@ -15,8 +15,8 @@ USERNAME="vizuser"
 GROUPNAME="viz"
 
 # Modify the group and user to match the host's IDs
-groupmod -g ${HOST_GID} ${GROUPNAME}
-usermod -u ${HOST_UID} -g ${GROUPNAME} ${USERNAME}
+groupmod -o -g ${HOST_GID} ${GROUPNAME}
+usermod -o -u ${HOST_UID} -g ${GROUPNAME} ${USERNAME}
 
 # Re-set ownership of the user's home directory.
 # This is crucial for applications like Matplotlib that write to $HOME.
