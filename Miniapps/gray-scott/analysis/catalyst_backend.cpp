@@ -81,13 +81,26 @@ CatalystBackend::CatalystBackend(const BackendOptions &opts)
     conduit_cpp::Node init_params;
     init_params["catalyst/mpi_comm"] = MPI_Comm_c2f(m_reader.GetComm());
     const auto &current_opts = m_reader.GetOptions();
-    if (current_opts.output_type == "catalyst_insitu")
+    if (current_opts.output_type == "catalyst_io")
+    {
+        if (current_opts.catalyst_output_file.empty()) {
+            throw std::runtime_error("'catalyst_output_file' must be set in settings for catalyst_io mode.");
+        }
+        init_params["catalyst/pipelines/0/type"].set("io");
+        init_params["catalyst/pipelines/0/filename"].set(current_opts.catalyst_output_file);
+        init_params["catalyst/pipelines/0/channel"].set("grid");
+    }
+    else if (current_opts.output_type == "catalyst_insitu")
     {
         const std::string path_str = current_opts.catalyst_script_path;
         const fs::path script_path(path_str);
         const std::string name = "catalyst/scripts/script_" + script_path.filename().string();
         init_params[name + "/filename"].set_string(path_str);
         init_params[name + "/args"].append().set_string("--channel-name=grid");
+    }
+    else
+    {
+        throw std::runtime_error("Unknown output type for Catalyst backend: " + current_opts.output_type);
     }
     init_params["catalyst_load/implementation"] = "paraview";
     if (!current_opts.catalyst_lib_path.empty())

@@ -59,6 +59,8 @@ WORKDIR /builds
 RUN git clone --quiet https://github.com/ornladios/ADIOS2.git adios2-src
 RUN cmake -S adios2-src -B adios2-build \
     -DCMAKE_INSTALL_PREFIX=/opt/adios2 \
+    -DCMAKE_C_FLAGS="-D'sys_icache_invalidate(a,s)=__builtin___clear_cache((char*)(a),(char*)(a)+(s))'" \
+    -DCMAKE_CXX_FLAGS="-D'sys_icache_invalidate(a,s)=__builtin___clear_cache((char*)(a),(char*)(a)+(s))'" \
     -DADIOS2_USE_MPI=ON \
     -DBUILD_TESTING=OFF
 RUN cmake --build adios2-build -j$(nproc)
@@ -164,7 +166,7 @@ ENV PATH="/opt/paraview/bin:/opt/adios2/bin:${PATH}"
 # The Ascent build script places many libraries in versioned subdirectories.
 # We add them all here using wildcards for resilience.
 # Define the library path directly. It is empty by default.
-ENV LD_LIBRARY_PATH="/opt/paraview/lib:/opt/adios2/lib:/opt/ascent/install/ascent-checkout/lib:/opt/ascent/install/conduit-*/lib:/opt/ascent/install/raja-*/lib:/opt/ascent/install/umpire-*/lib:/opt/ascent/install/mfem-*/lib:/opt/ascent/install/silo-*/lib:/opt/ascent/install/vtk-m-*/lib:/opt/ascent/install/zlib-*/lib:/usr/lib/x86_64-linux-gnu"
+ENV LD_LIBRARY_PATH="/opt/paraview/lib:/opt/adios2/lib:/opt/ascent/install/ascent-checkout/lib:/opt/ascent/install/conduit-*/lib:/opt/ascent/install/raja-*/lib:/opt/ascent/install/umpire-*/lib:/opt/ascent/install/mfem-*/lib:/opt/ascent/install/silo-*/lib:/opt/ascent/install/vtk-m-*/lib:/opt/ascent/install/zlib-*/lib:/usr/lib/x86_64-linux-gnu:/usr/lib/aarch64-linux-gnu"
 # The CMAKE_PREFIX_PATH helps CMake find all your custom-built packages
 # We add /opt/ascent/install so CMake can find Ascent's dependencies like Conduit.
 ENV CMAKE_PREFIX_PATH="/opt/ascent/install:/opt/paraview/lib/cmake/paraview-6.0:/opt/paraview/lib/cmake/catalyst-2.0:/opt/adios2/lib/cmake/adios2:/opt/ascent/lib/cmake/ascent"

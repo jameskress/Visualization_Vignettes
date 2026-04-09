@@ -14,5 +14,5 @@ cp -r /app/install/* "${TARGET_DIR}/"
 
 echo "Setup complete. Your run directory (${TARGET_DIR}) is now populated."
 echo "You can now run simulations from here, for example:"
-echo "mpirun -np 2 ./kvvm-gray-scott --settings-file=./settings-catalyst-insitu.json"
+echo "mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json"
 
