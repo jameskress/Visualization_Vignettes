@@ -93,3 +93,18 @@ SSC + Sub-Communicators: The ADIOS2 SSC engine uses native MPI one-sided communi
 
 Masking Exceptions in C++
 If a visualization reader rank crashes but your C++ catch block restricts error printing to Rank == 0, the crashing rank will silently call MPI_Abort and take down the entire 33,000-rank job without leaving a single log trace. Always ensure fatal exceptions are printed by the rank that throws them!
+
+
+
+### Running generator
+python3 ../sites/shaheen/2026-WOIV-scripts/generate_experiments.py --repo-path /scratch/kressjm/Visualization_Vignettes/ --bin-path /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/install/ --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/
+
+### Running orchestrator
+**warning!!!** Do not run these from the python virtual environment we created to run the analysis scripts, it breaks catalyst.
+python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py  --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/ --paper paper2  --submit --nodes 8
+python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py  --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/ --paper paper2  --submit --nodes 64
+python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py  --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/ --paper paper2  --submit --nodes 256
+python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py  --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/ --paper paper2  --submit --nodes 512
+python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py  --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/ --paper paper2  --submit --nodes 1024
+
+

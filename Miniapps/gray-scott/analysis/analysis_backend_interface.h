@@ -72,7 +72,11 @@ struct BackendOptions
         if (js.contains("catalyst_lib_path"))
             opts.catalyst_lib_path = js["catalyst_lib_path"];
         if (js.contains("output_file_name"))
-            opts.catalyst_output_file = js["output_file_name"];
+	{
+            std::string base_name = js["output_file_name"];
+            opts.catalyst_output_file = base_name; 
+            opts.adios_output_file = base_name + ".bp";
+	}
 
         return opts;
     }

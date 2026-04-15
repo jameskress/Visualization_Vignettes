@@ -19,6 +19,11 @@ namespace
     {
         conduit::Node domain;
         domain["state/cycle"] = static_cast<long long>(step);
+
+	int rank;
+        MPI_Comm_rank(opts.comm, &rank);
+        domain["state/domain_id"] = rank;
+
         std::array<double, 3> global_origin = opts.origin.value_or(std::array<double, 3>{0.0, 0.0, 0.0});
         std::array<double, 3> spacing = opts.spacing.value_or(std::array<double, 3>{0.1, 0.1, 0.1});
         std::array<double, 3> local_origin = global_origin;
@@ -90,14 +95,17 @@ void AscentBackend::Run()
         m_perf_logger.start("Blueprint_Time");
         m_reader.ReadRepartition(m_reader.GetOptions().u_var, u_buf, read_info);
         m_reader.ReadRepartition(m_reader.GetOptions().v_var, v_buf, read_info);
+
+	//End the step, force the data to be sent
+	m_reader.EndStep();
+
         mesh_blueprint = BuildRepartitionedBlueprint(read_info, u_buf, &v_buf, step, m_reader.GetOptions());
         m_perf_logger.stop("Blueprint_Time");
 
         m_perf_logger.start("Vis_Time");
         m_ascent.publish(mesh_blueprint);
         m_ascent.execute(conduit::Node());
-        m_perf_logger.stop("Vis_Time");
-        m_reader.EndStep();
+        m_perf_logger.stop("Vis_Time");     
         m_perf_logger.stop("total_step");
         m_perf_logger.logStep(step);
     }

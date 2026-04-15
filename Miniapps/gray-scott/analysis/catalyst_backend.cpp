@@ -137,15 +137,16 @@ void CatalystBackend::Run()
         m_reader.ReadRepartition(current_opts.u_var, u_buf, read_info);
         m_reader.ReadRepartition(current_opts.v_var, v_buf, read_info);
         
+	//End the step, force the data to be sent
+        m_reader.EndStep();
+
         auto data_node = exec_params["catalyst/channels/grid/data"];
         BuildRepartitionedCatalystMesh(data_node, read_info, u_buf, &v_buf, current_opts);
         m_perf_logger.stop("Blueprint_Time");
 
         m_perf_logger.start("Vis_Time");
         catalyst_execute(conduit_cpp::c_node(&exec_params));
-        m_perf_logger.stop("Vis_Time");
-        
-        m_reader.EndStep();
+        m_perf_logger.stop("Vis_Time");        
         m_perf_logger.stop("total_step");
         m_perf_logger.logStep(step);
     }

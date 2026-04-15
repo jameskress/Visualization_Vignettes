@@ -12,10 +12,12 @@ def main():
     parser.add_argument("--results-dir", required=True, help="Root directory for results (Lustre)")
     
     parser.add_argument("--paper", choices=["paper1", "paper2", "init", "all"], default="all", help="Target specific paper (use 'init' for initialization runs)")
-    parser.add_argument("--nodes", type=str, help="Target specific node count (e.g. 64, 256, 4096)")
-    # ADDED: 'baseline' to choices
+    parser.add_argument("--nodes", type=str, help="Target specific SIMULATION node count (e.g. 64, 256, 4096)")
     parser.add_argument("--backend", choices=["adios", "ascent", "catalyst", "kombyne", "baseline", "all"], default="all", help="Target backend")
     parser.add_argument("--type", choices=["inline", "intransit", "all"], default="all", help="Target coupling type")
+    
+    # NEW: Workload filter so you can isolate Paper 2 tasks vs Paper 3 stockpiling tasks
+    parser.add_argument("--workload", choices=["data", "render", "volume", "isosurface", "all"], default="all", help="Target specific workload type")
     
     # Mode Selection
     parser.add_argument("--mode", choices=["init", "run", "all"], default="all", 
@@ -44,7 +46,6 @@ def main():
         parts = basename.split("_")
         
         # --- Mode Filter ---
-        # Catch "init_" prefix (new convention) or "_init" suffix (old convention)
         is_init = basename.startswith("init_") or "_init" in basename
         
         if args.mode == "init" and not is_init: continue
@@ -52,7 +53,6 @@ def main():
 
         # --- Experiment Filters ---
         p_paper = parts[0] # "paper1", "paper2", or "init"
-        
         p_type = "intransit" if ("transit" in parts or "intransit" in parts) else "inline"
         
         p_backend = "unknown"
@@ -62,21 +62,31 @@ def main():
         elif "catalyst" in basename: p_backend = "catalyst"
         elif "kombyne" in basename: p_backend = "kombyne"
 
+        # NEW: Workload Identification
+        p_workload = "unknown"
+        if "data" in basename: p_workload = "data"
+        elif "render" in basename: p_workload = "render"
+        elif "volume" in basename: p_workload = "volume"
+        elif "isosurface" in basename: p_workload = "isosurface"
+
         # Apply Filters
         if args.paper != "all" and args.paper != p_paper: continue
         
-        # Skip type/backend filters for init runs unless explicitly requested, 
-        # as init runs are usually just "inline adios"
         if not is_init:
             if args.type != "all" and args.type != p_type: continue
             if args.backend != "all" and args.backend != p_backend: continue
+            if args.workload != "all" and args.workload != p_workload: continue
         
-        # Check inside file for node count (reliable)
+        # FIXED: Node filtering based on Simulation Nodes (NXXXX tag) in the filename
+        # This prevents skipping In-Transit runs where the SLURM #SBATCH --nodes is higher
         if args.nodes:
-            with open(s, 'r') as f:
-                content = f.read()
-                if f"#SBATCH --nodes={args.nodes}" not in content:
+            try:
+                node_tag = f"_N{int(args.nodes):04d}"
+                if node_tag not in basename:
                     continue
+            except ValueError:
+                print(f"Warning: Invalid node count provided: {args.nodes}")
+                continue
 
         selected_scripts.append(s)
 
@@ -101,8 +111,8 @@ def main():
             if os.path.exists(result_path):
                 print(f"  [CLEAN] Cleaning artifacts in: {result_path}")
                 
-                # 1. Directories to remove
-                dirs_to_remove = ["data", "analysis_output"]
+                # FIXED: Added 'writer_timers' to the clean targets
+                dirs_to_remove = ["data", "analysis_output", "writer_timers"]
                 for d in dirs_to_remove:
                     d_path = os.path.join(result_path, d)
                     if os.path.exists(d_path):
@@ -110,7 +120,7 @@ def main():
                         if not args.dry_run:
                             shutil.rmtree(d_path)
 
-                # 2. Logs to remove
+                # Logs to remove
                 logs = glob.glob(os.path.join(result_path, "slurm-*.out")) + \
                        glob.glob(os.path.join(result_path, "slurm-*.err"))
                 
@@ -130,7 +140,7 @@ def main():
                 
                 if has_logs:
                     print(f"  [SKIP] Slurm logs found in: {result_path}")
-                    print("          Use --clean to overwrite.")
+                    print("         Use --clean to overwrite.")
                     continue
             
             cmd = ["sbatch", s]

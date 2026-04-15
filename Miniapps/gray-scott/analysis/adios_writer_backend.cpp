@@ -35,21 +35,34 @@ void AdiosWriterBackend::Run()
         m_reader.ReadRepartition(m_opts.v_var, v_buf, read_info);
         m_perf_logger.stop("ADIOS_Read_Time");
 
+	//End the step, force the data to be sent
+        m_reader.EndStep();
+
+	// --- STRIP THE GHOST CELL FOR THE WRITER MATH ---
+        auto write_dims = read_info.local_dims;
+        int rank, size;
+        MPI_Comm_rank(m_opts.comm, &rank);
+        MPI_Comm_size(m_opts.comm, &size);
+        if (rank != size - 1) {
+            write_dims[0] -= 1; 
+        }
+        // ------------------------------------------------
+	
         // 2. Write data to disk
         m_perf_logger.start("ADIOS_Write_Time");
         m_writer.BeginStep();
 
         // Check if variables are defined; define them if this is the first step
-        adios2::Variable<double> var_u = m_io_out.InquireVariable<double>(m_opts.u_var);
+	adios2::Variable<double> var_u = m_io_out.InquireVariable<double>(m_opts.u_var);
         if (!var_u) {
             var_u = m_io_out.DefineVariable<double>(
-                m_opts.u_var, read_info.global_dims, read_info.local_start, read_info.local_dims);
+                m_opts.u_var, read_info.global_dims, read_info.local_start, write_dims);
         }
-        
+
         adios2::Variable<double> var_v = m_io_out.InquireVariable<double>(m_opts.v_var);
         if (!var_v) {
             var_v = m_io_out.DefineVariable<double>(
-                m_opts.v_var, read_info.global_dims, read_info.local_start, read_info.local_dims);
+                m_opts.v_var, read_info.global_dims, read_info.local_start, write_dims);
         }
 
         m_writer.Put(var_u, u_buf.data());
@@ -57,8 +70,6 @@ void AdiosWriterBackend::Run()
 
         m_writer.EndStep();
         m_perf_logger.stop("ADIOS_Write_Time");
-
-        m_reader.EndStep();
         m_perf_logger.stop("total_step");
         
         // Log performance metrics identically to the other backends

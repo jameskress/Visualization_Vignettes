@@ -142,7 +142,8 @@ size_t AdiosReader::ReadPreserve(const std::string &var_name, std::vector<BlockD
 
             std::string timer_name = "ADIOS_Read_" + var_name;
             m_logger.start(timer_name);
-            m_engine->Get(var, block.buffer.data(), adios2::Mode::Sync);
+            //m_engine->Get(var, block.buffer.data(), adios2::Mode::Sync);
+	    m_engine->Get(var, block.buffer.data());
             m_logger.stop(timer_name);
             blocks_out.push_back(std::move(block));
         }
@@ -203,7 +204,8 @@ void AdiosReader::ReadRepartition(const std::string &var_name, std::vector<T> &b
         std::string timer_name = "ADIOS_Read_" + var_name;
         m_logger.start(timer_name);
         m_engine->Get(var, buffer.data(), adios2::Mode::Sync);
-        m_logger.stop(timer_name);
+        m_engine->Get(var, buffer.data());
+       	m_logger.stop(timer_name);
     }
     else
     {
