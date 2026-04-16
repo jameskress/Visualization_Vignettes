@@ -20,6 +20,11 @@ namespace
         const BackendOptions &opts)
     {
         mesh_node["type"] = "uniform";
+
+	int rank;
+        MPI_Comm_rank(opts.comm, &rank);
+        mesh_node["state/domain_id"] = rank;
+
         std::array<double, 3> global_origin = opts.origin.value_or(std::array<double, 3>{0.0, 0.0, 0.0});
         std::array<double, 3> spacing = opts.spacing.value_or(std::array<double, 3>{0.1, 0.1, 0.1});
         std::array<double, 3> local_origin = global_origin;
@@ -41,6 +46,11 @@ namespace
         mesh_node["coordsets/coords/spacing/dx"].set_float64(spacing[0]);
         mesh_node["coordsets/coords/spacing/dy"].set_float64(spacing[1]);
         mesh_node["coordsets/coords/spacing/dz"].set_float64(spacing[2]);
+
+	// Tell Blueprint the global index offsets for stitching
+        mesh_node["coordsets/coords/origin_logical/i"].set_int64(static_cast<long long>(read_info.local_start[2]));
+        mesh_node["coordsets/coords/origin_logical/j"].set_int64(static_cast<long long>(read_info.local_start[1]));
+        mesh_node["coordsets/coords/origin_logical/k"].set_int64(static_cast<long long>(read_info.local_start[0]));
 
         // 2. DIMENSION ASSIGNMENT
         size_t nx = 1, ny = 1, nz = 1;

@@ -49,9 +49,9 @@ WEAK_SCALING_CONFIGS = [
 ]
 
 TRANSIT_CONFIGS = [
-    ("small", 64, 2048, 2),        # Weak Scaling Start (32:1)
-    ("compressed", 512, 4096, 16), # Strong Scaling Start (32:1)
-    ("hero", 4096, 8192, 128)      # Weak/Strong Scaling End (32:1)
+    ("small", 64, 2048, 4),        # Weak Scaling Start (16:1)
+    ("compressed", 512, 4096, 32), # Strong Scaling Start (16:1)
+    ("hero", 4096, 8192, 256)      # Weak/Strong Scaling End (16:1)
 ]
 
 TRANSIT_SWEEP_CONFIGS = [
@@ -514,12 +514,11 @@ export LP_NUM_THREADS=1
 
 # --- Exascale Slingshot-11 OFI Tuning ---
 export FI_CXI_RX_MATCH_MODE=software
-export FI_CXI_DEFAULT_CQ_SIZE=131072
+export FI_CXI_DEFAULT_CQ_SIZE=1310720
 export FI_CXI_OFLOW_BUF_SIZE=8388608
 export FI_CXI_CQ_FILL_PERCENT=20
 export FI_TCP_IFACE=hsn0
-export CM_DISABLE_SHM=1
-ulimit -n 131072
+ulimit -n 1310720
 ulimit -l unlimited
 
 # --- Silencing ADIOS2 Logs ---
@@ -540,7 +539,7 @@ OUTPUT_DIR="{output_dir}"
 rm -f $OUTPUT_DIR/data/*.sst
 
 mkdir -p $OUTPUT_DIR/data
-lfs setstripe -c -1 $OUTPUT_DIR
+lfs setstripe -c -1 $OUTPUT_DIR/data
 cd $OUTPUT_DIR
 
 echo "Starting Run: {id}"
