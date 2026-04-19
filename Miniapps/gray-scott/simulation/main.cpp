@@ -77,6 +77,10 @@ void checkArgs(int argc, char **argv, int rank, int numTasks)
             sprintf(str, "\t\t--logging-level=%s\n", optionValue.c_str());
             strcat(repeatargs, str);
         }
+	else if (optionName == "--mpi-split-color=" || optionName == "--mpi-split-color")
+        {
+            // Do nothing, already parsed in main()
+        }
         else
         {
             unknownArg = 1;
@@ -163,7 +167,12 @@ int main(int argc, char **argv)
     int mpi_split_color = 13; // Default to 13 for writer
     for (int i = 1; i < argc; ++i)
     {
-        if (std::string(argv[i]) == "--mpi-split-color" && i + 1 < argc)
+        std::string arg(argv[i]);
+        if (arg.find("--mpi-split-color=") == 0)
+        {
+            mpi_split_color = std::stoi(arg.substr(arg.find("=") + 1));
+        }
+        else if (arg == "--mpi-split-color" && i + 1 < argc)
         {
             mpi_split_color = std::stoi(argv[i + 1]);
         }
@@ -192,18 +201,17 @@ int main(int argc, char **argv)
     checkArgs(argc, argv, rank, procs);
     //--
 
-    // vtk logger
     vtkLogger::Init(argc, argv);
-    // Only show what we asked for on stderr:
-    vtkLogger::SetStderrVerbosity(vtkLogger::ConvertToVerbosity(loggingLevel.c_str()));
     vtkLogger::SetThreadName("Rank_" + std::to_string(rank));
 
-    // Only Rank 0 gets to write to write to reduce contention. Update this if you want to seee more
     if (rank == 0) {
-        // Put every log message in "everything.log":
-        vtkLogger::LogToFile("everything.log", vtkLogger::APPEND, vtkLogger::ConvertToVerbosity(loggingLevel.c_str()));
-        // Only log INFO, WARNING, ERROR to "latest_readable.log":
-        vtkLogger::LogToFile("latest_readable.log", vtkLogger::TRUNCATE, vtkLogger::VERBOSITY_INFO);
+        // Rank 0 gets the full requested logging level on stderr
+        vtkLogger::SetStderrVerbosity(vtkLogger::ConvertToVerbosity(loggingLevel.c_str()));
+        
+        vtkLogger::LogToFile("simulation.log", vtkLogger::TRUNCATE, vtkLogger::ConvertToVerbosity(loggingLevel.c_str()));
+    } else {
+        // --- Workers only report actual errors to stderr ---
+        vtkLogger::SetStderrVerbosity(vtkLogger::VERBOSITY_ERROR);
     }
 
     //----Print run setup info

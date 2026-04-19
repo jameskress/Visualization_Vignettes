@@ -4,7 +4,7 @@
 
 AdiosWriterBackend::AdiosWriterBackend(const BackendOptions &opts)
     : m_opts(opts),
-      m_perf_logger("writer_timers",
+      m_perf_logger("reader_timers",
                     [&]() { int rank; MPI_Comm_rank(opts.comm, &rank); return rank; }(),
                     [&]() { char hostname[256]; gethostname(hostname, sizeof(hostname)); return std::string(hostname); }(),
                     {"ADIOS_Wait", "ADIOS_Read_Time", "ADIOS_Write_Time", "total_step"}),

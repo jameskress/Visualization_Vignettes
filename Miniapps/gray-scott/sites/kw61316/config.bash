@@ -1,4 +1,4 @@
-~/packages/cmake-3.27.5-linux-x86_64/bin/cmake \
+~/packages/cmake-3.28.1-linux-x86_64/bin/cmake \
 -Dcatalyst_DIR=/home/kressjm/packages/paraview-src/build_6.0.0/install/lib/cmake/catalyst-2.0 \
 -DVTK_DIR=/home/kressjm/packages/paraview-src/build_6.0.0/install/lib/cmake/paraview-6.0/vtk \
 -DAscent_DIR=/home/kressjm/packages/Visualization_Vignettes/software/ascent/build/install/ascent-checkout/lib/cmake/ascent \
@@ -7,7 +7,7 @@
 -DFides_DIR=/home/kressjm/packages/Visualization_Vignettes/fides/fides-install/lib/cmake/fides \
 -DViskores_DIR=/home/kressjm/packages/Visualization_Vignettes/viskores/viskores-install/lib/cmake/viskores-1.0 \
 -DENABLE_TIMERS=1 \
--DCMAKE_BUILD_TYPE=DEBUG \
+-DCMAKE_BUILD_TYPE=RELEASE \
 -DENABLE_ASCENT=ON \
 -DENABLE_CATALYST=ON \
 -DENABLE_ADIOS2=ON \

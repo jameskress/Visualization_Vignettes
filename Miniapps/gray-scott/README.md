@@ -187,7 +187,7 @@ The easiest way to get `Catalyst` and `VTK` is to use the `ParaView Superbuild`.
 ```bash
 # Catalyst needs to be built with the SAME MPI compiler as gray-scott
 
-git clone --recursive [https://gitlab.kitware.com/paraview/paraview-superbuild.git](https://gitlab.kitware.com/paraview/paraview-superbuild.git)
+git clone --recursive https://gitlab.kitware.com/paraview/paraview-superbuild.git
 cd paraview-superbuild
 git checkout v6.0.0
 cd ..
@@ -202,7 +202,7 @@ make -j
 To build `Ascent`, follow one of the methods listed in the [documentation](https://ascent.readthedocs.io/en/latest/#). Below is the method that we have tested.
 
 ```bash
-git clone --recursive [https://github.com/alpine-dav/ascent.git](https://github.com/alpine-dav/ascent.git)
+git clone --recursive https://github.com/alpine-dav/ascent.git
 cd ascent
 env prefix=build env enable_mpi=ON enable_openmp=ON  ./scripts/build_ascent/build_ascent.sh
 export Ascent_DIR=/home/kressjm/packages/ascent/build/install/ascent-checkout/lib/cmake/ascent
@@ -213,7 +213,7 @@ export Ascent_DIR=/home/kressjm/packages/ascent/build/install/ascent-checkout/li
 To build `ADIOS2`, follow one of the methods listed in the [documentation](https://adios2.readthedocs.io/en/latest/). Below is the method that we have tested.
 
 ```bash
-git clone [https://github.com/ornladios/ADIOS2.git](https://github.com/ornladios/ADIOS2.git)
+git clone https://github.com/ornladios/ADIOS2.git
 mkdir adios2-build
 cd adios2-build
 cmake ../ADIOS2/ -DADIOS2_USE_MPI=ON -DADIOS2_BUILD_EXAMPLES=ON -DCMAKE_INSTALL_PREFIX=../adios2-install

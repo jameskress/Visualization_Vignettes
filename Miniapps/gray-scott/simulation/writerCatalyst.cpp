@@ -191,18 +191,23 @@ void WriterCatalyst::write(int step, const GrayScott &sim, int rank, int numRank
     mesh["topologies/mesh/coordset"].set("coords");
 
     // Finally, add fields.
+    std::vector<double> u_data = sim.u_noghost();
+    std::vector<double> v_data = sim.v_noghost();
+
     auto fields = mesh["fields"];
     fields["v/association"].set("vertex");
     fields["v/topology"].set("mesh");
     fields["v/volume_dependent"].set("false");
     // fields["v/values"].set_external(sim.v_ghost().data(), sim.v_ghost().size());
-    fields["v/values"].set(sim.v_noghost().data(), sim.v_noghost().size());
+    // fields["v/values"].set(sim.v_noghost().data(), sim.v_noghost().size());
+    fields["v/values"].set_external(v_data.data(), v_data.size());
 
     fields["u/association"].set("vertex");
     fields["u/topology"].set("mesh");
     fields["u/volume_dependent"].set("false");
     // fields["u/values"].set_external(sim.u_ghost().data(), sim.u_ghost().size());
-    fields["u/values"].set(sim.u_noghost().data(), sim.u_noghost().size());
+    // fields["u/values"].set(sim.u_noghost().data(), sim.u_noghost().size());
+    fields["u/values"].set_external(u_data.data(), u_data.size());
 
     // std::cerr << __FILE__ << __LINE__ << std::endl;
     // // special case to handle ghost cells by creating a ghost mask

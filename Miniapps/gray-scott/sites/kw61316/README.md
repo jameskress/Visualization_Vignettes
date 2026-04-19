@@ -16,19 +16,18 @@ use_system_python3
 Debugging Catalyst
 export CATALYST_DEBUG=1
 
-../../cmake-3.28.1-linux-x86_64/bin/cmake ../paraview-superbuild \
- -DCMAKE_C_COMPILER=/usr/bin/gcc-9 \
- -DCMAKE_CXX_COMPILER=/usr/bin/g++-9 \
- -DUSE_SYSTEM_mpi=ON \
- -DUSE_SYSTEM_python3=ON \
- -DENABLE_catalyst=ON \
- -DENABLE_mpi=ON \
- -DENABLE_netcdf=ON \
- -DENABLE_hdf5=ON \
- -DENABLE_python3=ON \
- -DENABLE_openmp=ON \
- -DENABLE_paraview=ON \
- -DENABLE_qt5=ON
+../../../cmake-3.28.1-linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_C_COMPILER=mpicc \
+  -DCMAKE_CXX_COMPILER=mpicxx \
+  -DMPI_C_COMPILER=mpicc \
+  -DMPI_CXX_COMPILER=mpicxx \
+  -DUSE_SYSTEM_mpi=ON \
+  -DUSE_SYSTEM_python3=ON \
+  -DENABLE_catalyst=ON -DENABLE_mpi=ON -DENABLE_netcdf=ON \
+  -DENABLE_hdf5=ON -DENABLE_python3=ON -DENABLE_openmp=ON \
+  -DENABLE_paraview=ON -DENABLE_qt5=OFF \
+  -DPython3_EXECUTABLE=/usr/bin/python3 \
+  ../paraview-superbuild
 
 ## Settings file
 

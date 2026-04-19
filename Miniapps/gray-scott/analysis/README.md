@@ -52,7 +52,7 @@ The reader's behavior is controlled by several command-line arguments:
 |---|---|
 | `-f`, `--file` | **Required.** The name of the ADIOS2 file or stream (e.g., `gs.bp`). |
 | `-s`, `--settings` | **Required.** Path to the simulation's JSON settings file. |
-| `-o`, `--output-type` | Analysis backend to use (`ascent` or `catalyst`). Overrides the value in the settings file. |
+| `-o`, `--output-type` | Analysis backend to use (`ascent`, `catalyst`). Overrides the value in the settings file. |
 | `-c`, `--mpi-split-color` | Color for `MPI_Comm_split` in MPMD mode. Crucial for in-transit runs. |
 | `-e`, `--engine` | Override the ADIOS2 engine (e.g., `SST`, `BP4`, `BP5`). |
 | `-b`, `--block-mode` | Data handling: `preserve` (default) or `repartition`. Note: Catalyst only supports `repartition`. |
