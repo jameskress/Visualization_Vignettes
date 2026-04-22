@@ -2,6 +2,7 @@
 #include <sys/resource.h>
 #include <iostream>
 #include <stdexcept>
+#include <filesystem>
 
 PerfLogger::PerfLogger(const std::string &output_dir, int rank, const std::string &hostname,
                        const std::vector<std::string> &timers)
@@ -20,7 +21,7 @@ PerfLogger::PerfLogger(const std::string &output_dir, int rank, const std::strin
     std::string file_path = output_dir_ + "/rank_" + std::to_string(rank_) + ".csv";
 
     // Optional: create directory if it doesn't exist (POSIX)
-    system(("mkdir -p " + output_dir_).c_str());
+    std::filesystem::create_directories(output_dir_);
 
     log_.open(file_path);
     if (!log_.is_open())

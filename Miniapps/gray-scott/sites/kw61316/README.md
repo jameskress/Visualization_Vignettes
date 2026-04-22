@@ -16,6 +16,7 @@ use_system_python3
 Debugging Catalyst
 export CATALYST_DEBUG=1
 
+
 ../../../cmake-3.28.1-linux-x86_64/bin/cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DCMAKE_C_COMPILER=mpicc \
   -DCMAKE_CXX_COMPILER=mpicxx \
@@ -26,8 +27,22 @@ export CATALYST_DEBUG=1
   -DENABLE_catalyst=ON -DENABLE_mpi=ON -DENABLE_netcdf=ON \
   -DENABLE_hdf5=ON -DENABLE_python3=ON -DENABLE_openmp=ON \
   -DENABLE_paraview=ON -DENABLE_qt5=OFF \
+  -DENABLE_ospray=ON \
+  -DENABLE_osmesa=ON \
+  -DUSE_SYSTEM_pythonwheel=ON \
+  -DUSE_SYSTEM_pythonsetuptools=ON \
+  -DUSE_SYSTEM_pythonmako=ON \
+  -DUSE_SYSTEM_pythonmarkupsafe=ON \
+  -DUSE_SYSTEM_meson=ON \
+  -DUSE_SYSTEM_ninja=ON \
+  -DUSE_SYSTEM_osmesa=ON \
   -DPython3_EXECUTABLE=/usr/bin/python3 \
   ../paraview-superbuild
+
+
+  !!! Had to export the paraview build install directory for the runtime to find ospray during execution. had to add before every catalyst run
+  export LD_LIBRARY_PATH=/home/kressjm/packages/Visualization_Vignettes/software/paraview-build/install/lib:$LD_LIBRARY_PATH
+
 
 ## Settings file
 

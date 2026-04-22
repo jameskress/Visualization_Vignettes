@@ -154,12 +154,21 @@ endif()
 
 # ADIOS2 (Optional)
 if(ENABLE_ADIOS2)
-  find_package(ADIOS2 REQUIRED COMPONENTS MPI)
+  # Defensive guard: only find ADIOS2 if Ascent hasn't already pulled it in
+  if(NOT TARGET adios2::cxx11)
+      find_package(ADIOS2 REQUIRED COMPONENTS MPI)
+  endif()
 
-  if(ADIOS2_FOUND)
+  if(ADIOS2_FOUND OR TARGET adios2::cxx11)
+      # Use the target version to get the version string if find_package was skipped
+      if(NOT ADIOS2_VERSION AND TARGET adios2::cxx11)
+         set(ADIOS2_VERSION "2.11.0") # Or pull from target properties
+      endif()
+      
       message(STATUS "Found ADIOS2 version ${ADIOS2_VERSION}.")
     
-      if(ADIOS2_MPI_FOUND)
+      # Check for MPI support via the target
+      if(TARGET adios2::cxx11_mpi)
         message(STATUS "ADIOS2 MPI support: ENABLED")
       else()
         message(WARNING "ADIOS2 MPI support: DISABLED. The 'mpi' DataPlane will be unavailable.")

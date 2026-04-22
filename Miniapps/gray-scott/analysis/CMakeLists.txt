@@ -15,10 +15,25 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(nlohmann_json)
 
 # Find dependencies
-find_package(MPI REQUIRED)
-find_package(ADIOS2 REQUIRED COMPONENTS MPI)
-find_package(Conduit REQUIRED)
-find_package(Ascent REQUIRED)
+# Check if the MPI target exists before finding
+if(NOT TARGET MPI::MPI_CXX)
+    find_package(MPI REQUIRED COMPONENTS CXX)
+endif()
+
+# Check if the ADIOS2 target exists before finding
+if(NOT TARGET adios2::cxx11_mpi)
+    find_package(ADIOS2 REQUIRED COMPONENTS MPI)
+endif()
+
+# Check if the Conduit target exists before finding
+if(NOT TARGET conduit::conduit_mpi)
+    find_package(Conduit REQUIRED)
+endif()
+
+# Check if the Ascent target exists before finding
+if(NOT TARGET ascent::ascent_mpi)
+    find_package(Ascent REQUIRED)
+endif()
 #find_package(Viskores REQUIRED)
 #find_package(Fides REQUIRED)
 

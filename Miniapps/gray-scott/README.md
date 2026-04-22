@@ -204,6 +204,8 @@ To build `Ascent`, follow one of the methods listed in the [documentation](https
 ```bash
 git clone --recursive https://github.com/alpine-dav/ascent.git
 cd ascent
+git checkout v0.9.5
+git submodule update --init --recursive
 env prefix=build env enable_mpi=ON enable_openmp=ON  ./scripts/build_ascent/build_ascent.sh
 export Ascent_DIR=/home/kressjm/packages/ascent/build/install/ascent-checkout/lib/cmake/ascent
 ```
@@ -214,6 +216,9 @@ To build `ADIOS2`, follow one of the methods listed in the [documentation](https
 
 ```bash
 git clone https://github.com/ornladios/ADIOS2.git
+cd ADIOS2
+git checkout v2.11.0
+cd ..
 mkdir adios2-build
 cd adios2-build
 cmake ../ADIOS2/ -DADIOS2_USE_MPI=ON -DADIOS2_BUILD_EXAMPLES=ON -DCMAKE_INSTALL_PREFIX=../adios2-install
@@ -336,6 +341,11 @@ To use the ADIOS2 writer, you must set the `output_type` to `"adios"` in your JS
 | **Zero-Copy (Recommended)** | Highest performance. ADIOS2 reads data directly from the simulation's memory, avoiding any data copies.                                      | `"adios_memory_selection": true`, `"adios_span": false`  |
 | **ADIOS-Managed (Span)** | ADIOS2 provides a memory buffer, and the application copies its data into it. Avoids memory allocations in the application's I/O path.       | `"adios_memory_selection": false`, `"adios_span": true`  |
 | **Local Copy (Default)** | A local copy of the data is created and passed to ADIOS2. Easiest to understand but less performant due to the extra memory allocation/copy. | `"adios_memory_selection": false`, `"adios_span": false` |
+
+
+> [!WARNING]
+> **Span and Overwrite Incompatibility:** You cannot use `"adios_span": true` simultaneously with `"overwrite_last_step": true` in your JSON settings. The `overwrite_last_step` feature works by closing and reopening the ADIOS engine at every step to overwrite the file. This destroys the zero-copy memory blocks allocated by the Span feature, resulting in a segmentation fault (`Invalid permissions (2)`) on the second output step. If you use `adios_span`, you must keep the file stream open by setting `"overwrite_last_step": false`.
+
 
 #### Step 2: 🚀 Execute the Simulation
 

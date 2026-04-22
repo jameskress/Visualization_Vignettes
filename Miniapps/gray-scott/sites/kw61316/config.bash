@@ -1,6 +1,6 @@
 ~/packages/cmake-3.28.1-linux-x86_64/bin/cmake \
--Dcatalyst_DIR=/home/kressjm/packages/paraview-src/build_6.0.0/install/lib/cmake/catalyst-2.0 \
--DVTK_DIR=/home/kressjm/packages/paraview-src/build_6.0.0/install/lib/cmake/paraview-6.0/vtk \
+-Dcatalyst_DIR=/home/kressjm/packages/Visualization_Vignettes/software/paraview-build/install/lib/cmake/catalyst-2.0 \
+-DVTK_DIR=/home/kressjm/packages/Visualization_Vignettes/software/paraview-build/install/lib/cmake/paraview-6.0/vtk \
 -DAscent_DIR=/home/kressjm/packages/Visualization_Vignettes/software/ascent/build/install/ascent-checkout/lib/cmake/ascent \
 -DADIOS2_DIR=/home/kressjm/packages/Visualization_Vignettes/software/adios2-install/lib/cmake/adios2 \
 -Dkombynelite_DIR=/home/kressjm/packages/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite \
@@ -15,5 +15,3 @@
 -DCMAKE_INSTALL_PREFIX=../install \
 -DBUILD_ANALYSIS_READER=ON \
 ../
-
-

@@ -72,6 +72,7 @@ void WriterAscent::write(int step, const GrayScott &sim, int rank, int numRanks)
 
     mesh["state/cycle"] = step;
     mesh["state/time"] = step * settings.dt;
+    mesh["state/domain_id"] = rank;
 
     conduit::Node verify_info;
     if (!conduit::blueprint::mesh::verify(mesh, verify_info))

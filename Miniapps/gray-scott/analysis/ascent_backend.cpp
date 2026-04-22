@@ -42,7 +42,7 @@ namespace
         c["origin/x"] = local_origin[0]; c["origin/y"] = local_origin[1]; c["origin/z"] = local_origin[2];
         c["spacing/dx"] = spacing[0]; c["spacing/dy"] = spacing[1]; c["spacing/dz"] = spacing[2];
 
-	// Tell Blueprint the global index offsets for stitching
+	    // Tell Blueprint the global index offsets for stitching
         c["origin_logical/i"] = (long long)(read_info.local_start[2]);
         c["origin_logical/j"] = (long long)(read_info.local_start[1]);
         c["origin_logical/k"] = (long long)(read_info.local_start[0]);

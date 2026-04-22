@@ -152,6 +152,9 @@ For in-transit runs, the simulation code needs an `adios2.xml` configuration fil
 > Ensure that `"adios_span": false` is set in your simulation's JSON settings file when running in-transit. 
 > Enabling it will cause the simulation to crash with an `Engine SstWriter does not support DoPut` exception.
 
+> [!CRITICAL]
+> **In-Transit Overwrite Deadlock:** You **must** set `"overwrite_last_step": false` in your simulation's `settings.json` when running in-transit. Setting this to `true` causes the simulation to close and reopen the ADIOS engine at every step. While this works for overwriting offline files on disk (BP5), it abruptly severs the live network sockets used by the SST engine. This will cause the analysis reader (and your Catalyst/Ascent pipelines) to hang infinitely, waiting on a dropped connection.
+
 > [!CAUTION]
 > If there is a leftover `*.sst` file in your run directory your runs may fail immediately. If your runs are failing unexpectedly, check for this file. 
 
