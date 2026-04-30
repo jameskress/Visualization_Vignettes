@@ -16,6 +16,9 @@ This repository serves two primary purposes for High Performance Computing (HPC)
     * [Client Installation & Prerequisites](#client-installation--prerequisites)
     * [Connection Setup](#connection-setup)
     * [KAUST Connection Guide (GUI Options)](#kaust-connection-guide-gui-options)
+* [**Part 4: Special Use Cases**](#part-4-special-use-cases)
+    * [Custom Python Environments](#1-custom-python-environments)
+    * [Running Jupyter Notebooks](#2-running-jupyter-notebooks)
 * [**Part 3: HPC Resource Strategy**](#part-3-hpc-resource-strategy) (Performance Cheat Sheet)
 * [**Appendix**](#appendix) (Example Details & Reference)
 
@@ -176,6 +179,36 @@ Use this cheat sheet to determine the resources you need for your job (Interacti
 | **High RAM** | `batch` | 1 | Gives 100% of node RAM to a single process. |
 
 <br>
+
+
+---
+
+# Part 4: Special Use Cases
+
+### 1. Custom Python Environments
+If you are using a custom ParaView plugin or reader that requires external Python packages (like `numpy` or `scipy`), you cannot use standard pip installations. 
+
+To protect your default environment, the KAUST ParaView launch scripts are hardcoded to automatically look for custom packages in a highly specific directory: `/scratch/$USER/pv_python_environment`.
+
+**One-Time Setup:**
+Use ParaView's built-in Python to install your required packages directly to this target folder:
+
+```bash
+# 1. Create the standardized package directory
+mkdir -p /scratch/$USER/pv_python_environment
+
+# 2. Load the ParaView module (Ibex or Shaheen)
+module load paraview  # (Or the specific Shaheen module variant you are using)
+
+# 3. Install the required package to the target directory
+pvpython -m pip install numpy scipy --target=/scratch/$USER/pv_python_environment
+```
+
+### 2. Running Jupyter Notebooks
+If you prefer to drive ParaView using Jupyter Notebooks (either locally or rendering remotely on the cluster), we have a dedicated set of vignettes and instructions for setting up that workflow.
+
+👉 [Jupyter Notebooks Guide](./Special_Use_Cases/Jupyter_Notebooks/README.md)
+
 
 ---
 
