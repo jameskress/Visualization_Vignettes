@@ -1,0 +1,104 @@
+#!/bin/bash
+#
+# Visualization Vignettes
+#
+# ex09_visitMeshTopologies -- Ibex submission script
+#
+# Run one contour pipeline across four mesh topologies.
+#
+# Needs data/topologies. Generate once: pvbatch ../../data/make_topology_datasets.py
+#
+# SUBMIT
+#     sbatch ex09_ibex_runScript.sbat
+#
+# EDIT
+#     The RUN CONFIGURATION block below is the only part you normally need to
+#     touch. Everything under it is identical across every vignette in this
+#     repository, so a change to how vignettes are launched is a change in one
+#     recognisable place rather than forty-eight slightly different places.
+#
+# NOTE
+#     Resource requests in the #SBATCH block and the values in RUN
+#     CONFIGURATION are kept in step by hand. If you raise VV_RANKS, raise
+#     --ntasks-per-node to match.
+#
+# SYSTEM LAUNCHERS
+#     This script runs the vignette itself, inside the allocation sbatch
+#     gives it. It is not the site's interactive launcher and does not
+#     replace it -- pv_launcher.sh + run_pvserver.sbat start a pvserver for a
+#     reverse-connected GUI client, and ~/.visit/customlauncher submits VisIt
+#     compute engines from a login node. Where those wrappers make a choice
+#     that affects rendering, the same choice is made here from the same
+#     evidence; the differences are called out in the suite README.
+#
+# Author: James Kress, <james@jameskress.com>
+#
+#SBATCH --job-name=ex09.ibex
+#SBATCH --output=ex09.ibex.%J.out
+#SBATCH --error=ex09.ibex.%J.out
+#SBATCH --partition=batch
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=64G
+#SBATCH --time=00:20:00
+
+# Deliberately NOT 'set -e': the whole point of the tail of this script is to
+# capture the vignette's exit status and report it, and 'set -e' would abort
+# the script before that happens -- on precisely the failing runs that matter.
+set -o pipefail
+
+# ============================ RUN CONFIGURATION =============================
+VV_NODES=1
+VV_RANKS=1
+VV_THREADS=1
+VV_PARTITION="batch"
+VV_WALLTIME="00:20:00"
+VV_IMAGE_WIDTH=1024
+VV_IMAGE_HEIGHT=1024
+
+# Extra flags handed straight to the vignette. Run the vignette with --help
+# to see what it accepts.
+VV_EXTRA_ARGS=()
+# ===========================================================================
+
+# Always run from the vignette directory: the scripts resolve their data and
+# output paths relative to themselves, and sbatch does not guarantee a
+# working directory.
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+
+# Load the VisIt environment.
+source ../MODULES.sh
+
+export OMP_NUM_THREADS="$VV_THREADS"
+
+VISIT="$(command -v visit)"
+if [ -z "$VISIT" ]; then
+    echo "ERROR: visit not found after sourcing ../MODULES.sh" >&2
+    exit 127
+fi
+echo "Using visit: $VISIT"
+
+# VisIt is never wrapped in an MPI launcher. Parallelism is the compute
+# engine's job: the vignette passes --nodes/--ranks to OpenComputeEngine.
+#
+# Because this script runs on a compute node, the site customlauncher does
+# NOT take over -- its IsRunningOnIbex()/IsRunningOnShaheen() both require
+# sectorname().startswith("login"). That is the behaviour we want here: the
+# vignette starts the engine as an srun job step of this allocation instead
+# of submitting a second job from inside the first one. Run the same vignette
+# from a login node and Testing/vignette_common.py switches to an sbatch/srun
+# launcher, which is the form the customlauncher expects.
+STATUS=0
+time "$VISIT" -nowin -cli -s ./ex09_visitMeshTopologies.py \
+    --machine ibex \
+    --nodes "$VV_NODES" \
+    --ranks "$VV_RANKS" \
+    --partition "$VV_PARTITION" \
+    --walltime "$VV_WALLTIME" \
+    --image-width "$VV_IMAGE_WIDTH" \
+    --image-height "$VV_IMAGE_HEIGHT" \
+    ${VV_EXTRA_ARGS[@]+"${VV_EXTRA_ARGS[@]}"} || STATUS=$?
+
+echo "Vignette exited with status $STATUS"
+exit $STATUS

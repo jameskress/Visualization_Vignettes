@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<!--
+  Visualization Vignettes
+
+  ex10_categorical.ct : a DISCRETE VisIt colour table
+
+  This is VisIt's native colour table format, the same one the GUI writes into
+  a user's .visit directory when you save a colour table. It is NOT installed
+  there by this repository: ex10_visitColormapFidelity reads this file
+  directly and registers the table at run time with AddColorTable(), so the
+  vignette needs no state in anyone's home directory and this file stays the
+  single source of truth for what the map looks like.
+
+  discreteFlag is what makes this categorical rather than continuous: VisIt
+  assigns each control point to one band instead of interpolating between
+  them, which is the closest native equivalent of ParaView's
+  InterpretValuesAsCategories. equalSpacingFlag makes the five bands equal in
+  width regardless of the positions below, so a band boundary cannot drift
+  when the data range changes.
+
+  The five hues are the IndexedColor entries of "VV Categorical" in the
+  ParaView vignette's ex10_custom_colormap.xml, converted to 0..255. There are
+  five because the vignette bins its scalar into five categories; the count
+  lives in CATEGORY_COUNT and the vignette asserts that the table it read back
+  has exactly that many control points.
+
+
+  NOTE ON THIS COMMENT: XML forbids a double hyphen inside a comment. Prose
+  here uses colons and semicolons instead, because the vignette parses this
+  file with ElementTree and a stray double hyphen would fail the parse with a
+  message about an invalid token and nothing about colours.
+-->
+<Object name="ColorTable">
+    <Field name="Version" type="string">3.4.1</Field>
+    <Object name="ColorControlPointList">
+        <Object name="ColorControlPoint">
+            <Field name="colors" type="unsignedCharArray" length="4">59 76 192 255 </Field>
+            <Field name="position" type="float">0</Field>
+        </Object>
+        <Object name="ColorControlPoint">
+            <Field name="colors" type="unsignedCharArray" length="4">30 158 136 255 </Field>
+            <Field name="position" type="float">0.25</Field>
+        </Object>
+        <Object name="ColorControlPoint">
+            <Field name="colors" type="unsignedCharArray" length="4">241 196 15 255 </Field>
+            <Field name="position" type="float">0.5</Field>
+        </Object>
+        <Object name="ColorControlPoint">
+            <Field name="colors" type="unsignedCharArray" length="4">222 120 74 255 </Field>
+            <Field name="position" type="float">0.75</Field>
+        </Object>
+        <Object name="ColorControlPoint">
+            <Field name="colors" type="unsignedCharArray" length="4">180 4 38 255 </Field>
+            <Field name="position" type="float">1</Field>
+        </Object>
+        <Field name="smoothing" type="int">0</Field>
+        <Field name="equalSpacingFlag" type="bool">true</Field>
+        <Field name="discreteFlag" type="bool">true</Field>
+        <Field name="categoryName" type="string">Standard</Field>
+    </Object>
+</Object>

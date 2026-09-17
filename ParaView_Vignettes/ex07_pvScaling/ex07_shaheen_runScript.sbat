@@ -1,0 +1,112 @@
+#!/bin/bash
+#
+# Visualization Vignettes
+#
+# ex07_pvScaling -- Shaheen3 submission script
+#
+# Isosurface scaling study with I/O and render time separated.
+#
+# Multi-node. Raise VV_NODES/VV_RANKS and --nodes/--ntasks-per-node together, then re-run to extend the scaling curve.
+#
+# SUBMIT
+#     sbatch ex07_shaheen_runScript.sbat
+#
+# EDIT
+#     The RUN CONFIGURATION block below is the only part you normally need to
+#     touch. Everything under it is identical across every vignette in this
+#     repository, so a change to how vignettes are launched is a change in one
+#     recognisable place rather than forty-eight slightly different places.
+#
+# NOTE
+#     Resource requests in the #SBATCH block and the values in RUN
+#     CONFIGURATION are kept in step by hand. If you raise VV_RANKS, raise
+#     --ntasks-per-node to match.
+#
+# SYSTEM LAUNCHERS
+#     This script runs the vignette itself, inside the allocation sbatch
+#     gives it. It is not the site's interactive launcher and does not
+#     replace it -- pv_launcher.sh + run_pvserver.sbat start a pvserver for a
+#     reverse-connected GUI client, and ~/.visit/customlauncher submits VisIt
+#     compute engines from a login node. Where those wrappers make a choice
+#     that affects rendering, the same choice is made here from the same
+#     evidence; the differences are called out in the suite README.
+#
+# Author: James Kress, <james@jameskress.com>
+#
+#SBATCH --account=k01
+#SBATCH --job-name=ex07.shaheen
+#SBATCH --output=ex07.shaheen.%j.out
+#SBATCH --error=ex07.shaheen.%j.out
+#SBATCH --partition=workq
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=4
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=128G
+#SBATCH --time=00:30:00
+
+# Deliberately NOT 'set -e': the whole point of the tail of this script is to
+# capture the vignette's exit status and report it, and 'set -e' would abort
+# the script before that happens -- on precisely the failing runs that matter.
+set -o pipefail
+
+# ============================ RUN CONFIGURATION =============================
+VV_NODES=2
+VV_RANKS=8
+VV_THREADS=16
+VV_PARTITION="workq"
+VV_WALLTIME="00:30:00"
+VV_IMAGE_WIDTH=1024
+VV_IMAGE_HEIGHT=1024
+VV_MODULE_VARIANT="mesa"
+
+# Extra flags handed straight to the vignette. Run the vignette with --help
+# to see what it accepts.
+VV_EXTRA_ARGS=()
+# ===========================================================================
+
+# Always run from the vignette directory: the scripts resolve their data and
+# output paths relative to themselves, and sbatch does not guarantee a
+# working directory.
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+
+# Load the ParaView environment. Pass "egl" for the GPU variant, anything
+# else (or nothing) for the Mesa software variant.
+#
+# MODULES.sh also exports VTK_DEFAULT_OPENGL_WINDOW, chosen from the loaded
+# module name exactly as the site's run_pvserver.sbat chooses it. ParaView
+# 6.0+ needs that hint; without it an -egl module can quietly fall back to
+# llvmpipe and still render, at roughly a hundredth of the speed.
+source ../MODULES.sh "$VV_MODULE_VARIANT"
+
+export OMP_NUM_THREADS="$VV_THREADS"
+export TBB_NUM_THREADS="$VV_THREADS"
+
+PVBATCH="$(command -v pvbatch)"
+if [ -z "$PVBATCH" ]; then
+    echo "ERROR: pvbatch not found after sourcing ../MODULES.sh" >&2
+    exit 127
+fi
+echo "Using pvbatch     : $PVBATCH"
+echo "ParaView module   : ${VV_PARAVIEW_MODULE:-<unknown>}"
+echo "OpenGL window     : ${VTK_DEFAULT_OPENGL_WINDOW:-<vtk default>}"
+
+# Ranks per node, for the same ppr placement policy run_pvserver.sbat uses.
+# Without it Open MPI packs every rank onto the first node of a multi-node
+# allocation and a scaling study measures one node however many it asked for.
+VV_RANKS_PER_NODE=$(( (VV_RANKS + VV_NODES - 1) / VV_NODES ))
+
+STATUS=0
+time srun --nodes="$VV_NODES" --ntasks="$VV_RANKS" --cpus-per-task="$VV_THREADS" --hint=nomultithread --mem-bind=v,none --cpu-bind=v,cores \
+    "$PVBATCH" --force-offscreen-rendering --disable-xdisplay-test \
+    ./ex07_pvScaling.py \
+        --machine shaheen \
+        --nodes "$VV_NODES" \
+        --ranks "$VV_RANKS" \
+        --partition "$VV_PARTITION" \
+        --walltime "$VV_WALLTIME" \
+        --image-width "$VV_IMAGE_WIDTH" \
+        --image-height "$VV_IMAGE_HEIGHT" \
+        ${VV_EXTRA_ARGS[@]+"${VV_EXTRA_ARGS[@]}"} || STATUS=$?
+
+echo "Vignette exited with status $STATUS"
+exit $STATUS

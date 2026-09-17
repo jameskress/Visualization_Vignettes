@@ -1,63 +1,244 @@
-import os
-import sys
-import subprocess
+#
+# Visualization Vignettes
+#
+# test_suite.py
+#
+# Regression and performance driver for the ParaView and VisIt vignettes.
+#
+# WHAT CHANGED AND WHY
+#
+#   The suite can now fail. check_failure() used to read only
+#   text_comparison_results.json, so image comparison ran, wrote its verdict
+#   to disk, and was then ignored by the one function that sets the exit
+#   code. A vignette could render a black frame and CI stayed green. Image
+#   results, numeric results, and the subprocess exit code are all gates now.
+#
+#   Blessing is explicit. Baselines used to be created automatically from the
+#   current output immediately before comparing against them, so a first run
+#   always passed and a deleted baseline silently re-blessed itself. Baseline
+#   creation now happens only under --bless; a missing baseline is a failure.
+#
+#   Numeric CSV extracts are a gate. A vignette declares a CSV with
+#   ctx.add_numeric_extract(); the harness compares it against the blessed
+#   copy cell by cell with verify.compare_csv and a per-file tolerance. That
+#   is how ex12 in both suites regression-tests numbers rather than pixels.
+#
+#   Rank count is a parameter. --ranks/--nodes flow through to run_tests.py
+#   and from there to mpirun/srun for ParaView and to OpenComputeEngine for
+#   VisIt.
+#
+#   The performance history is opt-out. performance_metrics_<machine>.json is
+#   committed to git, so an experimental or debugging run used to leave a
+#   permanent mark on a record other people read. --no-metrics (alias
+#   --ephemeral) runs every test and every comparison exactly as usual but
+#   appends nothing, and Testing/manage_metrics.py prunes records that are
+#   already there.
+#
+#   Every record now carries a run_id shared by all vignettes in one
+#   invocation, so a single suite run can be identified -- and removed -- as
+#   a unit. Older records have no run_id and are untouched by its addition.
+#
+# BACKWARDS COMPATIBILITY
+#
+#   Every result filename, status spelling, and JSON layout the old harness
+#   produced is preserved. Existing known_good_value.txt baselines are still
+#   compared exactly as before. Numeric comparison of the structured results
+#   JSON is additive: a vignette without one is not penalised for it.
+#
+# Author: James Kress, <james@jameskress.com>
+#
 import argparse
-import re
-import time
-import json
-import glob
-import shutil
 import datetime
+import glob
+import json
+import os
 import platform
+import re
+import shutil
+import subprocess
+import sys
+import time
+import uuid
+
 import pandas as pd
-from PIL import Image, ImageChops
-from metrics import *
-from plot_metrics import (
-    generate_individual_graphs,
-)
+
+import verify
+from metrics import child_rusage_snapshot, detect_significant_changes, gather_metrics
+from plot_metrics import generate_individual_graphs
+from run_tests import RUN_RESULT_FILENAME, read_run_result
 
 
-def run_local_test(test_dir):
-    """
-    Run the local test using the centralized run_tests.py.
-    """
+# Result artifacts written inside each vignette's Testing/ directory.
+IMAGE_RESULTS_FILENAME = "image_comparison_results.json"
+TEXT_RESULTS_FILENAME = "text_comparison_results.json"
+NUMERIC_RESULTS_FILENAME = "results_comparison.json"
+CSV_RESULTS_FILENAME = "csv_comparison_results.json"
+
+
+# ---------------------------------------------------------------------------
+# Launching
+# ---------------------------------------------------------------------------
+def build_run_command(test_dir, args):
+    """Assemble the run_tests.py invocation for one vignette."""
     run_tests_path = os.path.join(
         os.path.dirname(os.path.abspath(__file__)), "run_tests.py"
     )
 
-    # Check for Python executables
-    python_exec = shutil.which("python") or shutil.which("python3")
-    if not python_exec:
-        print("Error: Neither 'python' nor 'python3' is available on this system.")
-        return
+    python_exec = shutil.which("python") or shutil.which("python3") or sys.executable
+    cmd = [
+        python_exec,
+        run_tests_path,
+        test_dir,
+        "--tool",
+        args.test_type,
+        "--ranks",
+        str(args.ranks),
+        "--nodes",
+        str(args.nodes),
+        "--launcher",
+        args.launcher,
+        "--machine",
+        args.machine,
+        "--partition",
+        args.partition,
+        "--walltime",
+        args.walltime,
+        "--timeout",
+        str(args.timeout),
+    ]
+    if args.threads:
+        cmd += ["--threads", str(args.threads)]
+    if args.account:
+        cmd += ["--account", args.account]
+    if args.data_dir:
+        cmd += ["--data-dir", args.data_dir]
+    if args.image_width:
+        cmd += ["--image-width", str(args.image_width)]
+    if args.image_height:
+        cmd += ["--image-height", str(args.image_height)]
+    if args.timesteps:
+        cmd += ["--timesteps", str(args.timesteps)]
+    if not args.offscreen:
+        cmd.append("--no-offscreen")
+    if not args.write_metrics:
+        cmd.append("--no-metrics")
+    if args.verbose:
+        cmd.append("--verbose")
+    for extra in args.vignette_arg:
+        cmd += ["--vignette-arg", extra]
+    return cmd, run_tests_path
 
-    # Run the script if it exists
-    if os.path.exists(run_tests_path):
-        subprocess.run([python_exec, run_tests_path, test_dir])
-    else:
-        print(f"run_tests.py not found at {run_tests_path}")
+
+def run_local_test(test_dir, args):
+    """Run one vignette locally and return run_tests.py's recorded result."""
+    cmd, run_tests_path = build_run_command(test_dir, args)
+
+    if not os.path.exists(run_tests_path):
+        print("run_tests.py not found at {0}".format(run_tests_path))
+        return {
+            "succeeded": False,
+            "returncode": 127,
+            "error": "run_tests.py missing",
+            "timed_out": False,
+        }
+
+    completed = subprocess.run(cmd)
+
+    testing_dir = os.path.join(test_dir, "Testing")
+    payload = read_run_result(testing_dir)
+    if payload is None:
+        # run_tests.py always writes this file; its absence means the launch
+        # itself failed in a way that must not be silently swallowed.
+        payload = {
+            "succeeded": completed.returncode == 0,
+            "returncode": completed.returncode,
+            "timed_out": False,
+            "error": "run_tests.py wrote no {0}".format(RUN_RESULT_FILENAME),
+        }
+    return payload
 
 
 def submit_cluster_test(test_dir, cluster_script):
-    """
-    Submit the test to a cluster using batch submission.
+    """Submit the vignette to Slurm.
+
+    Returns the job id when sbatch accepted it. Submission is asynchronous:
+    the comparison stages are skipped for submitted jobs, because comparing
+    output that the job has not written yet produces a meaningless verdict.
+    Collect results afterwards with --generate-metrics.
     """
     cluster_script_path = os.path.join(test_dir, cluster_script)
-    if os.path.exists(cluster_script_path):
-        subprocess.run(["sbatch", cluster_script_path])
-    else:
-        print(f"No {cluster_script} found in {test_dir}")
+    if not os.path.exists(cluster_script_path):
+        print("No {0} found in {1}".format(cluster_script, test_dir))
+        return None
+
+    completed = subprocess.run(
+        ["sbatch", cluster_script_path],
+        cwd=test_dir,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        print("sbatch failed for {0}: {1}".format(cluster_script_path, completed.stderr))
+        return None
+
+    print(completed.stdout.strip())
+    match = re.search(r"(\d+)", completed.stdout)
+    return match.group(1) if match else None
+
+
+# ---------------------------------------------------------------------------
+# Discovery helpers
+# ---------------------------------------------------------------------------
+# A vignette directory is exNN_<name>. Matching on a bare "ex" prefix also
+# swept up unrelated directories -- ParaView_Vignettes/extracts/ among them --
+# and tried to run them as tests.
+VIGNETTE_DIR_RE = re.compile(r"^ex(\d+)_")
+
+
+def is_vignette_dir(name, parent):
+    """True when `name` is a vignette directory rather than a stray folder."""
+    return bool(VIGNETTE_DIR_RE.match(name)) and os.path.isdir(
+        os.path.join(parent, name)
+    )
 
 
 def extract_example_number(dir_name):
-    """
-    Extracts the numerical part from the directory name (e.g., ex00 -> 00).
-    Returns an integer for correct numerical sorting.
-    """
-    match = re.match(r"ex(\d+)", dir_name)
+    """Numeric part of a vignette directory name, for correct ordering."""
+    match = VIGNETTE_DIR_RE.match(dir_name)
     if match:
         return int(match.group(1))
     return float("inf")
+
+
+def vignette_script_name(test_dir):
+    """Base name of the vignette script, used to locate its results JSON."""
+    dir_name = os.path.basename(os.path.normpath(test_dir))
+    preferred = os.path.join(test_dir, dir_name + ".py")
+    if os.path.isfile(preferred):
+        return dir_name
+
+    candidates = [
+        name[:-3]
+        for name in sorted(os.listdir(test_dir))
+        if name.endswith(".py")
+        and not name.endswith(("_make_state.py", "_validate.py", "_common.py"))
+        and not name.startswith(("make_", "run_", "conftest"))
+    ]
+    return candidates[0] if candidates else dir_name
+
+
+# ---------------------------------------------------------------------------
+# Performance logging
+# ---------------------------------------------------------------------------
+def new_run_id():
+    """An identifier shared by every record one suite invocation writes.
+
+    Timestamp first so the ids sort chronologically, with a short random
+    suffix so two runs started in the same second on different nodes -- which
+    is exactly what a scaling sweep does -- cannot collide.
+    """
+    stamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
+    return "{0}-{1}".format(stamp, uuid.uuid4().hex[:6])
 
 
 def log_performance(
@@ -67,11 +248,14 @@ def log_performance(
     args_machine_name,
     paraview_version=None,
     visit_version=None,
+    run_id=None,
 ):
+    """Append this run's metrics to the machine-specific history file.
+
+    Callers suppress this entirely under --no-metrics; it is never called
+    with a flag that makes it a no-op, because a function that silently does
+    nothing is harder to reason about than one that is not called.
     """
-    Log performance metrics for the executed test.
-    """
-    # Get machine info
     machine_info = platform.uname()
 
     machine_details = {
@@ -85,37 +269,59 @@ def log_performance(
         "visit_version": visit_version,
     }
 
+    metrics = dict(metrics)
     metrics["machine_info"] = machine_details
+    if run_id:
+        metrics["run_id"] = run_id
 
-    # Get the current timestamp
     timestamp = datetime.datetime.now().isoformat()
 
-    # Define system-specific Testing directory path
     testing_dir = os.path.join(output_dir, "Testing")
     os.makedirs(testing_dir, exist_ok=True)
 
-    # Create a system-specific metrics log file
-    # Get the machine name from args, if provided, otherwise from the platform
     machine_name = args_machine_name if args_machine_name else platform.uname().node
-    log_file = os.path.join(testing_dir, f"performance_metrics_{machine_name}.json")
+    log_file = os.path.join(
+        testing_dir, "performance_metrics_{0}.json".format(machine_name)
+    )
 
-    # Log to a JSON file with date-time index
+    data = {}
     if os.path.exists(log_file):
-        with open(log_file, "r+") as file:
-            data = json.load(file)
-            # Append the new entry with the timestamp as the key
-            data[timestamp] = metrics
-            file.seek(0)  # Go to the beginning of the file
-            json.dump(data, file, indent=4)
-    else:
-        with open(log_file, "w") as file:
-            # Create a new dictionary with the timestamp as the key
-            json.dump({timestamp: metrics}, file, indent=4)
+        try:
+            with open(log_file, "r") as handle:
+                data = json.load(handle)
+        except ValueError:
+            print(
+                "Warning: {0} is not valid JSON; starting a new history.".format(
+                    log_file
+                )
+            )
+            data = {}
+
+    data[timestamp] = metrics
+
+    # Write through a temporary file and rename. The original seeked to 0 and
+    # rewrote in place without truncating, which corrupts the document the
+    # first time the new content is shorter than the old.
+    #
+    # The trailing newline matches the 112 history files already committed.
+    # Without it every append rewrites the last line as "\ No newline at end
+    # of file" and the diff is noise on top of the one added record.
+    temp_file = log_file + ".tmp"
+    with open(temp_file, "w") as handle:
+        json.dump(data, handle, indent=4)
+        handle.write("\n")
+    os.replace(temp_file, log_file)
 
 
+# ---------------------------------------------------------------------------
+# Baseline management
+# ---------------------------------------------------------------------------
 def create_baseline_images(output_dir, max_images=5):
-    """
-    Create baseline images from the 'output' directory if they do not exist.
+    """Copy rendered images into the baseline directory.
+
+    Called only under --bless. During a normal run a missing baseline is a
+    failure, because a baseline created from the run it is about to be
+    compared against is not a test.
     """
     output_images_dir = os.path.join(output_dir, "output")
     baseline_dir = os.path.join(output_dir, "Testing", "Baseline")
@@ -123,185 +329,393 @@ def create_baseline_images(output_dir, max_images=5):
 
     if not os.path.exists(output_images_dir):
         print(
-            f"No output images found in {output_images_dir}. Skipping baseline creation."
+            "No output images found in {0}. Skipping baseline creation.".format(
+                output_images_dir
+            )
         )
-        return
+        return []
 
-    # List all images in the output directory
-    image_files = sorted(
-        [
-            f
-            for f in os.listdir(output_images_dir)
-            if f.endswith((".png", ".jpg", ".jpeg"))
-        ]
-    )
-
-    # Select only up to max_images
-    selected_images = image_files[:max_images]
-
+    selected_images = verify.list_output_images(output_images_dir, max_images=max_images)
     for image in selected_images:
-        src_image_path = os.path.join(output_images_dir, image)
-        dest_image_path = os.path.join(baseline_dir, image)
-        if not os.path.exists(dest_image_path):
-            shutil.copy(src_image_path, dest_image_path)
-
+        shutil.copy(
+            os.path.join(output_images_dir, image), os.path.join(baseline_dir, image)
+        )
+        print("  blessed image: {0}".format(image))
     return selected_images
 
 
+def bless_numeric_baseline(test_dir):
+    """Copy the structured results JSON into the baseline directory."""
+    script_name = vignette_script_name(test_dir)
+    results_name = "{0}_results.json".format(script_name)
+    produced = os.path.join(test_dir, "Testing", results_name)
+    if not os.path.exists(produced):
+        return None
+
+    baseline_dir = os.path.join(test_dir, "Testing", "Baseline")
+    os.makedirs(baseline_dir, exist_ok=True)
+    destination = os.path.join(baseline_dir, results_name)
+    shutil.copy(produced, destination)
+    print("  blessed metrics: {0}".format(results_name))
+    return destination
+
+
+def bless_csv_baselines(test_dir):
+    """Copy every declared numeric CSV extract into the baseline directory."""
+    declared = declared_numeric_extracts(test_dir)
+    if not declared:
+        return []
+
+    output_dir = os.path.join(test_dir, "output")
+    baseline_dir = os.path.join(test_dir, "Testing", "Baseline")
+    os.makedirs(baseline_dir, exist_ok=True)
+
+    blessed = []
+    for item in declared:
+        filename = item["file"]
+        produced = os.path.join(output_dir, filename)
+        if not os.path.exists(produced):
+            print(
+                "  cannot bless {0}: the vignette declared it but did not "
+                "write it".format(filename)
+            )
+            continue
+        shutil.copy(produced, os.path.join(baseline_dir, filename))
+        print("  blessed numeric extract: {0}".format(filename))
+        blessed.append(filename)
+    return blessed
+
+
+def bless_test(test_dir, args):
+    """Record baselines for one vignette from the run that just happened."""
+    print("Blessing baselines for {0}".format(os.path.basename(test_dir)))
+    create_baseline_images(test_dir, max_images=args.max_baseline_images)
+    bless_numeric_baseline(test_dir)
+    bless_csv_baselines(test_dir)
+
+
+# ---------------------------------------------------------------------------
+# Comparison
+# ---------------------------------------------------------------------------
 def resize_to_match(baseline_image, output_image):
-    if baseline_image.size != output_image.size:
-        output_image = output_image.resize(baseline_image.size, Image.LANCZOS)
+    """Deprecated shim retained so external callers do not break.
+
+    The suite no longer resizes before diffing: a resolution change is a
+    regression to report, most often an offscreen job that silently fell back
+    to software rendering. Kept as an identity function with a warning.
+    """
+    print(
+        "Warning: resize_to_match() is deprecated and no longer used. "
+        "Resolution mismatches are reported as failures instead."
+    )
     return output_image
 
 
-def compare_images(baseline_dir, output_dir, selected_images):
+def compare_images(baseline_dir, output_dir, selected_images=None, tolerance=None):
+    """Compare rendered images against baselines at native resolution.
+
+    `selected_images` is accepted for backwards compatibility; when supplied
+    it restricts the comparison to those filenames. When omitted, every
+    baselined image is compared, which is the stronger check because it
+    catches a vignette that has stopped producing an image entirely.
     """
-    Compare images in the 'output' directory against baseline images.
-    """
+    if tolerance is None:
+        tolerance = verify.DEFAULT_IMAGE_TOLERANCE
+
     output_images_dir = os.path.join(output_dir, "output")
-    comparison_results = []
 
-    if not os.path.exists(output_images_dir):
-        print(f"No output images found in {output_images_dir}. Skipping comparison.")
-        return comparison_results
-
-    for image in selected_images:
-        if image.endswith((".png", ".jpg", ".jpeg")):
-            baseline_image_path = os.path.join(baseline_dir, image)
-            output_image_path = os.path.join(output_images_dir, image)
-
-            if os.path.exists(baseline_image_path):
-                baseline_image = Image.open(baseline_image_path)
-                output_image = Image.open(output_image_path)
-
-                # added to make sure images from different machines match before comparison
-                baseline_image = baseline_image.convert("RGB")
-                output_image = output_image.convert("RGB")
-                output_image = resize_to_match(baseline_image, output_image)
-
-                # Compare images
-                diff = ImageChops.difference(baseline_image, output_image)
-
-                # Count the number of differing pixels
-                diff_pixels = sum(1 for x in diff.getdata() if sum(x) > 1)
-
-                threshold_pixels = 1000
-                if diff_pixels > threshold_pixels:  # Images are different
-                    comparison_results.append(
-                        {
-                            "image": image,
-                            "diff_pixels": diff_pixels,
-                            "status": "DIFFERENT",
-                        }
-                    )
-                elif diff_pixels > 0:  # different but within tolerance
-                    comparison_results.append(
-                        {
-                            "image": image,
-                            "diff_pixels": diff_pixels,
-                            "status": "ACCEPTABLE",
-                        }
-                    )
-                else:
-                    comparison_results.append(
-                        {
-                            "image": image,
-                            "diff_pixels": diff_pixels,
-                            "status": "SAME",
-                        }
-                    )
-            else:
-                comparison_results.append(
-                    {
-                        "image": image,
-                        "status": "NO BASELINE",
-                    }
+    if selected_images:
+        results = []
+        for image in selected_images:
+            results.append(
+                verify.compare_single_image(
+                    os.path.join(baseline_dir, image),
+                    os.path.join(output_images_dir, image),
+                    tolerance=tolerance,
                 )
+            )
+        return results
 
-    return comparison_results
+    return verify.compare_image_sets(baseline_dir, output_images_dir, tolerance=tolerance)
 
 
 def compare_text_files(output_log, known_good_value_path, ignore_patterns=None):
+    """Legacy text comparison, preserved verbatim. See verify.compare_text_files."""
+    return verify.compare_text_files(output_log, known_good_value_path, ignore_patterns)
+
+
+def declared_numeric_extracts(test_dir):
+    """The CSV extracts a vignette declared in its last results JSON.
+
+    Read from the produced results rather than inferred from the output
+    directory, because write_timing_csv() also writes a CSV there and a
+    wall-clock file compared against a baseline is a test that fails whenever
+    the machine is busy. Only what the vignette explicitly declared is
+    compared.
     """
-    Compare the output.log text with a known good value, ignoring non-consequential differences like paths.
+    script_name = vignette_script_name(test_dir)
+    results_path = os.path.join(
+        test_dir, "Testing", "{0}_results.json".format(script_name)
+    )
+    if not os.path.exists(results_path):
+        return []
+
+    try:
+        with open(results_path, "r") as handle:
+            document = json.load(handle)
+    except (ValueError, OSError):
+        return []
+
+    declared = document.get("numeric_extracts") or []
+    return [item for item in declared if isinstance(item, dict) and item.get("file")]
+
+
+def compare_csv_extracts(test_dir, args):
+    """Compare every declared CSV extract against its blessed baseline.
+
+    Returns a list of verify.compare_csv results, or an empty list for a
+    vignette that declares none -- which is every vignette except ex12 in
+    each suite, and which is not a failure.
     """
-    if ignore_patterns is None:
-        ignore_patterns = [
-            r"/[^ ]+/",  # Ignore file paths
-            r"[a-zA-Z]:\\[^ ]+",  # Ignore Windows paths
-            r"\d{2,4}[-/]\d{2}[-/]\d{2,4}",  # Ignore dates in different formats (YYYY-MM-DD, DD/MM/YYYY)
-            r"\d+:\d+:\d+",  # Ignore timestamps
-        ]
+    declared = declared_numeric_extracts(test_dir)
+    if not declared:
+        return []
 
-    def clean_content(content):
-        """Remove inconsequential differences based on ignore_patterns."""
-        for pattern in ignore_patterns:
-            content = re.sub(pattern, "", content)
-        return content.strip()
+    output_dir = os.path.join(test_dir, "output")
+    baseline_dir = os.path.join(test_dir, "Testing", "Baseline")
 
-    # Read and clean output log content
-    with open(output_log, "r") as log_file:
-        log_content = log_file.readlines()
+    results = []
+    for item in declared:
+        filename = item["file"]
+        result = verify.compare_csv(
+            os.path.join(baseline_dir, filename),
+            os.path.join(output_dir, filename),
+            key_columns=item.get("key_columns"),
+            ignore_columns=item.get("ignore_columns"),
+            rtol=float(item.get("rtol", args.rtol)),
+            atol=float(item.get("atol", args.atol)),
+        )
+        result["file"] = filename
+        results.append(result)
+        print(
+            "\tCSV {0}: {1}{2}".format(
+                filename,
+                result.get("status"),
+                " ({0} mismatch(es))".format(len(result.get("mismatches", [])))
+                if result.get("mismatches")
+                else "",
+            )
+        )
+    return results
 
-    log_content = [clean_content(line) for line in log_content if clean_content(line)]
 
-    # Read and clean known good value content
-    with open(known_good_value_path, "r") as known_good_file:
-        known_good_content = known_good_file.readlines()
+def compare_numeric_results(test_dir, args):
+    """Compare the structured results JSON against its baseline."""
+    script_name = vignette_script_name(test_dir)
+    results_name = "{0}_results.json".format(script_name)
 
-    known_good_content = [
-        clean_content(line) for line in known_good_content if clean_content(line)
-    ]
+    produced = os.path.join(test_dir, "Testing", results_name)
+    baseline = os.path.join(test_dir, "Testing", "Baseline", results_name)
 
-    # Compare cleaned log content with cleaned known good content
-    for known_line in known_good_content:
-        if known_line not in log_content:
-            return False  # If any known good line is missing from the output log
+    if not os.path.exists(produced) and not os.path.exists(baseline):
+        # This vignette does not emit structured results. Nothing to compare,
+        # and nothing to complain about -- older vignettes are unaffected.
+        return None
 
-    return True  # All lines match
+    return verify.compare_results_json(
+        baseline, produced, rtol=args.rtol, atol=args.atol
+    )
 
 
 def is_gpu_test_allowed_to_fail(test_dir):
-    # list of tests that need a gpu in order to pass
-    gpu_required_tests = ["ex00_pvQuery"]
+    """Tests that legitimately fail without a GPU."""
+    gpu_required_tests = ["ex00_pvQuery", "ex08_pvBackendCheck", "ex08_visitBackendCheck"]
 
     parent_dir = os.path.basename(os.path.dirname(test_dir))
-    # Match names starting with "ex"
-    match = re.match(r"^ex\d+.*", parent_dir)
+    if VIGNETTE_DIR_RE.match(parent_dir):
+        return parent_dir in gpu_required_tests
+    return False
 
-    if match:
-        return match.group(0) in gpu_required_tests
-    else:
+
+# ---------------------------------------------------------------------------
+# Failure gate
+# ---------------------------------------------------------------------------
+def check_failure(test_dir, non_gpu_machine):
+    """Decide whether a vignette failed.
+
+    `test_dir` is the vignette's Testing/ directory. Five independent gates,
+    any one of which fails the test:
+
+      1. the subprocess exit code recorded by run_tests.py
+      2. image comparison verdicts
+      3. numeric comparison of the structured results
+      4. numeric comparison of declared CSV extracts
+      5. the legacy text comparison
+
+    The original checked only (5).
+    """
+    reasons = []
+
+    # -- 1. subprocess exit code ----------------------------------------
+    run_result = read_run_result(test_dir)
+    if run_result is not None and not run_result.get("succeeded", False):
+        detail = "exit code {0}".format(run_result.get("returncode"))
+        if run_result.get("timed_out"):
+            detail += " (timed out)"
+        if run_result.get("error"):
+            detail += " ({0})".format(run_result["error"])
+        reasons.append("vignette process failed: {0}".format(detail))
+
+    # -- 2. image comparison ---------------------------------------------
+    image_file = os.path.join(test_dir, IMAGE_RESULTS_FILENAME)
+    if os.path.exists(image_file):
+        try:
+            with open(image_file, "r") as handle:
+                image_results = json.load(handle)
+        except ValueError:
+            reasons.append("{0} is not valid JSON".format(IMAGE_RESULTS_FILENAME))
+            image_results = []
+
+        for result in image_results:
+            if verify.is_image_failure(result.get("status", "")):
+                reasons.append(
+                    "image {0}: {1}{2}".format(
+                        result.get("image", "<unknown>"),
+                        result.get("status"),
+                        " -- " + result["detail"] if result.get("detail") else "",
+                    )
+                )
+
+    # -- 3. numeric comparison -------------------------------------------
+    numeric_file = os.path.join(test_dir, NUMERIC_RESULTS_FILENAME)
+    if os.path.exists(numeric_file):
+        try:
+            with open(numeric_file, "r") as handle:
+                numeric = json.load(handle)
+        except ValueError:
+            numeric = {"status": "ERROR", "detail": "invalid JSON"}
+
+        status = numeric.get("status")
+        if status in ("FAIL", "ERROR", "MISSING OUTPUT", "NO BASELINE"):
+            for item in numeric.get("assertion_failures", []):
+                reasons.append(
+                    "assertion failed: {0} {1}".format(item["name"], item["detail"])
+                )
+            for item in numeric.get("mismatches", []):
+                reasons.append(
+                    "metric {0}: expected {1}, got {2}".format(
+                        item["metric"], item["expected"], item["actual"]
+                    )
+                )
+            for key in numeric.get("missing_metrics", []):
+                reasons.append("metric no longer reported: {0}".format(key))
+            if not reasons or status in ("ERROR", "MISSING OUTPUT", "NO BASELINE"):
+                reasons.append(
+                    "numeric results {0}: {1}".format(
+                        status, numeric.get("detail", "")
+                    )
+                )
+
+    # -- 4. declared CSV extracts ----------------------------------------
+    csv_file = os.path.join(test_dir, CSV_RESULTS_FILENAME)
+    if os.path.exists(csv_file):
+        try:
+            with open(csv_file, "r") as handle:
+                csv_results = json.load(handle)
+        except ValueError:
+            reasons.append("{0} is not valid JSON".format(CSV_RESULTS_FILENAME))
+            csv_results = []
+
+        for result in csv_results:
+            status = result.get("status")
+            name = result.get("file", "<unknown>")
+            if status in ("MISSING OUTPUT", "NO BASELINE", "ERROR"):
+                reasons.append("csv {0}: {1}".format(name, status))
+                continue
+            if result.get("row_count_delta"):
+                reasons.append(
+                    "csv {0}: row count changed by {1}".format(
+                        name, result["row_count_delta"]
+                    )
+                )
+            for mismatch in result.get("mismatches", []):
+                reasons.append(
+                    "csv {0} row {1} column {2}: {3}".format(
+                        name,
+                        mismatch.get("row"),
+                        mismatch.get("column"),
+                        mismatch.get(
+                            "detail",
+                            "expected {0}, got {1}".format(
+                                mismatch.get("expected"), mismatch.get("actual")
+                            ),
+                        ),
+                    )
+                )
+
+    # -- 5. legacy text comparison ---------------------------------------
+    text_comparison_file = os.path.join(test_dir, TEXT_RESULTS_FILENAME)
+    if os.path.exists(text_comparison_file):
+        try:
+            with open(text_comparison_file, "r") as handle:
+                text_comparison_results = json.load(handle)
+        except ValueError:
+            text_comparison_results = []
+
+        for result in text_comparison_results:
+            if result.get("logs_match") is False:
+                reasons.append("output.log does not match known_good_value.txt")
+
+    if not reasons:
         return False
 
+    if is_gpu_test_allowed_to_fail(test_dir) and non_gpu_machine:
+        print("\tNon-GPU test failure allowed for {0}:".format(test_dir))
+        for reason in reasons:
+            print("\t\t- {0}".format(reason))
+        return False
 
+    print("\tTest failure in {0}:".format(test_dir))
+    for reason in reasons:
+        print("\t\t- {0}".format(reason))
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Reporting
+# ---------------------------------------------------------------------------
 def create_summary_report(
-    test_directory, test_type, args_machine_name, args_non_gpu_machine
+    test_directory,
+    test_type,
+    args_machine_name,
+    args_non_gpu_machine,
+    check_performance=True,
 ):
-    """
-    Create a summary report indicating:
-    1. Tests with image/text comparison failures.
-    2. Tests with significant performance changes between runs.
-    Save the report in the same directory as test_suite.py.
+    """Aggregate every vignette's verdict into one report.
+
+    `check_performance` is False under --no-metrics. The performance gate
+    compares the two most recent records in the history file, and under
+    --no-metrics this run wrote none -- so the gate would compare two earlier
+    runs and attribute their difference to this one. Reporting nothing is
+    correct; reporting a stale verdict is not.
     """
     summary_report = {
         "test_results": {},
         "any_tests_failed": False,
         "failed_image_comparisons": [],
         "failed_text_comparisons": [],
+        "failed_numeric_comparisons": [],
+        "failed_csv_comparisons": [],
+        "failed_runs": [],
         "significant_performance_changes": [],
     }
 
-    # Get the machine name from args, if provided, otherwise from the platform
     machine_name = args_machine_name if args_machine_name else platform.uname().node
-    print(f"\nCreating test summary report for: {machine_name}")
+    print("\nCreating test summary report for: {0}".format(machine_name))
 
     subdirectories = sorted(
-        [
-            d
-            for d in os.listdir(test_directory)
-            if d.startswith("ex") and os.path.isdir(os.path.join(test_directory, d))
-        ]
+        [d for d in os.listdir(test_directory) if is_vignette_dir(d, test_directory)],
+        key=extract_example_number,
     )
 
     for subdir in subdirectories:
@@ -313,227 +727,319 @@ def create_summary_report(
 
         test_status = {
             "test_name": subdir,
+            "run_succeeded": True,
             "image_comparison_passed": True,
             "text_comparison_passed": True,
+            "numeric_comparison_passed": True,
+            "csv_comparison_passed": True,
             "performance_stable": True,
         }
 
-        # Check image comparison results
-        comparison_file = os.path.join(testing_dir, "image_comparison_results.json")
+        gpu_exempt = is_gpu_test_allowed_to_fail(testing_dir) and args_non_gpu_machine
+
+        # -- subprocess exit code -----------------------------------------
+        run_result = read_run_result(testing_dir)
+        if run_result is not None and not run_result.get("succeeded", False):
+            if gpu_exempt:
+                print(
+                    "\t\tRun failure detected but was expected on a non-GPU "
+                    "machine: \n\t\t\t{0}".format(subdir)
+                )
+            else:
+                test_status["run_succeeded"] = False
+                summary_report["failed_runs"].append(
+                    {subdir: {"returncode": run_result.get("returncode")}}
+                )
+                summary_report["any_tests_failed"] = True
+
+        # -- image comparison ---------------------------------------------
+        comparison_file = os.path.join(testing_dir, IMAGE_RESULTS_FILENAME)
         if os.path.exists(comparison_file):
-            with open(comparison_file, "r") as f:
-                comparison_results = json.load(f)
+            try:
+                with open(comparison_file, "r") as handle:
+                    comparison_results = json.load(handle)
+            except ValueError:
+                comparison_results = []
+
             for result in comparison_results:
-                if result["status"] == "DIFFERENT":
+                if verify.is_image_failure(result.get("status", "")):
+                    if gpu_exempt:
+                        continue
                     test_status["image_comparison_passed"] = False
                     summary_report["failed_image_comparisons"].append({subdir: result})
                     summary_report["any_tests_failed"] = True
 
-        # Check text comparison results
-        text_comparison_file = os.path.join(testing_dir, "text_comparison_results.json")
+        # -- numeric comparison -------------------------------------------
+        numeric_file = os.path.join(testing_dir, NUMERIC_RESULTS_FILENAME)
+        if os.path.exists(numeric_file):
+            try:
+                with open(numeric_file, "r") as handle:
+                    numeric = json.load(handle)
+            except ValueError:
+                numeric = {"status": "ERROR"}
+
+            if numeric.get("status") not in ("PASS", None):
+                if not gpu_exempt:
+                    test_status["numeric_comparison_passed"] = False
+                    summary_report["failed_numeric_comparisons"].append(
+                        {subdir: numeric}
+                    )
+                    summary_report["any_tests_failed"] = True
+
+        # -- declared CSV extracts ----------------------------------------
+        csv_file = os.path.join(testing_dir, CSV_RESULTS_FILENAME)
+        if os.path.exists(csv_file):
+            try:
+                with open(csv_file, "r") as handle:
+                    csv_results = json.load(handle)
+            except ValueError:
+                csv_results = [{"status": "ERROR", "file": CSV_RESULTS_FILENAME}]
+
+            for result in csv_results:
+                bad = (
+                    result.get("status") not in ("PASS", None)
+                    or result.get("mismatches")
+                    or result.get("row_count_delta")
+                )
+                if bad and not gpu_exempt:
+                    test_status["csv_comparison_passed"] = False
+                    summary_report["failed_csv_comparisons"].append({subdir: result})
+                    summary_report["any_tests_failed"] = True
+
+        # -- legacy text comparison ---------------------------------------
+        text_comparison_file = os.path.join(testing_dir, TEXT_RESULTS_FILENAME)
         if os.path.exists(text_comparison_file):
-            print(f"\n\n\tOutput comparison file found: {text_comparison_file}")
-            with open(text_comparison_file, "r") as f:
-                text_comparison_results = json.load(f)
+            print("\n\n\tOutput comparison file found: {0}".format(text_comparison_file))
+            try:
+                with open(text_comparison_file, "r") as handle:
+                    text_comparison_results = json.load(handle)
+            except ValueError:
+                text_comparison_results = []
+
             for result in text_comparison_results:
-                if result["logs_match"] is False:
-                    if (
-                        is_gpu_test_allowed_to_fail(testing_dir)
-                        and args_non_gpu_machine
-                    ):
+                if result.get("logs_match") is False:
+                    if gpu_exempt:
                         test_status["text_comparison_passed"] = True
                         print(
-                            f"\t\tTest failure detected but was expected, not triggering error: \n\t\t\t{subdir}"
+                            "\t\tTest failure detected but was expected, not "
+                            "triggering error: \n\t\t\t{0}".format(subdir)
                         )
                     else:
                         test_status["text_comparison_passed"] = False
                         summary_report["failed_text_comparisons"].append(subdir)
                         print(
-                            f"\t\tTest failure detected, which was unexpected: \n\t\t\t{subdir}"
+                            "\t\tTest failure detected, which was unexpected: "
+                            "\n\t\t\t{0}".format(subdir)
                         )
                         summary_report["any_tests_failed"] = True
             print("\t\tFinished output comparison logs.")
 
-        # Check performance changes
+        # -- performance --------------------------------------------------
         performance_file = os.path.join(
-            testing_dir, f"performance_metrics_{machine_name}.json"
+            testing_dir, "performance_metrics_{0}.json".format(machine_name)
         )
-        if os.path.exists(performance_file):
-            print(f"\tPerformance file found: {performance_file}")
-            with open(performance_file, "r") as f:
-                performance_data = json.load(f)
+        if not check_performance:
+            print(
+                "\n\t--no-metrics: this run appended no history, so the "
+                "performance gate is skipped rather than comparing two "
+                "earlier runs."
+            )
+        elif os.path.exists(performance_file):
+            print("\tPerformance file found: {0}".format(performance_file))
+            try:
+                with open(performance_file, "r") as handle:
+                    performance_data = json.load(handle)
+            except ValueError:
+                performance_data = {}
 
-            # Create a list of dictionaries with 'timestamp' extracted from keys
-            formatted_data = [
-                {"timestamp": timestamp, **metrics}
-                for timestamp, metrics in performance_data.items()
-            ]
+            if performance_data:
+                formatted_data = [
+                    dict({"timestamp": timestamp}, **metrics)
+                    for timestamp, metrics in performance_data.items()
+                ]
+                df = pd.DataFrame(formatted_data).sort_values("timestamp")
+                significant_changes = detect_significant_changes(df)
 
-            # Debugging: Print the formatted data to inspect
-            # print("Formatted Performance Data:", formatted_data)
-            df = pd.DataFrame(formatted_data).sort_values("timestamp")
-            significant_changes = detect_significant_changes(df)
-
-            if significant_changes:
-                test_status["performance_stable"] = significant_changes
-                summary_report["significant_performance_changes"].append(
-                    {subdir: significant_changes}
-                )
-                summary_report["any_tests_failed"] = True
+                if significant_changes:
+                    test_status["performance_stable"] = significant_changes
+                    summary_report["significant_performance_changes"].append(
+                        {subdir: significant_changes}
+                    )
+                    summary_report["any_tests_failed"] = True
         else:
-            print(f"\n\tPerformance file not found: {performance_file}")
+            print("\n\tPerformance file not found: {0}".format(performance_file))
 
-        # Add the test status to the summary report
         summary_report["test_results"][subdir] = test_status
 
-    # Save summary report in the main Testing directory (same as test_suite.py)
     report_name = test_type + "_" + machine_name + "_summary_report.json"
     summary_report_path = os.path.join(os.path.dirname(__file__), report_name)
-    with open(summary_report_path, "w") as f:
-        json.dump(summary_report, f, indent=4)
+    with open(summary_report_path, "w") as handle:
+        json.dump(summary_report, handle, indent=4)
 
-    print(f"\nSummary report saved at: {summary_report_path}")
+    print("\nSummary report saved at: {0}".format(summary_report_path))
+    return summary_report
 
 
-# function to cleanup all temporary files in a given directory
+# ---------------------------------------------------------------------------
+# Cleanup
+# ---------------------------------------------------------------------------
 def clean_test_files(test_directory):
-    """Remove all generated files in the test directory."""
-    # Define the files/directories to clean
+    """Remove generated files from a Testing directory."""
     files_to_clean = [
-        "image_comparison_results.json",
-        "text_comparison_results.json",
+        IMAGE_RESULTS_FILENAME,
+        TEXT_RESULTS_FILENAME,
+        NUMERIC_RESULTS_FILENAME,
+        CSV_RESULTS_FILENAME,
+        RUN_RESULT_FILENAME,
         "output.log",
         "error.log",
+        "*_results.json",
         "execution_time_*.png",
         "cpu_usage_*.png",
         "memory_usage_*.png",
         "*_summary_report.json",
         "visitlog.py",
-        # Add any other files or directories that should be cleaned up
     ]
 
     for filename in files_to_clean:
-        # Use glob to find files matching the filename
         for file_path in glob.glob(os.path.join(test_directory, filename)):
-            if os.path.exists(file_path):
-                os.remove(file_path)  # Remove individual files
-                print(f"Removed: {file_path}")
+            # Never delete anything under Baseline/ -- blessed baselines are
+            # inputs to the test, not products of it.
+            if "Baseline" in os.path.normpath(file_path).split(os.sep):
+                continue
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                print("Removed: {0}".format(file_path))
 
 
-# logic to execute a single unit test
+def clean_tests(test_directory, example_dirs, args):
+    """Clean every vignette's Testing directory, plus the suite directory."""
+    for test_dir in example_dirs:
+        print("Cleaning {0}...".format(test_dir))
+        testing_dir = os.path.join(test_directory, test_dir, "Testing")
+        clean_test_files(testing_dir)
+        print("Clean-up of {0} complete.\n".format(testing_dir))
+
+    main_testing_dir = os.path.dirname(os.path.abspath(__file__))
+    clean_test_files(main_testing_dir)
+    print("Clean-up of {0} complete.".format(main_testing_dir))
+
+
+# ---------------------------------------------------------------------------
+# Per-test driver
+# ---------------------------------------------------------------------------
 def run_test(test_dir, dir_name, args):
-    print(f"\n\nRunning {test_dir}")
+    """Run, compare, and record one vignette."""
+    print("\n\nRunning {0}".format(test_dir))
 
-    submit = args.submit
-    generate_metrics_only = args.generate_metrics
+    testing_dir = os.path.join(test_dir, "Testing")
+    os.makedirs(testing_dir, exist_ok=True)
 
-    if submit:
-        print(f"Submitting {dir_name} to cluster.")
-        ibex_script = f"{dir_name}_ibex_runScript.sbat"
-        submit_cluster_test(test_dir, ibex_script)
-    elif not generate_metrics_only:
-        print(f"Running {dir_name} locally.")
+    if args.submit:
+        print("Submitting {0} to cluster.".format(dir_name))
+        # Submission scripts are named by the exNN prefix, not the full
+        # directory name: ex07_ibex_runScript.sbat, not
+        # ex07_pvScaling_ibex_runScript.sbat. The original built the latter
+        # and so never found a script to submit.
+        prefix_match = VIGNETTE_DIR_RE.match(dir_name)
+        prefix = "ex{0}".format(prefix_match.group(1)) if prefix_match else dir_name
+        script = "{0}_{1}_runScript.sbat".format(
+            prefix, "shaheen" if args.machine == "shaheen" else "ibex"
+        )
+        job_id = submit_cluster_test(test_dir, script)
+        if job_id:
+            print(
+                "Submitted job {0}. Comparison is skipped for submitted jobs; "
+                "re-run with --generate-metrics once the job completes.".format(job_id)
+            )
+        return
+
+    if not args.generate_metrics:
+        print("Running {0} locally.".format(dir_name))
+        rusage_before = child_rusage_snapshot()
         start_time = time.time()
-        run_local_test(test_dir)
+        run_result = run_local_test(test_dir, args)
         end_time = time.time()
 
-        # Gather and log performance metrics
-        metrics = gather_metrics(dir_name, start_time, end_time)
-        log_performance(
-            dir_name,
-            metrics,
-            test_dir,
-            args.machine_name,
-            paraview_version=args.paraview_version,
-            visit_version=args.visit_version,
+        metrics = gather_metrics(
+            dir_name, start_time, end_time, run_result=run_result, before=rusage_before
         )
+        if args.write_metrics:
+            log_performance(
+                dir_name,
+                metrics,
+                test_dir,
+                args.machine_name,
+                paraview_version=args.paraview_version,
+                visit_version=args.visit_version,
+                run_id=getattr(args, "run_id", None),
+            )
+        else:
+            print(
+                "  --no-metrics: ran in {0:.2f}s, {1:.1f} MB peak; nothing "
+                "appended to the committed history.".format(
+                    metrics.get("execution_time", 0.0),
+                    metrics.get("memory_usage_mb", 0.0),
+                )
+            )
 
-    # Create baseline images
-    selected_images = create_baseline_images(test_dir)
+        if not run_result.get("succeeded", False):
+            print(
+                "  vignette exited {0}; comparisons will still run so the "
+                "report shows what was produced.".format(run_result.get("returncode"))
+            )
 
-    # Compare generated images against baseline
-    baseline_dir = os.path.join(test_dir, "Testing", "Baseline")
-    comparison_results = compare_images(baseline_dir, test_dir, selected_images)
+    # -- blessing --------------------------------------------------------
+    if args.bless:
+        bless_test(test_dir, args)
 
-    # Save image comparison results
-    comparison_results_file = os.path.join(
-        test_dir, "Testing", "image_comparison_results.json"
+    # -- image comparison -------------------------------------------------
+    baseline_dir = os.path.join(testing_dir, "Baseline")
+    comparison_results = compare_images(
+        baseline_dir, test_dir, tolerance=args.image_tolerance
     )
-    with open(comparison_results_file, "w") as f:
-        json.dump(comparison_results, f, indent=4)
+    with open(os.path.join(testing_dir, IMAGE_RESULTS_FILENAME), "w") as handle:
+        json.dump(comparison_results, handle, indent=4)
 
-    # Perform text comparison of output.log
-    output_log_path = os.path.join(test_dir, "Testing", "output.log")
+    # -- numeric comparison ------------------------------------------------
+    numeric = compare_numeric_results(test_dir, args)
+    if numeric is not None:
+        with open(os.path.join(testing_dir, NUMERIC_RESULTS_FILENAME), "w") as handle:
+            json.dump(numeric, handle, indent=4)
+
+    # -- declared CSV extracts ---------------------------------------------
+    csv_results = compare_csv_extracts(test_dir, args)
+    if csv_results:
+        with open(os.path.join(testing_dir, CSV_RESULTS_FILENAME), "w") as handle:
+            json.dump(csv_results, handle, indent=4)
+
+    # -- legacy text comparison -------------------------------------------
+    output_log_path = os.path.join(testing_dir, "output.log")
     if os.path.exists(output_log_path):
-        known_good_value_file = os.path.join(
-            test_dir, "Testing", "Baseline", "known_good_value.txt"
-        )  # Update this path as necessary
+        known_good_value_file = os.path.join(baseline_dir, "known_good_value.txt")
         if os.path.exists(known_good_value_file):
             text_comparison_result = compare_text_files(
                 output_log_path, known_good_value_file
             )
-            text_comparison_results_output = []
-            text_comparison_results_output.append(
-                {"logs_match": text_comparison_result}
-            )
-
-            # Save text comparison results
-            text_comparison_results_file = os.path.join(
-                test_dir, "Testing", "text_comparison_results.json"
-            )
-            with open(text_comparison_results_file, "w") as f:
-                json.dump(text_comparison_results_output, f, indent=4)
+            with open(os.path.join(testing_dir, TEXT_RESULTS_FILENAME), "w") as handle:
+                json.dump([{"logs_match": text_comparison_result}], handle, indent=4)
         else:
-            print(f"Known good value file not found: {known_good_value_file}")
+            print("Known good value file not found: {0}".format(known_good_value_file))
     else:
-        print(f"Cannot find output.log file @ path: {output_log_path}")
+        print("Cannot find output.log file @ path: {0}".format(output_log_path))
 
-    print(f"Generating metrics and graphs for {dir_name}.")
+    print("Generating metrics and graphs for {0}.".format(dir_name))
     generate_individual_graphs(test_dir, dir_name)
 
 
-# function to coordinate the different cleanup needed after testing
-def clean_tests(test_directory, example_dirs, args):
-    for test_dir in example_dirs:
-        print(f"Cleaning {test_dir}...")
-        testing_dir = test_directory + "/" + test_dir + "/Testing"
-        clean_test_files(testing_dir)
-        print(f"Clean-up of {testing_dir} complete.\n")
-
-    main_testing_dir = args.root_directory + "Testing"
-    clean_test_files(main_testing_dir)
-    print(f"Clean-up of {main_testing_dir} complete.")
-    pass
-
-
-# function to check if any text comparisons failed so that we can set an exit error flag
-def check_failure(test_dir, non_gpu_machine):
-    """
-    Check if a test in the given directory failed based on its results.
-    """
-    text_comparison_file = os.path.join(test_dir, "text_comparison_results.json")
-
-    if not os.path.exists(text_comparison_file):
-        print(f"No text comparison file found for {test_dir}. Skipping failure check.")
-        return False  # Return as passed if no results file is found
-
-    with open(text_comparison_file, "r") as f:
-        text_comparison_results = json.load(f)
-
-    # Iterate through the results to check for any mismatches
-    for result in text_comparison_results:
-        if result["logs_match"] is False:
-            if is_gpu_test_allowed_to_fail(test_dir) and non_gpu_machine:
-                print(f"\tNon-GPU test failure allowed for {test_dir}.")
-            else:
-                print(f"\tTest failure in {test_dir}.")
-                return True  # Indicates test failed
-
-    return False
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Run or submit tests.")
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+def build_parser():
+    parser = argparse.ArgumentParser(
+        description="Run or submit the Visualization Vignettes test suite.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument("root_directory", type=str, help="Root dir of repo.")
     parser.add_argument("--test_type", required=True, type=str, help="VisIt/ParaView")
     parser.add_argument(
@@ -552,85 +1058,230 @@ def main():
     parser.add_argument(
         "--test_number",
         type=int,
-        nargs="+",  # Allow one or more numbers
-        help="Specify one or more test numbers to run (e.g., 0 for ex00, 1 for ex01, 1,2 for two tests, etc.).",
+        nargs="+",
+        help="Specify one or more test numbers to run (e.g. 0 for ex00).",
     )
     parser.add_argument(
         "--machine_name",
         type=str,
-        help="Optional machine name to use in performance metrics",
+        help="Machine name used in performance metric filenames. Keep this "
+        "stable across runs or the history never accumulates and the "
+        "performance gate can never fire.",
     )
     parser.add_argument(
-        "--paraview_version",
-        type=str,
-        default=None,
-        help="Specify the ParaView version (e.g., 5.13.1)",
+        "--paraview_version", type=str, default=None, help="ParaView version."
     )
-    parser.add_argument(
-        "--visit_version",
-        type=str,
-        default=None,
-        help="Specify the VisIt version (e.g., 3.2.0)",
-    )
+    parser.add_argument("--visit_version", type=str, default=None, help="VisIt version.")
     parser.add_argument(
         "--non_gpu_machine",
         action="store_true",
         default=False,
-        help="Indicate that tests are running on a non-GPU machine.",
+        help="Tests are running on a non-GPU machine.",
     )
 
-    args = parser.parse_args()
+    history_group = parser.add_argument_group("performance history")
+    history_group.add_argument(
+        "--no-metrics",
+        "--ephemeral",
+        dest="write_metrics",
+        action="store_false",
+        default=True,
+        help="Run and compare exactly as usual, but append nothing to the "
+        "committed performance_metrics_<machine>.json history. Use it for "
+        "experimental, debugging, or throwaway runs. The performance "
+        "regression gate is skipped too, because this run contributes no "
+        "record for it to compare against. Prune records that are already "
+        "committed with Testing/manage_metrics.py.",
+    )
+    history_group.add_argument(
+        "--run-id",
+        dest="run_id",
+        default=None,
+        help="Tag every record this invocation writes with this identifier. "
+        "Defaults to a generated timestamp-plus-suffix id. Pass one "
+        "explicitly to group several invocations -- ParaView and VisIt, say "
+        "-- into a single logical run for manage_metrics.py --remove-run.",
+    )
 
-    test_directory = args.root_directory + args.test_type + "_Vignettes"
+    bless_group = parser.add_argument_group("baselines")
+    bless_group.add_argument(
+        "--bless",
+        action="store_true",
+        help="Record the current output as the baseline. Without this a "
+        "missing baseline is a FAILURE -- baselines are never created "
+        "automatically during a normal run.",
+    )
+    bless_group.add_argument(
+        "--max-baseline-images",
+        type=int,
+        default=5,
+        help="Maximum images to record per vignette when blessing.",
+    )
+    bless_group.add_argument(
+        "--image-tolerance",
+        type=float,
+        default=verify.DEFAULT_IMAGE_TOLERANCE,
+        help="Fraction of total pixels allowed to differ before an image "
+        "comparison fails.",
+    )
+    bless_group.add_argument(
+        "--rtol",
+        type=float,
+        default=verify.DEFAULT_RTOL,
+        help="Relative tolerance for numeric metric comparison.",
+    )
+    bless_group.add_argument(
+        "--atol",
+        type=float,
+        default=verify.DEFAULT_ATOL,
+        help="Absolute tolerance for numeric metric comparison.",
+    )
+
+    exec_group = parser.add_argument_group("execution")
+    exec_group.add_argument("--ranks", type=int, default=1, help="MPI ranks per test.")
+    exec_group.add_argument("--nodes", type=int, default=1, help="Nodes per test.")
+    exec_group.add_argument(
+        "--threads", type=int, default=None, help="Threads per rank."
+    )
+    exec_group.add_argument(
+        "--launcher",
+        choices=("auto", "mpirun", "srun", "none"),
+        default="auto",
+        help="How to launch pvbatch.",
+    )
+    exec_group.add_argument(
+        "--machine",
+        choices=("local", "ibex", "shaheen"),
+        default="local",
+        help="Execution site, forwarded to each vignette.",
+    )
+    exec_group.add_argument("--partition", default="batch", help="Scheduler partition.")
+    exec_group.add_argument("--account", default=None, help="Scheduler account.")
+    exec_group.add_argument(
+        "--walltime", default="00:20:00", help="Walltime for a VisIt compute engine."
+    )
+    exec_group.add_argument(
+        "--timeout", type=int, default=3600, help="Per-vignette timeout in seconds."
+    )
+    exec_group.add_argument(
+        "--offscreen",
+        dest="offscreen",
+        action="store_true",
+        default=True,
+        help="Force offscreen rendering for pvbatch.",
+    )
+    exec_group.add_argument(
+        "--no-offscreen",
+        dest="offscreen",
+        action="store_false",
+        help="Do not force offscreen rendering (needed by the Xvfb vignettes).",
+    )
+    exec_group.add_argument("--data-dir", default=None, help="Static dataset directory.")
+    exec_group.add_argument("--image-width", type=int, default=None, help="Image width.")
+    exec_group.add_argument(
+        "--image-height", type=int, default=None, help="Image height."
+    )
+    exec_group.add_argument(
+        "--timesteps", type=int, default=None, help="Timesteps to process."
+    )
+    exec_group.add_argument(
+        "--verbose", action="store_true", help="Verbose vignette logging."
+    )
+    exec_group.add_argument(
+        "--vignette-arg",
+        action="append",
+        default=[],
+        metavar="ARG",
+        help="Extra argument forwarded verbatim to each vignette. Repeatable.",
+    )
+    return parser
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+
+    test_directory = os.path.join(
+        args.root_directory, args.test_type + "_Vignettes"
+    )
+    if not os.path.isdir(test_directory):
+        print("Error: {0} does not exist.".format(test_directory))
+        return 2
+
     example_dirs = [
-        d
-        for d in os.listdir(test_directory)
-        if d.startswith("ex") and os.path.isdir(os.path.join(test_directory, d))
+        d for d in os.listdir(test_directory) if is_vignette_dir(d, test_directory)
     ]
     example_dirs.sort(key=extract_example_number)
 
-    # remove all temporary files and exit
     if args.clean:
         clean_tests(test_directory, example_dirs, args)
-        return
+        return 0
 
-    test_failed = False  # Initialize flag to track any failures
+    if args.bless:
+        print(
+            "\n*** --bless: recording baselines from this run. Review the "
+            "output images before committing them. ***\n"
+        )
 
-    # Run specific tests if --test_number is provided
+    if args.write_metrics:
+        if not args.run_id:
+            args.run_id = new_run_id()
+        print("Performance history run_id: {0}".format(args.run_id))
+    else:
+        args.run_id = None
+        print(
+            "\n*** --no-metrics: this run appends nothing to the committed "
+            "performance history. ***\n"
+        )
+
+    test_failed = False
+    selected = example_dirs
+
     if args.test_number is not None:
+        selected = []
         for test_number in args.test_number:
             if test_number < len(example_dirs):
-                test_dir = os.path.join(test_directory, example_dirs[test_number])
-                run_test(test_dir, example_dirs[test_number], args)
-                if check_failure(test_dir + "/Testing", args.non_gpu_machine):
-                    test_failed = True
+                selected.append(example_dirs[test_number])
             else:
                 print(
-                    f"Error: Test number {test_number} is out of range. Available tests: 0-{len(example_dirs)-1}"
+                    "Error: Test number {0} is out of range. Available tests: "
+                    "0-{1}".format(test_number, len(example_dirs) - 1)
                 )
-    else:  # Run all tests if no specific test number is given
-        for dir_name in example_dirs:
-            test_dir = os.path.join(test_directory, dir_name)
-            run_test(test_dir, dir_name, args)
-            if check_failure(test_dir + "/Testing", args.non_gpu_machine):
                 test_failed = True
 
-    # Create a summary report of all tests
+    for dir_name in selected:
+        test_dir = os.path.join(test_directory, dir_name)
+        run_test(test_dir, dir_name, args)
+        if args.submit:
+            continue
+        if check_failure(os.path.join(test_dir, "Testing"), args.non_gpu_machine):
+            test_failed = True
+
     create_summary_report(
-        test_directory, args.test_type, args.machine_name, args.non_gpu_machine
+        test_directory,
+        args.test_type,
+        args.machine_name,
+        args.non_gpu_machine,
+        check_performance=args.write_metrics,
     )
 
-    # Set exit code if any test failed
+    if args.submit:
+        print("\nJobs submitted. Collect results with --generate-metrics.")
+        return 0
+
+    if args.bless:
+        print("\nBaselines recorded. Re-run without --bless to verify them.")
+
     if test_failed:
         print("\n\n**********")
         print(
-            "***** Unexpected test failure detected: consider the test_suite as NOT passed. ***** "
+            "***** Unexpected test failure detected: consider the test_suite "
+            "as NOT passed. ***** "
         )
         print("**********")
-        sys.exit(13)  # Exit with non-zero code to indicate failure
-    else:
-        sys.exit(0)  # Exit with zero if all tests passed
+        return 13
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

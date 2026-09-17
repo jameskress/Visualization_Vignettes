@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Visualization Vignettes
+
+  ex10_custom_colormap.xml : a custom ParaView colour transfer function.
+
+  Loaded by ex10_pvColormapFidelity with ImportPresets() and applied by name.
+  Two maps are defined:
+
+    "VV Ember"       a perceptually ordered sequential ramp, deep blue
+                     through neutral to ember red. Control points are placed
+                     at even intervals in normalised space; the vignette
+                     rescales it onto the real data range at run time, so the
+                     x values here are 0..1 by construction.
+
+    "VV Categorical" an indexed (categorical) map with five well separated
+                     hues for the binned field the vignette derives. Indexed
+                     maps take IndexedColors, not Points, and are applied
+                     with InterpretValuesAsCategories enabled.
+
+  Colours are given in the 0..1 range that ParaView expects, and the space is
+  Lab so interpolation between control points stays perceptually even rather
+  than swinging through a muddy midpoint the way plain RGB interpolation does.
+
+  NOTE ON THIS COMMENT: XML forbids a double hyphen inside a comment, and
+  ParaView parses this file with Expat, which enforces that. Prose here uses
+  colons and semicolons instead. A file with a double hyphen in its comment
+  is rejected by ImportPresets() with a parse error that names a line number
+  and nothing else.
+-->
+<ColorMaps>
+
+  <ColorMap name="VV Ember" space="Lab">
+    <Point x="0.0"  o="1.0" r="0.14118" g="0.20000" b="0.47843"/>
+    <Point x="0.25" o="1.0" r="0.29020" g="0.47843" b="0.70196"/>
+    <Point x="0.5"  o="1.0" r="0.86275" g="0.86275" b="0.86275"/>
+    <Point x="0.75" o="1.0" r="0.87059" g="0.47059" b="0.29020"/>
+    <Point x="1.0"  o="1.0" r="0.63529" g="0.07451" b="0.12157"/>
+    <NaN r="0.50000" g="0.00000" b="0.50000"/>
+  </ColorMap>
+
+  <ColorMap name="VV Categorical" space="RGB" indexedLookup="true">
+    <Point x="0.0" o="1.0" r="0.23137" g="0.29804" b="0.75294"/>
+    <Point x="1.0" o="1.0" r="0.70588" g="0.01569" b="0.14902"/>
+    <NaN r="0.50000" g="0.50000" b="0.50000"/>
+    <IndexedColor i="0" r="0.23137" g="0.29804" b="0.75294"/>
+    <IndexedColor i="1" r="0.11765" g="0.61961" b="0.53333"/>
+    <IndexedColor i="2" r="0.94510" g="0.76863" b="0.05882"/>
+    <IndexedColor i="3" r="0.87059" g="0.47059" b="0.29020"/>
+    <IndexedColor i="4" r="0.70588" g="0.01569" b="0.14902"/>
+  </ColorMap>
+
+</ColorMaps>

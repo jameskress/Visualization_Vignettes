@@ -1,0 +1,27 @@
+#
+# is00_zeroCopyAdapter -- optional Ascent actions.
+#
+# The vignette's four checks need no renderer. This file exists so the same
+# published mesh can be pushed through a real Ascent pipeline when you want to
+# confirm that a zero-copy field survives the trip to an image, not just to
+# blueprint::verify.
+#
+# Enable with:  is00_zeroCopyAdapter --with-ascent  (see README roadmap)
+#
+- action: "add_scenes"
+  scenes:
+    s_zero_copy:
+      plots:
+        p_u:
+          type: "pseudocolor"
+          field: "u"
+      renders:
+        r_u:
+          image_width: 512
+          image_height: 512
+          image_prefix: "is00_u_%04d"
+          annotations: "false"     # keep the image byte-comparable across builds
+          # No hard-coded look_at. The camera is left to Ascent's automatic
+          # framing so this file stays valid when --size changes, unlike
+          # configs/ascent_scripts/ascent-extract-png.yaml which pins
+          # look_at: [3.25, 3.25, 3.25] and is therefore only correct for L=64.
