@@ -63,3 +63,13 @@ offline_bundle/
 # Per-user editor state. The LTeX dictionaries in here are one person's
 # spelling preferences, not a repository setting.
 .vscode/
+
+# Local build and install trees kept inside the working copy for convenience.
+# Nothing under them is tracked, they are ~99 GB and ~185,000 files between
+# them, and they are what makes a bare `git status` here take minutes. Ignored
+# rather than moved out so everything stays in one folder, and so that one
+# `git add -A` cannot commit a compiler's output.
+software/
+Miniapps/gray-scott/install/
+Miniapps/gray-scott/local_tests/
+Miniapps/gray-scott/shaheenDownload/
