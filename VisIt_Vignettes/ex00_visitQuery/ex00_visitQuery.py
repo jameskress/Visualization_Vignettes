@@ -68,7 +68,9 @@ import vignette_common as vc  # noqa: E402
 VIGNETTE = "ex00_visitQuery"
 TOOL = "VisIt"
 
-_args = vc.parse_args(VIGNETTE, TOOL, description="query mesh statistics from a Silo database")
+_args = vc.parse_args(
+    VIGNETTE, TOOL, description="query mesh statistics from a Silo database"
+)
 ctx = vc.VignetteContext(VIGNETTE, TOOL, _args, script_dir=SCRIPT_DIR)
 
 # This vignette writes its images through literal "<script-dir>/output" paths

@@ -227,9 +227,7 @@ def report_backend_environment(ctx):
             "configuration contradiction: --expect-backend {0} asks for "
             "hardware rendering, but VTK_DEFAULT_OPENGL_WINDOW={1} selects a "
             "software render window. The loaded module is {2}. Load the -egl "
-            "variant, or expect osmesa.".format(
-                expected, window, module or "<unknown>"
-            )
+            "variant, or expect osmesa.".format(expected, window, module or "<unknown>")
         )
         return False
 
@@ -238,9 +236,7 @@ def report_backend_environment(ctx):
             "configuration contradiction: --expect-backend {0} asks for "
             "software rendering, but VTK_DEFAULT_OPENGL_WINDOW={1} selects an "
             "EGL render window. The loaded module is {2}. Load the -mesa "
-            "variant, or expect gpu.".format(
-                expected, window, module or "<unknown>"
-            )
+            "variant, or expect gpu.".format(expected, window, module or "<unknown>")
         )
         return False
 

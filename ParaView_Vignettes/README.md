@@ -74,7 +74,7 @@ Use this section if you want to run the provided example scripts (`ex01`, `ex02`
     # You MUST edit the script to add your Project Account (e.g., k01)
     vim ex01/ex01_shaheen_runScript.sbat
     # Change: #SBATCH --account=k##
-    
+
     sbatch ex01/ex01_shaheen_runScript.sbat
     ```
 
@@ -235,6 +235,46 @@ ex##_name/
     ├── ex##_name_results.json    # Structured results from the last run
     └── performance_metrics_*.json
 ```
+
+### Three ParaView behaviours that will otherwise cost you an afternoon
+
+**1. `pvbatch` segfaults on `sys.exit()`.** Whenever a render window has been
+created and no usable X display exists, which is every offscreen batch run and
+every Slurm compute node, ParaView 6.1 crashes during Python finalization:
+the script has already finished and written its results, and the process still
+exits 1 with "Segmentation fault". Every rendering vignette here ends with
+`vc.exit_vignette()`, which flushes and calls `os._exit()` rather than
+unwinding the interpreter. The same script exits 0 under `xvfb-run`, which is
+how the cause was pinned down.
+
+**2. `Show()` auto-rescales a lookup table** to the representation's own data
+range the first time it colours by an array. Setting a preset and rescaling
+*before* the `Show`/`ColorBy` therefore has the rescale silently undone, and
+the frame is drawn with a lookup table nobody configured. This cost a 26.5%
+whole-frame difference twice, in two unrelated changes. Fetch the transfer
+function and rescale it **after** every `Show` and `ColorBy`.
+
+**3. Preset names moved, and the three versions in use fail differently.**
+`Viridis (matplotlib)` became `Viridis` in 6.1, not 6.0. Given a name it does
+not have, 6.1 raises, 5.13 returns `False`, and **6.0.1 does neither**: it
+returns something truthy and leaves the transfer function alone. Use
+`vc.apply_color_preset()`, which verifies that the transfer function actually
+changed rather than trusting the return value.
+
+### Before the first run on a machine
+
+```bash
+export PARAVIEW_PATH=/path/to/paraview/bin      # or module load
+python3 ../Testing/prepare_machine.py --check   # non-zero if not ready
+python3 ../Testing/prepare_machine.py           # build what is missing
+```
+
+`data/topologies/` and `ex11_state.pvsm` are generated per machine and locked
+to a ParaView major.minor. A mismatch does not announce itself: an AMR
+hierarchy written by 6.1.0 opens under 6.0.1 and quietly reads 216 points
+where 842 were written. `test_suite.py` refuses to start on a stale fixture
+for that reason. For a machine with no network, see
+`Testing/OFFLINE_SETUP.md`.
 
 ### The shared command-line interface
 

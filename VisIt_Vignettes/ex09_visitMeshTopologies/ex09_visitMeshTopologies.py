@@ -155,9 +155,7 @@ def process_topology(ctx, manifest, key, manifest_key, path_field, label):
     # rather than the wavelet field, because contouring a surface at its own
     # defining isovalue is empty by construction. The top-level key is the
     # fallback for a manifest from an older generator.
-    isovalue = float(
-        entry.get("contour_value", manifest.get("contour_value", 150.0))
-    )
+    isovalue = float(entry.get("contour_value", manifest.get("contour_value", 150.0)))
 
     ctx.log("  file      : {0}".format(filename))
     ctx.log("  scalar    : {0}".format(scalar))
@@ -179,8 +177,12 @@ def process_topology(ctx, manifest, key, manifest_key, path_field, label):
     # which every query against it returns None, and the vignette died three
     # steps later on int(None) with nothing pointing at the colour table.
     pc_atts.colorTableName = vc.ensure_color_table(
-        ctx, "viridis",
-        ColorTableNames, AddColorTable, ColorControlPointList, ColorControlPoint,
+        ctx,
+        "viridis",
+        ColorTableNames,
+        AddColorTable,
+        ColorControlPointList,
+        ColorControlPoint,
     )
     SetPlotOptions(pc_atts)
 
@@ -210,23 +212,25 @@ def process_topology(ctx, manifest, key, manifest_key, path_field, label):
     # Order matters. VisIt applies an operator to the ACTIVE plot, so the
     # context plot is added first and the plot that will carry the
     # Isosurface operator is made active again before it goes on.
-    context_plot = None
     if entry.get("contour_is_lower_dimensional"):
         AddPlot("Pseudocolor", scalar, 1, 0)
         context_atts = PseudocolorAttributes()
         context_atts.colorTableName = pc_atts.colorTableName
         context_atts.legendFlag = 0
         SetPlotOptions(context_atts)
-        context_plot = GetNumPlots() - 1
 
         # Put the contoured plot back in front for the operator and the
         # queries that follow it.
         SetActivePlots((0,))
         iso_atts_line = PseudocolorAttributes()
         iso_atts_line.colorTableName = vc.ensure_flat_color_table(
-            ctx, "VV Isoline", (1.0, 1.0, 1.0),
-            ColorTableNames, AddColorTable,
-            ColorControlPointList, ColorControlPoint,
+            ctx,
+            "VV Isoline",
+            (1.0, 1.0, 1.0),
+            ColorTableNames,
+            AddColorTable,
+            ColorControlPointList,
+            ColorControlPoint,
         )
         iso_atts_line.lineWidth = 4
         iso_atts_line.legendFlag = 0
@@ -246,9 +250,7 @@ def process_topology(ctx, manifest, key, manifest_key, path_field, label):
 
     contour_nodes = int(query_value("NumNodes", use_actual_data=1))
     contour_zones = int(query_value("NumZones", use_actual_data=1))
-    ctx.log(
-        "  contour   : {0} nodes, {1} zones".format(contour_nodes, contour_zones)
-    )
+    ctx.log("  contour   : {0} nodes, {1} zones".format(contour_nodes, contour_zones))
 
     # -- render -----------------------------------------------------------
     ResetView()
@@ -334,9 +336,7 @@ def run(ctx):
             process_topology(ctx, manifest, key, manifest_key, path_field, label)
         )
 
-    ctx.write_timing_csv(
-        filename="{0}_topologies.csv".format(VIGNETTE), rows=rows
-    )
+    ctx.write_timing_csv(filename="{0}_topologies.csv".format(VIGNETTE), rows=rows)
     ctx.add_metric("topologies_processed", len(rows))
 
     ragged_entry = manifest.get("datasets", {}).get("ragged", {})

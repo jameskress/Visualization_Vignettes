@@ -221,7 +221,10 @@ def build_parser(name, tool, description=None):
         "--image-width", type=int, default=1024, help="Rendered image width in pixels."
     )
     img_group.add_argument(
-        "--image-height", type=int, default=1024, help="Rendered image height in pixels."
+        "--image-height",
+        type=int,
+        default=1024,
+        help="Rendered image height in pixels.",
     )
     img_group.add_argument(
         "--timesteps",
@@ -238,7 +241,9 @@ def build_parser(name, tool, description=None):
         "--ephemeral",
         dest="write_metrics",
         action="store_false",
-        default=(os.environ.get("VV_NO_METRICS", "") not in ("1", "true", "TRUE", "yes")),
+        default=(
+            os.environ.get("VV_NO_METRICS", "") not in ("1", "true", "TRUE", "yes")
+        ),
         help="Mark this as a throwaway run. A vignette writes no permanent "
         "history of its own -- its results JSON is a comparison input, not a "
         "history -- so this only records the intent in the log. The harness "
@@ -326,7 +331,9 @@ class VignetteContext(object):
             os.path.abspath(args.output_dir or os.path.join(self.script_dir, "output"))
         )
         self.testing_dir = _makedirs(
-            os.path.abspath(args.testing_dir or os.path.join(self.script_dir, "Testing"))
+            os.path.abspath(
+                args.testing_dir or os.path.join(self.script_dir, "Testing")
+            )
         )
 
         # Whether this run is meant to be recorded. Nothing in a vignette
@@ -366,11 +373,15 @@ class VignetteContext(object):
                 args.machine, args.nodes, args.ranks
             )
         )
-        self.log("host       : {0} ({1})".format(socket.gethostname(), platform.system()))
+        self.log(
+            "host       : {0} ({1})".format(socket.gethostname(), platform.system())
+        )
         if not self.write_metrics:
             self.log("history    : suppressed (--no-metrics)")
         if getattr(args, "unknown_args", None):
-            self.log("passthrough args ignored: {0}".format(" ".join(args.unknown_args)))
+            self.log(
+                "passthrough args ignored: {0}".format(" ".join(args.unknown_args))
+            )
         self.log("-" * 68)
 
     # -- logging ---------------------------------------------------------
@@ -421,9 +432,7 @@ class VignetteContext(object):
                 "Run:  pvbatch data/make_topology_datasets.py --output-dir "
                 "{0}".format(os.path.join(self.data_dir, "topologies"))
             )
-        raise VignetteError(
-            "Required dataset not found: {0}\n  {1}".format(path, hint)
-        )
+        raise VignetteError("Required dataset not found: {0}\n  {1}".format(path, hint))
 
     def time_series_index(self):
         """Path to the index file for the XML time series, for THIS tool.
@@ -484,9 +493,7 @@ class VignetteContext(object):
         guarantee.
         """
         series_dir = self.dataset("varying_series")
-        names = sorted(
-            f for f in os.listdir(series_dir) if f.lower().endswith(".vtk")
-        )
+        names = sorted(f for f in os.listdir(series_dir) if f.lower().endswith(".vtk"))
         if not names:
             raise VignetteError("No .vtk timesteps found in {0}".format(series_dir))
         paths = [os.path.join(series_dir, f) for f in names]
@@ -531,9 +538,7 @@ class VignetteContext(object):
         alongside everything else. Returns None when there is no baseline yet,
         or when it predates that field.
         """
-        path = os.path.join(
-            self.testing_dir, "Baseline", self.results_filename()
-        )
+        path = os.path.join(self.testing_dir, "Baseline", self.results_filename())
         try:
             with open(path, "r") as handle:
                 return json.load(handle).get("ranks")
@@ -693,9 +698,7 @@ class VignetteContext(object):
     def assert_true(self, name, condition, detail=""):
         """Record an assertion. Returns the condition so callers can branch."""
         passed = bool(condition)
-        self.assertions.append(
-            {"name": name, "passed": passed, "detail": str(detail)}
-        )
+        self.assertions.append({"name": name, "passed": passed, "detail": str(detail)})
         self.log(
             "  [{0}] {1}{2}".format(
                 "PASS" if passed else "FAIL", name, "  " + str(detail) if detail else ""
@@ -811,15 +814,14 @@ class VignetteContext(object):
         """
         baseline_dir = baseline_dir or os.path.join(self.testing_dir, "Baseline")
         if not os.path.isdir(baseline_dir):
-            self.log("no baseline directory at {0}; image check skipped".format(
-                baseline_dir))
+            self.log(
+                "no baseline directory at {0}; image check skipped".format(baseline_dir)
+            )
             return True
 
         suffixes = (".png", ".jpg", ".jpeg")
         baselined = sorted(
-            name
-            for name in os.listdir(baseline_dir)
-            if name.lower().endswith(suffixes)
+            name for name in os.listdir(baseline_dir) if name.lower().endswith(suffixes)
         )
         if not baselined:
             self.log("no baselined images; image presence check skipped")
@@ -1093,9 +1095,7 @@ def apply_color_preset(lut, candidates, ctx=None):
             "not change from a sentinel state either".format(name)
         )
 
-    raise VignetteError(
-        "No usable colour preset. Tried: {0}".format("; ".join(tried))
-    )
+    raise VignetteError("No usable colour preset. Tried: {0}".format("; ".join(tried)))
 
 
 def major_minor(version):
@@ -1163,10 +1163,12 @@ def paraview_version_string():
     """
     try:
         import paraview
+
         version = getattr(paraview, "__version__", None)
         if version:
             return str(version)
         from paraview.simple import GetParaViewVersion
+
         return ".".join(str(part) for part in GetParaViewVersion())
     except Exception:  # noqa: BLE001 - not running under ParaView
         return "unknown"
@@ -1236,9 +1238,7 @@ def parse_visit_color_table(path):
     return points
 
 
-def ensure_color_table(
-    ctx, name, names_func, add_func, list_factory, point_factory
-):
+def ensure_color_table(ctx, name, names_func, add_func, list_factory, point_factory):
     """Make `name` available, loading it from VisIt's install if need be.
 
     WHY THIS IS NEEDED

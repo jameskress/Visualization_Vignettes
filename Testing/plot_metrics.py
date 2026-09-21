@@ -104,7 +104,7 @@ def load_history(testing_dir):
         # The configuration name can itself contain underscores and dots
         # (KW61316.kaust.edu.sa, shaheen3-ppn-gpu-L40), so strip the fixed
         # prefix and suffix rather than splitting on "_".
-        config = name[len("performance_metrics_"):-len(".json")]
+        config = name[len("performance_metrics_") : -len(".json")]
         try:
             with open(os.path.join(testing_dir, name), "r") as handle:
                 payload = json.load(handle)
@@ -204,8 +204,14 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
 
         if not points:
             axis.text(
-                0.5, 0.5, "no data", ha="center", va="center",
-                transform=axis.transAxes, fontsize=10, color="0.5",
+                0.5,
+                0.5,
+                "no data",
+                ha="center",
+                va="center",
+                transform=axis.transAxes,
+                fontsize=10,
+                color="0.5",
             )
             axis.set_title(config, fontsize=10)
             axis.set_xticks([])
@@ -223,12 +229,17 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
             legacy_x = [p[0] for p in points if p[2]["legacy"]]
             if legacy_x and len(legacy_x) < len(points):
                 axis.axvspan(
-                    min(xs) - 0.5, max(legacy_x) + 0.5,
-                    color="0.85", zorder=0,
+                    min(xs) - 0.5,
+                    max(legacy_x) + 0.5,
+                    color="0.85",
+                    zorder=0,
                 )
                 axis.axvline(
-                    max(legacy_x) + 0.5, color="0.45",
-                    linestyle="--", linewidth=1.2, zorder=1,
+                    max(legacy_x) + 0.5,
+                    color="0.45",
+                    linestyle="--",
+                    linewidth=1.2,
+                    zorder=1,
                 )
                 drew_legacy = True
             elif legacy_x:
@@ -239,7 +250,8 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
             shape = marker_map.get(record["version"], "x")
             legacy = record["legacy"] and metric in SCHEMA_SENSITIVE
             axis.plot(
-                x, y,
+                x,
+                y,
                 marker=shape,
                 markersize=7,
                 markerfacecolor="none" if legacy else colour,
@@ -266,8 +278,10 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
         plt.close(fig)
         return False
 
-    subtitle = ("each panel is one configuration, x is its own run number, "
-                "y is autoscaled per panel")
+    subtitle = (
+        "each panel is one configuration, x is its own run number, "
+        "y is autoscaled per panel"
+    )
     if drew_legacy:
         subtitle += (
             "   |   shaded: recorded before metrics_schema {0}, when this "
@@ -279,15 +293,18 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
     )
 
     handles = [
-        plt.Line2D([0], [0], marker=shape, linestyle="None",
-                   color="0.2", markersize=8)
+        plt.Line2D([0], [0], marker=shape, linestyle="None", color="0.2", markersize=8)
         for shape in seen_versions.values()
     ]
     if handles:
         fig.legend(
-            handles, list(seen_versions),
-            title="Tool version", loc="lower center",
-            ncol=min(8, len(handles)), frameon=False, fontsize=9,
+            handles,
+            list(seen_versions),
+            title="Tool version",
+            loc="lower center",
+            ncol=min(8, len(handles)),
+            frameon=False,
+            fontsize=9,
         )
 
     fig.tight_layout(rect=[0, 0.05, 1, 0.93])
@@ -334,22 +351,27 @@ def _latest_figure(history, metric, ylabel, vignette, path):
     span = max(values) if values else 1.0
     for position, (config, value, record) in enumerate(entries):
         axis.text(
-            value + span * 0.012, position,
+            value + span * 0.012,
+            position,
             "{0:,.2f}   v{1}   {2}".format(
                 value, record["version"], str(record["timestamp"])[:10]
             ),
-            va="center", fontsize=8.5, color="0.25",
+            va="center",
+            fontsize=8.5,
+            color="0.25",
         )
     axis.set_xlim(0, span * 1.38)
 
     note = ""
     if metric in SCHEMA_SENSITIVE:
-        note = ("\nconfigurations whose newest run predates metrics_schema {0} "
-                "are omitted: that number measured something else".format(
-                    METRICS_SCHEMA))
+        note = (
+            "\nconfigurations whose newest run predates metrics_schema {0} "
+            "are omitted: that number measured something else".format(METRICS_SCHEMA)
+        )
     axis.set_title(
         "{0} - {1}\nmost recent run per configuration{2}".format(
-            ylabel, vignette, note),
+            ylabel, vignette, note
+        ),
         fontsize=12,
     )
 
@@ -376,12 +398,19 @@ def generate_individual_graphs(test_directory, current_sub_test):
     written = 0
     for metric, ylabel in METRICS:
         if _trend_figure(
-            history, marker_map, metric, ylabel, current_sub_test,
+            history,
+            marker_map,
+            metric,
+            ylabel,
+            current_sub_test,
             os.path.join(testing_dir, "{0}_comparison.png".format(metric)),
         ):
             written += 1
         if _latest_figure(
-            history, metric, ylabel, current_sub_test,
+            history,
+            metric,
+            ylabel,
+            current_sub_test,
             os.path.join(testing_dir, "{0}_latest.png".format(metric)),
         ):
             written += 1
@@ -433,7 +462,10 @@ def generate_combination_execution_time_plot(base_directory):
         values = [per_vignette[v].get(config, np.nan) for v in vignettes]
         axis.bar(
             base + index * width - 0.4 + width / 2.0,
-            values, width=width, label=config, color=colors[index],
+            values,
+            width=width,
+            label=config,
+            color=colors[index],
         )
 
     axis.set_xticks(base)
@@ -447,8 +479,7 @@ def generate_combination_execution_time_plot(base_directory):
     )
     axis.grid(True, axis="y", alpha=0.25)
     axis.set_axisbelow(True)
-    axis.legend(loc="upper left", bbox_to_anchor=(1.01, 1),
-                frameon=False, fontsize=9)
+    axis.legend(loc="upper left", bbox_to_anchor=(1.01, 1), frameon=False, fontsize=9)
 
     fig.tight_layout(rect=[0, 0, 0.84, 1])
     output = os.path.join(base_directory, "combined_execution_time_plot.png")

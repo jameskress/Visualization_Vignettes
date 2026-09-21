@@ -71,7 +71,11 @@ import vignette_common as vc  # noqa: E402
 VIGNETTE = "ex00_pvQuery"
 TOOL = "ParaView"
 
-_args = vc.parse_args(VIGNETTE, TOOL, description="query cone source properties and the active OpenGL driver")
+_args = vc.parse_args(
+    VIGNETTE,
+    TOOL,
+    description="query cone source properties and the active OpenGL driver",
+)
 ctx = vc.VignetteContext(VIGNETTE, TOOL, _args, script_dir=SCRIPT_DIR)
 
 # This vignette writes its images through literal "<script-dir>/output" paths

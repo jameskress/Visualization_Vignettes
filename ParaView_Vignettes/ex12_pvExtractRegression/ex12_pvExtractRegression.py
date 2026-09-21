@@ -201,7 +201,9 @@ def reader_cycle(reader):
         return None
 
 
-def measure(ctx, reader, contour, integrate_contour, integrate_input, scalar, step, time_value):
+def measure(
+    ctx, reader, contour, integrate_contour, integrate_input, scalar, step, time_value
+):
     """Collect the numerical measurements for one timestep."""
     reader_info = reader.GetDataInformation()
     contour_info = contour.GetDataInformation()
@@ -277,8 +279,7 @@ def run(ctx):
 
     if reader.PointData.GetArray(scalar) is None:
         available = [
-            reader.PointData.GetArray(i).GetName()
-            for i in range(len(reader.PointData))
+            reader.PointData.GetArray(i).GetName() for i in range(len(reader.PointData))
         ]
         raise vc.VignetteError(
             "Scalar '{0}' not found. Available point arrays: {1}".format(
@@ -344,7 +345,9 @@ def run(ctx):
 
     timestep_values = list(reader.TimestepValues) or [0.0]
     step_count = max(1, min(ctx.args.steps, len(timestep_values)))
-    ctx.log("extracting {0} of {1} timestep(s)".format(step_count, len(timestep_values)))
+    ctx.log(
+        "extracting {0} of {1} timestep(s)".format(step_count, len(timestep_values))
+    )
 
     scene = GetAnimationScene()
     scene.UpdateAnimationUsingDataTimeSteps()

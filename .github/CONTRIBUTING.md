@@ -42,7 +42,7 @@ Ready to add or modify a vignette? Here is the standard workflow for submitting 
    ```
    git clone [https://github.com/YOUR-USERNAME/Visualization_Vignettes.git](https://github.com/YOUR-USERNAME/Visualization_Vignettes.git)
    cd Visualization_Vignettes
-   
+
    ```
 
 ### 2. Create a New Branch

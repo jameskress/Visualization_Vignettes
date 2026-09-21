@@ -69,7 +69,7 @@ VV_EXTRA_ARGS=()
 # Always run from the vignette directory: the scripts resolve their data and
 # output paths relative to themselves, and sbatch does not guarantee a
 # working directory.
-cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
 
 # ex11 verifies the on-display path a GUI user takes, so offscreen rendering
 # is deliberately NOT forced and a virtual X server is provided instead.
@@ -85,6 +85,7 @@ fi
 # module name exactly as the site's run_pvserver.sbat chooses it. ParaView
 # 6.0+ needs that hint; without it an -egl module can quietly fall back to
 # llvmpipe and still render, at roughly a hundredth of the speed.
+# shellcheck disable=SC1091  # resolved at run time, one directory up
 source ../MODULES.sh "$VV_MODULE_VARIANT"
 
 export OMP_NUM_THREADS="$VV_THREADS"
@@ -98,11 +99,6 @@ fi
 echo "Using pvbatch     : $PVBATCH"
 echo "ParaView module   : ${VV_PARAVIEW_MODULE:-<unknown>}"
 echo "OpenGL window     : ${VTK_DEFAULT_OPENGL_WINDOW:-<vtk default>}"
-
-# Ranks per node, for the same ppr placement policy run_pvserver.sbat uses.
-# Without it Open MPI packs every rank onto the first node of a multi-node
-# allocation and a scaling study measures one node however many it asked for.
-VV_RANKS_PER_NODE=$(( (VV_RANKS + VV_NODES - 1) / VV_NODES ))
 
 STATUS=0
 time xvfb-run -a --server-args="-screen 0 ${VV_IMAGE_WIDTH}x${VV_IMAGE_HEIGHT}x24" \

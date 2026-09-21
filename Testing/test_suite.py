@@ -178,7 +178,9 @@ def submit_cluster_test(test_dir, cluster_script):
         text=True,
     )
     if completed.returncode != 0:
-        print("sbatch failed for {0}: {1}".format(cluster_script_path, completed.stderr))
+        print(
+            "sbatch failed for {0}: {1}".format(cluster_script_path, completed.stderr)
+        )
         return None
 
     print(completed.stdout.strip())
@@ -371,7 +373,9 @@ def create_baseline_images(output_dir, max_images=5):
         )
         return []
 
-    selected_images = verify.list_output_images(output_images_dir, max_images=max_images)
+    selected_images = verify.list_output_images(
+        output_images_dir, max_images=max_images
+    )
     for image in selected_images:
         shutil.copy(
             os.path.join(output_images_dir, image), os.path.join(baseline_dir, image)
@@ -472,7 +476,9 @@ def compare_images(baseline_dir, output_dir, selected_images=None, tolerance=Non
             )
         return results
 
-    return verify.compare_image_sets(baseline_dir, output_images_dir, tolerance=tolerance)
+    return verify.compare_image_sets(
+        baseline_dir, output_images_dir, tolerance=tolerance
+    )
 
 
 def compare_text_files(output_log, known_good_value_path, ignore_patterns=None):
@@ -594,7 +600,11 @@ def compare_numeric_results(test_dir, args):
 
 def is_gpu_test_allowed_to_fail(test_dir):
     """Tests that legitimately fail without a GPU."""
-    gpu_required_tests = ["ex00_pvQuery", "ex08_pvBackendCheck", "ex08_visitBackendCheck"]
+    gpu_required_tests = [
+        "ex00_pvQuery",
+        "ex08_pvBackendCheck",
+        "ex08_visitBackendCheck",
+    ]
 
     parent_dir = os.path.basename(os.path.dirname(test_dir))
     if VIGNETTE_DIR_RE.match(parent_dir):
@@ -676,9 +686,7 @@ def check_failure(test_dir, non_gpu_machine):
                 reasons.append("metric no longer reported: {0}".format(key))
             if not reasons or status in ("ERROR", "MISSING OUTPUT", "NO BASELINE"):
                 reasons.append(
-                    "numeric results {0}: {1}".format(
-                        status, numeric.get("detail", "")
-                    )
+                    "numeric results {0}: {1}".format(status, numeric.get("detail", ""))
                 )
 
     # -- 4. declared CSV extracts ----------------------------------------
@@ -874,7 +882,9 @@ def create_summary_report(
         # -- legacy text comparison ---------------------------------------
         text_comparison_file = os.path.join(testing_dir, TEXT_RESULTS_FILENAME)
         if os.path.exists(text_comparison_file):
-            print("\n\n\tOutput comparison file found: {0}".format(text_comparison_file))
+            print(
+                "\n\n\tOutput comparison file found: {0}".format(text_comparison_file)
+            )
             try:
                 with open(text_comparison_file, "r") as handle:
                     text_comparison_results = json.load(handle)
@@ -1106,9 +1116,7 @@ def run_test(test_dir, dir_name, args):
             "  {0} declares an image tolerance of {1:.4%} (suite default "
             "{2:.4%}).".format(dir_name, tolerance, args.image_tolerance)
         )
-    comparison_results = compare_images(
-        baseline_dir, test_dir, tolerance=tolerance
-    )
+    comparison_results = compare_images(baseline_dir, test_dir, tolerance=tolerance)
     with open(os.path.join(testing_dir, IMAGE_RESULTS_FILENAME), "w") as handle:
         json.dump(comparison_results, handle, indent=4)
 
@@ -1189,7 +1197,9 @@ def build_parser():
     parser.add_argument(
         "--paraview_version", type=str, default=None, help="ParaView version."
     )
-    parser.add_argument("--visit_version", type=str, default=None, help="VisIt version.")
+    parser.add_argument(
+        "--visit_version", type=str, default=None, help="VisIt version."
+    )
     parser.add_argument(
         "--non_gpu_machine",
         action="store_true",
@@ -1294,8 +1304,12 @@ def build_parser():
         action="store_false",
         help="Do not force offscreen rendering (needed by the Xvfb vignettes).",
     )
-    exec_group.add_argument("--data-dir", default=None, help="Static dataset directory.")
-    exec_group.add_argument("--image-width", type=int, default=None, help="Image width.")
+    exec_group.add_argument(
+        "--data-dir", default=None, help="Static dataset directory."
+    )
+    exec_group.add_argument(
+        "--image-width", type=int, default=None, help="Image width."
+    )
     exec_group.add_argument(
         "--image-height", type=int, default=None, help="Image height."
     )
@@ -1378,9 +1392,7 @@ def preflight(args):
 def main(argv=None):
     args = build_parser().parse_args(argv)
 
-    test_directory = os.path.join(
-        args.root_directory, args.test_type + "_Vignettes"
-    )
+    test_directory = os.path.join(args.root_directory, args.test_type + "_Vignettes")
     if not os.path.isdir(test_directory):
         print("Error: {0} does not exist.".format(test_directory))
         return 2

@@ -282,7 +282,7 @@ profile it chose, and warns when `--ranks`/`--nodes` exceed the allocation.
    ```bash
    # Load VisIt module (adjust name as needed)
    module load visit
-   
+
    # Run example in batch mode
    visit -nowin -cli -s ex01_visitScreenshot.py
    ```

@@ -147,9 +147,7 @@ def load_state_with_data_dir(ctx, state_path):
         # thing here: fall back to the paths recorded in the state.
         ctx.warn(
             "LoadState(data_directory=...) failed ({0}: {1}); falling back "
-            "to the paths recorded in the state file.".format(
-                type(exc).__name__, exc
-            )
+            "to the paths recorded in the state file.".format(type(exc).__name__, exc)
         )
 
     LoadState(state_path)
@@ -210,7 +208,9 @@ def run(ctx):
 
     sources = GetSources()
     views = GetViews()
-    ctx.log("state produced {0} source(s), {1} view(s)".format(len(sources), len(views)))
+    ctx.log(
+        "state produced {0} source(s), {1} view(s)".format(len(sources), len(views))
+    )
 
     if not views:
         raise vc.VignetteError(

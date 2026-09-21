@@ -207,9 +207,7 @@ def pvsm_recorded_version(path):
                 line = handle.readline()
                 if not line:
                     break
-                match = re.search(
-                    r'ServerManagerState[^>]*version="([^"]+)"', line
-                )
+                match = re.search(r'ServerManagerState[^>]*version="([^"]+)"', line)
                 if match:
                     return match.group(1)
     except (OSError, IOError):
@@ -234,8 +232,11 @@ def step_large_data(args):
         ok("ex06 datasets present")
         return True
 
-    todo("ex06 datasets missing ({0})".format(
-        ", ".join(os.path.basename(p) for p in missing)))
+    todo(
+        "ex06 datasets missing ({0})".format(
+            ", ".join(os.path.basename(p) for p in missing)
+        )
+    )
     if args.check:
         return False
     print("    4.3 GB download. Skipping automatically; run it yourself if you")
@@ -353,13 +354,17 @@ def step_visit_state(args, visit, visit_ver):
     ]
 
     if not missing and not args.force:
-        ok("ex11_visit.session and ex11_series.visit present (regenerate with "
-           "--force after a VisIt version change or a move)")
+        ok(
+            "ex11_visit.session and ex11_series.visit present (regenerate with "
+            "--force after a VisIt version change or a move)"
+        )
         return True
 
-    todo("ex11 VisIt fixtures {0}".format(
-        "missing: " + ", ".join(missing) if missing
-        else "-- regenerating (--force)"))
+    todo(
+        "ex11 VisIt fixtures {0}".format(
+            "missing: " + ", ".join(missing) if missing else "-- regenerating (--force)"
+        )
+    )
     if args.check:
         return False
     return run(
@@ -450,8 +455,10 @@ def main(argv=None):
         return 3
 
     if args.check:
-        bad("{0} generated fixture(s) missing or stale -- re-run without "
-            "--check".format(outstanding))
+        bad(
+            "{0} generated fixture(s) missing or stale -- re-run without "
+            "--check".format(outstanding)
+        )
         return 1
 
     bad("{0} item(s) still outstanding (see above)".format(outstanding))

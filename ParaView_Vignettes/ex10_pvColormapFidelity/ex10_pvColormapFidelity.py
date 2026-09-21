@@ -325,9 +325,7 @@ def render_configuration(ctx, view, source, scalar, config, scalar_range):
         ctx.assert_true(
             "categorical: values are interpreted as categories",
             int(lut.InterpretValuesAsCategories) == 1,
-            "InterpretValuesAsCategories={0}".format(
-                lut.InterpretValuesAsCategories
-            ),
+            "InterpretValuesAsCategories={0}".format(lut.InterpretValuesAsCategories),
         )
         ctx.assert_true(
             "categorical: every category is annotated",
@@ -357,29 +355,22 @@ def run(ctx):
     # -- load the custom colour maps --------------------------------------
     preset_xml = os.path.join(SCRIPT_DIR, CUSTOM_XML)
     if not os.path.exists(preset_xml):
-        raise vc.VignetteError(
-            "Custom colour map not found: {0}".format(preset_xml)
-        )
+        raise vc.VignetteError("Custom colour map not found: {0}".format(preset_xml))
 
     with ctx.phase("import_presets"):
         if not ImportPresets(filename=preset_xml):
-            raise vc.VignetteError(
-                "ImportPresets() rejected {0}".format(preset_xml)
-            )
+            raise vc.VignetteError("ImportPresets() rejected {0}".format(preset_xml))
     ctx.log("imported custom presets from {0}".format(CUSTOM_XML))
 
     # -- read ---------------------------------------------------------------
     with ctx.phase("io"):
-        reader = LegacyVTKReader(
-            registrationName="ex10_reader", FileNames=[dataset]
-        )
+        reader = LegacyVTKReader(registrationName="ex10_reader", FileNames=[dataset])
         UpdatePipeline(proxy=reader)
 
     array_info = reader.PointData.GetArray(scalar)
     if array_info is None:
         available = [
-            reader.PointData.GetArray(i).GetName()
-            for i in range(len(reader.PointData))
+            reader.PointData.GetArray(i).GetName() for i in range(len(reader.PointData))
         ]
         raise vc.VignetteError(
             "Scalar '{0}' not found. Available point arrays: {1}".format(
@@ -431,9 +422,7 @@ def run(ctx):
             render_configuration(ctx, view, source, scalar, config, scalar_range)
         )
 
-    ctx.write_timing_csv(
-        filename="{0}_colormaps.csv".format(VIGNETTE), rows=rows
-    )
+    ctx.write_timing_csv(filename="{0}_colormaps.csv".format(VIGNETTE), rows=rows)
     ctx.add_metric("configurations_rendered", len(rows))
 
 

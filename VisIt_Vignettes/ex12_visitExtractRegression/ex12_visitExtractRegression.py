@@ -239,9 +239,7 @@ def database_times(ctx, database, n_states):
     if len(times) < n_states:
         ctx.warn(
             "database reports {0} time value(s) for {1} state(s); the "
-            "missing ones are recorded as the state index".format(
-                len(times), n_states
-            )
+            "missing ones are recorded as the state index".format(len(times), n_states)
         )
         times = times + [float(i) for i in range(len(times), n_states)]
 

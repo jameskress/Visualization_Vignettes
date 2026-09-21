@@ -142,7 +142,7 @@ jobs:
     needs: build
     runs-on: self-hosted
     env:
-      VISIT_VER: "3.4.1" 
+      VISIT_VER: "3.4.1"
       VISIT_URL: "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz"
       # FIX: Use $HOME instead of /opt so we don't need sudo
       CACHE_DIR: "$HOME/ci-cache"
@@ -158,7 +158,7 @@ jobs:
         run: |
           # The runner interprets $HOME automatically
           mkdir -p ${{ env.CACHE_DIR }}
-          
+
           FILENAME="visit-${{ env.VISIT_VER }}.tar.gz"
           FILEPATH="${{ env.CACHE_DIR }}/$FILENAME"
 
@@ -193,7 +193,7 @@ jobs:
             --build-arg USER_ID=$(id -u) \
             --build-arg GROUP_ID=$(id -g) \
             -t visit-test-env -f Dockerfile.visit.test .
-          
+
           FILENAME="visit-${{ env.VISIT_VER }}.tar.gz"
 
           # Run docker mounting the $HOME cache
@@ -206,10 +206,10 @@ jobs:
             python3 -m venv test-venv
             source test-venv/bin/activate
             pip3 install pandas matplotlib psutil scipy
-            
+
             echo "Extracting VisIt from cache..."
             cp /data-cache/'"$FILENAME"' visit.tar.gz
-            
+
             mkdir visit
             tar xf visit.tar.gz -C visit --strip-components 1
             export VISIT_DIR=$PWD/visit/bin
@@ -220,7 +220,7 @@ jobs:
             python3 test_suite.py ../ --test_type VisIt --visit_version ${{ env.VISIT_VER }} --test_number 0
             echo "VisIt tests complete"
           '
-      
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

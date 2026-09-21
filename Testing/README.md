@@ -102,6 +102,16 @@ same file as the measurements.
 
 ## Initial Setup: Python Environments
 
+> **No network on the target machine?** See
+> [`OFFLINE_SETUP.md`](OFFLINE_SETUP.md). Do not copy a virtual environment:
+> a venv records absolute paths in `bin/activate` and in every console
+> script's shebang, so it half-works when moved, which is worse than failing.
+> `./make_offline_bundle.sh` collects the five packages as wheels (52 MB) to
+> install with `pip --no-index` on the other side. That document also carries
+> the full Shaheen and Ibex runbooks.
+
+
+
 Before running tests, you must create Python environments to install necessary packages.
 
 > 💡 **Note:** On systems like Shaheen, compute nodes do not have internet access. You **must run the `pip install` commands on a login node** *after* creating the environment.

@@ -71,7 +71,9 @@ import vignette_common as vc  # noqa: E402
 VIGNETTE = "ex06_visitLargeData"
 TOOL = "VisIt"
 
-_args = vc.parse_args(VIGNETTE, TOOL, description="render a large dataset from a saved session")
+_args = vc.parse_args(
+    VIGNETTE, TOOL, description="render a large dataset from a saved session"
+)
 ctx = vc.VignetteContext(VIGNETTE, TOOL, _args, script_dir=SCRIPT_DIR)
 
 # This vignette writes its images through literal "<script-dir>/output" paths
@@ -129,8 +131,12 @@ rainFile = script_dir + "/../../data/currentRainfall.silo"
 # Shaheen and Ibex.
 for _table in ("plasma", "Blues"):
     vc.ensure_color_table(
-        ctx, _table,
-        ColorTableNames, AddColorTable, ColorControlPointList, ColorControlPoint,
+        ctx,
+        _table,
+        ColorTableNames,
+        AddColorTable,
+        ColorControlPointList,
+        ColorControlPoint,
     )
 
 RestoreSessionWithDifferentSources(dataFile, 0, (rainFile, wrfFile))

@@ -55,3 +55,11 @@ data/cyclone-chapala-2015-11-02_00-00-00-mb/
 
 # Scratch space for one-off comparison sheets and backups. Never an input.
 .scratch/
+
+# Wheels collected by Testing/make_offline_bundle.sh for an air-gapped
+# machine. 52 MB of binaries that pip can rebuild in a minute.
+offline_bundle/
+
+# Per-user editor state. The LTeX dictionaries in here are one person's
+# spelling preferences, not a repository setting.
+.vscode/

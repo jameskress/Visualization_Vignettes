@@ -34,7 +34,6 @@
 #
 import os
 import sys
-import pathlib
 import paraview
 import subprocess
 from paraview.simple import *
@@ -72,7 +71,9 @@ import vignette_common as vc  # noqa: E402
 VIGNETTE = "ex03_pvIsosurfaceAnimation"
 TOOL = "ParaView"
 
-_args = vc.parse_args(VIGNETTE, TOOL, description="sweep an isosurface value and render each frame")
+_args = vc.parse_args(
+    VIGNETTE, TOOL, description="sweep an isosurface value and render each frame"
+)
 ctx = vc.VignetteContext(VIGNETTE, TOOL, _args, script_dir=SCRIPT_DIR)
 
 # This vignette writes its images through literal "<script-dir>/output" paths
@@ -95,7 +96,7 @@ print("Running ParaView example script: ", sys.argv[0], "\n")
 script_dir = os.path.abspath(os.path.dirname(__file__))
 print("Running script from: ", script_dir)
 
-#### disable automatic camera reset on 'Show'
+# disable automatic camera reset on 'Show'
 paraview.simple._DisableFirstRenderCameraReset()
 
 # create a new 'VisItSiloReader'

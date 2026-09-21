@@ -68,7 +68,9 @@ import vignette_common as vc  # noqa: E402
 VIGNETTE = "ex04_visitStreamlineAnimation"
 TOOL = "VisIt"
 
-_args = vc.parse_args(VIGNETTE, TOOL, description="seed and render streamlines through a vector field")
+_args = vc.parse_args(
+    VIGNETTE, TOOL, description="seed and render streamlines through a vector field"
+)
 ctx = vc.VignetteContext(VIGNETTE, TOOL, _args, script_dir=SCRIPT_DIR)
 
 # This vignette writes its images through literal "<script-dir>/output" paths

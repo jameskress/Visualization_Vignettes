@@ -67,7 +67,9 @@ import vignette_common as vc  # noqa: E402
 VIGNETTE = "ex02_visitAnimation"
 TOOL = "VisIt"
 
-_args = vc.parse_args(VIGNETTE, TOOL, description="render an animation and encode it to a movie")
+_args = vc.parse_args(
+    VIGNETTE, TOOL, description="render an animation and encode it to a movie"
+)
 ctx = vc.VignetteContext(VIGNETTE, TOOL, _args, script_dir=SCRIPT_DIR)
 
 # This vignette writes its images through literal "<script-dir>/output" paths

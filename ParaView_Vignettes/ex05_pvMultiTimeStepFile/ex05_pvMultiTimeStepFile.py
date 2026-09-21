@@ -36,7 +36,6 @@
 #
 import os
 import sys
-import pathlib
 import paraview
 import subprocess
 from paraview.simple import *
@@ -74,7 +73,11 @@ import vignette_common as vc  # noqa: E402
 VIGNETTE = "ex05_pvMultiTimeStepFile"
 TOOL = "ParaView"
 
-_args = vc.parse_args(VIGNETTE, TOOL, description="read a multi-timestep database and save extracts per step")
+_args = vc.parse_args(
+    VIGNETTE,
+    TOOL,
+    description="read a multi-timestep database and save extracts per step",
+)
 ctx = vc.VignetteContext(VIGNETTE, TOOL, _args, script_dir=SCRIPT_DIR)
 
 # This vignette writes its images through literal "<script-dir>/output" paths
@@ -97,7 +100,7 @@ print("Running ParaView example script: ", sys.argv[0], "\n")
 script_dir = os.path.abspath(os.path.dirname(__file__))
 print("Running script from: ", script_dir)
 
-#### disable automatic camera reset on 'Show'
+# disable automatic camera reset on 'Show'
 paraview.simple._DisableFirstRenderCameraReset()
 
 # ----------------------------------------------------------------
@@ -286,9 +289,7 @@ timeAnnotation = PythonAnnotation(
     Input=varying00vtk, registrationName="ex05_time_annotation"
 )
 timeAnnotation.ArrayAssociation = "Field Data"
-timeAnnotation.Expression = (
-    '"Cycle: %d    Time: %s" % (CYCLE[0], ("%g" % time_value))'
-)
+timeAnnotation.Expression = '"Cycle: %d    Time: %s" % (CYCLE[0], ("%g" % time_value))'
 timeAnnotationDisplay = Show(timeAnnotation, renderView1, "TextSourceRepresentation")
 timeAnnotationDisplay.WindowLocation = "Upper Left Corner"
 timeAnnotationDisplay.Color = [1.0, 1.0, 1.0]

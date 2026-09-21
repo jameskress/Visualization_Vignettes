@@ -210,9 +210,7 @@ def process_topology(ctx, manifest, view, key, label):
 
     # Cell-centred scalars have to become point-centred before contouring.
     if association == "CELLS":
-        source = CellDatatoPointData(
-            Input=source, registrationName="ex09_c2p_" + key
-        )
+        source = CellDatatoPointData(Input=source, registrationName="ex09_c2p_" + key)
         source.CellDataArraytoprocess = [scalar]
         UpdatePipeline(proxy=source)
         ctx.debug("  converted cell scalar '{0}' to point data".format(scalar))
@@ -225,8 +223,7 @@ def process_topology(ctx, manifest, view, key, label):
     array_info = source.PointData.GetArray(scalar)
     if array_info is None:
         available = [
-            source.PointData.GetArray(i).GetName()
-            for i in range(len(source.PointData))
+            source.PointData.GetArray(i).GetName() for i in range(len(source.PointData))
         ]
         raise vc.VignetteError(
             "Scalar '{0}' absent from {1}. Available point arrays: {2}".format(
@@ -245,9 +242,7 @@ def process_topology(ctx, manifest, view, key, label):
     contour_info = contour.GetDataInformation()
     contour_points = int(contour_info.GetNumberOfPoints())
     contour_cells = int(contour_info.GetNumberOfCells())
-    ctx.log(
-        "  contour   : {0} points, {1} cells".format(contour_points, contour_cells)
-    )
+    ctx.log("  contour   : {0} points, {1} cells".format(contour_points, contour_cells))
 
     # -- render -----------------------------------------------------------
     #
@@ -390,9 +385,7 @@ def run(ctx):
     for key, label in selected:
         rows.append(process_topology(ctx, manifest, view, key, label))
 
-    ctx.write_timing_csv(
-        filename="{0}_topologies.csv".format(VIGNETTE), rows=rows
-    )
+    ctx.write_timing_csv(filename="{0}_topologies.csv".format(VIGNETTE), rows=rows)
 
     ctx.add_metric("topologies_processed", len(rows))
 

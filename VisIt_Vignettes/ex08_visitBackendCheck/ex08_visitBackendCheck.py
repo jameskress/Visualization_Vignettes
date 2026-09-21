@@ -207,7 +207,9 @@ def run(ctx):
                 num_procs, num_nodes, is_parallel, attributes["unique_hosts"]
             )
         )
-        ctx.notes.append("engine_hosts={0}".format(",".join(attributes["unique_hosts"])))
+        ctx.notes.append(
+            "engine_hosts={0}".format(",".join(attributes["unique_hosts"]))
+        )
 
     ctx.add_metric("compute_engine_launched", bool(engine_launched))
     ctx.add_metric("engine_is_parallel", bool(is_parallel))
@@ -252,7 +254,9 @@ def run(ctx):
     written_width, written_height = vc.png_size(image_path)
     ctx.add_metric("image_width", written_width)
     ctx.add_metric("image_height", written_height)
-    ctx.add_metric("engine_side_render_succeeded", bool(render_ok and written_width > 0))
+    ctx.add_metric(
+        "engine_side_render_succeeded", bool(render_ok and written_width > 0)
+    )
 
     # -- Assertions --------------------------------------------------------
     ctx.assert_true(

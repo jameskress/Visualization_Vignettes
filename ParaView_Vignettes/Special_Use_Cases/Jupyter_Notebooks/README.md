@@ -2,7 +2,7 @@
 
 This guide explains how to run interactive ParaView scripts on Shaheen III compute nodes using Jupyter Lab.
 
-**Warning:** This has only been tested using the Jupyter Lab workflow where you create a tunel to the compute nodes using the instructions printed to your terminal when you run the batch job. Running through VSCode, may or may not work. 
+**Warning:** This has only been tested using the Jupyter Lab workflow where you create a tunel to the compute nodes using the instructions printed to your terminal when you run the batch job. Running through VSCode, may or may not work.
 
 Because Shaheen uses a specialized Cray environment, we cannot simply `pip install paraview`. Instead, we must use a **Wrapped Kernel** that allows a standard Conda environment (running Jupyter) to load the system-optimized ParaView modules (for MPI and rendering).
 
@@ -35,7 +35,7 @@ We need two conflicting things:
 
 ## Part 1: One-Time Setup (The "Wrapped" Kernel)
 
-You only do this part once, then can reuse it over and over again. 
+You only do this part once, then can reuse it over and over again.
 
 First, login to shaheen, and navigate to your scrith directory. Next, follow the instructions below which allows us to use a simple Bash script to load the system modules before starting Python. This avoids manual path editing and ensures all Cray/MPI libraries are found.
 
@@ -132,7 +132,7 @@ EOF
 
 ## Part 2: Submitting the Job (`submit_jupyter.sh`)
 
-Finially, we can launch Jupyter Lab. The only tested method to get this to work is using the script below, which sets up tunnels to your local we browser, and you can use Jupyter Lab as normal. This script allocates a compute node, starts Jupyter, and prints the SSH tunnel command you need. Follow the instructions printed to you slurm job script file after the job launches. 
+Finially, we can launch Jupyter Lab. The only tested method to get this to work is using the script below, which sets up tunnels to your local we browser, and you can use Jupyter Lab as normal. This script allocates a compute node, starts Jupyter, and prints the SSH tunnel command you need. Follow the instructions printed to you slurm job script file after the job launches.
 
 **Important:** Update the account to your own account (e.g., `k01`). Make sure that you update the path in SETUP CONDA if needed.
 
@@ -223,7 +223,7 @@ For parallel rendering (using all 192 cores), we run `pvserver` separately.
    ```bash
    module load paraview
    export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
-   
+
    # Launch the server on the current node
    srun -n 192 pvserver --force-offscreen-rendering
    ```

@@ -71,7 +71,11 @@ import vignette_common as vc  # noqa: E402
 VIGNETTE = "ex05_visitMultiTimeStepFile"
 TOOL = "VisIt"
 
-_args = vc.parse_args(VIGNETTE, TOOL, description="read a multi-timestep database, query it, and save each step")
+_args = vc.parse_args(
+    VIGNETTE,
+    TOOL,
+    description="read a multi-timestep database, query it, and save each step",
+)
 ctx = vc.VignetteContext(VIGNETTE, TOOL, _args, script_dir=SCRIPT_DIR)
 
 # This vignette writes its images through literal "<script-dir>/output" paths

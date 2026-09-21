@@ -183,7 +183,9 @@ def run(ctx):
         restore_session(ctx, session_path)
 
     total_plots, active_plots = plot_summary(ctx)
-    ctx.log("session produced {0} plot(s), {1} active".format(total_plots, active_plots))
+    ctx.log(
+        "session produced {0} plot(s), {1} active".format(total_plots, active_plots)
+    )
     ctx.add_metric("plots_in_session", total_plots)
 
     n_states = TimeSliderGetNStates()

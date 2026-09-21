@@ -69,7 +69,7 @@ VV_EXTRA_ARGS=()
 # Always run from the vignette directory: the scripts resolve their data and
 # output paths relative to themselves, and sbatch does not guarantee a
 # working directory.
-cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
 
 # ex11 verifies the on-display path a GUI user takes, so offscreen rendering
 # is deliberately NOT forced and a virtual X server is provided instead.
@@ -79,6 +79,7 @@ if ! command -v xvfb-run >/dev/null 2>&1; then
 fi
 
 # Load the VisIt environment.
+# shellcheck disable=SC1091  # resolved at run time, one directory up
 source ../MODULES.sh
 
 export OMP_NUM_THREADS="$VV_THREADS"

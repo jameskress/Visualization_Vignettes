@@ -6,8 +6,8 @@ authors:
     given-names: "James"
     orcid: "https://orcid.org/0000-0002-9706-6182"
 title: "Visualization Vignettes"
-version: 0.1.0 
-date-released: 2025-09-17
+version: 1.0.0
+date-released: 2026-03-05
 repository-code: "https://github.com/jameskress/Visualization_Vignettes"
 license: BSD-3-Clause
 keywords:

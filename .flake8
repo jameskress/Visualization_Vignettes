@@ -1,0 +1,19 @@
+[flake8]
+max-line-length = 88
+extend-ignore = E203, E501, W503, F403, F405
+
+per-file-ignores =
+    # VisIt's CLI injects its entire API into the interpreter's global
+    # namespace before it runs a script, so a VisIt vignette calls
+    # OpenDatabase, AddPlot, Query and a hundred others with no import to
+    # resolve them against. flake8 cannot know that and reports every one as
+    # F821 undefined-name: fourteen of them in the smallest vignette in the
+    # suite, a hundred and thirty six across the ones touched in one branch.
+    #
+    # Scoped to this directory on purpose. A genuine typo in Testing/ or in a
+    # ParaView vignette, where the API arrives through a real import, still
+    # fails the check.
+    VisIt_Vignettes/*:F821
+    # The same applies to the generators and to ex11's state writer, which
+    # run inside pvbatch and VisIt respectively.
+    VisIt_Vignettes/*/ex11_make_state.py:F821

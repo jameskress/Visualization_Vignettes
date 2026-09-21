@@ -292,8 +292,7 @@ def run(ctx):
     )
     ctx.assert_true(
         "pipeline and render phases were both timed",
-        ctx.timings.get("pipeline", 0.0) > 0.0
-        and ctx.timings.get("render", 0.0) > 0.0,
+        ctx.timings.get("pipeline", 0.0) > 0.0 and ctx.timings.get("render", 0.0) > 0.0,
         "pipeline={0:.6f}s render={1:.6f}s".format(
             ctx.timings.get("pipeline", 0.0), ctx.timings.get("render", 0.0)
         ),

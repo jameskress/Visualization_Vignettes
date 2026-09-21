@@ -76,6 +76,7 @@ def _paraview_version_string():
     """
     try:
         import paraview
+
         version = getattr(paraview, "__version__", None)
         if version:
             return str(version)
@@ -206,8 +207,11 @@ def write_polydata(base, output_dir, manifest):
 
     path = os.path.join(output_dir, "surface_polydata.vtp")
     SaveData(path, proxy=varying, PointDataArrays=[TARGET_SCALAR])
-    log("wrote {0} (scalar range {1}, isovalue {2})".format(
-        path, scalar_range, isovalue))
+    log(
+        "wrote {0} (scalar range {1}, isovalue {2})".format(
+            path, scalar_range, isovalue
+        )
+    )
     manifest["polydata"] = {
         "path": os.path.basename(path),
         "topology": "polydata surface (triangles)",
@@ -238,7 +242,7 @@ def write_ragged_multiblock(base, output_dir, manifest):
     filter that assumes uniform partitioning produces visible seams here.
     """
     lo, hi = WAVELET_EXTENT[0], WAVELET_EXTENT[1]
-    mid_a = lo + 11   # deliberately not the midpoint
+    mid_a = lo + 11  # deliberately not the midpoint
     mid_b = lo + 31
 
     voi_specs = [
@@ -377,9 +381,7 @@ def write_amr(output_dir, manifest):
     produced = amr
 
     try:
-        to_points = CellDatatoPointData(
-            Input=amr, registrationName="vv_amr_points"
-        )
+        to_points = CellDatatoPointData(Input=amr, registrationName="vv_amr_points")
         to_points.CellDataArraytoprocess = ["Gaussian-Pulse"]
         UpdatePipeline(proxy=to_points)
 
@@ -402,9 +404,7 @@ def write_amr(output_dir, manifest):
     if path is None:
         log(
             "No AMR writer in this ParaView accepted {0} ({1}). Recording the "
-            "dataset as unavailable.".format(
-                " or ".join(AMR_EXTENSIONS), write_error
-            )
+            "dataset as unavailable.".format(" or ".join(AMR_EXTENSIONS), write_error)
         )
         manifest["amr"] = {
             "path": None,
@@ -429,8 +429,11 @@ def write_amr(output_dir, manifest):
             "isovalue {0}".format(isovalue)
         )
 
-    log("wrote {0} (scalar range {1}, isovalue {2})".format(
-        path, scalar_range, isovalue))
+    log(
+        "wrote {0} (scalar range {1}, isovalue {2})".format(
+            path, scalar_range, isovalue
+        )
+    )
     manifest["amr"] = {
         "path": os.path.basename(path),
         "topology": "overlapping AMR hierarchy",

@@ -67,7 +67,9 @@ import vignette_common as vc  # noqa: E402
 VIGNETTE = "ex03_visitIsosurfaceAnimation"
 TOOL = "VisIt"
 
-_args = vc.parse_args(VIGNETTE, TOOL, description="sweep an isosurface value and render each frame")
+_args = vc.parse_args(
+    VIGNETTE, TOOL, description="sweep an isosurface value and render each frame"
+)
 ctx = vc.VignetteContext(VIGNETTE, TOOL, _args, script_dir=SCRIPT_DIR)
 
 # This vignette writes its images through literal "<script-dir>/output" paths

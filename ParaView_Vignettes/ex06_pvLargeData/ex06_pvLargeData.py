@@ -36,9 +36,7 @@
 #
 import os
 import sys
-import pathlib
 import paraview
-import subprocess
 from paraview.simple import *
 
 paraview.compatibility.major = 5
@@ -74,7 +72,9 @@ import vignette_common as vc  # noqa: E402
 VIGNETTE = "ex06_pvLargeData"
 TOOL = "ParaView"
 
-_args = vc.parse_args(VIGNETTE, TOOL, description="render a large multiblock dataset with OSPRay")
+_args = vc.parse_args(
+    VIGNETTE, TOOL, description="render a large multiblock dataset with OSPRay"
+)
 ctx = vc.VignetteContext(VIGNETTE, TOOL, _args, script_dir=SCRIPT_DIR)
 
 # This vignette writes its images through literal "<script-dir>/output" paths
@@ -97,7 +97,7 @@ print("Running ParaView example script: ", sys.argv[0], "\n")
 script_dir = os.path.abspath(os.path.dirname(__file__))
 print("Running script from: ", script_dir)
 
-#### disable automatic camera reset on 'Show'
+# disable automatic camera reset on 'Show'
 paraview.simple._DisableFirstRenderCameraReset()
 
 # ----------------------------------------------------------------
@@ -3193,7 +3193,9 @@ qVAPORLUTColorBar.LabelBold = 1
 qVAPORLUTColorBar.LabelFontSize = 13
 qVAPORLUTColorBar.ScalarBarThickness = 25
 qVAPORLUTColorBar.ScalarBarLength = 0.25
-qVAPORLUTColorBar.RangeLabelFormat = vc.number_format(qVAPORLUTColorBar, "%-#6.1f", "RangeLabelFormat")
+qVAPORLUTColorBar.RangeLabelFormat = vc.number_format(
+    qVAPORLUTColorBar, "%-#6.1f", "RangeLabelFormat"
+)
 
 # set color bar visibility
 qVAPORLUTColorBar.Visibility = 1
@@ -3211,7 +3213,9 @@ qRAINLUTColorBar.LabelBold = 1
 qRAINLUTColorBar.LabelFontSize = 13
 qRAINLUTColorBar.ScalarBarThickness = 25
 qRAINLUTColorBar.ScalarBarLength = 0.24999999999999978
-qRAINLUTColorBar.RangeLabelFormat = vc.number_format(qRAINLUTColorBar, "%-#6.1f", "RangeLabelFormat")
+qRAINLUTColorBar.RangeLabelFormat = vc.number_format(
+    qRAINLUTColorBar, "%-#6.1f", "RangeLabelFormat"
+)
 
 # set color bar visibility
 qRAINLUTColorBar.Visibility = 1
@@ -3229,7 +3233,9 @@ calculatedRainLUTColorBar.LabelBold = 1
 calculatedRainLUTColorBar.LabelFontSize = 13
 calculatedRainLUTColorBar.ScalarBarThickness = 25
 calculatedRainLUTColorBar.ScalarBarLength = 0.25
-calculatedRainLUTColorBar.RangeLabelFormat = vc.number_format(calculatedRainLUTColorBar, "%-#6.1f", "RangeLabelFormat")
+calculatedRainLUTColorBar.RangeLabelFormat = vc.number_format(
+    calculatedRainLUTColorBar, "%-#6.1f", "RangeLabelFormat"
+)
 
 # set color bar visibility
 calculatedRainLUTColorBar.Visibility = 1
@@ -3248,8 +3254,12 @@ qICELUTColorBar.LabelFontSize = 13
 qICELUTColorBar.ScalarBarThickness = 25
 qICELUTColorBar.ScalarBarLength = 0.25
 qICELUTColorBar.AutomaticLabelFormat = 0
-qICELUTColorBar.LabelFormat = vc.number_format(qICELUTColorBar, "%-#6.3f", "LabelFormat")
-qICELUTColorBar.RangeLabelFormat = vc.number_format(qICELUTColorBar, "%-#6.1f", "RangeLabelFormat")
+qICELUTColorBar.LabelFormat = vc.number_format(
+    qICELUTColorBar, "%-#6.3f", "LabelFormat"
+)
+qICELUTColorBar.RangeLabelFormat = vc.number_format(
+    qICELUTColorBar, "%-#6.1f", "RangeLabelFormat"
+)
 
 # set color bar visibility
 qICELUTColorBar.Visibility = 1

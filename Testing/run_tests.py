@@ -430,9 +430,7 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     if tree_cpu_seconds:
         payload["tree_cpu_seconds"] = round(tree_cpu_seconds, 3)
         if duration > 0:
-            payload["tree_cpu_percent"] = round(
-                100.0 * tree_cpu_seconds / duration, 1
-            )
+            payload["tree_cpu_percent"] = round(100.0 * tree_cpu_seconds / duration, 1)
     write_run_result(output_dir, payload)
 
     # VisIt's launcher always exits 250, so for that path the exit code says
@@ -683,16 +681,20 @@ def build_paraview_command(script_path, vignette_args, args):
                 args.ranks, args.nodes
             )
         )
-        cmd = [
-            srun_exec,
-            "--hint=nomultithread",
-            "--nodes={0}".format(args.nodes),
-            "--ntasks={0}".format(args.ranks),
-            "--cpus-per-task={0}".format(args.threads),
-            "--mem-bind=v,none",
-            "--cpu-bind=v,cores",
-            pvbatch_exec,
-        ] + pv_flags + [script_path]
+        cmd = (
+            [
+                srun_exec,
+                "--hint=nomultithread",
+                "--nodes={0}".format(args.nodes),
+                "--ntasks={0}".format(args.ranks),
+                "--cpus-per-task={0}".format(args.threads),
+                "--mem-bind=v,none",
+                "--cpu-bind=v,cores",
+                pvbatch_exec,
+            ]
+            + pv_flags
+            + [script_path]
+        )
 
     else:  # pragma: no cover - argparse constrains the choices
         return None, "Unknown launcher: {0}".format(launcher)
@@ -757,9 +759,7 @@ def find_test_script(test_dir):
     if len(candidates) == 1:
         return os.path.join(test_dir, candidates[0])
     if not candidates:
-        raise FileNotFoundError(
-            "No vignette script found in {0}".format(test_dir)
-        )
+        raise FileNotFoundError("No vignette script found in {0}".format(test_dir))
     raise FileNotFoundError(
         "Ambiguous vignette directory {0}: candidates are {1}. Rename the "
         "primary script to {2}.py.".format(test_dir, candidates, dir_name)
@@ -833,18 +833,14 @@ def build_parser():
         description="Run one Visualization Vignette and report its exit status.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
-        "test_dir", type=str, help="The vignette directory to run."
-    )
+    parser.add_argument("test_dir", type=str, help="The vignette directory to run.")
     parser.add_argument(
         "--tool",
         choices=("auto", "ParaView", "VisIt"),
         default="auto",
         help="Which application drives the vignette.",
     )
-    parser.add_argument(
-        "--ranks", type=int, default=1, help="MPI ranks to launch."
-    )
+    parser.add_argument("--ranks", type=int, default=1, help="MPI ranks to launch.")
     parser.add_argument(
         "--nodes", type=int, default=1, help="Compute nodes to spread ranks across."
     )

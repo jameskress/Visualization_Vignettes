@@ -185,9 +185,7 @@ def main(argv=None):
     source = sorted(glob.glob(os.path.join(args.source_dir, "*.vtk")))
     if not source:
         raise RuntimeError(
-            "No .vtk files in {0}. Run data/fetchData.sh first.".format(
-                args.source_dir
-            )
+            "No .vtk files in {0}. Run data/fetchData.sh first.".format(args.source_dir)
         )
     log("source: {0} timestep(s) in {1}".format(len(source), args.source_dir))
 
@@ -220,7 +218,9 @@ def main(argv=None):
     write_visit_index(vis, entries)
 
     manifest = {
-        "generated_at": datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat(),
+        "generated_at": datetime.datetime.now(datetime.timezone.utc)
+        .replace(microsecond=0)
+        .isoformat(),
         "paraview_version": getattr(paraview, "__version__", None),
         "source_dir": os.path.basename(args.source_dir),
         "time_step": args.time_step,
@@ -239,8 +239,7 @@ def main(argv=None):
 
     before = sum(os.path.getsize(p) for p in source)
     after = sum(
-        os.path.getsize(os.path.join(args.output_dir, name))
-        for _t, name in entries
+        os.path.getsize(os.path.join(args.output_dir, name)) for _t, name in entries
     )
     log(
         "wrote {0} .vtr + series.pvd + series.visit to {1}".format(
@@ -249,8 +248,10 @@ def main(argv=None):
     )
     log(
         "times {0} .. {1}, cycles {2} .. {3}".format(
-            table[0]["time"], table[-1]["time"],
-            table[0]["cycle"], table[-1]["cycle"],
+            table[0]["time"],
+            table[-1]["time"],
+            table[0]["cycle"],
+            table[-1]["cycle"],
         )
     )
     log(

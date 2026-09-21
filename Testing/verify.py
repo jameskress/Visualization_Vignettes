@@ -139,10 +139,10 @@ def compare_single_image(baseline_path, output_path, tolerance=DEFAULT_IMAGE_TOL
 
     if not os.path.exists(baseline_path):
         result["status"] = STATUS_NO_BASELINE
-        result["detail"] = (
-            "No baseline at {0}. Re-run the suite with --bless to record one.".format(
-                baseline_path
-            )
+        result[
+            "detail"
+        ] = "No baseline at {0}. Re-run the suite with --bless to record one.".format(
+            baseline_path
         )
         return result
 
@@ -192,10 +192,10 @@ def compare_single_image(baseline_path, output_path, tolerance=DEFAULT_IMAGE_TOL
         result["status"] = STATUS_SAME
     elif fraction > tolerance:
         result["status"] = STATUS_DIFFERENT
-        result["detail"] = (
-            "{0} of {1} pixels differ ({2:.4%}), tolerance {3:.4%}".format(
-                differing, total_pixels, fraction, tolerance
-            )
+        result[
+            "detail"
+        ] = "{0} of {1} pixels differ ({2:.4%}), tolerance {3:.4%}".format(
+            differing, total_pixels, fraction, tolerance
         )
     else:
         result["status"] = STATUS_ACCEPTABLE
@@ -222,9 +222,7 @@ def list_output_images(output_dir, max_images=None):
     if not os.path.isdir(output_dir):
         return []
     names = sorted(
-        name
-        for name in os.listdir(output_dir)
-        if name.lower().endswith(IMAGE_SUFFIXES)
+        name for name in os.listdir(output_dir) if name.lower().endswith(IMAGE_SUFFIXES)
     )
     if max_images:
         names = names[:max_images]
@@ -301,9 +299,7 @@ def _values_match(actual, expected, rtol, atol):
     if isinstance(expected, (list, tuple)):
         if not isinstance(actual, (list, tuple)) or len(actual) != len(expected):
             return False
-        return all(
-            _values_match(a, e, rtol, atol) for a, e in zip(actual, expected)
-        )
+        return all(_values_match(a, e, rtol, atol) for a, e in zip(actual, expected))
 
     return actual == expected
 
@@ -367,9 +363,7 @@ def compare_results_json(
     if not os.path.exists(baseline_path):
         # No numeric baseline yet. Assertions still gate the test, so a
         # vignette without a blessed baseline is not automatically green.
-        result["status"] = (
-            "FAIL" if result["assertion_failures"] else "NO BASELINE"
-        )
+        result["status"] = "FAIL" if result["assertion_failures"] else "NO BASELINE"
         result["detail"] = "No numeric baseline at {0}".format(baseline_path)
         return result
 
@@ -458,15 +452,14 @@ def compare_csv(
     result["row_count_delta"] = len(output_rows) - len(baseline_rows)
 
     if key_columns:
+
         def row_key(row):
             return tuple(row.get(col, "") for col in key_columns)
 
         output_index = {}
         for row in output_rows:
             output_index[row_key(row)] = row
-        pairs = [
-            (row, output_index.get(row_key(row))) for row in baseline_rows
-        ]
+        pairs = [(row, output_index.get(row_key(row))) for row in baseline_rows]
     else:
         pairs = [
             (baseline_rows[i], output_rows[i] if i < len(output_rows) else None)
@@ -520,10 +513,10 @@ def _cells_match(actual, expected, rtol, atol):
 # Legacy text comparison
 # ---------------------------------------------------------------------------
 DEFAULT_IGNORE_PATTERNS = [
-    r"/[^ ]+/",                      # file paths
-    r"[a-zA-Z]:\\[^ ]+",             # Windows paths
+    r"/[^ ]+/",  # file paths
+    r"[a-zA-Z]:\\[^ ]+",  # Windows paths
     r"\d{2,4}[-/]\d{2}[-/]\d{2,4}",  # dates
-    r"\d+:\d+:\d+",                  # timestamps
+    r"\d+:\d+:\d+",  # timestamps
 ]
 
 

@@ -177,9 +177,16 @@ ENV CMAKE_PREFIX_PATH="/opt/ascent/install:/opt/paraview/lib/cmake/paraview-6.0:
 # We use the stable symlink created above for resilience.
 ENV LD_PRELOAD="/opt/ascent/install/hdf5/lib/libhdf5.so"
 
-# --- Install Python plotting libraries into ParaView's Python ---
+# --- Install the test harness's Python dependencies into ParaView's Python ---
 # We must use the pip associated with ParaView's self-contained Python to install packages.
-RUN /opt/paraview/bin/python3 -m pip install numpy pandas matplotlib
+#
+#   numpy, pandas, matplotlib  the metric history and its plots
+#   pillow                     image comparison; without it no image gate runs
+#   psutil                     per-vignette peak memory and whole-tree CPU.
+#                              Not optional: without it Testing/metrics.py
+#                              omits the memory figure rather than recording
+#                              a wrong one, so every run is missing a gate.
+RUN /opt/paraview/bin/python3 -m pip install numpy pandas matplotlib pillow psutil
 
 # --- Create a stable symlink to the versioned HDF5 directory ---
 # This makes the environment resilient to minor version changes from the Ascent build.
@@ -250,4 +257,3 @@ WORKDIR /app/data
 # Define the default command to be executed by the entrypoint script.
 # The entrypoint will switch to 'vizuser' before running this command.
 CMD ["/bin/bash"]
-

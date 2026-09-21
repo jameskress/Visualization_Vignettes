@@ -453,9 +453,7 @@ def render_configuration(ctx, config, scalar, scalar_range, tables):
         ctx.assert_true(
             "log: log scaling is actually enabled",
             log_enabled,
-            "scaling={0}, expected Log ({1})".format(
-                applied_scaling, int(pc_atts.Log)
-            ),
+            "scaling={0}, expected Log ({1})".format(applied_scaling, int(pc_atts.Log)),
         )
         ctx.assert_true(
             "log: range is strictly positive",
@@ -576,13 +574,9 @@ def run(ctx):
 
     rows = []
     for config in selected:
-        rows.append(
-            render_configuration(ctx, config, scalar, scalar_range, tables)
-        )
+        rows.append(render_configuration(ctx, config, scalar, scalar_range, tables))
 
-    ctx.write_timing_csv(
-        filename="{0}_colormaps.csv".format(VIGNETTE), rows=rows
-    )
+    ctx.write_timing_csv(filename="{0}_colormaps.csv".format(VIGNETTE), rows=rows)
     ctx.add_metric("configurations_rendered", len(rows))
 
     CloseDatabase(dataset)

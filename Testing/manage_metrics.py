@@ -263,7 +263,9 @@ def _format_seconds(seconds):
 # ---------------------------------------------------------------------------
 def repo_root_default():
     """The repository root, inferred from this file's location."""
-    return os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+    return os.path.abspath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    )
 
 
 def _classify(path, root):
@@ -350,9 +352,11 @@ def list_detail(history, root, limit=None):
         print("  (no records)")
         return
     if skipped:
-        print("  ... {0} older record(s) not shown; raise --limit to see them".format(
-            skipped
-        ))
+        print(
+            "  ... {0} older record(s) not shown; raise --limit to see them".format(
+                skipped
+            )
+        )
 
     print(
         "  {0:>4}  {1:<26}  {2:<8}  {3:>6}  {4:<7}  {5}".format(
@@ -392,7 +396,9 @@ def list_summary(files, root):
         newest = keys[-1][:26] if keys else "-"
         name = history.vignette or (history.suite or "Testing")
         if history.suite and history.vignette:
-            name = "{0}/{1}".format(history.suite.replace("_Vignettes", ""), history.vignette)
+            name = "{0}/{1}".format(
+                history.suite.replace("_Vignettes", ""), history.vignette
+            )
         note = ""
         if history.error:
             note = "  !! {0}".format(history.error)
@@ -402,9 +408,7 @@ def list_summary(files, root):
             )
         )
     print("-" * 100)
-    print(
-        "{0} file(s), {1} record(s) total.".format(len(files), total_records)
-    )
+    print("{0} file(s), {1} record(s) total.".format(len(files), total_records))
 
 
 def list_runs_rollup(files, limit):
@@ -550,9 +554,8 @@ def describe_plan(plan, root):
 
 def confirm(total, files_touched):
     """Ask before deleting, unless stdout is not a terminal."""
-    prompt = (
-        "\nRemove {0} record(s) from {1} history file(s)? "
-        "[y/N] ".format(total, files_touched)
+    prompt = "\nRemove {0} record(s) from {1} history file(s)? " "[y/N] ".format(
+        total, files_touched
     )
     try:
         answer = input(prompt)
@@ -731,9 +734,7 @@ def main(argv=None):
     files = discover_history_files(args.root_directory, args.file)
     if not files:
         print(
-            "No performance history files found under {0}.".format(
-                args.root_directory
-            )
+            "No performance history files found under {0}.".format(args.root_directory)
         )
         return EXIT_NOTHING_MATCHED
 
