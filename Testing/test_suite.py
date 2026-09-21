@@ -210,11 +210,47 @@ def extract_example_number(dir_name):
     return float("inf")
 
 
+RESULTS_SUFFIX = "_results.json"
+
+
 def vignette_script_name(test_dir):
-    """Base name of the vignette script, used to locate its results JSON."""
+    """The stem a vignette gives its own results JSON.
+
+    A vignette names that file after its VIGNETTE constant, and in all 26
+    vignettes VIGNETTE is the *directory* name -- not the script filename.
+    The two differ in exactly one place, ParaView_Vignettes/ex00_pvQuery/,
+    whose script is ex00_pvConeStat.py. Deriving the name from the filename
+    there pointed the numeric gate at ex00_pvConeStat_results.json, which no
+    vignette ever writes: compare_numeric_results() saw neither a produced
+    file nor a baseline, took that to mean "this vignette emits no structured
+    results", and returned None. bless_numeric_baseline() recorded nothing
+    for the same reason. The gate was silently dead for that vignette, and
+    would be for any future vignette whose script is not named after its
+    directory.
+
+    Resolution order, strongest evidence first:
+
+      1. a results JSON that actually exists, in Testing/ or in
+         Testing/Baseline/ -- the vignette's own answer to the question
+      2. the directory name, which is the convention every vignette follows
+      3. the script filename, the old behaviour, kept as a last resort
+    """
     dir_name = os.path.basename(os.path.normpath(test_dir))
-    preferred = os.path.join(test_dir, dir_name + ".py")
-    if os.path.isfile(preferred):
+    testing_dir = os.path.join(test_dir, "Testing")
+
+    for folder in (testing_dir, os.path.join(testing_dir, "Baseline")):
+        try:
+            found = sorted(
+                name for name in os.listdir(folder) if name.endswith(RESULTS_SUFFIX)
+            )
+        except OSError:
+            continue
+        if dir_name + RESULTS_SUFFIX in found:
+            return dir_name
+        if found:
+            return found[0][: -len(RESULTS_SUFFIX)]
+
+    if os.path.isfile(os.path.join(test_dir, dir_name + ".py")):
         return dir_name
 
     candidates = [
@@ -224,7 +260,7 @@ def vignette_script_name(test_dir):
         and not name.endswith(("_make_state.py", "_validate.py", "_common.py"))
         and not name.startswith(("make_", "run_", "conftest"))
     ]
-    return candidates[0] if candidates else dir_name
+    return dir_name if not candidates else candidates[0]
 
 
 # ---------------------------------------------------------------------------
@@ -468,6 +504,35 @@ def declared_numeric_extracts(test_dir):
 
     declared = document.get("numeric_extracts") or []
     return [item for item in declared if isinstance(item, dict) and item.get("file")]
+
+
+def declared_image_tolerance(test_dir):
+    """The image tolerance a vignette asked for, or None.
+
+    Read from the results JSON the run just produced, the same way declared
+    CSV extracts are. A vignette knows how noisy its own rendering is; the
+    suite default should not have to be loosened for every vignette because
+    one of them needs slack.
+    """
+    script_name = vignette_script_name(test_dir)
+    results_path = os.path.join(
+        test_dir, "Testing", "{0}_results.json".format(script_name)
+    )
+    if not os.path.exists(results_path):
+        return None
+    try:
+        with open(results_path, "r") as handle:
+            document = json.load(handle)
+    except (ValueError, OSError):
+        return None
+
+    value = document.get("image_tolerance")
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def compare_csv_extracts(test_dir, args):
@@ -883,6 +948,30 @@ def create_summary_report(
 # ---------------------------------------------------------------------------
 # Cleanup
 # ---------------------------------------------------------------------------
+def clear_output_directory(test_dir):
+    """Empty a vignette's output/ so a run starts from nothing.
+
+    Never touches Testing/, which holds the blessed baselines and the
+    committed metric history.
+    """
+    output_dir = os.path.join(test_dir, "output")
+    if not os.path.isdir(output_dir):
+        return
+    removed = 0
+    for name in os.listdir(output_dir):
+        path = os.path.join(output_dir, name)
+        try:
+            if os.path.isdir(path) and not os.path.islink(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+            removed += 1
+        except OSError as exc:  # noqa: BLE001 - report, do not abort the run
+            print("  could not clear {0}: {1}".format(path, exc))
+    if removed:
+        print("  cleared {0} file(s) from output/".format(removed))
+
+
 def clean_test_files(test_directory):
     """Remove generated files from a Testing directory."""
     files_to_clean = [
@@ -955,6 +1044,20 @@ def run_test(test_dir, dir_name, args):
         return
 
     if not args.generate_metrics:
+        # Start from an empty output/ every time.
+        #
+        # This was a documented instruction ("clear output/ before a blessing
+        # run") and instructions are not a mechanism. Two real failures came
+        # out of not doing it: ex12 counted files a previous run had left
+        # behind and reported the wrong extract count, and --bless will
+        # happily record a stale image from an earlier run as the baseline for
+        # this one, which is the worst possible thing for a regression suite
+        # to do quietly.
+        #
+        # Only when we are actually about to run the vignette. --generate-metrics
+        # exists precisely to work from outputs already on disk, and --submit
+        # has not produced any yet.
+        clear_output_directory(test_dir)
         print("Running {0} locally.".format(dir_name))
         rusage_before = child_rusage_snapshot()
         start_time = time.time()
@@ -995,8 +1098,16 @@ def run_test(test_dir, dir_name, args):
 
     # -- image comparison -------------------------------------------------
     baseline_dir = os.path.join(testing_dir, "Baseline")
+    tolerance = declared_image_tolerance(test_dir)
+    if tolerance is None:
+        tolerance = args.image_tolerance
+    elif tolerance != args.image_tolerance:
+        print(
+            "  {0} declares an image tolerance of {1:.4%} (suite default "
+            "{2:.4%}).".format(dir_name, tolerance, args.image_tolerance)
+        )
     comparison_results = compare_images(
-        baseline_dir, test_dir, tolerance=args.image_tolerance
+        baseline_dir, test_dir, tolerance=tolerance
     )
     with open(os.path.join(testing_dir, IMAGE_RESULTS_FILENAME), "w") as handle:
         json.dump(comparison_results, handle, indent=4)
@@ -1054,6 +1165,13 @@ def build_parser():
     )
     parser.add_argument(
         "--clean", action="store_true", help="Clean up generated test files"
+    )
+    parser.add_argument(
+        "--skip-preflight",
+        action="store_true",
+        help="Start even when Testing/prepare_machine.py --check reports the "
+        "generated fixtures as missing or stale. An escape hatch, not a "
+        "default: every way a stale fixture fails looks like a regression.",
     )
     parser.add_argument(
         "--test_number",
@@ -1197,6 +1315,66 @@ def build_parser():
     return parser
 
 
+def preflight(args):
+    """Refuse to start when this machine's generated fixtures are stale.
+
+    WHY THIS IS A GATE AND NOT A README LINE
+
+    Three of the suite's inputs are generated per machine and none of them
+    announces a mismatch. An AMR hierarchy written by ParaView 6.1.0 opens
+    under 6.0.1 and quietly reads 216 points where 842 were written. A VisIt
+    .session from the wrong version restores with plots missing. The XML time
+    series goes stale when its source series changes. Every one of those
+    surfaces as a numeric-gate failure somewhere in the middle of a suite run,
+    looking exactly like a regression in the vignette.
+
+    prepare_machine.py already knows how to check all of it in about two
+    seconds. Running that check first turns "the fixtures were from the wrong
+    ParaView" from a confusing failure two hours into a queue into a refusal
+    to start.
+
+    --skip-preflight exists for the case where the probe cannot find the tool
+    but the run is fine anyway; it is an escape hatch, not a default.
+    """
+    try:
+        import prepare_machine
+    except ImportError as exc:  # pragma: no cover - only if the file is gone
+        print("Preflight skipped: {0}".format(exc))
+        return True
+
+    print("Preflight: checking this machine's generated fixtures...")
+    try:
+        status = prepare_machine.main(["--check", "--tool", args.test_type])
+    except SystemExit as exc:  # argparse inside prepare_machine
+        status = int(exc.code or 0)
+    except Exception as exc:  # noqa: BLE001 - a broken probe must not block
+        print("Preflight could not run ({0}); continuing.".format(exc))
+        return True
+
+    if status == 0:
+        return True
+
+    if status == 3:
+        # Only ex06's 4.3 GB download is absent. Every generated fixture is
+        # current, so the other twelve vignettes are fine and there is no
+        # correctness trap to walk into. Say it once and carry on.
+        print(
+            "Preflight: ex06's datasets are not on this machine. Everything "
+            "else is current; ex06 will fail if it is selected."
+        )
+        return True
+
+    print("")
+    print("Refusing to start: this machine's generated fixtures are missing or")
+    print("stale, and every way they fail looks like a regression in a")
+    print("vignette rather than a setup problem. Fix it with:")
+    print("")
+    print("    python3 Testing/prepare_machine.py")
+    print("")
+    print("Re-run with --skip-preflight to start anyway.")
+    return False
+
+
 def main(argv=None):
     args = build_parser().parse_args(argv)
 
@@ -1215,6 +1393,10 @@ def main(argv=None):
     if args.clean:
         clean_tests(test_directory, example_dirs, args)
         return 0
+
+    if not args.skip_preflight and not args.clean and not args.generate_metrics:
+        if not preflight(args):
+            return 2
 
     if args.bless:
         print(

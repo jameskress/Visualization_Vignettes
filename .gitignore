@@ -1,3 +1,57 @@
 *.mp4
 output/
 build/
+
+# Python bytecode. pvbatch and the VisIt CLI both leave it beside the scripts
+# they import, and `python -m py_compile` scatters it further.
+__pycache__/
+*.pyc
+
+# VisIt writes a transcript of the session next to whatever it ran.
+visitlog.py
+
+# Fetched once by data/fetchData.sh, 4.3 GB, and already extracted beside it.
+data/KAUST_Visualization_Vignettes_Large_Data.zip
+
+# Per-run artifacts written into each vignette's Testing/ directory. This is
+# the same set test_suite.py --clean removes, and none of it is an input to
+# anything. Two things under Testing/ ARE inputs and are deliberately not
+# ignored: Baseline/ (the blessed baselines) and performance_metrics_*.json
+# (the committed history that makes long-term comparison possible).
+*/*/Testing/output.log
+*/*/Testing/error.log
+*/*/Testing/run_result.json
+*/*/Testing/image_comparison_results.json
+*/*/Testing/text_comparison_results.json
+*/*/Testing/results_comparison.json
+*/*/Testing/csv_comparison_results.json
+*/*/Testing/*_results.json
+!*/*/Testing/Baseline/*_results.json
+*/*/Testing/execution_time_*.png
+*/*/Testing/cpu_usage_*.png
+*/*/Testing/memory_usage_*.png
+*/combined_execution_time_plot.png
+Testing/*_summary_report.json
+
+# Generated locally by Testing/prepare_machine.py, never committed. Every one
+# of these is version-locked, path-locked, or both, and none of them announces
+# a mismatch: an AMR hierarchy written by ParaView 6.1.0 opens under 6.0.1 and
+# quietly reads 216 points where 842 were written, and a VisIt .session from
+# the wrong version restores with plots silently missing. Regenerating on each
+# machine is cheap; discovering this in a queue is not.
+#
+#     python3 Testing/prepare_machine.py --check
+#
+VisIt_Vignettes/ex11_visitStateVerification/ex11_visit.session
+VisIt_Vignettes/ex11_visitStateVerification/ex11_series.visit
+ParaView_Vignettes/ex11_pvStateVerification/ex11_state.pvsm
+data/topologies/
+data/varying_series_xml/
+
+# Fetched by data/fetchData.sh alongside the zip, 4.3 GB extracted.
+data/currentRainfall.silo
+data/cyclone-chapala-2015-11-02_00-00-00-mb.vtm
+data/cyclone-chapala-2015-11-02_00-00-00-mb/
+
+# Scratch space for one-off comparison sheets and backups. Never an input.
+.scratch/

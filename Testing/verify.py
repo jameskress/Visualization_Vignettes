@@ -54,6 +54,14 @@ STATUS_NO_BASELINE = "NO BASELINE"
 STATUS_SIZE_MISMATCH = "SIZE MISMATCH"
 STATUS_MISSING_OUTPUT = "MISSING OUTPUT"
 STATUS_ERROR = "ERROR"
+# An image the run produced that no baseline covers. Deliberately NOT a
+# failure, and deliberately NOT spelled "NO BASELINE": blessing is capped at
+# --max-baseline-images (default 5), so an animation vignette that renders ten
+# frames has five uncovered ones by design. Reporting those as failures made
+# every animation vignette permanently red no matter how many times it was
+# blessed. A genuinely missing baseline for an image the comparison set DOES
+# cover is still NO BASELINE, and still fails.
+STATUS_UNBASELINED = "NOT BASELINED"
 
 # Any verdict in this set fails the test.
 IMAGE_FAILURE_STATUSES = frozenset(
@@ -249,15 +257,23 @@ def compare_image_sets(
     # Report images the run produced that no baseline covers. Informational
     # only -- a new image is not a regression, but it should be visible so
     # somebody remembers to bless it.
+    #
+    # This used the failing STATUS_NO_BASELINE, which made the report
+    # contradict both its own comment and the rest of the design: blessing
+    # records at most --max-baseline-images (default 5) images, so a vignette
+    # rendering a ten-frame animation has five uncovered frames the moment it
+    # is blessed, and stayed red forever. Raise --max-baseline-images to cover
+    # more frames; the uncovered ones are listed here either way.
     baselined = set(baseline_names)
     for name in list_output_images(output_dir, max_images=max_images):
         if name not in baselined:
             results.append(
                 {
                     "image": name,
-                    "status": STATUS_NO_BASELINE,
-                    "detail": "Produced by the run but not baselined. "
-                    "Re-run with --bless to record it.",
+                    "status": STATUS_UNBASELINED,
+                    "detail": "Produced by the run but not covered by a "
+                    "baseline. Re-run with --bless (and a large enough "
+                    "--max-baseline-images) to record it.",
                     "tolerance_fraction": tolerance,
                 }
             )

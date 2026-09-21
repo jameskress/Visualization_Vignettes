@@ -37,7 +37,7 @@ except ImportError:  # pragma: no cover - psutil is in the documented venv
 
 # Bumped whenever the meaning of a recorded field changes, so plots and
 # regression checks can refuse to compare across a schema boundary.
-METRICS_SCHEMA = 2
+METRICS_SCHEMA = 4
 
 
 def _maxrss_to_mb(maxrss):
@@ -79,28 +79,69 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
         child_utime -= before.get("utime", 0.0)
         child_stime -= before.get("stime", 0.0)
 
-    # ru_maxrss for children is a high-water mark, not a running total, so it
-    # cannot be differenced -- take it as-is and note when a prior snapshot
-    # showed a higher mark from an earlier test in the same process.
-    child_maxrss_mb = _maxrss_to_mb(after.ru_maxrss)
-    measurement_scope = "children"
-    if before and after.ru_maxrss <= before.get("maxrss", 0):
-        measurement_scope = "children-highwater-from-earlier-test"
+    # Memory, in order of preference.
+    #
+    # run_tests.py samples the vignette's own process tree while it runs and
+    # records the peak in run_result.json. That is the only figure here that
+    # describes THIS vignette.
+    #
+    # resource.getrusage(RUSAGE_CHILDREN).ru_maxrss is the fallback, and it
+    # is a poor one: it is a high-water mark over every child this process
+    # has ever reaped, and it never decreases. test_suite.py runs all
+    # thirteen vignettes from a single process, so after ex06 peaked at
+    # 62 GB, ex07 through ex12 each recorded 61965.6 MB -- ex06's number,
+    # written into their committed history and then compared against by the
+    # performance gate. The scope string used to flag this and the wrong
+    # number was recorded anyway.
+    #
+    # When neither figure is trustworthy the metric is omitted rather than
+    # filled in from a different test: a missing number is a gap, a wrong one
+    # is a false baseline.
+    sampled_peak_mb = None
+    if run_result and run_result.get("peak_rss_mb"):
+        sampled_peak_mb = float(run_result["peak_rss_mb"])
 
+    child_maxrss_mb = _maxrss_to_mb(after.ru_maxrss)
+    stale_highwater = bool(before and after.ru_maxrss <= before.get("maxrss", 0))
+
+    if sampled_peak_mb is not None:
+        child_maxrss_mb = sampled_peak_mb
+        measurement_scope = "child-tree-sampled"
+    elif stale_highwater:
+        child_maxrss_mb = None
+        measurement_scope = "unavailable-highwater-from-earlier-test"
+    else:
+        measurement_scope = "children-highwater"
+
+    # CPU time has the same shape of problem as memory, and it bites VisIt
+    # hardest. RUSAGE_CHILDREN counts only the processes this harness reaped
+    # itself. `visit -cli` forks a viewer, an mdserver and a compute engine,
+    # and the engine is where all the render and query time goes -- so the
+    # first VisIt suite run put ex06 at 13% CPU over 207 seconds while its
+    # engine held 33 GB. run_tests.py now samples the whole tree; prefer that
+    # when it is there, and say which one was used.
+    cpu_scope = "children-rusage"
     cpu_seconds = child_utime + child_stime
+    if run_result and run_result.get("tree_cpu_seconds"):
+        cpu_seconds = float(run_result["tree_cpu_seconds"])
+        cpu_scope = "child-tree-sampled"
     cpu_percent = (100.0 * cpu_seconds / elapsed) if elapsed > 0 else 0.0
 
     metrics = {
         "test_name": test_name,
         "metrics_schema": METRICS_SCHEMA,
         "execution_time": elapsed,
-        # Retained under the original key so existing plots keep working.
-        "memory_usage_mb": child_maxrss_mb,
-        "memory_usage": child_maxrss_mb * 1024 * 1024,
         "memory_measurement_scope": measurement_scope,
+        "cpu_measurement_scope": cpu_scope,
         "cpu_usage_percent": cpu_percent,
         "cpu_seconds": cpu_seconds,
     }
+
+    # Retained under the original key so existing plots keep working, but
+    # only when there is a real number to put there.
+    if child_maxrss_mb is not None:
+        metrics["memory_usage_mb"] = child_maxrss_mb
+        metrics["memory_usage"] = child_maxrss_mb * 1024 * 1024
 
     if run_result:
         metrics["returncode"] = run_result.get("returncode")

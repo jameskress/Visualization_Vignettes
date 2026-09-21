@@ -45,7 +45,13 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
+
+try:
+    import psutil  # pyright: ignore[reportMissingModuleSource]
+except ImportError:  # pragma: no cover - psutil is in the documented venv
+    psutil = None
 
 
 # Helper scripts that live beside a vignette but are not the vignette.
@@ -151,6 +157,74 @@ def select_opengl_window(env):
     return None
 
 
+def visible_gpu_count():
+    """Number of GPUs nvidia-smi reports, or 0 when it cannot be asked."""
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "-L"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except (FileNotFoundError, OSError):
+        return 0
+    if result.returncode != 0:
+        return 0
+    text = result.stdout.decode("utf-8", "replace")
+    return sum(1 for line in text.splitlines() if line.startswith("GPU "))
+
+
+def pin_render_device(env, ranks):
+    """Make GPU selection deterministic for a single-rank render job.
+
+    WHY THIS EXISTS
+
+    ex06 produced a 4.67% pixel difference between two consecutive runs on
+    the same workstation, with the same ParaView and the same data -- enough
+    to fail against a baseline blessed from its own output minutes earlier.
+    The difference was confined to the Surface LIC on the terrain. Surface
+    LIC in isolation is bit-reproducible here; what is not reproducible is
+    which of the two RTX A5000s the driver places the work on. Pinning to a
+    single device took the same run-to-run comparison to 0.0079%, well
+    inside the 0.1% image tolerance.
+
+    A rendering baseline is only meaningful if the same input renders the
+    same way twice, so the device a single-rank job renders on is pinned
+    rather than left to the driver. That job was only ever going to use one
+    GPU; this decides which one.
+
+    Two deliberate limits:
+
+      * Only when ranks == 1. A multi-rank GPU run wants every device, and
+        pinning one would change what is being measured.
+      * An explicit CUDA_VISIBLE_DEVICES from the caller always wins, so a
+        site that assigns devices itself -- Slurm with --gres=gpu does
+        exactly this -- is never overridden.
+
+    Returns the value set, or None when nothing was changed.
+    """
+    if ranks != 1:
+        return None
+    if env.get("CUDA_VISIBLE_DEVICES"):
+        print(
+            "Honouring CUDA_VISIBLE_DEVICES={0} from the environment.".format(
+                env["CUDA_VISIBLE_DEVICES"]
+            )
+        )
+        return None
+
+    count = visible_gpu_count()
+    if count < 2:
+        return None
+
+    env["CUDA_VISIBLE_DEVICES"] = "0"
+    print(
+        "{0} GPUs visible and one rank requested: pinning "
+        "CUDA_VISIBLE_DEVICES=0 so the render is reproducible. Set it "
+        "yourself to choose a different device.".format(count)
+    )
+    return "0"
+
+
 def default_thread_count():
     """Threads per rank, taken from the allocation when Slurm provides one."""
     for var in ("SLURM_CPUS_PER_TASK", "OMP_NUM_THREADS"):
@@ -187,7 +261,112 @@ def read_run_result(testing_dir):
         return None
 
 
-def _execute(cmd, output_dir, env, timeout):
+class _PeakRssSampler(object):
+    """Sample a process tree's resident set and CPU time while it runs.
+
+    WHY NOT resource.getrusage(RUSAGE_CHILDREN)
+
+    ru_maxrss for children is a high-water mark over every child the calling
+    process has EVER reaped, and it never goes down. test_suite.py runs all
+    thirteen vignettes from one process, so once ex06 touched 62 GB, ex07
+    through ex12 each recorded 61965.6 MB as their peak -- ex06's number,
+    written into their committed history and compared against by the
+    performance gate. Six of the thirteen memory figures in a full suite run
+    were not measurements of anything.
+
+    Sampling the child's own tree gives each vignette its own number. The
+    sample interval is coarse on purpose: this measures a multi-second render,
+    not a microbenchmark, and the sampler must not compete with it.
+
+    Falls back to reporting nothing when psutil is unavailable, which is
+    honest -- gather_metrics then says so rather than substituting a figure
+    from a different test.
+
+    THE SAME ARGUMENT APPLIES TO CPU TIME, AND HARDER FOR VisIt
+
+    cpu_usage_percent came from RUSAGE_CHILDREN too, which counts only
+    processes this harness reaped itself. For ParaView that is nearly the
+    whole story -- pvbatch does the work in the process we launched. For
+    VisIt it is not: `visit -cli` starts a viewer, an mdserver and a compute
+    engine, and the engine is where every second of render and query time is
+    spent. The first VisIt suite run measured ex06 at 13% CPU over 207
+    seconds while its engine held 33 GB resident, which is not a number
+    anybody should carry to Shaheen and compare against.
+
+    Process CPU time is cumulative, so the maximum ever seen for a pid is its
+    final total; summing those maxima recovers the tree's CPU even for
+    processes that exited between samples. A process that both starts and
+    ends inside one 0.25s interval is missed, which for a suite whose
+    shortest vignette is 1.7 seconds is noise.
+    """
+
+    INTERVAL_S = 0.25
+
+    def __init__(self, pid):
+        self.pid = pid
+        self.peak_bytes = 0
+        self._cpu_by_pid = {}
+        self._stop = threading.Event()
+        self._thread = None
+
+    def _account(self, process):
+        """Record one process's RSS, and its CPU time if it is higher than
+        anything seen for that pid before. Returns the RSS."""
+        rss = process.memory_info().rss
+        try:
+            times = process.cpu_times()
+            seconds = float(times.user) + float(times.system)
+            key = (process.pid, process.create_time())
+            if seconds > self._cpu_by_pid.get(key, 0.0):
+                self._cpu_by_pid[key] = seconds
+        except Exception:  # noqa: BLE001 - CPU times are best effort
+            pass
+        return rss
+
+    def _sample_once(self, process):
+        total = self._account(process)
+        for child in process.children(recursive=True):
+            try:
+                total += self._account(child)
+            except Exception:  # noqa: BLE001 - a child may exit mid-walk
+                pass
+        return total
+
+    @property
+    def cpu_seconds(self):
+        """CPU time across the whole tree, or None when nothing was sampled."""
+        if not self._cpu_by_pid:
+            return None
+        return sum(self._cpu_by_pid.values())
+
+    def _run(self):
+        try:
+            process = psutil.Process(self.pid)
+        except Exception:  # noqa: BLE001
+            return
+        while not self._stop.is_set():
+            try:
+                self.peak_bytes = max(self.peak_bytes, self._sample_once(process))
+            except Exception:  # noqa: BLE001 - the tree exits under us
+                break
+            self._stop.wait(self.INTERVAL_S)
+
+    def start(self):
+        if psutil is None:
+            return self
+        self._thread = threading.Thread(target=self._run)
+        self._thread.daemon = True
+        self._thread.start()
+        return self
+
+    def stop(self):
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+        return self.peak_bytes or None
+
+
+def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     """Run a vignette, tee its streams to disk, and report the outcome."""
     print("Executing: {0}".format(" ".join(str(part) for part in cmd)))
     sys.stdout.flush()
@@ -199,19 +378,29 @@ def _execute(cmd, output_dir, env, timeout):
     timed_out = False
     returncode = None
 
+    peak_rss_bytes = None
+    tree_cpu_seconds = None
     try:
         with open(stdout_path, "w") as stdout_file, open(
             stderr_path, "w"
         ) as stderr_file:
-            completed = subprocess.run(
+            process = subprocess.Popen(
                 cmd,
                 stdout=stdout_file,
                 stderr=stderr_file,
                 env=env,
-                timeout=timeout,
             )
-        returncode = completed.returncode
+            sampler = _PeakRssSampler(process.pid).start()
+            try:
+                returncode = process.wait(timeout=timeout)
+            finally:
+                peak_rss_bytes = sampler.stop()
+                tree_cpu_seconds = sampler.cpu_seconds
     except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+        peak_rss_bytes = sampler.stop()
+        tree_cpu_seconds = sampler.cpu_seconds
         timed_out = True
         returncode = 124  # conventional timeout status
         with open(stderr_path, "a") as stderr_file:
@@ -235,9 +424,25 @@ def _execute(cmd, output_dir, env, timeout):
         "stderr_log": stderr_path,
         "succeeded": (returncode == 0),
     }
+    if peak_rss_bytes:
+        payload["peak_rss_bytes"] = int(peak_rss_bytes)
+        payload["peak_rss_mb"] = round(peak_rss_bytes / (1024.0 * 1024.0), 3)
+    if tree_cpu_seconds:
+        payload["tree_cpu_seconds"] = round(tree_cpu_seconds, 3)
+        if duration > 0:
+            payload["tree_cpu_percent"] = round(
+                100.0 * tree_cpu_seconds / duration, 1
+            )
     write_run_result(output_dir, payload)
 
-    if returncode == 0:
+    # VisIt's launcher always exits 250, so for that path the exit code says
+    # nothing and announcing it as a failure here would print "FAILED" on
+    # every line of a perfectly green run, immediately above the real
+    # verdict. The caller that knows better asks for silence and reports the
+    # verdict it derives itself.
+    if not announce_verdict:
+        pass
+    elif returncode == 0:
         print("Vignette completed successfully in {0:.2f}s".format(duration))
     else:
         print(
@@ -277,6 +482,86 @@ def _launch_failure(output_dir, message):
 # ---------------------------------------------------------------------------
 # VisIt
 # ---------------------------------------------------------------------------
+# VisIt's CLI launcher does not propagate a script's exit status. Measured on
+# 3.4.2: exit(0), exit(1), exit(13), sys.exit(0) and falling off the end of the
+# script all produce process exit code 250, with and without -noconfig, with
+# and without -quiet, and the launcher is a shell script wrapping `cli` so
+# there is nothing to pass through. The code is not merely wrong, it carries
+# no information at all.
+VISIT_LAUNCHER_EXIT_CODE = 250
+
+
+def _fresh_results_document(output_dir, started_at):
+    """The results JSON a vignette wrote during THIS run, or None.
+
+    Freshness is what makes this a gate rather than a rubber stamp: a run that
+    crashed, hung or was killed leaves the previous run's file sitting there,
+    and reading it would report the previous run's verdict.
+    """
+    newest = None
+    for name in sorted(os.listdir(output_dir)):
+        if not name.endswith("_results.json"):
+            continue
+        path = os.path.join(output_dir, name)
+        try:
+            if os.path.getmtime(path) + 1.0 < started_at:
+                continue  # left over from an earlier run
+            with open(path, "r") as handle:
+                document = json.load(handle)
+        except (OSError, ValueError):
+            continue
+        newest = document
+    return newest
+
+
+def _apply_visit_verdict(payload, output_dir, started_at):
+    """Decide whether a VisIt vignette passed, without using its exit code.
+
+    The vignette's own results JSON is the verdict. It is written by
+    VignetteContext.finish() as the last thing before the process ends, so its
+    presence with a fresh mtime means the vignette reached the end, and its
+    `status` field says what it concluded.
+
+    This is strictly stronger than what the exit code gave us, which was 250
+    for everything -- every VisIt vignette failed gate 1 permanently, pass or
+    fail. It is also stronger than trusting the code even if it worked: a
+    vignette that dies before writing results is caught here by the absence of
+    a fresh file, and one that finishes with failed assertions is caught by
+    its status.
+    """
+    payload["exit_code_is_authoritative"] = False
+    payload["visit_launcher_exit_code"] = payload.get("returncode")
+
+    if payload.get("timed_out"):
+        payload["verdict_source"] = "timeout"
+        payload["succeeded"] = False
+        return payload
+
+    document = _fresh_results_document(output_dir, started_at)
+    if document is None:
+        payload["succeeded"] = False
+        payload["verdict_source"] = "missing results JSON"
+        payload["error"] = (
+            "The vignette wrote no results JSON during this run. VisIt's CLI "
+            "always exits {0}, so the exit code cannot be used; the results "
+            "file is the verdict, and its absence means the vignette did not "
+            "reach the end. See {1}.".format(
+                VISIT_LAUNCHER_EXIT_CODE, payload.get("stderr_log")
+            )
+        )
+        return payload
+
+    status = document.get("status", "unknown")
+    payload["verdict_source"] = "results JSON status={0}".format(status)
+    payload["vignette_status"] = status
+    payload["succeeded"] = status == "ok"
+    if not payload["succeeded"]:
+        payload["error"] = document.get("message") or "vignette reported {0}".format(
+            status
+        )
+    return payload
+
+
 def run_local_visit(script_path, vignette_args, output_dir, args):
     """Run a VisIt vignette through the CLI.
 
@@ -292,15 +577,41 @@ def run_local_visit(script_path, vignette_args, output_dir, args):
             "containing 'visit', or put it on PATH.",
         )
 
-    cmd = [visit_exec, "-cli", "-nowin", "-s", script_path]
+    # -noconfig is not optional for a regression suite. Without it VisIt
+    # reads ~/.visit/config on startup, which carries that user's saved
+    # annotation, save-window, window-size and colour-table state -- so a
+    # blessed baseline becomes partly a function of whose home directory ran
+    # it, and ex10 in particular stops measuring colour-map fidelity and
+    # starts measuring the developer's preferences. The user running this
+    # suite here has a populated ~/.visit with nine custom colour tables in
+    # it, so this is not hypothetical.
+    cmd = [visit_exec, "-cli", "-nowin", "-noconfig", "-s", script_path]
     cmd.extend(vignette_args)
 
     env = os.environ.copy()
     env["OMP_NUM_THREADS"] = str(args.threads)
+    pin_render_device(env, args.ranks)
     if not args.write_metrics:
         env["VV_NO_METRICS"] = "1"
 
-    return _execute(cmd, output_dir, env, args.timeout)
+    started_at = time.time()
+    payload = _execute(cmd, output_dir, env, args.timeout, announce_verdict=False)
+
+    # VisIt's exit code is meaningless (see above), so the verdict comes from
+    # what the vignette wrote. Re-record it so test_suite.py, which gates on
+    # run_result.json, sees the real answer.
+    payload = _apply_visit_verdict(payload, output_dir, started_at)
+    write_run_result(output_dir, payload)
+    if payload["succeeded"]:
+        print("Vignette passed ({0}).".format(payload["verdict_source"]))
+    else:
+        print(
+            "Vignette FAILED ({0}) -- VisIt's launcher exit code {1} is not "
+            "meaningful and was ignored.".format(
+                payload["verdict_source"], payload.get("visit_launcher_exit_code")
+            )
+        )
+    return payload
 
 
 # ---------------------------------------------------------------------------
@@ -400,6 +711,7 @@ def run_local_paraview(script_path, vignette_args, output_dir, args):
     env["OMP_NUM_THREADS"] = str(args.threads)
     env["TBB_NUM_THREADS"] = str(args.threads)
     select_opengl_window(env)
+    pin_render_device(env, args.ranks)
     if not args.write_metrics:
         env["VV_NO_METRICS"] = "1"
 
