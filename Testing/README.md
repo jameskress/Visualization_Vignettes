@@ -12,7 +12,7 @@ This `test_suite.py` script runs performance and regression tests for **VisIt** 
 When you run `test_suite.py`, it performs several actions for each test vignette:
 
 1. **Regression Test:** Runs the vignette and compares its outputs against the baselines stored in that test's `Testing/Baseline/` directory.
-2. **Performance Test:** Records execution time, memory usage, and CPU usage for the run.
+2. **Performance Test:** Records execution time, memory usage, and CPU usage for the run. Peak memory is sampled from the vignette's own process tree while it runs — `resource.getrusage(RUSAGE_CHILDREN)` reports a high-water mark over every child the harness has ever reaped and never decreases, so after one large vignette every later one in the same invocation reported *its* peak instead of their own.
 3. **Data Logging:** Saves the new performance metrics into a `performance_metrics_*.json` file in the test's `Testing/` directory.
 4. **Plot Generation:** Updates the performance graphs (`.png` files) inside that same `Testing/` directory, showing the new run alongside all previous ones.
 
@@ -43,6 +43,12 @@ a black frame, or crash outright, and still leave CI green.
 * **Comparison is driven from the baseline list**, not from whatever the run
   emitted, so a vignette that stops producing one of its frames reports
   `MISSING OUTPUT` instead of passing with fewer images.
+* **An image the run produced that no baseline covers is reported, not failed.**
+  Blessing records at most `--max-baseline-images` (default 5), so a ten-frame
+  animation has five uncovered frames by design; those are listed as
+  `NOT BASELINED`, which does not fail. `NO BASELINE` — a missing baseline for an
+  image the comparison set does cover — still fails. Raise
+  `--max-baseline-images` to cover more frames.
 
 ### Numeric comparison
 
@@ -342,6 +348,40 @@ python test_suite.py $SCRATCH/Visualization_Vignettes/ \
 
 ---
 
+## Reading the plots
+
+Every vignette writes six PNGs into its `Testing/` directory on each run, two
+per metric (execution time, peak memory, CPU). They are generated, not
+committed.
+
+* **`<metric>_comparison.png` -- trend.** One small panel per configuration.
+  A configuration's runs are plotted against **its own run number**, 1..N, so
+  they are evenly spaced and no line is ever drawn across a gap belonging to
+  another machine. y is autoscaled per panel, because the question a trend
+  panel answers is "did THIS configuration move". Marker shape is the tool
+  version. Runs recorded before the current `metrics_schema` sit behind a
+  grey band with a dashed divider, for the metrics whose definition changed
+  there.
+* **`<metric>_latest.png` -- comparison.** One bar per configuration, most
+  recent run, labelled with the version and the date. "Is Shaheen slower than
+  the workstation" is not a question about time, and answering it with a time
+  series is what made the old plot unreadable. Configurations whose newest run
+  predates the current schema are left out rather than drawn as a bar nobody
+  can trust.
+
+`<suite>/combined_execution_time_plot.png` shows the most recent execution
+time for every vignette on every configuration as grouped bars, log scale
+because ex06 is fifty times the next vignette.
+
+**Why the x axis is a run number and not a date.** It used to be a date, then
+an index into the union of every configuration's timestamps, and both had the
+same problem: with eleven configurations and sixty-seven runs between them,
+each configuration occupied a narrow band and then drew a straight line across
+the whole figure through sixty positions where it had no data. The axis
+carried sixty-seven rotated timestamps, most belonging to somebody else.
+Per-configuration run numbers remove the problem rather than moving it; the
+dates are still on the ticks, thinned to five per panel.
+
 ## How Baselines Work
 
 Regression testing compares output files against a baseline stored in each
@@ -367,9 +407,14 @@ python test_suite.py ../ --test_type ParaView --test_number 7 --machine_name my-
 python test_suite.py ../ --test_type ParaView --test_number 7 --machine_name my-machine
 ```
 
-`--bless` records both the images (up to `--max-baseline-images`, default 5)
-and the structured results JSON. Review the diff before committing: a blessed
-baseline is an assertion about what correct looks like.
+`--bless` records the images (up to `--max-baseline-images`, default 5), the
+structured results JSON, and any declared numeric CSV extracts. Review the diff
+before committing: a blessed baseline is an assertion about what correct looks
+like.
+
+**Clear `output/` first.** Nothing in the harness does — `--clean` only touches
+`Testing/` — and `ex12` counts the files it produced, so a stale `.vtp` or `.png`
+from an earlier run with a different `--steps` ends up in the baseline.
 
 ### Updating a baseline
 
@@ -408,6 +453,82 @@ Useful related flags:
 | `--no-offscreen` | Do not force offscreen rendering. Required by `ex11`, which runs under `xvfb-run`. |
 | `--image-tolerance F` | Fraction of pixels allowed to be different. Default `0.001`. |
 | `--vignette-arg ARG` | Forward an extra flag verbatim to every vignette. Repeatable. |
+
+### Rendering determinism
+
+Two things are pinned so that an image baseline means something.
+
+**GPU selection.** On a node with more than one GPU the driver does not place
+work consistently, and a single-rank render job was only ever going to use one
+device anyway — so for `--ranks 1` the harness sets `CUDA_VISIBLE_DEVICES=0` and
+says so in the log. An explicit `CUDA_VISIBLE_DEVICES` in the environment always
+wins, which is what Slurm `--gres=gpu` provides, and nothing is pinned for a
+multi-rank run.
+
+**VisIt configuration.** The VisIt CLI is launched with `-noconfig`. Without it
+VisIt reads `~/.visit/config` at startup — saved annotation, save-window,
+window-size and colour-table state — and a blessed baseline becomes partly a
+function of whose home directory ran the suite.
+
+Two consequences of that are worth knowing before you read a VisIt log:
+
+* **`-noconfig` also hides VisIt's own colour tables.** VisIt starts with 157
+  colour tables normally and **18** with `-noconfig`, because 129 of the missing
+  ones ship as `.ct` files under `$VISITARCHHOME/resources/colortables/` and are
+  loaded by the same code path. `viridis`, `plasma`, `magma` and `Blues` are all
+  in that group. VisIt does not refuse an unknown table name at the point of
+  use — it accepts it, fails the plot asynchronously, and every later query on
+  that plot returns `None`. Vignettes therefore load what they need explicitly
+  through `vc.ensure_color_table()`, which reads the `.ct` out of the install.
+  Because those files ship with VisIt, this is identical on Shaheen and Ibex.
+* **`~/.visit` can silently substitute a different VisIt.** A host profile that
+  names an install path makes the client start an engine from *that* build, not
+  from the one you invoked, and makes it parallel and scalable-rendering when
+  you asked for neither. `-noconfig` is what stops that.
+
+### VisIt's exit code is not the verdict
+
+`visit -cli` returns **250 whether the script succeeded or not** — on a clean
+run, on a Python traceback, and on a crashed compute engine alike. Gating on it
+would mark every VisIt run as failed.
+
+So for VisIt the harness records the exit code but does not use it. The verdict
+comes from the vignette's own results JSON, and that file must have been written
+**after this run started** — otherwise a vignette that dies before writing
+anything would inherit the previous run's verdict. A timeout fails regardless.
+
+`run_result.json` says which rule was applied:
+
+```json
+{
+  "returncode": 250,
+  "exit_code_is_authoritative": false,
+  "visit_launcher_exit_code": 250,
+  "verdict_source": "results JSON status=ok",
+  "succeeded": true
+}
+```
+
+In the console the line to read is `Vignette passed (results JSON status=ok)`.
+
+### Rehearsing a parallel VisIt run on a workstation
+
+`--machine local` never contacts a scheduler, but above one rank it now starts a
+real parallel engine through VisIt's own bundled `mpirun`:
+
+```bash
+python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
+  --machine_name <name>-np8 --ranks 8 --no-metrics
+```
+
+Use it to find a parallel problem before spending queue time on one.
+
+Bless from it only where the baseline is meant to be parallel.
+`ex06_visitLargeData` is the one such case: its scene is built from overlapping
+translucent plots, which are composited in a partition-dependent order, so it is
+blessed at the eight ranks its `.sbat` scripts request and turns its own image
+gate off (with a warning) at any other rank count. Opaque vignettes are
+bit-identical at one rank and at eight, measured.
 
 ### How VisIt's compute engine is launched
 
@@ -560,17 +681,80 @@ nothing about them changed.
 
 ## One-time data preparation
 
-Some vignettes read datasets that are generated rather than downloaded:
+Some vignettes read datasets that are generated rather than downloaded, and
+none of the generated ones is portable: two are locked to a ParaView version,
+one to a VisIt version, one holds absolute paths, and one is a converted copy
+that goes stale when its source changes. One command handles all of it,
+rebuilding only what is missing or stale:
 
 ```bash
-# ex09 (both suites) -- four mesh topologies plus a shared scalar field
+python3 prepare_machine.py           # generate what is needed
+python3 prepare_machine.py --check   # verify only; non-zero exit if not ready
+python3 prepare_machine.py --force   # regenerate regardless
+```
+
+### The two time series, and why there are two
+
+`data/varying_data/varying*.vtk` carries geometry and a scalar and **nothing
+that says which timestep it is**. Both ParaView and VisIt therefore invent a
+time from the file's position in the list, and they agreed on that invention
+until VisIt 3.4.2 changed it from the state index to zero.
+
+`data/make_time_series.py` converts the same twenty timesteps to XML `.vtr`
+with `TIME` and `CYCLE` in each file's field data, a `series.pvd` for ParaView
+and a `series.visit` for VisIt. All three builds in use here then read the same
+real values:
+
+```
+timestep  0    1     2
+cycle     0    100   200
+time      0.0  0.05  0.10
+```
+
+ex05 puts that on the frame, in both suites: `Cycle: 300    Time: 0.15` in the
+top-left corner. VisIt uses a `Text2D` annotation with its own `$cycle` and
+`$time` macros; ParaView uses a `PythonAnnotation` reading `CYCLE` out of field
+data, because `AnnotateTimeFilter` formats the time and nothing else. So the
+frame is also the quickest way to see what a reader made of a series.
+
+**ex05 and ex12 read the XML series**, because time is their subject.
+**ex07, ex10 and ex11 keep the legacy series**, because ex11's ParaView state
+exists to exercise `LegacyVTKReader` through a saved `.pvsm` and the other two
+only need some data. Keeping both is deliberate: one shows what a reader does
+when the file tells it the time, the other shows what it does when the file
+does not.
+
+The XML series is generated per machine and is not committed. `prepare_machine.py`
+builds it and reports it stale when the source series has grown.
+
+It finds `pvbatch` and `visit` the way `run_tests.py` does -- `$PARAVIEW_PATH`
+and `$VISIT_PATH` first, then `PATH` -- and skips a tool that is not installed
+rather than failing. It will not start `fetchData.sh` on your behalf; that is a
+4.3 GB download and it says so instead.
+
+`--check` is worth putting at the top of a job script.
+
+### Why this is checked rather than trusted
+
+Getting it wrong is quiet. An AMR hierarchy written by ParaView 6.1.0 opens
+without complaint under 6.0.1, which then reads 216 points and 125 cells where
+6.1.0 wrote 842 and 605. Nothing errors. `ex09` simply reports different numbers
+and fails its numeric gate for a reason that looks like a regression in the
+vignette.
+
+So the fixtures carry their provenance and the vignettes check it:
+`topologies_manifest.json` records the generating ParaView, a `.pvsm` already
+records its own, and `ex09` and `ex11` refuse to run against a fixture from a
+different major.minor -- naming the command that fixes it. A fixture with no
+recorded version is warned about rather than failed, so an older checkout still
+runs.
+
+The underlying generators, if you need them individually:
+
+```bash
 pvbatch ../data/make_topology_datasets.py
-
-# ex11 ParaView -- regenerate per ParaView major version
 pvbatch ../ParaView_Vignettes/ex11_pvStateVerification/ex11_make_state.py
-
-# ex11 VisIt -- regenerate per VisIt version
-visit -cli -nowin -s ../VisIt_Vignettes/ex11_visitStateVerification/ex11_make_state.py
+visit -cli -nowin -noconfig -s ../VisIt_Vignettes/ex11_visitStateVerification/ex11_make_state.py
 ```
 
 `ex10` needs nothing prepared. Its colour maps ship beside it

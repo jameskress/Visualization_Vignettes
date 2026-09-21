@@ -116,7 +116,16 @@ jobs:
             export PATH="$PARAVIEW_DIR:$PATH"
             $PARAVIEW_DIR/pvbatch --version
             cd Testing
-            python3 test_suite.py ../ --test_type ParaView --paraview_version 5.13.1 --non_gpu_machine
+            # Three of the suite inputs are generated per machine and are not
+            # committed (see Testing/prepare_machine.py). Without this the
+            # suite now refuses to start, which is the point: a stale fixture
+            # fails later, disguised as a regression in a vignette.
+            # ex06 needs a 4.3 GB download that CI has no business fetching;
+            # prepare_machine reports that separately and the preflight lets
+            # it through as a warning.
+            python3 prepare_machine.py
+            # The version label follows what is actually downloaded above.
+            python3 test_suite.py ../ --test_type ParaView --paraview_version 6.0.1 --non_gpu_machine
             echo "ParaView tests complete"
           '
       - uses: actions/upload-artifact@v4
@@ -207,6 +216,7 @@ jobs:
             export PATH="$VISIT_DIR:$PATH"
             $VISIT_DIR/visit -version
             cd Testing
+            python3 prepare_machine.py --tool VisIt
             python3 test_suite.py ../ --test_type VisIt --visit_version ${{ env.VISIT_VER }} --test_number 0
             echo "VisIt tests complete"
           '
