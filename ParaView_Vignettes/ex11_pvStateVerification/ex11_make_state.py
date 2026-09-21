@@ -8,12 +8,20 @@
 #   A .pvsm is version-sensitive. A state written by ParaView 5.13 loaded
 #   into 6.0 may work, may warn, or may silently drop a property, and that is
 #   precisely the failure ex11_pvStateVerification exists to detect. Keeping
-#   generation separate means the state in the repository is a deliberate,
-#   dated artifact rather than something regenerated on every run -- which
-#   would make the test tautological.
+#   generation separate means the state ex11 loads is a deliberate artifact
+#   rather than something regenerated on every run -- which would make the
+#   test tautological.
 #
-#   Regenerate it when you intentionally move to a new ParaView major
-#   version, review the diff, and commit it:
+#   It is generated per machine and NOT committed, for the same reason it is
+#   version-sensitive: a .pvsm from the wrong ParaView is worse than a missing
+#   one, because it loads. Testing/prepare_machine.py reads the version out of
+#   the file and rebuilds it when it does not match the running ParaView:
+#
+#     python3 Testing/prepare_machine.py           # build what is stale
+#     python3 Testing/prepare_machine.py --check    # refuse to start if stale
+#
+#   Running this script directly still works and is what prepare_machine.py
+#   calls:
 #
 #     pvbatch ex11_make_state.py
 #
@@ -33,7 +41,25 @@ import argparse
 import os
 import sys
 
-from paraview.simple import *  # noqa: F401,F403
+
+def _bootstrap_common():
+    """Put Testing/ on sys.path so vignette_common can be imported."""
+    here = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
+    testing = os.path.abspath(os.path.join(here, "..", "..", "Testing"))
+    if testing not in sys.path:
+        sys.path.insert(0, testing)
+    return here
+
+
+SCRIPT_DIR = _bootstrap_common()
+
+import vignette_common as vc  # noqa: E402
+
+# `paraview` is imported explicitly rather than relied on leaking out of the
+# star import below: _DisableFirstRenderCameraReset() is reached through the
+# `paraview` name, and a star import is not required to export it.
+import paraview  # noqa: E402
+from paraview.simple import *  # noqa: E402,F401,F403
 
 
 STATE_FILENAME = "ex11_state.pvsm"
@@ -109,7 +135,7 @@ def main(argv=None):
     ColorBy(display, ("POINTS", SCALAR))
 
     lut = GetColorTransferFunction(SCALAR)
-    lut.ApplyPreset("Cool to Warm", True)
+    vc.apply_color_preset(lut, ("Cool to Warm",))
 
     array_info = reader.PointData.GetArray(SCALAR)
     if array_info is not None:
@@ -133,11 +159,13 @@ def main(argv=None):
     SaveState(args.output)
     log("wrote {0}".format(args.output))
     log(
-        "Commit this file. Regenerate it only when deliberately moving to a "
-        "new ParaView version."
+        "This file is generated, not committed: a .pvsm is locked to the "
+        "ParaView that wrote it, and a mismatch does not announce itself. "
+        "Testing/prepare_machine.py rebuilds it when the version changes, "
+        "and --check refuses to start a run against a stale one."
     )
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    vc.exit_vignette(main())

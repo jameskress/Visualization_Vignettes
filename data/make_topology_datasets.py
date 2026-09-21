@@ -13,7 +13,7 @@
 #
 #   scalar_field.vti          uniform rectilinear image data
 #   tetra_unstructured.vtu    unstructured grid of tetrahedra
-#   amr_hierarchy.vth         overlapping AMR hierarchy
+#   amr_hierarchy.vth[b]      overlapping AMR hierarchy
 #   surface_polydata.vtp      triangulated polygonal surface
 #   ragged_multiblock.vtm     multiblock with deliberately unequal blocks
 #
@@ -34,6 +34,7 @@
 # Author: James Kress, <james@jameskress.com>
 #
 import argparse
+import datetime
 import json
 import os
 import sys
@@ -47,10 +48,72 @@ from paraview.simple import *  # noqa: F401,F403
 TARGET_SCALAR = "scalar"
 CONTOUR_VALUE = 150.0
 
+# Only reached when the AMR array cannot be measured at all. Every normal
+# run records a value taken from the data.
+AMR_FALLBACK_CONTOUR_VALUE = 0.15
+
 # Wavelet extent. 51^3 points is large enough that a contour has real
 # geometry to compare and small enough that the whole set of datasets stays
 # a few tens of megabytes.
 WAVELET_EXTENT = [-25, 25, -25, 25, -25, 25]
+
+# ParaView renamed the overlapping-AMR XML extension between 5.13 (".vth")
+# and 6.x (".vthb"), and vtkSMWriterFactory matches purely on the extension:
+# SaveData("...vth") on ParaView 6.1 finds no writer, returns a null proxy,
+# and CreateWriter then raises AttributeError on it. A single hard-coded
+# extension is therefore wrong on exactly one of the two releases, so both
+# are tried and whichever one produced a file is what the manifest records.
+AMR_EXTENSIONS = (".vth", ".vthb")
+
+
+def _paraview_version_string():
+    """The running ParaView's version, as major.minor.patch when available.
+
+    paraview.__version__ carries the full "6.1.0"; GetParaViewVersion() gives
+    only (6, 1). The full string is recorded and the comparison is made on
+    major.minor, which is the granularity at which these formats actually
+    change.
+    """
+    try:
+        import paraview
+        version = getattr(paraview, "__version__", None)
+        if version:
+            return str(version)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        return ".".join(str(part) for part in GetParaViewVersion())
+    except Exception:  # noqa: BLE001
+        return "unknown"
+
+
+def point_array_range(proxy, name):
+    """(min, max) of a point array on an updated proxy, or None.
+
+    Measuring beats assuming. Two of the five datasets had a hard-coded
+    isovalue that does not lie inside their data, and neither failure was
+    visible until ex09 asserted on the contour it produced.
+    """
+    array = proxy.PointData.GetArray(name)
+    if array is None:
+        return None
+    low, high = array.GetRange(0)
+    return (float(low), float(high))
+
+
+def interior_value(value_range, fraction=0.5):
+    """A value strictly inside `value_range`.
+
+    Used to pick an isovalue that is guaranteed to produce geometry on a
+    continuous field. Returns None for a degenerate range, which is the
+    caller's signal that contouring this array is meaningless.
+    """
+    if value_range is None:
+        return None
+    low, high = value_range
+    if not high > low:
+        return None
+    return round(low + (high - low) * fraction, 9)
 
 
 def log(message):
@@ -81,6 +144,8 @@ def write_uniform(base, output_dir, manifest):
         "topology": "uniform image data",
         "scalar": TARGET_SCALAR,
         "association": "POINTS",
+        "scalar_range": point_array_range(base, TARGET_SCALAR),
+        "contour_value": CONTOUR_VALUE,
     }
 
 
@@ -97,29 +162,71 @@ def write_tetrahedra(base, output_dir, manifest):
         "topology": "unstructured grid (tetrahedra)",
         "scalar": TARGET_SCALAR,
         "association": "POINTS",
+        "scalar_range": point_array_range(tets, TARGET_SCALAR),
+        "contour_value": CONTOUR_VALUE,
     }
     Delete(tets)
 
 
 def write_polydata(base, output_dir, manifest):
-    """Triangulated polygonal surface carrying the same scalar."""
+    """Triangulated polygonal surface carrying a scalar that varies ALONG it.
+
+    The surface is the isosurface of the wavelet at CONTOUR_VALUE, so on it
+    the wavelet scalar is exactly CONTOUR_VALUE everywhere -- range
+    [150, 150]. Shipping that array under the name the vignettes contour on
+    made ex09's polydata case empty by construction: contouring a constant
+    field at its own constant value produces nothing, in ParaView and in
+    VisIt alike, and no version change would ever have fixed it.
+
+    What ex09 says it wants from this dataset is the case where "a volume
+    contour becomes an isoline and the filter has to cope with it". An
+    isoline needs a field that varies across the surface, so `scalar` is
+    overwritten here with the Y coordinate, and the manifest records the
+    isovalue to cut it at -- measured, not assumed.
+    """
     surface = Contour(Input=base, registrationName="vv_surface")
     surface.ContourBy = ["POINTS", TARGET_SCALAR]
     surface.Isosurfaces = [CONTOUR_VALUE]
     surface.PointMergeMethod = "Uniform Binning"
     UpdatePipeline(proxy=surface)
 
+    varying = Calculator(Input=surface, registrationName="vv_surface_scalar")
+    varying.AttributeType = "Point Data"
+    varying.ResultArrayName = TARGET_SCALAR
+    varying.Function = "coordsY"
+    UpdatePipeline(proxy=varying)
+
+    scalar_range = point_array_range(varying, TARGET_SCALAR)
+    isovalue = interior_value(scalar_range)
+    if isovalue is None:
+        raise RuntimeError(
+            "surface scalar did not vary across the polydata: range "
+            "{0}".format(scalar_range)
+        )
+
     path = os.path.join(output_dir, "surface_polydata.vtp")
-    SaveData(path, proxy=surface, PointDataArrays=[TARGET_SCALAR])
-    log("wrote {0}".format(path))
+    SaveData(path, proxy=varying, PointDataArrays=[TARGET_SCALAR])
+    log("wrote {0} (scalar range {1}, isovalue {2})".format(
+        path, scalar_range, isovalue))
     manifest["polydata"] = {
         "path": os.path.basename(path),
         "topology": "polydata surface (triangles)",
         "scalar": TARGET_SCALAR,
         "association": "POINTS",
-        "note": "Already a surface; ex09 contours it in-plane to exercise the "
-        "degenerate case rather than skipping it.",
+        "scalar_range": scalar_range,
+        "contour_value": isovalue,
+        # The input is 2D, so its contour is 1D. ex09 reads this to decide
+        # whether the contour can carry a frame on its own (a surface can) or
+        # needs its input drawn underneath it (a curve does). Stated here
+        # because the generator is what knows; a vignette would be guessing.
+        "contour_is_lower_dimensional": True,
+        "note": "Already a surface, so `scalar` here is the Y coordinate "
+        "rather than the wavelet field: contouring the surface at its own "
+        "defining isovalue is empty by construction. Contouring this at the "
+        "recorded value yields isolines, which is the degenerate-input case "
+        "ex09 exists to exercise.",
     }
+    Delete(varying)
     Delete(surface)
 
 
@@ -199,6 +306,8 @@ def write_ragged_multiblock(base, output_dir, manifest):
         "topology": "multiblock dataset (unequal blocks)",
         "scalar": TARGET_SCALAR,
         "association": "POINTS",
+        "scalar_range": point_array_range(base, TARGET_SCALAR),
+        "contour_value": CONTOUR_VALUE,
         "blocks": block_report,
         "deliberately_ragged": len(set(sizes)) > 1,
     }
@@ -206,6 +315,30 @@ def write_ragged_multiblock(base, output_dir, manifest):
     Delete(group)
     for block in blocks:
         Delete(block)
+
+
+def _save_amr(produced, output_dir):
+    """Write the AMR hierarchy, trying each extension this ParaView may know.
+
+    Returns (path, None) on success and (None, error) when no writer in this
+    build accepted any of them. Probing rather than branching on the ParaView
+    version keeps this correct for builds that carry both writers and for
+    whatever the next release renames it to, provided the name is added here.
+    """
+    last_error = None
+    for extension in AMR_EXTENSIONS:
+        path = os.path.join(output_dir, "amr_hierarchy" + extension)
+        try:
+            SaveData(path, proxy=produced)
+        except Exception as exc:  # noqa: BLE001 - probing for a usable writer
+            last_error = exc
+            continue
+        if os.path.exists(path):
+            return path, None
+        last_error = RuntimeError(
+            "the writer for {0} was accepted but produced no file".format(extension)
+        )
+    return None, last_error
 
 
 def write_amr(output_dir, manifest):
@@ -220,15 +353,14 @@ def write_amr(output_dir, manifest):
     installed ParaView the native array name is recorded in the manifest so
     the vignettes still know what to contour.
     """
-    path = os.path.join(output_dir, "amr_hierarchy.vth")
-
     try:
         amr = AMRGaussianPulseSource(registrationName="vv_amr")
     except (NameError, RuntimeError) as exc:
         log(
             "AMRGaussianPulseSource unavailable ({0}). Skipping the AMR "
-            "dataset; ex09 will report it as unavailable rather than "
-            "failing.".format(exc)
+            "dataset; ex09 will fail on the missing manifest entry, which is "
+            "the honest outcome -- it cannot test a topology that does not "
+            "exist.".format(exc)
         )
         manifest["amr"] = {
             "path": None,
@@ -266,28 +398,64 @@ def write_amr(output_dir, manifest):
         association = "CELLS"
         produced = amr
 
-    SaveData(path, proxy=produced)
-    log("wrote {0}".format(path))
+    path, write_error = _save_amr(produced, output_dir)
+    if path is None:
+        log(
+            "No AMR writer in this ParaView accepted {0} ({1}). Recording the "
+            "dataset as unavailable.".format(
+                " or ".join(AMR_EXTENSIONS), write_error
+            )
+        )
+        manifest["amr"] = {
+            "path": None,
+            "topology": "overlapping AMR",
+            "available": False,
+            "reason": str(write_error),
+        }
+        return
+
+    # The Gaussian pulse's range is a property of the source, not something
+    # to assume. amr_contour_value() returned 0.5 down both of its branches;
+    # the pulse actually tops out near 0.33, so ex09's AMR contour was empty
+    # on every run and the assertion that it produced geometry always failed.
+    scalar_range = (
+        point_array_range(produced, scalar_name) if association == "POINTS" else None
+    )
+    isovalue = interior_value(scalar_range)
+    if isovalue is None:
+        isovalue = AMR_FALLBACK_CONTOUR_VALUE
+        log(
+            "could not measure the AMR scalar range; falling back to "
+            "isovalue {0}".format(isovalue)
+        )
+
+    log("wrote {0} (scalar range {1}, isovalue {2})".format(
+        path, scalar_range, isovalue))
     manifest["amr"] = {
         "path": os.path.basename(path),
         "topology": "overlapping AMR hierarchy",
         "scalar": scalar_name,
         "association": association,
         "available": True,
+        "scalar_range": scalar_range,
+        "contour_value": isovalue,
     }
 
 
 def amr_contour_value(manifest):
-    """Isovalue for the AMR dataset.
+    """Isovalue for the AMR dataset, kept for backwards compatibility.
 
-    The Gaussian pulse spans roughly 0 to 1, so the shared value of 150 would
-    produce an empty contour. Recorded in the manifest so ex09 never has to
-    hard-code a per-dataset constant.
+    Every dataset now records its own measured `contour_value`, and that is
+    what the vignettes read. This top-level key is preserved so a manifest
+    consumer written against the previous layout still finds it -- but it
+    reports the measured value rather than the constant 0.5 it used to
+    return down both branches, which was above the pulse's actual maximum.
     """
     entry = manifest.get("amr", {})
-    if entry.get("scalar") == TARGET_SCALAR and entry.get("association") == "POINTS":
-        return 0.5
-    return 0.5
+    recorded = entry.get("contour_value")
+    if recorded is not None:
+        return float(recorded)
+    return AMR_FALLBACK_CONTOUR_VALUE
 
 
 def main(argv=None):
@@ -312,8 +480,18 @@ def main(argv=None):
     os.makedirs(output_dir, exist_ok=True)
     log("output directory: {0}".format(output_dir))
 
+    # Provenance. These datasets are NOT portable between ParaView major.minor
+    # versions and the failure is silent: an AMR hierarchy written by 6.1.0 is
+    # opened without complaint by 6.0.1, which then reads 216 points and 125
+    # cells where 6.1.0 wrote 842 and 605. Nothing errors; ex09 simply reports
+    # different numbers and fails its numeric gate for a reason that looks
+    # nothing like "your data was generated by a different ParaView".
+    #
+    # Recording the version here lets the vignettes say so instead.
     manifest = {
         "generator": "make_topology_datasets.py",
+        "paraview_version": _paraview_version_string(),
+        "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
         "target_scalar": TARGET_SCALAR,
         "contour_value": CONTOUR_VALUE,
         "wavelet_extent": WAVELET_EXTENT,
