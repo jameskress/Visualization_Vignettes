@@ -5,6 +5,14 @@ This `test_suite.py` script runs performance and regression tests for **VisIt** 
 > ⚠️ **Important:** In all examples below, replace paths like `~/Visualization_Vignettes/` with the actual path to your cloned repository. HPC paths are written using variables like `$SCRATCH` to be easily copy-pasted.
 > ⚠️ **Important:** You must use the `fetchData.sh` script before running these tests for them all to work.
 
+Two companion documents:
+
+* [`LOCAL_VALIDATION.md`](LOCAL_VALIDATION.md) — the current status of every
+  vignette under each tool version, the defect log behind the fixes, and the
+  measurements behind the baseline and tolerance decisions.
+* [`OFFLINE_SETUP.md`](OFFLINE_SETUP.md) — preparing the environment and the
+  data for a machine with no network, and the Shaheen and Ibex runbooks.
+
 ---
 
 ## What This Suite Does

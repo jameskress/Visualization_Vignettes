@@ -29,11 +29,11 @@ This repository is broadly divided into two sections:
 
 * **General Documentation**
 
-  * [Changelog](./CHANGELOG.md)
+  * [Changelog](./.github/CHANGELOG.md)
 
-  * [Contribution Guidelines](./CONTRIBUTING.md)
+  * [Contribution Guidelines](./.github/CONTRIBUTING.md)
 
-  * [Code of Conduct](./CODE_OF_CONDUCT.md)
+  * [Code of Conduct](./.github/CODE_OF_CONDUCT.md)
 
 * **Visualization Tool Vignettes**
 
@@ -45,6 +45,16 @@ This repository is broadly divided into two sections:
 
     * Details VisIt use on HPC systems (both batch and interactively), as well as local workflows.
 
+* **Regression Testing**
+
+  * [**Test Suite**](./Testing/README.md)
+
+    * Running the suite, the five independent gates each vignette must pass, blessing baselines, and the committed performance history.
+
+  * [**Offline and Cluster Setup**](./Testing/OFFLINE_SETUP.md)
+
+    * Preparing the Python environment and the data on a connected machine for a machine with no network, plus the Shaheen and Ibex runbooks.
+
 * **In Situ Processing Vignettes**
 
   * [**In Situ Overview**](./Miniapps/gray-scott/README.md)
@@ -53,9 +63,9 @@ This repository is broadly divided into two sections:
 
   * Scripts that can help with visualization or movie making outside of ParaView or VisIt.
 
-* **data**
+* **[data](./data/README.md)**
 
-  * data used the byt ParaView and VisIt Vignettes.
+  * The datasets the ParaView and VisIt vignettes read: what ships with the repository, what is fetched, and what is generated per machine.
 
 ## Getting Started
 
