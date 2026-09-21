@@ -1,19 +1,19 @@
 {
-    "2026-09-21T08:02:38.476875": {
+    "2026-09-21T19:43:13.944357": {
         "test_name": "ex09_visitMeshTopologies",
         "metrics_schema": 4,
-        "execution_time": 4.229043960571289,
+        "execution_time": 4.276712656021118,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 59.824395858449044,
-        "cpu_seconds": 2.53,
-        "memory_usage_mb": 536.008,
-        "memory_usage": 562045124.608,
+        "cpu_usage_percent": 62.664953564903854,
+        "cpu_seconds": 2.68,
+        "memory_usage_mb": 537.418,
+        "memory_usage": 563523616.768,
         "returncode": 250,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 4.121048,
-        "harness_rss_mb": 178.72265625,
+        "subprocess_time": 4.17193,
+        "harness_rss_mb": 180.4765625,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

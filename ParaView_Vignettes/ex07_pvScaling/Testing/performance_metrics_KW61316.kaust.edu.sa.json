@@ -1,19 +1,19 @@
 {
-    "2026-09-21T07:48:30.638236": {
+    "2026-09-21T19:19:47.587048": {
         "test_name": "ex07_pvScaling",
         "metrics_schema": 4,
-        "execution_time": 4.599257469177246,
+        "execution_time": 4.517739534378052,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 224.16661970099142,
-        "cpu_seconds": 10.31,
-        "memory_usage_mb": 629.664,
-        "memory_usage": 660250558.464,
+        "cpu_usage_percent": 231.3103692782641,
+        "cpu_seconds": 10.45,
+        "memory_usage_mb": 557.117,
+        "memory_usage": 584179515.392,
         "returncode": 0,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 4.473308,
-        "harness_rss_mb": 174.0,
+        "subprocess_time": 4.421392,
+        "harness_rss_mb": 224.59375,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

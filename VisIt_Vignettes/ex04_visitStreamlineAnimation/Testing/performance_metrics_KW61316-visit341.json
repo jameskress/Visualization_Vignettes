@@ -1,19 +1,19 @@
 {
-    "2026-09-21T07:58:25.820666": {
+    "2026-09-21T19:39:08.721906": {
         "test_name": "ex04_visitStreamlineAnimation",
         "metrics_schema": 4,
-        "execution_time": 82.0384156703949,
+        "execution_time": 80.9938416481018,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 240.28986711787275,
-        "cpu_seconds": 197.13,
-        "memory_usage_mb": 4408.836,
-        "memory_usage": 4622999617.536,
+        "cpu_usage_percent": 237.38841878295582,
+        "cpu_seconds": 192.27,
+        "memory_usage_mb": 4359.754,
+        "memory_usage": 4571533410.304,
         "returncode": 250,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 81.9512,
-        "harness_rss_mb": 170.640625,
+        "subprocess_time": 80.896663,
+        "harness_rss_mb": 170.84375,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

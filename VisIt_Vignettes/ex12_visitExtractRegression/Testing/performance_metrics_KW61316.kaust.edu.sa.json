@@ -1,19 +1,19 @@
 {
-    "2026-09-21T07:55:48.601090": {
+    "2026-09-21T19:34:44.075059": {
         "test_name": "ex12_visitExtractRegression",
         "metrics_schema": 4,
-        "execution_time": 3.6779255867004395,
+        "execution_time": 3.615835189819336,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 174.55491821843913,
-        "cpu_seconds": 6.42,
-        "memory_usage_mb": 479.445,
-        "memory_usage": 502734520.32,
+        "cpu_usage_percent": 170.36174705484245,
+        "cpu_seconds": 6.16,
+        "memory_usage_mb": 461.746,
+        "memory_usage": 484175773.696,
         "returncode": 250,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 3.519412,
-        "harness_rss_mb": 193.91015625,
+        "subprocess_time": 3.469668,
+        "harness_rss_mb": 165.7421875,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

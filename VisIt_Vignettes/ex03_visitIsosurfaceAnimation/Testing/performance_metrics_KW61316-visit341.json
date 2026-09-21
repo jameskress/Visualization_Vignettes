@@ -1,19 +1,19 @@
 {
-    "2026-09-21T07:57:01.308355": {
+    "2026-09-21T19:37:45.236455": {
         "test_name": "ex03_visitIsosurfaceAnimation",
         "metrics_schema": 4,
-        "execution_time": 18.02652621269226,
+        "execution_time": 18.153997659683228,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 269.7691137284132,
-        "cpu_seconds": 48.63,
-        "memory_usage_mb": 1628.34,
-        "memory_usage": 1707438243.84,
+        "cpu_usage_percent": 276.85362167705046,
+        "cpu_seconds": 50.26,
+        "memory_usage_mb": 1627.512,
+        "memory_usage": 1706570022.912,
         "returncode": 250,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 17.896853,
-        "harness_rss_mb": 163.41015625,
+        "subprocess_time": 18.048003,
+        "harness_rss_mb": 163.3515625,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

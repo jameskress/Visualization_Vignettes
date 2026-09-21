@@ -1,19 +1,19 @@
 {
-    "2026-09-21T07:48:43.609665": {
+    "2026-09-21T19:20:00.577756": {
         "test_name": "ex10_pvColormapFidelity",
         "metrics_schema": 4,
-        "execution_time": 3.9112789630889893,
+        "execution_time": 3.8935604095458984,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 156.21488668183716,
-        "cpu_seconds": 6.11,
-        "memory_usage_mb": 625.801,
-        "memory_usage": 656199909.376,
+        "cpu_usage_percent": 138.17687242786258,
+        "cpu_seconds": 5.38,
+        "memory_usage_mb": 626.805,
+        "memory_usage": 657252679.68,
         "returncode": 0,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 3.819981,
-        "harness_rss_mb": 187.46484375,
+        "subprocess_time": 3.820035,
+        "harness_rss_mb": 224.59375,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

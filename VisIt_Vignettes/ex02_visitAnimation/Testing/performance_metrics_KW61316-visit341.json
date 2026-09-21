@@ -1,19 +1,19 @@
 {
-    "2026-09-21T07:56:40.869427": {
+    "2026-09-21T19:37:24.696516": {
         "test_name": "ex02_visitAnimation",
         "metrics_schema": 4,
-        "execution_time": 43.23531675338745,
+        "execution_time": 45.247965574264526,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 359.89096804248317,
-        "cpu_seconds": 155.6,
-        "memory_usage_mb": 2640.629,
-        "memory_usage": 2768900194.304,
+        "cpu_usage_percent": 348.7891621137604,
+        "cpu_seconds": 157.82,
+        "memory_usage_mb": 2642.121,
+        "memory_usage": 2770464669.696,
         "returncode": 250,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 43.132772,
-        "harness_rss_mb": 150.5625,
+        "subprocess_time": 45.092823,
+        "harness_rss_mb": 150.64453125,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

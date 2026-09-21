@@ -1,19 +1,19 @@
 {
-    "2026-09-21T08:02:33.638316": {
+    "2026-09-21T19:43:09.072620": {
         "test_name": "ex08_visitBackendCheck",
         "metrics_schema": 4,
-        "execution_time": 1.973696231842041,
+        "execution_time": 1.9465556144714355,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 48.639703745294014,
-        "cpu_seconds": 0.96,
-        "memory_usage_mb": 409.945,
-        "memory_usage": 429858488.32,
+        "cpu_usage_percent": 50.85906575902394,
+        "cpu_seconds": 0.99,
+        "memory_usage_mb": 411.75,
+        "memory_usage": 431751168.0,
         "returncode": 250,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 1.817725,
-        "harness_rss_mb": 169.640625,
+        "subprocess_time": 1.817449,
+        "harness_rss_mb": 172.42578125,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

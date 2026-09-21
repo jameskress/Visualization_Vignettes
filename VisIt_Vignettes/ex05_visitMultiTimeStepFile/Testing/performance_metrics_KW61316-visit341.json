@@ -1,19 +1,19 @@
 {
-    "2026-09-21T07:58:45.118748": {
+    "2026-09-21T19:39:28.363212": {
         "test_name": "ex05_visitMultiTimeStepFile",
         "metrics_schema": 4,
-        "execution_time": 16.843533039093018,
+        "execution_time": 17.170417070388794,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 180.18784971988438,
-        "cpu_seconds": 30.35,
-        "memory_usage_mb": 1152.621,
-        "memory_usage": 1208610717.696,
+        "cpu_usage_percent": 173.96199450223165,
+        "cpu_seconds": 29.87,
+        "memory_usage_mb": 1144.242,
+        "memory_usage": 1199824699.392,
         "returncode": 250,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 16.743214,
-        "harness_rss_mb": 158.453125,
+        "subprocess_time": 17.045344,
+        "harness_rss_mb": 164.09375,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

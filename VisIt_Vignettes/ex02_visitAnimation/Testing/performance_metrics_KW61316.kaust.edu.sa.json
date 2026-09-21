@@ -50,21 +50,21 @@
             "visit_version": "3.4.1"
         }
     },
-    "2026-09-21T07:49:49.254026": {
+    "2026-09-21T19:28:46.089924": {
         "test_name": "ex02_visitAnimation",
         "metrics_schema": 4,
-        "execution_time": 46.02556371688843,
+        "execution_time": 45.741464614868164,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 352.45630232330143,
-        "cpu_seconds": 162.22,
-        "memory_usage_mb": 1026.352,
-        "memory_usage": 1076208074.752,
+        "cpu_usage_percent": 350.3167232382724,
+        "cpu_seconds": 160.24,
+        "memory_usage_mb": 1013.348,
+        "memory_usage": 1062572392.448,
         "returncode": 250,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 45.884806,
-        "harness_rss_mb": 155.3828125,
+        "subprocess_time": 45.648285,
+        "harness_rss_mb": 155.78515625,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

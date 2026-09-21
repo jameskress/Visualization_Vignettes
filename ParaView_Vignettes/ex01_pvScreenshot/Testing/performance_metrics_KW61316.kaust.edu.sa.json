@@ -220,21 +220,21 @@
             "visit_version": null
         }
     },
-    "2026-09-21T07:42:24.342556": {
+    "2026-09-21T19:13:38.974441": {
         "test_name": "ex01_pvScreenshot",
         "metrics_schema": 4,
-        "execution_time": 3.5641419887542725,
+        "execution_time": 3.6291894912719727,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 90.90546926084824,
-        "cpu_seconds": 3.24,
-        "memory_usage_mb": 568.719,
-        "memory_usage": 596345094.144,
+        "cpu_usage_percent": 108.01309795003576,
+        "cpu_seconds": 3.92,
+        "memory_usage_mb": 545.598,
+        "memory_usage": 572100968.448,
         "returncode": 0,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 3.446564,
-        "harness_rss_mb": 152.4765625,
+        "subprocess_time": 3.520914,
+        "harness_rss_mb": 151.8984375,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

@@ -1,19 +1,19 @@
 {
-    "2026-09-21T07:48:39.148015": {
+    "2026-09-21T19:19:56.122580": {
         "test_name": "ex09_pvMeshTopologies",
         "metrics_schema": 4,
-        "execution_time": 4.264853239059448,
+        "execution_time": 4.217468738555908,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 192.5036933231165,
-        "cpu_seconds": 8.21,
-        "memory_usage_mb": 781.055,
-        "memory_usage": 818995527.68,
+        "cpu_usage_percent": 188.73880266687078,
+        "cpu_seconds": 7.96,
+        "memory_usage_mb": 749.531,
+        "memory_usage": 785940217.856,
         "returncode": 0,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 4.170788,
-        "harness_rss_mb": 184.37109375,
+        "subprocess_time": 4.120778,
+        "harness_rss_mb": 224.59375,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

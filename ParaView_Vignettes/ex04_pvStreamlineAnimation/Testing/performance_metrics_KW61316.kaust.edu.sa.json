@@ -67,21 +67,21 @@
             "visit_version": null
         }
     },
-    "2026-09-21T07:45:01.176167": {
+    "2026-09-21T19:16:15.237572": {
         "test_name": "ex04_pvStreamlineAnimation",
         "metrics_schema": 4,
-        "execution_time": 69.04512524604797,
+        "execution_time": 67.84406638145447,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 723.52682136469,
-        "cpu_seconds": 499.56,
-        "memory_usage_mb": 1739.727,
-        "memory_usage": 1824235978.752,
+        "cpu_usage_percent": 602.5582218222515,
+        "cpu_seconds": 408.8,
+        "memory_usage_mb": 1741.0,
+        "memory_usage": 1825570816.0,
         "returncode": 0,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 68.924664,
-        "harness_rss_mb": 171.85546875,
+        "subprocess_time": 67.745363,
+        "harness_rss_mb": 164.5703125,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",

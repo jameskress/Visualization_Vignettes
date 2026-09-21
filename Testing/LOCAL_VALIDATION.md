@@ -32,20 +32,20 @@ else behind §4 and §4b was run with `--no-metrics` and left no trace; see
 
 | Vignette | Wall (s) | Peak (MB) | CPU (%) | Notes |
 | :--- | ---: | ---: | ---: | :--- |
-| ex00_pvQuery | 2.82 | 434 | 89 | numeric gate was silently dead, now live |
-| ex01_pvScreenshot | 3.56 | 569 | 91 |  |
-| ex02_pvAnimation | 55.55 | 1,590 | 144 |  |
-| ex03_pvIsosurfaceAnimation | 19.33 | 1,675 | 352 |  |
-| ex04_pvStreamlineAnimation | 69.05 | 1,740 | 724 |  |
-| ex05_pvMultiTimeStepFile | 4.92 | 777 | 409 | XML time series + frame annotation — §4b.13 |
-| ex06_pvLargeData | 189.28 | 61,747 | 2028 | 5% image tolerance — §5 |
-| ex07_pvScaling | 4.60 | 630 | 224 |  |
-| ex08_pvBackendCheck | 3.39 | 600 | 104 | metrics are machine-specific by design |
-| ex09_pvMeshTopologies | 4.26 | 781 | 193 | isovalues fixed; polydata frame fixed — §4b.12 |
-| ex10_pvColormapFidelity | 3.91 | 626 | 156 | legend format + binning fixed |
-| ex11_pvStateVerification | 3.96 | 684 | 170 | needs xvfb, `--no-offscreen` |
-| ex12_pvExtractRegression | 3.84 | 635 | 194 | extract loop fixed; real time + cycle — §4b.13 |
-| **TOTAL** | **368.5** | | | ex06 is 52% of the wall clock and the only one that needs more than 2.4 GB |
+| ex00_pvQuery | 2.87 | 430 | 86 | numeric gate was silently dead, now live |
+| ex01_pvScreenshot | 3.63 | 546 | 108 |  |
+| ex02_pvAnimation | 56.31 | 1,591 | 145 |  |
+| ex03_pvIsosurfaceAnimation | 19.20 | 1,649 | 348 |  |
+| ex04_pvStreamlineAnimation | 67.84 | 1,741 | 603 |  |
+| ex05_pvMultiTimeStepFile | 4.92 | 782 | 418 | XML time series + frame annotation — §4b.13 |
+| ex06_pvLargeData | 192.22 | 61,992 | 2007 | 5% image tolerance — §5 |
+| ex07_pvScaling | 4.52 | 557 | 231 |  |
+| ex08_pvBackendCheck | 3.47 | 598 | 97 | metrics are machine-specific by design |
+| ex09_pvMeshTopologies | 4.22 | 750 | 189 | isovalues fixed; polydata frame fixed — §4b.12 |
+| ex10_pvColormapFidelity | 3.89 | 627 | 138 | legend format + binning fixed |
+| ex11_pvStateVerification | 3.94 | 684 | 164 | needs xvfb, `--no-offscreen` |
+| ex12_pvExtractRegression | 3.89 | 629 | 250 | extract loop fixed; real time + cycle — §4b.13 |
+| **TOTAL** | **370.9** | | | ex06 is 52% of the wall clock and the only one that needs more than 2.4 GB |
 
 `ex06_pvLargeData` is intermittent at the pixel level and declares its own 5%
 image tolerance to absorb that; see §5. ex11 runs separately, under `xvfb-run`
@@ -55,24 +55,24 @@ with `--no-offscreen`, tagged with the same run id.
 
 | Vignette | Wall (s) | Peak (MB) | CPU (%) | Notes |
 | :--- | ---: | ---: | ---: | :--- |
-| ex00_visitQuery | 1.86 | 381 | 283 |  |
-| ex01_visitScreenshot | 2.05 | 576 | 295 |  |
-| ex02_visitAnimation | 46.03 | 1,026 | 352 |  |
-| ex03_visitIsosurfaceAnimation | 18.35 | 1,101 | 292 |  |
-| ex04_visitStreamlineAnimation | 82.96 | 2,362 | 240 |  |
-| ex05_visitMultiTimeStepFile | 17.22 | 909 | 204 | XML time series + frame annotation — §4b.13 |
-| ex06_visitLargeData | 205.36 | 35,652 | 108 | baseline is 8-rank — §4b.8 |
-| ex07_visitScaling | 5.27 | 442 | 134 | `MinMax` on an isosurface — §4b.6 |
-| ex08_visitBackendCheck | 1.94 | 426 | 286 | rank count derived from pids — §4b.4 |
-| ex09_visitMeshTopologies | 4.27 | 547 | 169 | `viridis` loaded explicitly; polydata frame fixed — §4b.12 |
-| ex10_visitColormapFidelity | 4.87 | 467 | 135 | `GetNumPlots()` — §4b.5 |
-| ex11_visitStateVerification | 2.33 | 456 | 257 | identical with and without a display |
-| ex12_visitExtractRegression | 3.68 | 479 | 175 | volume integrals pre-pass; real time + cycle — §4b.13 |
-| **TOTAL** | **396.2** | | | ex06 is 52% of the wall clock and the only one that needs more than 2.4 GB |
+| ex00_visitQuery | 1.85 | 383 | 284 |  |
+| ex01_visitScreenshot | 2.09 | 576 | 287 |  |
+| ex02_visitAnimation | 45.74 | 1,013 | 350 |  |
+| ex03_visitIsosurfaceAnimation | 18.77 | 1,054 | 287 |  |
+| ex04_visitStreamlineAnimation | 82.37 | 2,363 | 244 |  |
+| ex05_visitMultiTimeStepFile | 17.12 | 887 | 205 | XML time series + frame annotation — §4b.13 |
+| ex06_visitLargeData | 207.15 | 36,050 | 107 | baseline is 8-rank — §4b.8 |
+| ex07_visitScaling | 5.23 | 454 | 136 | `MinMax` on an isosurface — §4b.6 |
+| ex08_visitBackendCheck | 1.97 | 424 | 274 | rank count derived from pids — §4b.4 |
+| ex09_visitMeshTopologies | 4.28 | 548 | 168 | `viridis` loaded explicitly; polydata frame fixed — §4b.12 |
+| ex10_visitColormapFidelity | 4.88 | 467 | 134 | `GetNumPlots()` — §4b.5 |
+| ex11_visitStateVerification | 2.32 | 456 | 256 | identical with and without a display |
+| ex12_visitExtractRegression | 3.62 | 462 | 170 | volume integrals pre-pass; real time + cycle — §4b.13 |
+| **TOTAL** | **397.4** | | | ex06 is 52% of the wall clock and the only one that needs more than 2.4 GB |
 
-All thirteen in one command. ex11 is worth re-running under `xvfb-run` to
-exercise the display path it exists to cover, but its frames come out
-bit-identical either way (§3), so it does not need its own baseline.
+Twelve in one command and ex11 on its own under `xvfb-run`, so one run id files
+one record per vignette (§3). ex11's frames come out bit-identical with and
+without a display, so it does not need a baseline of its own.
 
 Every VisIt baseline in the repository was replaced during this pass — see §5b
 for which ones were merely stale, which one was never wrong in the first place,
@@ -86,22 +86,22 @@ no image, numeric, CSV or text comparison failed.
 
 | Vignette | Wall (s) | Peak (MB) | CPU (%) |
 | :--- | ---: | ---: | ---: |
-| ex00_visitQuery | 1.73 | 368 | 40 |  |
-| ex01_visitScreenshot | 1.97 | 539 | 73 |  |
-| ex02_visitAnimation | 43.24 | 2,641 | 360 |  |
-| ex03_visitIsosurfaceAnimation | 18.03 | 1,628 | 270 |  |
-| ex04_visitStreamlineAnimation | 82.04 | 4,409 | 240 |  |
-| ex05_visitMultiTimeStepFile | 16.84 | 1,153 | 180 |  |
-| ex06_visitLargeData | 216.53 | 36,486 | 105 |  |
-| ex07_visitScaling | 5.56 | 428 | 51 |  |
-| ex08_visitBackendCheck | 1.97 | 410 | 49 |  |
-| ex09_visitMeshTopologies | 4.23 | 536 | 60 |  |
-| ex10_visitColormapFidelity | 4.92 | 457 | 42 |  |
-| ex11_visitStateVerification | 2.35 | 456 | 64 |  |
-| ex12_visitExtractRegression | 3.46 | 472 | 48 |  |
-| **TOTAL** | **402.9** | | |
+| ex00_visitQuery | 1.79 | 367 | 40 |  |
+| ex01_visitScreenshot | 2.00 | 568 | 74 |  |
+| ex02_visitAnimation | 45.25 | 2,642 | 349 |  |
+| ex03_visitIsosurfaceAnimation | 18.15 | 1,628 | 277 |  |
+| ex04_visitStreamlineAnimation | 80.99 | 4,360 | 237 |  |
+| ex05_visitMultiTimeStepFile | 17.17 | 1,144 | 174 |  |
+| ex06_visitLargeData | 208.73 | 36,338 | 106 |  |
+| ex07_visitScaling | 5.60 | 435 | 53 |  |
+| ex08_visitBackendCheck | 1.95 | 412 | 51 |  |
+| ex09_visitMeshTopologies | 4.28 | 537 | 63 |  |
+| ex10_visitColormapFidelity | 4.83 | 461 | 43 |  |
+| ex11_visitStateVerification | 2.37 | 458 | 64 |  |
+| ex12_visitExtractRegression | 3.55 | 462 | 46 |  |
+| **TOTAL** | **396.7** | | |
 
-Within 0.5% of 3.4.2 on wall clock, and **it uses roughly twice the memory on
+Within 0.2% of 3.4.2 on wall clock, and **it uses roughly twice the memory on
 the animation vignettes**. That is the one number to carry into a Shaheen
 allocation request. Its own history file is why: comparing a 3.4.1 record
 against a 3.4.2 one would report that as a regression every time.
@@ -226,7 +226,7 @@ python test_suite.py ../ \
   --test_type ParaView \
   --paraview_version 6.1.0 \
   --machine_name KW61316.kaust.edu.sa \
-  --run-id $(date +%Y%m%dT%H%M%S) \
+  --run-id pv610-local-$(date +%Y-%m-%d) \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 \
   --timeout 1800
 ```
@@ -257,20 +257,28 @@ cd Testing
 
 python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
   --machine_name KW61316.kaust.edu.sa \
-  --run-id $(date +%Y%m%dT%H%M%S) \
+  --run-id visit342-local-$(date +%Y-%m-%d) \
+  --test_number 0 1 2 3 4 5 6 7 8 9 10 12 \
   --timeout 1800
 ```
 
-All thirteen in one command. VisIt's ex11 is not the trap ParaView's is:
-ParaView's ex11 *fails* when forced offscreen, VisIt's merely warns and renders
-anyway. It is worth wrapping all the same, because the display path is what that
-vignette exists to cover, and the warning in its log is easy to scroll past:
+Twelve here and ex11 on its own, the same split ParaView uses, so that one run id
+writes exactly one record per vignette. VisIt's ex11 is not the trap ParaView's
+is: ParaView's ex11 *fails* when forced offscreen, VisIt's merely warns and
+renders anyway. It is worth wrapping all the same, because the display path is
+what that vignette exists to cover, and the warning in its log is easy to scroll
+past. Running all thirteen here **and** the command below would file ex11 twice
+under one run id, which is what `--test_number` above avoids:
 
 ```bash
 xvfb-run -a --server-args="-screen 0 1024x1024x24" \
   python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
     --machine_name KW61316.kaust.edu.sa --run-id <same id> --test_number 11
 ```
+
+The confirmation is written by the vignette, not the harness, so look for it in
+`VisIt_Vignettes/ex11_visitStateVerification/Testing/output.log` rather than on
+the terminal:
 
 ```
 [ex11_visitStateVerification] DISPLAY=:99 -- rendering through the display path
@@ -1143,7 +1151,7 @@ deterministic at the cost of changing the picture.
 Yes. `ex06_shaheen_runScript.sbat` requests `--partition=workq`, 1 node,
 8 ranks, 200 GB, and `MODULES.sh` loads the `-mesa` variant there — so it runs
 under software rendering. It is also the most expensive vignette by a wide
-margin: 190 s of the suite's 368 s, and 62 GB peak.
+margin: 192 s of the suite's 371 s, and 62 GB peak.
 
 ---
 
@@ -1373,7 +1381,7 @@ Three things to expect and not be alarmed by:
 * **ex11 will not run in a batch allocation without a display.** It needs
   `xvfb-run` and `--no-offscreen`, as locally. If `xvfb` is not available on the
   compute nodes, skip it there and keep it as a local/CI gate.
-* **ex06 needs 62 GB and 190 s**, single-rank. At 8 ranks on `workq` it will be
+* **ex06 needs 62 GB and 192 s**, single-rank. At 8 ranks on `workq` it will be
   different on both counts; that is the point of running it there.
 * **`--ranks > 1` has never been exercised for ParaView.** The harness supports
   it now but every baseline in the repo was blessed at one rank. Expect

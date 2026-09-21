@@ -1,19 +1,19 @@
 {
-    "2026-09-21T07:48:54.163041": {
+    "2026-09-21T19:26:35.877038": {
         "test_name": "ex11_pvStateVerification",
         "metrics_schema": 4,
-        "execution_time": 3.963430404663086,
+        "execution_time": 3.9388198852539062,
         "memory_measurement_scope": "child-tree-sampled",
         "cpu_measurement_scope": "child-tree-sampled",
-        "cpu_usage_percent": 170.30701465221736,
-        "cpu_seconds": 6.75,
-        "memory_usage_mb": 683.754,
-        "memory_usage": 716968034.304,
+        "cpu_usage_percent": 163.75463179079122,
+        "cpu_seconds": 6.45,
+        "memory_usage_mb": 683.703,
+        "memory_usage": 716914556.928,
         "returncode": 0,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 3.820765,
-        "harness_rss_mb": 94.69921875,
+        "subprocess_time": 3.821742,
+        "harness_rss_mb": 93.19140625,
         "machine_info": {
             "system": "Linux",
             "node": "KW61316.kaust.edu.sa",
