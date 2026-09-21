@@ -109,6 +109,7 @@ NUMERIC_CSV = "{0}_measurements.csv".format(VIGNETTE)
 # baselines; the last two are VisIt's raw integral terms, kept for diagnosis.
 REQUIRED_COLUMNS = (
     "timestep",
+    "cycle",
     "time",
     "input_points",
     "input_cells",
@@ -200,21 +201,71 @@ def optional_query(ctx, name, **kwargs):
         return None
 
 
-def current_time(ctx, state):
-    """The simulation time at the current state.
+def database_times(ctx, database, n_states):
+    """The simulation time of every state, from the database's own metadata.
 
-    Query("Time") is what reports it. GetWindowInformation() carries
-    timeSliderCurrentStates, which is the state INDEX; using that here would
-    silently fill the CSV's "time" column with a copy of "timestep".
+    WHY NOT Query("Time"), WHICH IS WHAT THIS USED TO DO
+
+    Both are wrong in the same way on the same builds, but the metadata says
+    so out loud. On VisIt 3.4.2 a .visit virtual database over legacy VTK
+    files reports **every state as t=0 and cycle 0**; on 3.4.1, over the same
+    twenty files, it reports 0..19 for both. Reduced to fifteen lines and
+    reproduced on demand:
+
+        md = GetMetaData(index_path)
+        3.4.1 -> md.times  = (0.0, 1.0, 2.0, ... 19.0)
+        3.4.2 -> md.times  = (0.0, 0.0, 0.0, ...  0.0)
+
+    Query("Time") returns the same zeros on 3.4.2, so the old code recorded
+    them without complaint and the blessed CSV carried a "time" column that
+    was a column of zeros.
+
+    Taking the whole array up front makes the defect visible: `n` states with
+    one distinct time between them is a fact about the reader, and run()
+    asserts on it. Falling back to the state index, as this used to do, would
+    have hidden it behind numbers that look right.
+
+    GetWindowInformation().timeSliderCurrentStates is deliberately not used:
+    that is the state INDEX, so it would fill "time" with a copy of
+    "timestep" and always look plausible.
     """
     try:
-        return float(query_value("Time"))
-    except Exception as exc:  # noqa: BLE001 - fall back, but say so
+        metadata = GetMetaData(database)
+        times = [float(value) for value in (vc.visit_attr(metadata, "times") or [])]
+    except Exception as exc:  # noqa: BLE001 - reported, then degraded
+        ctx.warn("database metadata unavailable: {0}".format(exc))
+        times = []
+
+    if len(times) < n_states:
         ctx.warn(
-            "Time query unavailable ({0}); recording the state index "
-            "instead.".format(exc)
+            "database reports {0} time value(s) for {1} state(s); the "
+            "missing ones are recorded as the state index".format(
+                len(times), n_states
+            )
         )
-        return float(state)
+        times = times + [float(i) for i in range(len(times), n_states)]
+
+    return times
+
+
+def database_cycles(ctx, database, n_states):
+    """The simulation cycle of every state, from the database's metadata.
+
+    Same source and same caveat as database_times(): over the legacy series
+    these come back all-zero on 3.4.2 and 0,1,2.. on 3.4.1, because the legacy
+    files carry no cycle either. Over the XML series both read the real
+    values, and they agree with what ParaView reads out of the same files'
+    FieldData.
+    """
+    try:
+        metadata = GetMetaData(database)
+        cycles = [int(value) for value in (vc.visit_attr(metadata, "cycles") or [])]
+    except Exception as exc:  # noqa: BLE001 - reported, then degraded
+        ctx.warn("database cycles unavailable: {0}".format(exc))
+        cycles = []
+    if len(cycles) < n_states:
+        cycles = cycles + [None] * (n_states - len(cycles))
+    return cycles
 
 
 def resolve_export_function(ctx):
@@ -276,7 +327,57 @@ def save_attributes(ctx, filename):
     return save_atts
 
 
-def measure(ctx, state, time_value):
+def collect_volume_integrals(ctx, scalar, step_count):
+    """Volume and Weighted Variable Sum per timestep, measured before the
+    contour pipeline exists.
+
+    WHY A SEPARATE PASS
+
+    The volume-weighted mean is Weighted Variable Sum over Volume, both on
+    the ORIGINAL mesh. Neither can be taken from the plot that carries the
+    Isosurface operator:
+
+      * use_actual_data=0 selects which data a query reads, but the query is
+        still validated against the plot's output topology. An isosurfaced
+        plot is a surface, so VisIt answers "Volume query requires 3D surface
+        plot data" and returns 0.0 with either value of the flag. The
+        vignette divided by that and asserted on the resulting NaN.
+      * Adding a second, hidden plot does not work either: VisIt does not
+        execute a hidden plot's pipeline, so both integrals come back 0.0.
+        Measured, after trying it.
+
+    So the integrals are collected here, on their own plot, which is then
+    deleted. Nothing about the rendered frames changes, and the contour
+    pipeline downstream is built on a clean slate.
+    """
+    integrals = {}
+
+    AddPlot("Pseudocolor", scalar, 1, 0)
+    atts = PseudocolorAttributes()
+    atts.legendFlag = 0
+    SetPlotOptions(atts)
+
+    try:
+        for state in range(step_count):
+            SetTimeSliderState(state)
+            DrawPlots()
+            weighted_sum = optional_query(
+                ctx, "Weighted Variable Sum", use_actual_data=0
+            )
+            volume = optional_query(ctx, "Volume", use_actual_data=0)
+            integrals[state] = (weighted_sum, volume)
+            ctx.debug(
+                "state {0}: weighted_sum={1} volume={2}".format(
+                    state, weighted_sum, volume
+                )
+            )
+    finally:
+        DeleteAllPlots()
+
+    return integrals
+
+
+def measure(ctx, state, time_value, integrals, cycle=None):
     """Collect the numerical measurements for one timestep.
 
     use_actual_data=0 asks the original database; =1 asks the data as it
@@ -295,8 +396,9 @@ def measure(ctx, state, time_value):
     else:
         scalar_min = scalar_max = float("nan")
 
-    weighted_sum = optional_query(ctx, "Weighted Variable Sum", use_actual_data=0)
-    volume = optional_query(ctx, "Volume", use_actual_data=0)
+    # Precomputed on an operator-free plot before this pipeline existed; see
+    # collect_volume_integrals().
+    weighted_sum, volume = integrals.get(state, (None, None))
 
     if weighted_sum is not None and volume:
         scalar_mean = weighted_sum / volume
@@ -305,6 +407,7 @@ def measure(ctx, state, time_value):
 
     return {
         "timestep": state,
+        "cycle": cycle,
         "time": float(time_value),
         "input_points": input_points,
         "input_cells": input_cells,
@@ -349,12 +452,22 @@ def run(ctx):
     ctx.log("contouring '{0}' at {1}".format(scalar, ctx.args.isovalue))
 
     engine_launched = vc.open_visit_engine(ctx, OpenComputeEngine)
-    ctx.add_metric("compute_engine_launched", bool(engine_launched))
+    # A note, not a metric. `metrics` is a correctness gate compared against
+    # the baseline; how the engine was launched is a property of the run,
+    # not of the result. Gating on it makes every rank change look like a
+    # regression -- measured: the same suite at --ranks 8 produced
+    # bit-identical images and failed here on "expected false, got true".
+    # ex08_visitBackendCheck keeps it as a metric, because the backend IS
+    # its subject.
+    ctx.notes.append("compute_engine_launched={0}".format(bool(engine_launched)))
 
     export_function, export_name = resolve_export_function(ctx)
     ctx.add_metric("export_utility", export_name)
 
-    index_path = write_visit_index(ctx, series)
+    # The generated XML series index, not one written here from the legacy
+    # files. Writing an index cannot add a time to data that has none, which
+    # is what the old path amounted to. See vc.time_series_index().
+    index_path = ctx.time_series_index()
 
     with ctx.phase("open"):
         if not OpenDatabase(index_path, 0):
@@ -366,6 +479,30 @@ def run(ctx):
     requested = ctx.args.steps or n_states
     step_count = max(1, min(requested, n_states))
     ctx.log("extracting {0} of {1} timestep(s)".format(step_count, n_states))
+
+    # -- the reader's own idea of time, asserted rather than trusted -------
+    times = database_times(ctx, index_path, n_states)
+    cycles = database_cycles(ctx, index_path, n_states)
+    distinct = len(set(times[:n_states]))
+    ctx.add_metric("database_distinct_times", distinct)
+    ctx.add_metric("database_time_span", round(max(times) - min(times), 6))
+    ctx.log(
+        "database times: {0} distinct value(s) across {1} state(s), "
+        "span {2}".format(distinct, n_states, round(max(times) - min(times), 6))
+    )
+    ctx.assert_true(
+        "database reports a distinct time per state",
+        n_states < 2 or distinct == n_states,
+        "{0} distinct time value(s) across {1} states. A time series whose "
+        "states all carry the same time is a reader defect, not data: VisIt "
+        "3.4.2 returns t=0 and cycle=0 for every state of a .visit index "
+        "over legacy VTK, where 3.4.1 returns 0..{2} over the same "
+        "files.".format(distinct, n_states, n_states - 1),
+    )
+
+    # -- volume integrals, on their own plot, before anything else ---------
+    with ctx.phase("integrals"):
+        integrals = collect_volume_integrals(ctx, scalar, step_count)
 
     # -- pipeline ----------------------------------------------------------
     AddPlot("Pseudocolor", scalar, 1, 0)
@@ -392,7 +529,7 @@ def run(ctx):
         with ctx.phase("pipeline", accumulate=True):
             DrawPlots()
 
-        time_value = current_time(ctx, state)
+        time_value = times[state]
 
         # -- data extract --------------------------------------------------
         basename = "{0}_contour_{1:06d}".format(VIGNETTE, state)
@@ -417,7 +554,7 @@ def run(ctx):
 
         # -- measurements --------------------------------------------------
         with ctx.phase("query", accumulate=True):
-            row = measure(ctx, state, time_value)
+            row = measure(ctx, state, time_value, integrals, cycles[state])
         rows.append(row)
 
         ctx.log(

@@ -138,7 +138,14 @@ def run(ctx):
     # Launch the compute engine when a site was named. `--machine local`
     # deliberately stays in-process.
     engine_launched = vc.open_visit_engine(ctx, OpenComputeEngine)
-    ctx.add_metric("compute_engine_launched", bool(engine_launched))
+    # A note, not a metric. `metrics` is a correctness gate compared against
+    # the baseline; how the engine was launched is a property of the run,
+    # not of the result. Gating on it makes every rank change look like a
+    # regression -- measured: the same suite at --ranks 8 produced
+    # bit-identical images and failed here on "expected false, got true".
+    # ex08_visitBackendCheck keeps it as a metric, because the backend IS
+    # its subject.
+    ctx.notes.append("compute_engine_launched={0}".format(bool(engine_launched)))
 
     index_path = write_visit_index(ctx, series)
 
@@ -188,7 +195,14 @@ def run(ctx):
         nodes = int(query_value("NumNodes", use_actual_data=1))
         ctx.debug("state {0}: {1} zones / {2} nodes".format(state, zones, nodes))
 
-    minmax = query_value("MinMax", use_actual_data=1)
+    # use_actual_data=0, deliberately. This plot carries the Isosurface
+    # operator, so with use_actual_data=1 every point IS the isovalue and
+    # MinMax returns (3.0, 3.0) -- measured on VisIt 3.4.2. The assertion
+    # below ("scalar range is non-degenerate") could therefore never pass, and
+    # the recorded scalar_min/scalar_max were the isovalue twice rather than
+    # anything about the data. Asking for the original data range is what the
+    # metric was always meant to report.
+    minmax = query_value("MinMax", use_actual_data=0)
     if isinstance(minmax, (list, tuple)) and len(minmax) >= 2:
         scalar_min, scalar_max = float(minmax[0]), float(minmax[1])
 

@@ -1,0 +1,29 @@
+{
+    "2026-09-21T07:48:34.459725": {
+        "test_name": "ex08_pvBackendCheck",
+        "metrics_schema": 4,
+        "execution_time": 3.3946962356567383,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 104.280317125787,
+        "cpu_seconds": 3.54,
+        "memory_usage_mb": 599.992,
+        "memory_usage": 629137211.392,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.319798,
+        "harness_rss_mb": 184.37109375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.1.0",
+            "visit_version": null
+        },
+        "run_id": "pv610-local-2026-09-21"
+    }
+}

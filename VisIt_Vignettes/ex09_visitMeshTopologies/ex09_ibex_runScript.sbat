@@ -6,7 +6,9 @@
 #
 # Run one contour pipeline across four mesh topologies.
 #
-# Needs data/topologies. Generate once: pvbatch ../../data/make_topology_datasets.py
+# Needs data/topologies, which is generated and is ParaView-version
+# specific. Prepare or verify this machine first:
+#     python3 ../../Testing/prepare_machine.py --check
 #
 # SUBMIT
 #     sbatch ex09_ibex_runScript.sbat

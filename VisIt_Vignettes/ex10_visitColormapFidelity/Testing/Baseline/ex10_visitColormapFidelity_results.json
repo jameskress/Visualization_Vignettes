@@ -1,0 +1,160 @@
+{
+  "assertions": [
+    {
+      "detail": "requested 'hot_desaturated', plot reports 'hot_desaturated'",
+      "name": "preset: the requested colour table is the one in use",
+      "passed": true
+    },
+    {
+      "detail": "legend.active=1",
+      "name": "preset: colour legend is active",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "preset: image written at requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "range=[1.779039978981018, 27.403499603271484]",
+      "name": "preset: colour table covers a non-degenerate range",
+      "passed": true
+    },
+    {
+      "detail": "requested 'VV Ember', plot reports 'VV Ember'",
+      "name": "custom: the requested colour table is the one in use",
+      "passed": true
+    },
+    {
+      "detail": "legend.active=1",
+      "name": "custom: colour legend is active",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "custom: image written at requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "range=[1.779039978981018, 27.403499603271484]",
+      "name": "custom: colour table covers a non-degenerate range",
+      "passed": true
+    },
+    {
+      "detail": "requested 'VV Ember', plot reports 'VV Ember'",
+      "name": "log: the requested colour table is the one in use",
+      "passed": true
+    },
+    {
+      "detail": "legend.active=1",
+      "name": "log: colour legend is active",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "log: image written at requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "scaling=1, expected Log (1)",
+      "name": "log: log scaling is actually enabled",
+      "passed": true
+    },
+    {
+      "detail": "range=[1.779039978981018, 27.403499603271484] -- a log scale reaching zero is silently clamped",
+      "name": "log: range is strictly positive",
+      "passed": true
+    },
+    {
+      "detail": "requested 'VV Categorical', plot reports 'VV Categorical'",
+      "name": "categorical: the requested colour table is the one in use",
+      "passed": true
+    },
+    {
+      "detail": "legend.active=1",
+      "name": "categorical: colour legend is active",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "categorical: image written at requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "discreteFlag=True in ex10_categorical.ct",
+      "name": "categorical: the colour table is discrete",
+      "passed": true
+    },
+    {
+      "detail": "expected 5 control point(s), found 5",
+      "name": "categorical: one colour per category",
+      "passed": true
+    }
+  ],
+  "extracts": [
+    "ex10_visitColormapFidelity_colormaps.csv"
+  ],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "image_tolerance": null,
+  "images": [
+    "ex10_visitColormapFidelity_preset.png",
+    "ex10_visitColormapFidelity_custom.png",
+    "ex10_visitColormapFidelity_log.png",
+    "ex10_visitColormapFidelity_categorical.png"
+  ],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "categorical_applied_max": 4.0,
+    "categorical_applied_min": 0.0,
+    "categorical_color_table": "VV Categorical",
+    "categorical_legend_active": 1,
+    "categorical_log_scaling": 0,
+    "configurations_rendered": 4,
+    "custom_applied_max": 27.4035,
+    "custom_applied_min": 1.77904,
+    "custom_color_table": "VV Ember",
+    "custom_legend_active": 1,
+    "custom_log_scaling": 0,
+    "log_applied_max": 27.4035,
+    "log_applied_min": 1.77904,
+    "log_color_table": "VV Ember",
+    "log_legend_active": 1,
+    "log_log_scaling": 1,
+    "preset_applied_max": 27.4035,
+    "preset_applied_min": 1.77904,
+    "preset_color_table": "hot_desaturated",
+    "preset_legend_active": 1,
+    "preset_log_scaling": 0,
+    "scalar_max": 27.4035,
+    "scalar_min": 1.77904
+  },
+  "nodes": 1,
+  "notes": [
+    "compute_engine_launched=False"
+  ],
+  "numeric_extracts": [],
+  "platform": "Linux",
+  "ranks": 1,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {
+    "draw_categorical": 0.063592,
+    "draw_custom": 0.02555,
+    "draw_log": 0.037449,
+    "draw_preset": 0.035663,
+    "io": 0.379372,
+    "register_tables": 0.024755,
+    "render_categorical": 0.112891,
+    "render_custom": 0.120236,
+    "render_log": 0.115936,
+    "render_preset": 0.278827
+  },
+  "tool": "VisIt",
+  "vignette": "ex10_visitColormapFidelity",
+  "wall_time_s": 3.827815
+}

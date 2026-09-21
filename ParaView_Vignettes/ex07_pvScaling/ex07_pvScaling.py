@@ -218,7 +218,7 @@ def run(ctx):
     ColorBy(display, ("POINTS", scalar))
 
     lut = GetColorTransferFunction(scalar)
-    lut.ApplyPreset("Cool to Warm", True)
+    vc.apply_color_preset(lut, ("Cool to Warm",), ctx)
     lut.RescaleTransferFunction(float(scalar_range[0]), float(scalar_range[1]))
     display.SetScalarBarVisibility(view, False)
 
@@ -310,4 +310,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    vc.exit_vignette(main())

@@ -66,5 +66,32 @@
             "paraview_version": "5.13.1",
             "visit_version": null
         }
+    },
+    "2026-09-21T07:45:01.176167": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "metrics_schema": 4,
+        "execution_time": 69.04512524604797,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 723.52682136469,
+        "cpu_seconds": 499.56,
+        "memory_usage_mb": 1739.727,
+        "memory_usage": 1824235978.752,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 68.924664,
+        "harness_rss_mb": 171.85546875,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.1.0",
+            "visit_version": null
+        },
+        "run_id": "pv610-local-2026-09-21"
     }
 }

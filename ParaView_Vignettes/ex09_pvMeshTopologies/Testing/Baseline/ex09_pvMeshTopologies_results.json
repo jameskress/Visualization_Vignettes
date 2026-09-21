@@ -1,0 +1,133 @@
+{
+  "assertions": [
+    {
+      "detail": "132651 points, 625000 cells",
+      "name": "tetra: dataset has geometry",
+      "passed": true
+    },
+    {
+      "detail": "contour_cells=100220 at isovalue 150.0 over range [33.951148986816406, 285.0791320800781]",
+      "name": "tetra: contour produced geometry",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "tetra: image written at requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "842 points, 605 cells",
+      "name": "amr: dataset has geometry",
+      "passed": true
+    },
+    {
+      "detail": "contour_cells=57 at isovalue 0.20725728 over range [8.271601177249479e-22, 0.3329651740378353]",
+      "name": "amr: contour produced geometry",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "amr: image written at requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "21393 points, 41700 cells",
+      "name": "polydata: dataset has geometry",
+      "passed": true
+    },
+    {
+      "detail": "contour_cells=218 at isovalue 0.0 over range [-25.0, 25.0]",
+      "name": "polydata: contour produced geometry",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "polydata: image written at requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "132651 points, 125000 cells",
+      "name": "ragged: dataset has geometry",
+      "passed": true
+    },
+    {
+      "detail": "contour_cells=41700 at isovalue 150.0 over range [33.951148986816406, 285.0791320800781]",
+      "name": "ragged: contour produced geometry",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "ragged: image written at requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "block point counts: [31212, 54621, 52020]",
+      "name": "ragged multiblock really is ragged",
+      "passed": true
+    }
+  ],
+  "extracts": [
+    "ex09_pvMeshTopologies_topologies.csv"
+  ],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "image_tolerance": null,
+  "images": [
+    "ex09_pvMeshTopologies_tetra.png",
+    "ex09_pvMeshTopologies_amr.png",
+    "ex09_pvMeshTopologies_polydata.png",
+    "ex09_pvMeshTopologies_ragged.png"
+  ],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "amr_contour_cells": 57,
+    "amr_input_cells": 605,
+    "amr_input_points": 842,
+    "amr_scalar_max": 0.332965,
+    "amr_scalar_min": 0.0,
+    "polydata_contour_cells": 218,
+    "polydata_input_cells": 41700,
+    "polydata_input_points": 21393,
+    "polydata_scalar_max": 25.0,
+    "polydata_scalar_min": -25.0,
+    "ragged_contour_cells": 41700,
+    "ragged_input_cells": 125000,
+    "ragged_input_points": 132651,
+    "ragged_scalar_max": 285.079132,
+    "ragged_scalar_min": 33.951149,
+    "tetra_contour_cells": 100220,
+    "tetra_input_cells": 625000,
+    "tetra_input_points": 132651,
+    "tetra_scalar_max": 285.079132,
+    "tetra_scalar_min": 33.951149,
+    "topologies_processed": 4
+  },
+  "nodes": 1,
+  "notes": [],
+  "numeric_extracts": [],
+  "platform": "Linux",
+  "ranks": 1,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {
+    "contour_amr": 0.00373,
+    "contour_polydata": 0.007609,
+    "contour_ragged": 0.006147,
+    "contour_tetra": 0.020708,
+    "io_amr": 0.006494,
+    "io_polydata": 0.005665,
+    "io_ragged": 0.006139,
+    "io_tetra": 0.05109,
+    "render_amr": 0.040079,
+    "render_polydata": 0.078732,
+    "render_ragged": 0.074231,
+    "render_tetra": 0.082571
+  },
+  "tool": "ParaView",
+  "vignette": "ex09_pvMeshTopologies",
+  "wall_time_s": 1.603011
+}

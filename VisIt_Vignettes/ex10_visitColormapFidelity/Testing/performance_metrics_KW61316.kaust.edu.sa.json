@@ -1,0 +1,29 @@
+{
+    "2026-09-21T07:55:41.566380": {
+        "test_name": "ex10_visitColormapFidelity",
+        "metrics_schema": 4,
+        "execution_time": 4.8713059425354,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 135.48728160081146,
+        "cpu_seconds": 6.6,
+        "memory_usage_mb": 466.816,
+        "memory_usage": 489492054.016,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.771878,
+        "harness_rss_mb": 193.91015625,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        },
+        "run_id": "visit342-local-2026-09-21"
+    }
+}

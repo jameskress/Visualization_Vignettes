@@ -144,8 +144,13 @@ def format_scalar_bar(view, lut, title, component_title=""):
     bar.ScalarBarThickness = 18
 
     bar.AutomaticLabelFormat = 0
-    bar.LabelFormat = "%-#6.3g"
-    bar.RangeLabelFormat = "%-#6.3g"
+    # ParaView 6 formats these with std::format specs, not printf ones, and
+    # prints an unrecognised spec verbatim -- so a hard-coded "%-#6.3g" makes
+    # every tick label on the legend read "%-#6.3g". vc.number_format reads
+    # the build's own default to decide which dialect to emit, which keeps
+    # one script correct on 6.1 here and on 5.13.1 from the cluster modules.
+    bar.LabelFormat = vc.number_format(bar, "%-#6.3g", "LabelFormat")
+    bar.RangeLabelFormat = vc.number_format(bar, "%-#6.3g", "RangeLabelFormat")
     bar.AddRangeLabels = 1
     bar.DrawTickMarks = 1
     bar.DrawTickLabels = 1
@@ -201,7 +206,7 @@ def render_configuration(ctx, view, source, scalar, config, scalar_range):
     report = {"configuration": config}
 
     if config == "preset":
-        lut.ApplyPreset(ctx.args.preset, True)
+        vc.apply_color_preset(lut, (ctx.args.preset,), ctx)
         lut.RescaleTransferFunction(scalar_range[0], scalar_range[1])
         pwf.RescaleTransferFunction(scalar_range[0], scalar_range[1])
         title = "{0} -- preset".format(scalar)
@@ -209,7 +214,7 @@ def render_configuration(ctx, view, source, scalar, config, scalar_range):
         report["preset"] = ctx.args.preset
 
     elif config == "custom":
-        lut.ApplyPreset(CUSTOM_PRESET_NAME, True)
+        vc.apply_color_preset(lut, (CUSTOM_PRESET_NAME,), ctx)
         lut.RescaleTransferFunction(scalar_range[0], scalar_range[1])
         pwf.RescaleTransferFunction(scalar_range[0], scalar_range[1])
         title = "{0} -- custom XML".format(scalar)
@@ -218,7 +223,7 @@ def render_configuration(ctx, view, source, scalar, config, scalar_range):
 
     elif config == "log":
         low, high = positive_log_range(scalar_range)
-        lut.ApplyPreset(CUSTOM_PRESET_NAME, True)
+        vc.apply_color_preset(lut, (CUSTOM_PRESET_NAME,), ctx)
         # Rescale BEFORE enabling log scaling: enabling it against a range
         # that still reaches zero is what triggers the silent clamp.
         lut.RescaleTransferFunction(low, high)
@@ -231,7 +236,7 @@ def render_configuration(ctx, view, source, scalar, config, scalar_range):
     else:  # categorical
         lut = GetColorTransferFunction("category")
         ColorBy(display, ("POINTS", "category"))
-        lut.ApplyPreset(CATEGORICAL_PRESET_NAME, True)
+        vc.apply_color_preset(lut, (CATEGORICAL_PRESET_NAME,), ctx)
         lut.InterpretValuesAsCategories = 1
         lut.AnnotationsInitialized = 1
 
@@ -401,8 +406,14 @@ def run(ctx):
     binner = Calculator(Input=reader, registrationName="ex10_categories")
     binner.AttributeType = "Point Data"
     binner.ResultArrayName = "category"
-    binner.Function = "min({0}, floor(({1} - {2}) / {3} * {0}))".format(
-        CATEGORY_COUNT - 1, scalar, float(scalar_range[0]), span
+    # Scale by CATEGORY_COUNT, clamp at CATEGORY_COUNT - 1. The scale factor
+    # was CATEGORY_COUNT - 1, which is what the comment above says it is
+    # avoiding: it gives four equal-width bins plus a fifth holding only the
+    # exact maximum, so the five-colour indexed map this vignette exists to
+    # verify was only ever asked to show four of its colours -- and the fifth
+    # only if a single point happened to sit on the maximum.
+    binner.Function = "min({0}, floor(({1} - {2}) / {3} * {4}))".format(
+        CATEGORY_COUNT - 1, scalar, float(scalar_range[0]), span, CATEGORY_COUNT
     )
     UpdatePipeline(proxy=binner)
     ctx.debug("category function: {0}".format(binner.Function))
@@ -443,4 +454,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    vc.exit_vignette(main())

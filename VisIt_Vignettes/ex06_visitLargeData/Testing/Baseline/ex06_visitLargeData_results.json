@@ -1,0 +1,40 @@
+{
+  "assertions": [
+    {
+      "detail": "1 image(s) present",
+      "name": "every baselined image was produced",
+      "passed": true
+    }
+  ],
+  "extracts": [],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "image_tolerance": 1.0,
+  "images": [
+    "ex06_visit.png.jpeg"
+  ],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "baselined_images": 1,
+    "missing_images": 0
+  },
+  "nodes": 1,
+  "notes": [
+    "image gate disabled: the baseline was blessed at 1 rank(s) and this run is at 8. this cyclone scene is composited in a partition-dependent order, so the two renders differ by roughly 23% of pixels while both are correct. Bless at 1 rank(s), or compare the numbers rather than the picture.",
+    "image_gate=disabled (baseline_ranks=1, run_ranks=8)",
+    "image tolerance 100.0000%: rank count differs from the baseline's; see the warning above"
+  ],
+  "numeric_extracts": [],
+  "platform": "Linux",
+  "ranks": 8,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {},
+  "tool": "VisIt",
+  "vignette": "ex06_visitLargeData",
+  "wall_time_s": 57.228397
+}

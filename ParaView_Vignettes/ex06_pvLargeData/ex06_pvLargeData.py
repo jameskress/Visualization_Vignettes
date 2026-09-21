@@ -3193,7 +3193,7 @@ qVAPORLUTColorBar.LabelBold = 1
 qVAPORLUTColorBar.LabelFontSize = 13
 qVAPORLUTColorBar.ScalarBarThickness = 25
 qVAPORLUTColorBar.ScalarBarLength = 0.25
-qVAPORLUTColorBar.RangeLabelFormat = "%-#6.1f"
+qVAPORLUTColorBar.RangeLabelFormat = vc.number_format(qVAPORLUTColorBar, "%-#6.1f", "RangeLabelFormat")
 
 # set color bar visibility
 qVAPORLUTColorBar.Visibility = 1
@@ -3211,7 +3211,7 @@ qRAINLUTColorBar.LabelBold = 1
 qRAINLUTColorBar.LabelFontSize = 13
 qRAINLUTColorBar.ScalarBarThickness = 25
 qRAINLUTColorBar.ScalarBarLength = 0.24999999999999978
-qRAINLUTColorBar.RangeLabelFormat = "%-#6.1f"
+qRAINLUTColorBar.RangeLabelFormat = vc.number_format(qRAINLUTColorBar, "%-#6.1f", "RangeLabelFormat")
 
 # set color bar visibility
 qRAINLUTColorBar.Visibility = 1
@@ -3229,7 +3229,7 @@ calculatedRainLUTColorBar.LabelBold = 1
 calculatedRainLUTColorBar.LabelFontSize = 13
 calculatedRainLUTColorBar.ScalarBarThickness = 25
 calculatedRainLUTColorBar.ScalarBarLength = 0.25
-calculatedRainLUTColorBar.RangeLabelFormat = "%-#6.1f"
+calculatedRainLUTColorBar.RangeLabelFormat = vc.number_format(calculatedRainLUTColorBar, "%-#6.1f", "RangeLabelFormat")
 
 # set color bar visibility
 calculatedRainLUTColorBar.Visibility = 1
@@ -3248,8 +3248,8 @@ qICELUTColorBar.LabelFontSize = 13
 qICELUTColorBar.ScalarBarThickness = 25
 qICELUTColorBar.ScalarBarLength = 0.25
 qICELUTColorBar.AutomaticLabelFormat = 0
-qICELUTColorBar.LabelFormat = "%-#6.3f"
-qICELUTColorBar.RangeLabelFormat = "%-#6.1f"
+qICELUTColorBar.LabelFormat = vc.number_format(qICELUTColorBar, "%-#6.3f", "LabelFormat")
+qICELUTColorBar.RangeLabelFormat = vc.number_format(qICELUTColorBar, "%-#6.1f", "RangeLabelFormat")
 
 # set color bar visibility
 qICELUTColorBar.Visibility = 1
@@ -3336,5 +3336,25 @@ print("\nFinished ParaView example script\n")
 # old harness could not see at all: a vignette that silently stops emitting a
 # frame.
 # --------------------------------------------------------------------------
+# The Surface LIC on the terrain is not reproducible run to run under the
+# forced-offscreen GLX path this suite launches: two consecutive runs on the
+# same machine, same ParaView, same data and the GPU pinned differ by up to
+# 4.1% of the frame, while the same scene rendered without mpirun and without
+# forced offscreen is stable to 0.008% and Surface LIC in isolation is
+# bit-identical. EnhanceContrast = "LIC and Color" then stretches whatever
+# difference exists into a visible one.
+#
+# 5% keeps the gate meaningful for this vignette -- the volume rendering,
+# the geometry, the legends and the colour maps are all still compared, and
+# the widest legitimate cross-backend difference measured anywhere in this
+# suite is 0.39% -- while not failing on the LIC's own noise. It is declared
+# here rather than by loosening --image-tolerance for the whole suite, which
+# would blind the other twelve vignettes to real regressions.
+ctx.set_image_tolerance(
+    0.05,
+    "Surface LIC with contrast enhancement is not reproducible run to run "
+    "under forced-offscreen GLX; measured 4.1% against its own output",
+)
+
 ctx.assert_baselined_images_present()
-sys.exit(ctx.finish())
+vc.exit_vignette(ctx.finish())

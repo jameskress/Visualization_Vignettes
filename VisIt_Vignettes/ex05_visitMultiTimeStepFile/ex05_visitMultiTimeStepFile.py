@@ -108,7 +108,13 @@ vc.open_visit_engine(ctx, OpenComputeEngine)
 #
 # Open file and add basic plot
 #
-dataFile = script_dir + "/../../data/varying.visit"
+# The XML series, not data/varying.visit. This vignette turns VisIt's time
+# annotation on (annotationAtts.timeInfoFlag below), so the time is burned
+# into every frame -- and over the legacy series that annotation reads "0"
+# for all twenty frames on VisIt 3.4.2, because the legacy files carry no
+# time for the reader to report. The XML series carries TIME and CYCLE in
+# each file's FieldData. See vc.time_series_index().
+dataFile = ctx.time_series_index()
 OpenDatabase("localhost:" + dataFile, 0)
 AddPlot("Pseudocolor", "temp", 1, 0)
 PseudocolorAtts = PseudocolorAttributes()
@@ -133,6 +139,29 @@ annotationAtts.foregroundColor = (255, 255, 255, 255)
 annotationAtts.backgroundMode = annotationAtts.Solid
 annotationAtts.axesArray.visible = 1
 SetAnnotationAttributes(annotationAtts)
+
+#
+# Put the cycle and the time on the frame.
+#
+# This vignette's whole subject is a multi-timestep database, and without
+# this its twenty frames differ only in the data -- nothing in the picture
+# says which timestep it is. $cycle and $time are VisIt's own macros,
+# expanded at render time from whatever the reader reported, so this is also
+# the most direct way to SEE what the reader made of the series: over the
+# legacy varying*.vtk files it reads "Time: 0" on all twenty frames under
+# VisIt 3.4.2, because those files carry no time. Over the XML series
+# (vc.time_series_index, and data/make_time_series.py for why) it reads the
+# real values.
+#
+# databaseInfoFlag stays off. VisIt's built-in database annotation would say
+# the same thing, but it also prints the database path, which is
+# machine-specific and would put this machine's directory layout into every
+# blessed baseline.
+timeAnnotation = CreateAnnotationObject("Text2D")
+timeAnnotation.text = "Cycle: $cycle    Time: $time"
+timeAnnotation.position = (0.02, 0.94)
+timeAnnotation.height = 0.03
+timeAnnotation.useForegroundForTextColor = 1
 
 #
 # Set what we are looking at

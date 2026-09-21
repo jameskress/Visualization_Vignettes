@@ -91,9 +91,22 @@ def add_arguments(parser):
 
 
 def query_value(name, **kwargs):
-    """Run a VisIt query and return its numeric output."""
+    """Run a VisIt query and return its numeric output.
+
+    A query against a plot that failed returns None, and the callers feed
+    that straight into int() -- so the symptom is a TypeError about NoneType
+    several lines away from the plot that actually broke. Failing here names
+    the query instead.
+    """
     Query(name, **kwargs)
-    return GetQueryOutputValue()
+    value = GetQueryOutputValue()
+    if value is None:
+        raise vc.VignetteError(
+            "VisIt query {0!r} returned no value. The plot is usually already "
+            "in an error state by this point -- check the log above for the "
+            "reason.".format(name)
+        )
+    return value
 
 
 def configure_annotations():
@@ -137,7 +150,14 @@ def process_topology(ctx, manifest, key, manifest_key, path_field, label):
         )
 
     scalar = entry.get("scalar", vc.TOPOLOGY_SCALAR)
-    isovalue = float(manifest.get("contour_value", 150.0))
+    # Each dataset records the isovalue measured from its own data. The
+    # polydata surface is the case that matters: it carries a coordinate
+    # rather than the wavelet field, because contouring a surface at its own
+    # defining isovalue is empty by construction. The top-level key is the
+    # fallback for a manifest from an older generator.
+    isovalue = float(
+        entry.get("contour_value", manifest.get("contour_value", 150.0))
+    )
 
     ctx.log("  file      : {0}".format(filename))
     ctx.log("  scalar    : {0}".format(scalar))
@@ -150,7 +170,18 @@ def process_topology(ctx, manifest, key, manifest_key, path_field, label):
     AddPlot("Pseudocolor", scalar, 1, 0)
 
     pc_atts = PseudocolorAttributes()
-    pc_atts.colorTableName = "viridis"
+    # viridis IS a VisIt colour table -- it just is not one of the 18 that
+    # are compiled in. It ships as a .ct under the install's resources, which
+    # -noconfig stops VisIt loading, so it has to be added explicitly.
+    #
+    # Without that, VisIt does not refuse the name here. The plot fails
+    # asynchronously with "There is no color table named viridis", after
+    # which every query against it returns None, and the vignette died three
+    # steps later on int(None) with nothing pointing at the colour table.
+    pc_atts.colorTableName = vc.ensure_color_table(
+        ctx, "viridis",
+        ColorTableNames, AddColorTable, ColorControlPointList, ColorControlPoint,
+    )
     SetPlotOptions(pc_atts)
 
     configure_annotations()
@@ -168,6 +199,39 @@ def process_topology(ctx, manifest, key, manifest_key, path_field, label):
         scalar_min, scalar_max = float(minmax[0]), float(minmax[1])
     else:
         scalar_min = scalar_max = 0.0
+
+    # -- context, where the contour would otherwise be a hairline ---------
+    #
+    # Same reasoning as ParaView's ex09: a 2D input contours to a 1D curve,
+    # which on its own is about 1% ink in a 1024x1024 frame. The input gets
+    # drawn underneath, and the isoline is thickened and given a flat white
+    # table so it does not take the colour of whatever it is lying on.
+    #
+    # Order matters. VisIt applies an operator to the ACTIVE plot, so the
+    # context plot is added first and the plot that will carry the
+    # Isosurface operator is made active again before it goes on.
+    context_plot = None
+    if entry.get("contour_is_lower_dimensional"):
+        AddPlot("Pseudocolor", scalar, 1, 0)
+        context_atts = PseudocolorAttributes()
+        context_atts.colorTableName = pc_atts.colorTableName
+        context_atts.legendFlag = 0
+        SetPlotOptions(context_atts)
+        context_plot = GetNumPlots() - 1
+
+        # Put the contoured plot back in front for the operator and the
+        # queries that follow it.
+        SetActivePlots((0,))
+        iso_atts_line = PseudocolorAttributes()
+        iso_atts_line.colorTableName = vc.ensure_flat_color_table(
+            ctx, "VV Isoline", (1.0, 1.0, 1.0),
+            ColorTableNames, AddColorTable,
+            ColorControlPointList, ColorControlPoint,
+        )
+        iso_atts_line.lineWidth = 4
+        iso_atts_line.legendFlag = 0
+        SetPlotOptions(iso_atts_line)
+        ctx.log("  drew the input surface as context for a 1D contour")
 
     # -- contour ----------------------------------------------------------
     AddOperator("Isosurface")

@@ -1,0 +1,72 @@
+{
+  "assertions": [
+    {
+      "detail": "n_states=20",
+      "name": "database reports timesteps",
+      "passed": true
+    },
+    {
+      "detail": "zones=5386",
+      "name": "isosurface is non-empty",
+      "passed": true
+    },
+    {
+      "detail": "area=303.83991357620505",
+      "name": "isosurface has finite area",
+      "passed": true
+    },
+    {
+      "detail": "range=[1.9264800548553467, 26.103099822998047]",
+      "name": "scalar range is non-degenerate",
+      "passed": true
+    },
+    {
+      "detail": "ex07_visitScaling_isosurface.png",
+      "name": "image was written",
+      "passed": true
+    },
+    {
+      "detail": "pipeline=0.326904s render=0.285703s",
+      "name": "pipeline and render phases were both timed",
+      "passed": true
+    }
+  ],
+  "extracts": [
+    "ex07_visitScaling_timings.csv"
+  ],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "image_tolerance": null,
+  "images": [
+    "ex07_visitScaling_isosurface.png"
+  ],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "isosurface_zones": 5386,
+    "scalar_max": 26.1031,
+    "scalar_min": 1.92648,
+    "surface_area": 303.8399,
+    "timesteps_processed": 20
+  },
+  "nodes": 1,
+  "notes": [
+    "compute_engine_launched=False"
+  ],
+  "numeric_extracts": [],
+  "platform": "Linux",
+  "ranks": 1,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {
+    "open": 0.372637,
+    "pipeline": 0.326904,
+    "render": 0.285703
+  },
+  "tool": "VisIt",
+  "vignette": "ex07_visitScaling",
+  "wall_time_s": 4.180317
+}

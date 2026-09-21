@@ -1,0 +1,39 @@
+{
+  "assertions": [
+    {
+      "detail": "5 image(s) present",
+      "name": "every baselined image was produced",
+      "passed": true
+    }
+  ],
+  "extracts": [],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "images": [
+    "ex03_contour_0000.png",
+    "ex03_contour_0001.png",
+    "ex03_contour_0002.png",
+    "ex03_contour_0003.png",
+    "ex03_contour_0004.png"
+  ],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "baselined_images": 5,
+    "missing_images": 0
+  },
+  "nodes": 1,
+  "notes": [],
+  "numeric_extracts": [],
+  "platform": "Linux",
+  "ranks": 1,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {},
+  "tool": "ParaView",
+  "vignette": "ex03_pvIsosurfaceAnimation",
+  "wall_time_s": 16.455796
+}

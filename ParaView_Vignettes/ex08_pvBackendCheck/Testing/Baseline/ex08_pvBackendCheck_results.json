@@ -1,0 +1,68 @@
+{
+  "assertions": [
+    {
+      "detail": "VTK_DEFAULT_OPENGL_WINDOW and --expect-backend must not ask for opposite things.",
+      "name": "backend_request_consistent",
+      "passed": true
+    },
+    {
+      "detail": "vendor='NVIDIA Corporation' renderer='NVIDIA RTX A5000/PCIe/SSE2'",
+      "name": "an OpenGL context exists",
+      "passed": true
+    },
+    {
+      "detail": "ex08_pvBackendCheck_probe.png (1024x1024)",
+      "name": "a frame was rendered and written",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "rendered at the requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "GL_RENDERER 'NVIDIA RTX A5000/PCIe/SSE2' matched neither a known software rasteriser nor a known hardware vendor",
+      "name": "backend classification is conclusive",
+      "passed": true
+    }
+  ],
+  "extracts": [],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "images": [
+    "ex08_pvBackendCheck_probe.png"
+  ],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "backend_classification": "hardware",
+    "backend_request_consistent": true,
+    "expected_backend": "auto",
+    "has_gl_context": true,
+    "image_height": 1024,
+    "image_width": 1024
+  },
+  "nodes": 1,
+  "notes": [
+    "GL_VENDOR=NVIDIA Corporation",
+    "GL_RENDERER=NVIDIA RTX A5000/PCIe/SSE2",
+    "GL_VERSION=3.2.0 NVIDIA 580.173.02",
+    "VTK_DEFAULT_OPENGL_WINDOW=<unset>",
+    "VV_PARAVIEW_MODULE=<unset>",
+    "VTK_DEFAULT_OPENGL_WINDOW is unset. ParaView 6.0+ picks a render window class from it, and the site's run_pvserver.sbat sets it from the module name. Source ParaView_Vignettes/MODULES.sh, or export it by hand, so the backend is chosen rather than guessed."
+  ],
+  "numeric_extracts": [],
+  "platform": "Linux",
+  "ranks": 1,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {
+    "render": 0.046771
+  },
+  "tool": "ParaView",
+  "vignette": "ex08_pvBackendCheck",
+  "wall_time_s": 0.863033
+}

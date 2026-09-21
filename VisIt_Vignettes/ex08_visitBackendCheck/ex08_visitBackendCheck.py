@@ -124,13 +124,25 @@ def engine_attributes(ctx):
     if attributes is None:
         return None
 
+    # ProcessAttributes on VisIt 3.4.2 carries exactly these fields:
+    #     pids, ppids, hosts, isParallel, memory, times
+    # There is no numProcs and no numNodes. Asking for them did not return
+    # the default either -- VisIt's attribute objects raise ValueError rather
+    # than AttributeError for an unknown name, so getattr(obj, name, default)
+    # propagates instead of falling back, and this vignette died on
+    # "Could not find method with name `numProcs`" before it asserted
+    # anything. vc.visit_attr is getattr with a default that actually works.
+    #
+    # The rank count is therefore derived from the data VisIt does give: one
+    # pid per engine process, and one distinct host per node.
     def field(name, default=0):
-        return getattr(attributes, name, default)
+        return vc.visit_attr(attributes, name, default)
 
     hosts = list(field("hosts", []) or [])
+    pids = list(field("pids", []) or [])
     return {
-        "num_procs": int(field("numProcs", 0)),
-        "num_nodes": int(field("numNodes", 0)),
+        "num_procs": len(pids),
+        "num_nodes": len(set(hosts)),
         "is_parallel": bool(field("isParallel", False)),
         "hosts": hosts,
         "unique_hosts": sorted(set(hosts)),

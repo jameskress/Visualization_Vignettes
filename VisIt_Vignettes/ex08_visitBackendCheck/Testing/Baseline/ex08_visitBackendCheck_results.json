@@ -1,0 +1,57 @@
+{
+  "assertions": [
+    {
+      "detail": "GetProcessAttributes('engine') returned nothing",
+      "name": "compute engine reported its attributes",
+      "passed": true
+    },
+    {
+      "detail": "Scalable rendering runs on the compute node, so this failing means the engine could not create a usable offscreen context there",
+      "name": "engine-side (scalable) render produced an image",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "rendered at the requested resolution",
+      "passed": true
+    }
+  ],
+  "extracts": [],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "image_tolerance": null,
+  "images": [
+    "ex08_visitBackendCheck_probe.png"
+  ],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "compute_engine_launched": false,
+    "engine_is_parallel": false,
+    "engine_side_render_succeeded": true,
+    "hw_accel_requested": false,
+    "image_height": 1024,
+    "image_width": 1024
+  },
+  "nodes": 1,
+  "notes": [
+    "visit_version=3.4.2",
+    "engine_hosts=KW61316.kaust.edu.sa",
+    "engine_num_procs=1",
+    "engine_num_nodes=1"
+  ],
+  "numeric_extracts": [],
+  "platform": "Linux",
+  "ranks": 1,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {
+    "render": 0.30171
+  },
+  "tool": "VisIt",
+  "vignette": "ex08_visitBackendCheck",
+  "wall_time_s": 0.912335
+}

@@ -1,0 +1,29 @@
+{
+    "2026-09-21T07:55:31.450542": {
+        "test_name": "ex08_visitBackendCheck",
+        "metrics_schema": 4,
+        "execution_time": 1.9383342266082764,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 285.81242202455286,
+        "cpu_seconds": 5.54,
+        "memory_usage_mb": 425.789,
+        "memory_usage": 446472126.464,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 1.81704,
+        "harness_rss_mb": 193.91015625,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        },
+        "run_id": "visit342-local-2026-09-21"
+    }
+}

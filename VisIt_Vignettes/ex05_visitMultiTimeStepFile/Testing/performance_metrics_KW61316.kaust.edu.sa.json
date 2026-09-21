@@ -49,5 +49,32 @@
             "paraview_version": null,
             "visit_version": "3.4.1"
         }
+    },
+    "2026-09-21T07:51:54.792444": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "metrics_schema": 4,
+        "execution_time": 17.224263191223145,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 204.1306476199008,
+        "cpu_seconds": 35.16,
+        "memory_usage_mb": 909.012,
+        "memory_usage": 953168166.912,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 17.097465,
+        "harness_rss_mb": 155.99609375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        },
+        "run_id": "visit342-local-2026-09-21"
     }
 }

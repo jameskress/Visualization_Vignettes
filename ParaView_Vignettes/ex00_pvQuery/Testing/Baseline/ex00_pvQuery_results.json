@@ -1,0 +1,26 @@
+{
+  "assertions": [],
+  "extracts": [],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "images": [],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "baselined_images": 0
+  },
+  "nodes": 1,
+  "notes": [],
+  "numeric_extracts": [],
+  "platform": "Linux",
+  "ranks": 1,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {},
+  "tool": "ParaView",
+  "vignette": "ex00_pvQuery",
+  "wall_time_s": 0.22489
+}

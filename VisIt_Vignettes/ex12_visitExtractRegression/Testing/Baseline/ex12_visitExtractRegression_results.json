@@ -1,0 +1,112 @@
+{
+  "assertions": [
+    {
+      "detail": "20 distinct time value(s) across 20 states. A time series whose states all carry the same time is a reader defect, not data: VisIt 3.4.2 returns t=0 and cycle=0 for every state of a .visit index over legacy VTK, where 3.4.1 returns 0..19 over the same files.",
+      "name": "database reports a distinct time per state",
+      "passed": true
+    },
+    {
+      "detail": "exported 3 basename(s), found 3 file(s) in /home/kressjm/packages/Visualization_Vignettes/VisIt_Vignettes/ex12_visitExtractRegression/output",
+      "name": "export wrote a file for every step",
+      "passed": true
+    },
+    {
+      "detail": "expected at least 3, found 3",
+      "name": "one rendered frame per step",
+      "passed": true
+    },
+    {
+      "detail": "ex12_visitExtractRegression_measurements.csv",
+      "name": "numeric CSV was written",
+      "passed": true
+    },
+    {
+      "detail": "missing: []",
+      "name": "numeric CSV carries every required column",
+      "passed": true
+    },
+    {
+      "detail": "expected 3 row(s), found 3",
+      "name": "numeric CSV has one row per extracted step",
+      "passed": true
+    },
+    {
+      "detail": "zone counts: [4414, 6632, 7315]",
+      "name": "every contour is non-empty",
+      "passed": true
+    },
+    {
+      "detail": "areas: [282.25345448433313, 411.2857925282259, 450.21809877315815]",
+      "name": "every integrated area is finite and positive",
+      "passed": true
+    },
+    {
+      "detail": "mean=8.770885075106124 from weighted_sum=70167.08089942485 / volume=8000.000034041703",
+      "name": "volume-weighted mean is finite",
+      "passed": true
+    }
+  ],
+  "extracts": [
+    "ex12_visitExtractRegression_measurements.csv",
+    "ex12_visitExtractRegression_contour_000000.vtk",
+    "ex12_visitExtractRegression_contour_000001.vtk",
+    "ex12_visitExtractRegression_contour_000002.vtk"
+  ],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "image_tolerance": null,
+  "images": [
+    "ex12_visitExtractRegression_frame_000000.png",
+    "ex12_visitExtractRegression_frame_000001.png",
+    "ex12_visitExtractRegression_frame_000002.png"
+  ],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "contour_area": 450.2181,
+    "contour_cells": 7315,
+    "data_extract_files": 3,
+    "database_distinct_times": 20,
+    "database_time_span": 0.95,
+    "export_utility": "ExportDatabase",
+    "image_extract_files": 3,
+    "input_cells": 117649,
+    "input_points": 125000,
+    "scalar_max": 25.098301,
+    "scalar_mean": 8.770885,
+    "scalar_min": 1.32619,
+    "steps_extracted": 3
+  },
+  "nodes": 1,
+  "notes": [
+    "compute_engine_launched=False"
+  ],
+  "numeric_extracts": [
+    {
+      "atol": 1e-09,
+      "file": "ex12_visitExtractRegression_measurements.csv",
+      "key_columns": [
+        "timestep"
+      ],
+      "rtol": 1e-06
+    }
+  ],
+  "platform": "Linux",
+  "ranks": 1,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {
+    "export": 0.067767,
+    "integrals": 0.519617,
+    "open": 0.415324,
+    "pipeline": 0.08315,
+    "query": 0.671894,
+    "render": 0.395828
+  },
+  "tool": "VisIt",
+  "vignette": "ex12_visitExtractRegression",
+  "wall_time_s": 2.639554
+}

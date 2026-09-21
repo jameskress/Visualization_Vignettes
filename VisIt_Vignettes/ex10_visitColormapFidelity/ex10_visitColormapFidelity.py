@@ -402,8 +402,12 @@ def render_configuration(ctx, config, scalar, scalar_range, tables):
     applied_scaling = int(getattr(applied, "scaling", 0))
     log_enabled = applied_scaling == int(pc_atts.Log)
 
+    # GetNumPlots() is the accessor; PlotList has no numPlots attribute, and
+    # asking for one raises ValueError rather than returning a default (see
+    # vc.visit_attr). This vignette died on "Could not find method with name
+    # `numPlots`" before rendering anything.
     plots = GetPlotList()
-    plot_name = plots.GetPlots(plots.numPlots - 1).plotName
+    plot_name = plots.GetPlots(GetNumPlots() - 1).plotName
     legend = format_legend(ctx, plot_name, "{0} : {1}".format(variable, config))
 
     ResetView()
@@ -501,7 +505,14 @@ def run(ctx):
     scalar = ctx.args.scalar
 
     engine_launched = vc.open_visit_engine(ctx, OpenComputeEngine)
-    ctx.add_metric("compute_engine_launched", bool(engine_launched))
+    # A note, not a metric. `metrics` is a correctness gate compared against
+    # the baseline; how the engine was launched is a property of the run,
+    # not of the result. Gating on it makes every rank change look like a
+    # regression -- measured: the same suite at --ranks 8 produced
+    # bit-identical images and failed here on "expected false, got true".
+    # ex08_visitBackendCheck keeps it as a metric, because the backend IS
+    # its subject.
+    ctx.notes.append("compute_engine_launched={0}".format(bool(engine_launched)))
 
     dataset = ctx.dataset("varying_first")
     ctx.log("dataset: {0}".format(dataset))

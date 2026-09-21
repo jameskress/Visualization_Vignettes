@@ -648,4 +648,4 @@ print("\nFinished ParaView example script\n", flush=True)
 # frame.
 # --------------------------------------------------------------------------
 ctx.assert_baselined_images_present()
-sys.exit(ctx.finish())
+vc.exit_vignette(ctx.finish())

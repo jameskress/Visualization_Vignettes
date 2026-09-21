@@ -6,7 +6,9 @@
 #
 # Load a saved .pvsm headlessly under Xvfb, step time, disconnect.
 #
-# Needs ex11_state.pvsm. Generate once per ParaView version: pvbatch ex11_make_state.py
+# Needs ex11_state.pvsm, which is generated and version-locked.
+# Prepare or verify this machine first:
+#     python3 ../../Testing/prepare_machine.py --check
 #
 # SUBMIT
 #     sbatch ex11_shaheen_runScript.sbat

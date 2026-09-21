@@ -53,6 +53,7 @@
 # Author: James Kress, <james@jameskress.com>
 #
 import os
+import re
 import sys
 
 
@@ -111,20 +112,71 @@ def load_state_with_data_dir(ctx, state_path):
     fall back to the plain call, which works whenever the paths still
     resolve.
     """
+    # A .pvsm records the ParaView that wrote it, in
+    # <ServerManagerState version="6.1.0">. Nothing read it, so a state file
+    # carried across a version boundary was loaded and then failed somewhere
+    # further downstream. Read it first and say so plainly.
+    vc.check_fixture_version(
+        ctx,
+        _state_file_version(state_path),
+        vc.paraview_version_string(),
+        os.path.basename(state_path),
+        "pvbatch ex11_make_state.py",
+    )
+
+    # The keyword is restrict_to_data_DIRECTORY, in ParaView 5.13 and 6.1
+    # alike. The previous spelling, restrict_to_data_files, matched no
+    # release: ParaView does not reject an unknown keyword, it forwards it to
+    # _LoadStateLegacy, which tries to set it as a property on a proxy and
+    # raises "Attribute restrict_to_data_files does not exist". That is an
+    # AttributeError, so the `except TypeError` below never caught it and the
+    # fallback path was unreachable -- the vignette simply died.
     try:
         LoadState(
             state_path,
             data_directory=ctx.data_dir,
-            restrict_to_data_files=False,
+            restrict_to_data_directory=False,
         )
         ctx.log("state loaded with data_directory={0}".format(ctx.data_dir))
         return "data_directory"
-    except TypeError as exc:
-        ctx.debug("LoadState(data_directory=...) unavailable: {0}".format(exc))
+    except (TypeError, AttributeError, RuntimeError) as exc:
+        # Broad on purpose. A build that does not support the keyword form
+        # signals it differently in each release -- TypeError from the
+        # signature, AttributeError from the legacy property path,
+        # RuntimeError from the state loader -- and all three mean the same
+        # thing here: fall back to the paths recorded in the state.
+        ctx.warn(
+            "LoadState(data_directory=...) failed ({0}: {1}); falling back "
+            "to the paths recorded in the state file.".format(
+                type(exc).__name__, exc
+            )
+        )
 
     LoadState(state_path)
     ctx.log("state loaded using the paths recorded in the state file")
     return "recorded_paths"
+
+
+def _state_file_version(path):
+    """The ParaView version recorded inside a .pvsm, or None.
+
+    Read as text rather than parsed as XML: the attribute is in the first few
+    lines, the file can be tens of megabytes, and a malformed state should
+    produce "unknown version" here rather than an exception before the
+    vignette has had a chance to report anything.
+    """
+    try:
+        with open(path, "r") as handle:
+            for _ in range(20):
+                line = handle.readline()
+                if not line:
+                    break
+                match = re.search(r'ServerManagerState[^>]*version="([^"]+)"', line)
+                if match:
+                    return match.group(1)
+    except (OSError, IOError):
+        pass
+    return None
 
 
 def run(ctx):
@@ -304,4 +356,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    vc.exit_vignette(main())

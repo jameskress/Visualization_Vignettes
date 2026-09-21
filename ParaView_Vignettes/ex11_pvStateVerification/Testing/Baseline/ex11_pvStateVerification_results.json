@@ -1,0 +1,76 @@
+{
+  "assertions": [
+    {
+      "detail": "2 source(s)",
+      "name": "state produced at least one source",
+      "passed": true
+    },
+    {
+      "detail": "1 view(s)",
+      "name": "state produced at least one view",
+      "passed": true
+    },
+    {
+      "detail": "3 of 3 step(s) produced a readable PNG",
+      "name": "every visited step rendered an image",
+      "passed": true
+    },
+    {
+      "detail": "state view is 1024x1024",
+      "name": "rendered images match the view size in the state",
+      "passed": true
+    },
+    {
+      "detail": "first=0.0 last=2.0",
+      "name": "stepping the animation changed the reported time",
+      "passed": true
+    },
+    {
+      "detail": "Disconnect() completed without raising",
+      "name": "client-server connection closed cleanly",
+      "passed": true
+    }
+  ],
+  "extracts": [
+    "ex11_pvStateVerification_steps.csv"
+  ],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "images": [
+    "ex11_pvStateVerification_step00.png",
+    "ex11_pvStateVerification_step01.png",
+    "ex11_pvStateVerification_step02.png"
+  ],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "clean_disconnect": true,
+    "sources_in_state": 2,
+    "state_view_height": 1024,
+    "state_view_width": 1024,
+    "steps_rendered": 3,
+    "timesteps_in_state": 20,
+    "views_in_state": 1
+  },
+  "nodes": 1,
+  "notes": [
+    "display=:99",
+    "load_mode=data_directory"
+  ],
+  "numeric_extracts": [],
+  "platform": "Linux",
+  "ranks": 1,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {
+    "disconnect": 0.025303,
+    "load_state": 0.789754,
+    "render": 0.320572
+  },
+  "tool": "ParaView",
+  "vignette": "ex11_pvStateVerification",
+  "wall_time_s": 1.254863
+}

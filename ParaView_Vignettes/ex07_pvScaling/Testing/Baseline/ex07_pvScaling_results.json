@@ -1,0 +1,67 @@
+{
+  "assertions": [
+    {
+      "detail": "points=125000 cells=117649",
+      "name": "time series was read",
+      "passed": true
+    },
+    {
+      "detail": "contour_cells=5386",
+      "name": "isosurface is non-empty",
+      "passed": true
+    },
+    {
+      "detail": "area=303.83991313448405",
+      "name": "isosurface has finite area",
+      "passed": true
+    },
+    {
+      "detail": "ex07_pvScaling_isosurface.png",
+      "name": "image was written",
+      "passed": true
+    },
+    {
+      "detail": "io=0.776684s render=0.037079s",
+      "name": "io and render phases were both timed",
+      "passed": true
+    }
+  ],
+  "extracts": [
+    "ex07_pvScaling_timings.csv"
+  ],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "images": [
+    "ex07_pvScaling_isosurface.png"
+  ],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "contour_area": 303.8399,
+    "contour_cells": 5386,
+    "input_cells": 117649,
+    "input_points": 125000,
+    "scalar_max": 26.1031,
+    "scalar_min": 1.92648,
+    "timesteps_processed": 20
+  },
+  "nodes": 1,
+  "notes": [],
+  "numeric_extracts": [],
+  "platform": "Linux",
+  "ranks": 1,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {
+    "filter": 0.048567,
+    "integrate": 0.009731,
+    "io": 0.776684,
+    "render": 0.037079
+  },
+  "tool": "ParaView",
+  "vignette": "ex07_pvScaling",
+  "wall_time_s": 1.825593
+}

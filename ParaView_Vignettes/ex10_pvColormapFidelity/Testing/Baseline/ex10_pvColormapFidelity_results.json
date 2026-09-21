@@ -1,0 +1,133 @@
+{
+  "assertions": [
+    {
+      "detail": "scalar bar visibility=1",
+      "name": "preset: colour legend is visible",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "preset: image written at requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "lut range=[1.779039978981018, 27.403499603271484]",
+      "name": "preset: lookup table covers the data range",
+      "passed": true
+    },
+    {
+      "detail": "scalar bar visibility=1",
+      "name": "custom: colour legend is visible",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "custom: image written at requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "lut range=[1.779039978981018, 27.403499603271484]",
+      "name": "custom: lookup table covers the data range",
+      "passed": true
+    },
+    {
+      "detail": "scalar bar visibility=1",
+      "name": "log: colour legend is visible",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "log: image written at requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "UseLogScale=1",
+      "name": "log: log scaling is actually enabled",
+      "passed": true
+    },
+    {
+      "detail": "range=[1.779039978981018, 27.403499603271484] -- a log scale reaching zero is silently clamped by ParaView",
+      "name": "log: range is strictly positive",
+      "passed": true
+    },
+    {
+      "detail": "scalar bar visibility=1",
+      "name": "categorical: colour legend is visible",
+      "passed": true
+    },
+    {
+      "detail": "requested 1024x1024, got 1024x1024",
+      "name": "categorical: image written at requested resolution",
+      "passed": true
+    },
+    {
+      "detail": "InterpretValuesAsCategories=1",
+      "name": "categorical: values are interpreted as categories",
+      "passed": true
+    },
+    {
+      "detail": "expected 10 annotation entries, got 10",
+      "name": "categorical: every category is annotated",
+      "passed": true
+    }
+  ],
+  "extracts": [
+    "ex10_pvColormapFidelity_colormaps.csv"
+  ],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "images": [
+    "ex10_pvColormapFidelity_preset.png",
+    "ex10_pvColormapFidelity_custom.png",
+    "ex10_pvColormapFidelity_log.png",
+    "ex10_pvColormapFidelity_categorical.png"
+  ],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "categorical_categorical": 1,
+    "categorical_lut_max": 4.0,
+    "categorical_lut_min": 0.0,
+    "categorical_scalar_bar_visible": 1,
+    "categorical_use_log_scale": 0,
+    "configurations_rendered": 4,
+    "custom_categorical": 0,
+    "custom_lut_max": 27.4035,
+    "custom_lut_min": 1.77904,
+    "custom_scalar_bar_visible": 1,
+    "custom_use_log_scale": 0,
+    "log_categorical": 0,
+    "log_lut_max": 27.4035,
+    "log_lut_min": 1.77904,
+    "log_scalar_bar_visible": 1,
+    "log_use_log_scale": 1,
+    "preset_categorical": 0,
+    "preset_lut_max": 27.4035,
+    "preset_lut_min": 1.77904,
+    "preset_scalar_bar_visible": 1,
+    "preset_use_log_scale": 0,
+    "scalar_max": 27.4035,
+    "scalar_min": 1.77904
+  },
+  "nodes": 1,
+  "notes": [],
+  "numeric_extracts": [],
+  "platform": "Linux",
+  "ranks": 1,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {
+    "import_presets": 0.137029,
+    "io": 0.099269,
+    "render_categorical": 0.036286,
+    "render_custom": 0.037827,
+    "render_log": 0.036677,
+    "render_preset": 0.045102
+  },
+  "tool": "ParaView",
+  "vignette": "ex10_pvColormapFidelity",
+  "wall_time_s": 1.177408
+}

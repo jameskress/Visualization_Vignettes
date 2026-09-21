@@ -1,0 +1,29 @@
+{
+    "2026-09-21T07:55:29.029548": {
+        "test_name": "ex07_visitScaling",
+        "metrics_schema": 4,
+        "execution_time": 5.270736932754517,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 134.32656742934716,
+        "cpu_seconds": 7.08,
+        "memory_usage_mb": 442.461,
+        "memory_usage": 463953985.536,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.183635,
+        "harness_rss_mb": 158.86328125,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        },
+        "run_id": "visit342-local-2026-09-21"
+    }
+}

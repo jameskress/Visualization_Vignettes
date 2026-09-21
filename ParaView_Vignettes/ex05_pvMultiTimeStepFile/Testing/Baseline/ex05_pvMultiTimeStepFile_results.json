@@ -1,0 +1,40 @@
+{
+  "assertions": [
+    {
+      "detail": "5 image(s) present",
+      "name": "every baselined image was produced",
+      "passed": true
+    }
+  ],
+  "extracts": [],
+  "hostname": "KW61316.kaust.edu.sa",
+  "image_size": [
+    1024,
+    1024
+  ],
+  "image_tolerance": null,
+  "images": [
+    "ex05_000000.jpg",
+    "ex05_000001.jpg",
+    "ex05_000002.jpg",
+    "ex05_000003.jpg",
+    "ex05_000004.jpg"
+  ],
+  "machine": "local",
+  "message": "",
+  "metrics": {
+    "baselined_images": 5,
+    "missing_images": 0
+  },
+  "nodes": 1,
+  "notes": [],
+  "numeric_extracts": [],
+  "platform": "Linux",
+  "ranks": 1,
+  "schema_version": 1,
+  "status": "ok",
+  "timings": {},
+  "tool": "ParaView",
+  "vignette": "ex05_pvMultiTimeStepFile",
+  "wall_time_s": 2.244131
+}

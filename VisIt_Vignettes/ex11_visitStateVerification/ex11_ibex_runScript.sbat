@@ -6,7 +6,9 @@
 #
 # Restore a saved .session headlessly under Xvfb, step time.
 #
-# Needs ex11_visit.session. Generate once per VisIt version: visit -cli -nowin -s ex11_make_state.py
+# Needs ex11_visit.session, which is generated and VisIt-version
+# specific. Prepare or verify this machine first:
+#     python3 ../../Testing/prepare_machine.py --check
 #
 # SUBMIT
 #     sbatch ex11_ibex_runScript.sbat

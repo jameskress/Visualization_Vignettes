@@ -1,0 +1,29 @@
+{
+    "2026-09-21T07:55:36.128827": {
+        "test_name": "ex09_visitMeshTopologies",
+        "metrics_schema": 4,
+        "execution_time": 4.271407842636108,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 168.79680577517348,
+        "cpu_seconds": 7.21,
+        "memory_usage_mb": 547.242,
+        "memory_usage": 573824827.392,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.170391,
+        "harness_rss_mb": 193.91015625,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        },
+        "run_id": "visit342-local-2026-09-21"
+    }
+}

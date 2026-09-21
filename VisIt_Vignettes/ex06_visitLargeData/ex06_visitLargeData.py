@@ -105,10 +105,34 @@ print("Running script from: ", script_dir)
 # core while reporting success. Named flags remove the whole class of bug.
 vc.open_visit_engine(ctx, OpenComputeEngine)
 
+# This scene is six overlapping Pseudocolor plots, two of them translucent
+# (QICE and QRAIN carry a Constant opacity), so it is composited in an order
+# that depends on how the data was partitioned. It renders the same at the
+# same rank count and differently at a different one. The committed baseline
+# is blessed at the rank count the .sbat scripts use; a run at any other rank
+# count compares its numbers rather than its picture, and says so.
+ctx.disable_image_gate_off_baseline_ranks("this cyclone scene")
+
 dataFile = script_dir + "/visitCyclone.session"
 # wrfFile = script_dir + "/../../data/cyclone-chapala-2015-11-02_00-00-00.vtr"
 wrfFile = script_dir + "/../../data/cyclone-chapala-2015-11-02_00-00-00-mb.vtm"
 rainFile = script_dir + "/../../data/currentRainfall.silo"
+# The saved session colours its plots with VisIt colour tables that are not
+# among the 18 compiled-in ones: plasma and Blues both ship as .ct files
+# under the install's resources directory. The suite runs with -noconfig, so
+# VisIt does not load that directory, and restoring the session without them
+# silently falls back to defaults -- a washed-out grey frame that differs
+# from the baseline in 99% of its pixels while raising nothing.
+#
+# Loading them first is what keeps -noconfig (no dependency on whose ~/.visit
+# ran the suite) without giving up VisIt's own tables, which are the same on
+# Shaheen and Ibex.
+for _table in ("plasma", "Blues"):
+    vc.ensure_color_table(
+        ctx, _table,
+        ColorTableNames, AddColorTable, ColorControlPointList, ColorControlPoint,
+    )
+
 RestoreSessionWithDifferentSources(dataFile, 0, (rainFile, wrfFile))
 # RestoreSessionWithDifferentSources("/home/kressjm/data/cyclone.session", 0, ("localhost:/mnt/5d22bac5-b323-4e21-96a7-929039418079/cyclone-chapala-2015-11-02_00-00-00.vtr","localhost:/mnt/5d22bac5-b323-4e21-96a7-929039418079/currentRainfall.vtp"))
 # RestoreSession(dataFile, 0)

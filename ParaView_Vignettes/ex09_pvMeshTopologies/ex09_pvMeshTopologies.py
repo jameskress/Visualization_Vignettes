@@ -113,10 +113,20 @@ def dataset_entry(manifest, key):
 def contour_value_for(manifest, key):
     """Isovalue appropriate to this dataset.
 
-    The AMR Gaussian pulse spans roughly 0 to 1, so the shared value used for
-    the Wavelet-derived datasets would produce an empty contour there. The
-    generator records the right value; this never hard-codes a constant.
+    Two of the four topologies do not share the Wavelet's value range: the
+    AMR Gaussian pulse tops out near 0.33, and the polydata surface carries
+    a coordinate rather than the wavelet field. The generator measures each
+    dataset's range and records an isovalue strictly inside it, so this reads
+    that value and hard-codes nothing.
+
+    The two fallbacks exist only for a manifest written by an older generator:
+    the per-dataset key first, then the previous top-level keys.
     """
+    entry = manifest.get("datasets", {}).get(key) or {}
+    recorded = entry.get("contour_value")
+    if recorded is not None:
+        return float(recorded)
+
     if key == "amr":
         return float(manifest.get("amr_contour_value", 0.5))
     return float(manifest.get("contour_value", 150.0))
@@ -173,9 +183,30 @@ def process_topology(ctx, manifest, view, key, label):
 
     source = reader
     if key in COMPOSITE_KEYS:
-        source = MergeBlocks(Input=reader, registrationName="ex09_merge_" + key)
-        UpdatePipeline(proxy=source)
-        ctx.debug("  flattened composite input with MergeBlocks")
+        # MergeBlocks accepts a vtkOverlappingAMR in ParaView 6.1 and refuses
+        # it in 6.0.1 -- "Input ... is of type vtkOverlappingAMR, but a
+        # vtkDataObjectTree is required" -- which matters because Ibex runs
+        # 6.0.1 and Shaheen runs 6.1.0. VTK reports that through its error
+        # channel rather than raising, so the failure arrives later and in
+        # disguise: an empty output, and then "Scalar 'scalar' absent from
+        # amr_hierarchy.vthb. Available point arrays: []".
+        #
+        # Rather than branching on a version, merge and then check whether
+        # anything came out. ParaView's Contour takes composite input
+        # directly, so the unmerged reader is a perfectly good fallback --
+        # flattening was only ever for one predictable code path.
+        merged = MergeBlocks(Input=reader, registrationName="ex09_merge_" + key)
+        UpdatePipeline(proxy=merged)
+        if int(merged.GetDataInformation().GetNumberOfPoints()) > 0:
+            source = merged
+            ctx.debug("  flattened composite input with MergeBlocks")
+        else:
+            Delete(merged)
+            ctx.warn(
+                "MergeBlocks produced no points for '{0}'; this ParaView "
+                "cannot flatten that composite type. Contouring the "
+                "composite directly instead.".format(key)
+            )
 
     # Cell-centred scalars have to become point-centred before contouring.
     if association == "CELLS":
@@ -219,13 +250,55 @@ def process_topology(ctx, manifest, view, key, label):
     )
 
     # -- render -----------------------------------------------------------
+    #
+    # Contouring a 2D input gives a 1D output. On its own that renders as a
+    # hairline on an empty background: 0.06% of the frame here, which is an
+    # image gate that would pass almost any regression and a picture that
+    # shows a reader nothing. Where the manifest says the contour is
+    # lower-dimensional than its input, the input is drawn underneath it.
+    #
+    # Only the picture changes. The pipeline, the queries, the metrics and
+    # the assertions below are the same for all four topologies.
+    # The lookup table is fetched and rescaled AFTER every Show/ColorBy
+    # below, deliberately. Show() auto-rescales a representation's lookup
+    # table to its own data range the first time it colours by an array, so
+    # presetting and rescaling first has the rescale silently undone -- which
+    # is how the three volumetric topologies, which this change was not
+    # supposed to touch at all, came back 26.5% different on the first
+    # attempt. That is the same 26.5% as the preset bug in section 4.16 of
+    # the runbook, and for the same reason: the frame was drawn with a
+    # lookup table nobody had actually configured.
+    context = None
+    if entry.get("contour_is_lower_dimensional"):
+        context = Show(source, view)
+        context.Representation = "Surface"
+        ColorBy(context, ("POINTS", scalar))
+        context.SetScalarBarVisibility(view, False)
+        ctx.debug("  drew the input surface as context for a 1D contour")
+
     display = Show(contour, view)
     display.Representation = "Surface"
-    ColorBy(display, ("POINTS", scalar))
-    lut = GetColorTransferFunction(scalar)
-    lut.ApplyPreset("Viridis (matplotlib)", True)
-    lut.RescaleTransferFunction(float(scalar_range[0]), float(scalar_range[1]))
+    if context is None:
+        ColorBy(display, ("POINTS", scalar))
+    else:
+        # The isoline lies exactly ON the surface, so colouring it by the
+        # same scalar would paint it the colour of what is directly behind
+        # it. Solid white, thickened, reads as an annotation of the surface.
+        ColorBy(display, None)
+        display.AmbientColor = [1.0, 1.0, 1.0]
+        display.DiffuseColor = [1.0, 1.0, 1.0]
+        display.LineWidth = 5.0
+        try:
+            display.RenderLinesAsTubes = 1
+        except AttributeError:  # older ParaView; the width alone is enough
+            pass
     display.SetScalarBarVisibility(view, False)
+
+    lut = GetColorTransferFunction(scalar)
+    # ParaView 6.0 dropped the " (matplotlib)" suffix from these presets
+    # and 6.1 raises rather than warning, so both spellings are offered.
+    vc.apply_color_preset(lut, ("Viridis", "Viridis (matplotlib)"), ctx)
+    lut.RescaleTransferFunction(float(scalar_range[0]), float(scalar_range[1]))
 
     ResetCamera(view)
 
@@ -242,6 +315,8 @@ def process_topology(ctx, manifest, view, key, label):
     width, height = vc.png_size(image_path)
 
     Hide(contour, view)
+    if context is not None:
+        Hide(source, view)
 
     # -- metrics ----------------------------------------------------------
     ctx.add_metric("{0}_input_points".format(key), input_points)
@@ -295,6 +370,16 @@ def run(ctx):
     manifest = ctx.topology_manifest()
     ctx.log("manifest target scalar: {0}".format(manifest.get("target_scalar")))
 
+    # These datasets are generated, not shipped, and they do not survive a
+    # ParaView major.minor change -- silently. Check before trusting them.
+    vc.check_fixture_version(
+        ctx,
+        manifest.get("paraview_version"),
+        vc.paraview_version_string(),
+        "data/topologies (topologies_manifest.json)",
+        "pvbatch data/make_topology_datasets.py",
+    )
+
     selected = TOPOLOGIES
     if ctx.args.only:
         selected = tuple(item for item in TOPOLOGIES if item[0] == ctx.args.only)
@@ -341,4 +426,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    vc.exit_vignette(main())

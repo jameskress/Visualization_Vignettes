@@ -149,6 +149,42 @@ full list.
 > named `--machine` flag replaces that. VisIt is never launched under
 > `mpirun`: parallelism is the compute engine's job.
 
+### Three VisIt behaviours that will otherwise cost you an afternoon
+
+**1. `visit -cli` exits 250 whether it worked or not.** On a clean run, on a
+Python traceback and on a crashed engine alike. The harness records the exit
+code and ignores it, taking the verdict from the vignette's own results JSON
+instead, and only when that file was written *after* the run started. The line
+to read is `Vignette passed (results JSON status=ok)`.
+
+**2. `-noconfig` leaves you 18 colour tables, not 157.** The suite always passes
+it, so a baseline never depends on whose `~/.visit` blessed it — and a host
+profile in there can silently start a *different VisIt install* with a different
+engine topology, which is how one baseline in this repository spent two hours
+looking corrupt. The cost is that 129 of VisIt's **own** tables, which ship as
+`.ct` files under `$VISITARCHHOME/resources/colortables/`, are not loaded either:
+`viridis`, `plasma`, `magma`, `Blues` and the rest. VisIt does not refuse an
+unknown table name — it accepts it, fails the plot asynchronously, and every
+query on that plot then returns `None`. Vignettes load what they need with
+`vc.ensure_color_table()`, which reads the `.ct` out of the install.
+
+**3. `getattr(visit_object, "name", default)` does not fall back.** VisIt's
+attribute objects raise `ValueError`, not `AttributeError`, for an unknown field,
+so the three-argument form propagates instead of returning the default — and
+`dir()` on them raises too, so you cannot look first. Use `vc.visit_attr()`.
+
+### Before the first run on a machine
+
+```bash
+export VISIT_PATH=/path/to/visit/bin
+python3 ../Testing/prepare_machine.py --check   # non-zero exit if not ready
+python3 ../Testing/prepare_machine.py           # build what is missing
+```
+
+ex11 needs a `.session` and a `.visit` index that are generated, not committed:
+the session is locked to its VisIt version and the index holds absolute paths.
+Neither failure announces itself, which is why there is a preflight.
+
 ### How the compute engine is launched
 
 `OpenComputeEngine` needs different arguments depending on where the VisIt
@@ -385,7 +421,9 @@ To start tracing from the GUI, click on ``Controls/Command``. An options window 
 4. Run the example locally or on one of the clusters
     1. Locally:
         1. We can run the *.py script directly on the command line, not using a batch script
-            * ``./visit -nowin -cli -s <path to the python script to run>``
+            * ``visit -cli -nowin -noconfig -s <path to the python script> --machine local``
+            * ``-noconfig`` matters: see "Three VisIt behaviours" above. Remember that the exit code will be 250 either way.
+            * To run the whole suite with all five gates instead, use ``Testing/test_suite.py`` -- see ``Testing/README.md``.
         2. We can run the script live in the VisIt interface
             * Open the VisIt "command" window
             * Paste the following:

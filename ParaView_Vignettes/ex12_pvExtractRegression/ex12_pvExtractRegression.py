@@ -87,6 +87,7 @@ NUMERIC_CSV = "{0}_measurements.csv".format(VIGNETTE)
 # silently dropped column is a failure rather than a quietly shorter file.
 REQUIRED_COLUMNS = (
     "timestep",
+    "cycle",
     "time",
     "input_points",
     "input_cells",
@@ -181,6 +182,25 @@ def configure_image_extractor(ctx, view):
     return extractor
 
 
+def reader_cycle(reader):
+    """The simulation cycle this timestep says it is, or None.
+
+    It lives in the dataset's field data as CYCLE, written there by
+    data/make_time_series.py. ParaView takes its TIME from the .pvd instead
+    (its readers ignore a field-data time), so this is the one number that
+    comes out of the file itself on the ParaView side -- and it agrees with
+    what VisIt reads, which is the check worth having.
+    """
+    try:
+        field_data = reader.FieldData
+        array = field_data.GetArray("CYCLE")
+        if array is None:
+            return None
+        return int(round(array.GetRange(0)[0]))
+    except Exception:  # noqa: BLE001 - an absent cycle is not a failure
+        return None
+
+
 def measure(ctx, reader, contour, integrate_contour, integrate_input, scalar, step, time_value):
     """Collect the numerical measurements for one timestep."""
     reader_info = reader.GetDataInformation()
@@ -203,6 +223,7 @@ def measure(ctx, reader, contour, integrate_contour, integrate_input, scalar, st
 
     return {
         "timestep": step,
+        "cycle": reader_cycle(reader),
         "time": float(time_value),
         "input_points": int(reader_info.GetNumberOfPoints()),
         "input_cells": int(reader_info.GetNumberOfCells()),
@@ -240,12 +261,18 @@ def run(ctx):
     paraview.simple._DisableFirstRenderCameraReset()
 
     scalar = ctx.args.scalar
+    # The XML series. The legacy varying*.vtk files carry no time, so
+    # reader.TimestepValues below would be the file index dressed up as a
+    # simulation time -- and the CSV's "time" column would be a copy of its
+    # "timestep" column. See vc.time_series_index().
+    index_path = ctx.time_series_index()
     series = ctx.timestep_files()
+    ctx.log("time series index: {0}".format(os.path.basename(index_path)))
     ctx.log("time series: {0} file(s)".format(len(series)))
 
     # -- pipeline ----------------------------------------------------------
     with ctx.phase("io"):
-        reader = LegacyVTKReader(registrationName="ex12_series", FileNames=series)
+        reader = PVDReader(registrationName="ex12_series", FileName=index_path)
         UpdatePipeline(proxy=reader)
 
     if reader.PointData.GetArray(scalar) is None:
@@ -284,7 +311,7 @@ def run(ctx):
     display.Representation = "Surface"
     ColorBy(display, ("POINTS", scalar))
     lut = GetColorTransferFunction(scalar)
-    lut.ApplyPreset("Cool to Warm", True)
+    vc.apply_color_preset(lut, ("Cool to Warm",), ctx)
     display.SetScalarBarVisibility(view, False)
 
     UpdatePipeline(proxy=contour)
@@ -292,6 +319,24 @@ def run(ctx):
     Render(view)
 
     # -- extractors --------------------------------------------------------
+    # Everything already in output/ before this run starts. The file counts
+    # below are the metrics that gate this vignette, and counting the whole
+    # directory made them a function of run history rather than of this run:
+    # a second invocation, or one with a different --steps, saw the previous
+    # run's .vtp and .png files and reported a larger number than it wrote.
+    # Nothing clears output/ between runs -- the harness only cleans
+    # Testing/ -- so the baseline was reproducible exactly once, on a clean
+    # checkout, and never again.
+    try:
+        pre_existing = set(os.listdir(ctx.output_dir))
+    except OSError:
+        pre_existing = set()
+    if pre_existing:
+        ctx.log(
+            "{0} file(s) already in output/; they are excluded from the "
+            "extract counts".format(len(pre_existing))
+        )
+
     data_extractor, data_generator = configure_data_extractor(ctx, contour)
     image_extractor = configure_image_extractor(ctx, view)
 
@@ -312,7 +357,17 @@ def run(ctx):
         UpdatePipeline(time=time_value, proxy=integrate_input)
 
         with ctx.phase("extract", accumulate=True):
-            SaveExtracts(ExtractsOutputDirectory=ctx.output_dir)
+            # FrameWindow pins this call to the one timestep the loop is on.
+            # Without it SaveExtracts runs the WHOLE animation every call, so
+            # a --steps 3 run wrote all 20 timesteps, three times over: the
+            # extract timing measured 20 frames rather than one, the work was
+            # done 3x, and data_extract_files reported 20 against
+            # steps_extracted of 3 -- a count that would not have moved had
+            # the per-step extraction stopped working altogether.
+            SaveExtracts(
+                ExtractsOutputDirectory=ctx.output_dir,
+                FrameWindow=[index, index],
+            )
 
         row = measure(
             ctx,
@@ -338,7 +393,13 @@ def run(ctx):
     csv_path = write_numeric_csv(ctx, rows)
 
     # -- record what landed on disk ---------------------------------------
-    produced = sorted(os.listdir(ctx.output_dir))
+    # Only files this run created, so the counts describe the run and not the
+    # directory. A file the extractor overwrote in place keeps its old name
+    # and is excluded, which is correct: the assertion below is about the
+    # extractor producing one frame per step, and an overwritten frame means
+    # the {timestep} substitution stopped advancing -- a failure worth
+    # reporting, not a count to inflate past it.
+    produced = sorted(set(os.listdir(ctx.output_dir)) - pre_existing)
     vtp_files = [name for name in produced if name.lower().endswith(".vtp")]
     png_files = [
         name
@@ -440,4 +501,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    vc.exit_vignette(main())

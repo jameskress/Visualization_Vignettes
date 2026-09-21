@@ -1,0 +1,29 @@
+{
+    "2026-09-21T07:58:45.118748": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "metrics_schema": 4,
+        "execution_time": 16.843533039093018,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 180.18784971988438,
+        "cpu_seconds": 30.35,
+        "memory_usage_mb": 1152.621,
+        "memory_usage": 1208610717.696,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 16.743214,
+        "harness_rss_mb": 158.453125,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1"
+        },
+        "run_id": "visit341-local-2026-09-21"
+    }
+}
