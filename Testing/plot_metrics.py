@@ -364,9 +364,12 @@ def _latest_figure(history, metric, ylabel, vignette, path):
 
     note = ""
     if metric in SCHEMA_SENSITIVE:
+        # Two short lines rather than one long one: this subtitle is drawn at
+        # the figure's width, and a single line of it was being clipped on the
+        # narrow figures that a two-configuration chart produces.
         note = (
-            "\nconfigurations whose newest run predates metrics_schema {0} "
-            "are omitted: that number measured something else".format(METRICS_SCHEMA)
+            "\nconfigurations older than metrics_schema {0} are omitted"
+            "\n(that number measured something else)".format(METRICS_SCHEMA)
         )
     axis.set_title(
         "{0} - {1}\nmost recent run per configuration{2}".format(
