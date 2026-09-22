@@ -47,6 +47,7 @@
 #
 # Author: James Kress, <james@jameskress.com>
 #
+import collections
 import itertools
 import json
 import os
@@ -319,23 +320,38 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
 def _latest_figure(history, metric, ylabel, vignette, path):
     entries = []
     for config, rows in sorted(history.items()):
+        # One bar per configuration *and tool version*, not per configuration.
+        # A machine that has run two versions of the tool is the case this
+        # suite most wants to show: collapsing to the newest record alone
+        # would hide the older version's numbers entirely, which is exactly
+        # the comparison a reader came for.
+        seen = set()
         for record in reversed(rows):
             value = record.get(metric)
             if value is None:
+                continue
+            if record["version"] in seen:
                 continue
             if metric in SCHEMA_SENSITIVE and record["legacy"]:
                 # Comparing a schema-3 memory figure against a schema-4 one
                 # is comparing two different measurements. Leave it out and
                 # say so, rather than drawing a bar nobody can trust.
-                break
+                continue
+            seen.add(record["version"])
             entries.append((config, float(value), record))
-            break
 
     if not entries:
         return False
 
     entries.sort(key=lambda e: e[1])
-    labels = [e[0] for e in entries]
+    # Name the version only where a configuration contributed more than one
+    # bar; on the common single-version chart the label stays the plain
+    # machine name it has always been.
+    bars_per_config = collections.Counter(e[0] for e in entries)
+    labels = [
+        "{0}\nv{1}".format(e[0], e[2]["version"]) if bars_per_config[e[0]] > 1 else e[0]
+        for e in entries
+    ]
     values = [e[1] for e in entries]
     colors = plt.cm.turbo(np.linspace(0.05, 0.95, len(entries)))
 
@@ -372,7 +388,7 @@ def _latest_figure(history, metric, ylabel, vignette, path):
             "\n(that number measured something else)".format(METRICS_SCHEMA)
         )
     axis.set_title(
-        "{0} - {1}\nmost recent run per configuration{2}".format(
+        "{0} - {1}\nmost recent run per configuration and tool version{2}".format(
             ylabel, vignette, note
         ),
         fontsize=12,

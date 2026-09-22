@@ -78,7 +78,7 @@ Every VisIt baseline in the repository was replaced during this pass — see §5
 for which ones were merely stale, which one was never wrong in the first place,
 and which rank count each is blessed at.
 
-### VisIt 3.4.1 — `KW61316-visit341`, run `visit341-local-2026-09-21`
+### VisIt 3.4.1 — `KW61316.kaust.edu.sa`, run `visit341-local-2026-09-21`
 
 3.4.1 is what `MODULES.sh` loads on Shaheen and Ibex until spring (§5b), so it
 gets a full run of its own, against the same baselines: **13 of 13, exit 0**,
@@ -320,15 +320,27 @@ scripts. Everything else is blessed at one rank and is bit-identical at eight.
 ### VisIt 3.4.1, the cluster version
 
 Shaheen and Ibex load `visit/3.4.1` until the spring module update (§5b), so a
-local run of it is kept beside the reference one. Same baselines, its own
-history, because a 3.4.1 number and a 3.4.2 number are not comparable on
-memory: 3.4.1 uses roughly twice as much on the animation vignettes.
+local run of it is kept beside the reference one. Same baselines, **same
+history file**: it is the same machine in the same rendering configuration,
+and the version is recorded inside each record. Putting it in a file of its
+own would hide the 3.4.1 against 3.4.2 comparison, which is one of the more
+useful things this suite produces.
 
 ```bash
 VISIT_PATH=/home/kressjm/packages/visit3_4_1.linux-x86_64/bin \
   python test_suite.py ../ --test_type VisIt --visit_version 3.4.1 \
-    --machine_name KW61316-visit341 \
+    --machine_name KW61316.kaust.edu.sa \
     --run-id visit341-local-$(date +%Y-%m-%d) --timeout 1800
+```
+
+`--visit_version` is what separates the two in the history, not the machine
+name. The gate reads it and says so:
+
+```
+Comparing memory_usage_mb: previous=1013.35 (v3.4.2), current=2642.12 (v3.4.1)
+    Tool version differs between these two runs: v3.4.2 (earlier) ->
+    v3.4.1 (latest), memory_usage_mb moved +160.7%. Reported rather than
+    failed ...
 ```
 
 ### Seeing it rather than reading it
@@ -370,18 +382,27 @@ record. It is not a log of everything that was run. The rule:
 * **One recorded run per configuration, at the end**, once the code is in the
   state you intend to commit. Tag it with `--run-id` so it can be undone as a
   unit.
-* **`--machine_name` names the configuration, not the run.** One file per
-  machine and rendering configuration, with the tool version recorded inside
-  each record, which is the convention the 2024 entries and the cluster files
-  already use (`ibex-cpu`, `ibex-egl-a100`, `shaheen3-ppn-gpu-L40`). The local
-  reference is `KW61316.kaust.edu.sa`, continuing the line that starts with
-  ParaView 5.13.1 in October 2024. The 3.4.1 cross-check above gets its own
-  name because it is a parallel configuration rather than the next step in
-  that line.
+* **`--machine_name` names the configuration, never the tool version.** One
+  file per machine and rendering configuration, with the tool version recorded
+  inside each record, which is the convention the 2024 entries and the cluster
+  files already use (`ibex-cpu`, `ibex-egl-a100`, `shaheen3-ppn-gpu-L40`). The
+  local reference is `KW61316.kaust.edu.sa`, continuing the line that starts
+  with ParaView 5.13.1 in October 2024, and the local 3.4.1 run goes in it too.
+  `shaheen3-cpu` has held 3.4.1 and 3.4.2 records together since 2024, and the
+  ParaView files have held 5.13.1 and 6.x the same way; a name like
+  `KW61316-visit341` would break that and, worse, would hide the comparison.
+* **The performance gate distinguishes a regression from a version change.**
+  Two runs at the same tool version, one metric moved more than 10%: a
+  regression, and the run fails. Two runs at different versions: the
+  difference is printed with both version numbers and recorded under
+  `version_comparisons` in the summary report, and the run does not fail.
+  Seeing that 3.4.1 costs 2.6x the memory of 3.4.2 on ex02 is a result, not a
+  false alarm, and the latest record is often deliberately the *older* build.
 * **`metrics_schema` marks where a measurement's meaning changed.** It is 4
-  now; the 2024 records predate the field. The performance gate refuses to
-  compare across that boundary rather than reporting a guaranteed false
-  positive (§4.9, §4b.10).
+  now; the 2024 records predate the field. That one the gate refuses outright,
+  because those rows measured a different quantity and comparing them says
+  nothing about either version (§4.9, §4b.10). This is the only case where
+  numbers are withheld rather than labelled.
 
 Undoing a recorded run is one command, and it is precise even when newer runs
 landed on top:
@@ -1274,11 +1295,14 @@ rather than reckless.
 
 Two things follow from that.
 
-* The machine names in the committed history say which build produced each
-  record: the reference configuration here is `KW61316.kaust.edu.sa`, the
-  3.4.1 cross-check beside it is `KW61316-visit341`, and the clusters get
-  their own names. The performance gate only ever compares within one name,
-  so a 3.4.1 number is never silently compared against a 3.4.2 one.
+* **Both versions share one history file**, `KW61316.kaust.edu.sa`, because
+  they are one machine in one rendering configuration. The version lives in
+  each record, where it always has: `shaheen3-cpu` has carried 3.4.1 and
+  3.4.2 records together since 2024, and the ParaView histories have carried
+  5.13.1 and 6.x the same way. Comparing across versions is a large part of
+  what this suite is for, so the gate reports the difference and names both
+  versions rather than hiding it. It does not fail the run on it (§3, the
+  performance gate).
 * The version is hard-coded in **two** places that must agree, and changing
   one without the other fails as a connection that opens and then dies on a
   protocol mismatch, naming no version: `VisIt_Vignettes/MODULES.sh`, and the

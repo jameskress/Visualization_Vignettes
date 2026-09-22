@@ -161,13 +161,43 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
     return metrics
 
 
-def detect_significant_changes(df, threshold=10, require_same_schema=True):
-    """Flag a metric that regressed by more than `threshold` percent.
+def _tool_versions(frame):
+    """Per-row tool version, read from the machine_info each record carries.
 
-    Compares the two most recent runs. When `require_same_schema` is set,
-    rows recorded before the metrics rewrite are excluded, because their
-    memory and CPU columns measured something different and comparing across
-    that boundary produces a guaranteed false positive.
+    Returns None when the column is absent, which is the case for the oldest
+    records in some histories.
+    """
+    if "machine_info" not in frame.columns:
+        return None
+
+    def one(info):
+        if not isinstance(info, dict):
+            return None
+        return info.get("paraview_version") or info.get("visit_version")
+
+    return frame["machine_info"].map(one)
+
+
+def detect_significant_changes(df, threshold=10, require_same_schema=True):
+    """Flag a metric that moved by more than `threshold` percent.
+
+    Compares the two most recent runs. Two kinds of difference are reported,
+    and they are not the same thing:
+
+    * **Same tool version, metric moved.** A regression. Fails the run.
+    * **Different tool version.** Not a regression: the software itself
+      changed. Reported in both directions and at any size, because comparing
+      versions is a large part of what this suite is for (a new build that
+      costs 2x the memory is worth knowing about), but it does not fail the
+      run. The newest record is often deliberately an *older* build, such as
+      the cluster version kept as a local reference, in which case a "slower,
+      fatter" result is the expected answer rather than a problem.
+
+    When `require_same_schema` is set, rows recorded before the metrics
+    rewrite are excluded. That exclusion is about the *measurement* changing
+    meaning, not the software: those rows' memory and CPU columns recorded a
+    different quantity, so comparing across that boundary says nothing about
+    either version.
     """
     print("\t\tChecking for significant changes...")
 
@@ -196,18 +226,33 @@ def detect_significant_changes(df, threshold=10, require_same_schema=True):
         "disk_usage_percent",
     ]
 
+    versions = _tool_versions(frame)
+    version_changes = []
+
     for metric in metrics:
         if metric not in frame.columns:
             continue
 
-        last_two_runs = frame[metric].dropna().tail(2).values
-        if len(last_two_runs) != 2:
+        rows = frame[frame[metric].notna()].tail(2)
+        if len(rows) != 2:
             continue
 
-        previous_value, current_value = last_two_runs
+        previous_value, current_value = rows[metric].values
+        if versions is None:
+            previous_version = current_version = None
+        else:
+            previous_version, current_version = versions.loc[rows.index].values
+
+        def label(value, version):
+            if version is None:
+                return "{0}".format(value)
+            return "{0} (v{1})".format(value, version)
+
         print(
             "\t\t\tComparing {0}: previous={1}, current={2}".format(
-                metric, previous_value, current_value
+                metric,
+                label(previous_value, previous_version),
+                label(current_value, current_version),
             )
         )
 
@@ -215,6 +260,31 @@ def detect_significant_changes(df, threshold=10, require_same_schema=True):
             continue
 
         percent_change = 100 * (current_value - previous_value) / previous_value
+
+        if previous_version != current_version:
+            if abs(percent_change) > threshold:
+                print(
+                    "\t\t\t\tTool version differs between these two runs: "
+                    "v{0} (earlier) -> v{1} (latest), {2} moved {3:+.1f}%. "
+                    "Reported rather than failed, because this compares two "
+                    "builds and the latest run is not always the newer "
+                    "build. Worth investigating when the more expensive side "
+                    "is the newer release.".format(
+                        previous_version, current_version, metric, percent_change
+                    )
+                )
+                version_changes.append(
+                    {
+                        "metric": metric,
+                        "previous_value": previous_value,
+                        "current_value": current_value,
+                        "percent_change": percent_change,
+                        "previous_version": previous_version,
+                        "current_version": current_version,
+                    }
+                )
+            continue
+
         if percent_change > threshold:
             print(
                 "\t\t\t\tSignificant change detected for {0}: {1}% change".format(
@@ -227,7 +297,18 @@ def detect_significant_changes(df, threshold=10, require_same_schema=True):
                 "previous_value": previous_value,
                 "current_value": current_value,
                 "percent_change": percent_change,
+                "tool_version": current_version,
             }
+
+    if version_changes:
+        print(
+            "\t\tNo regression: the two most recent runs are different tool "
+            "versions, and the differences are reported above."
+        )
+        return {
+            "Performance_stable": True,
+            "version_comparison": version_changes,
+        }
 
     print("\t\tNo significant changes found.")
     return None

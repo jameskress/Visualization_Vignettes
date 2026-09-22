@@ -781,6 +781,10 @@ def create_summary_report(
         "failed_csv_comparisons": [],
         "failed_runs": [],
         "significant_performance_changes": [],
+        # Differences between two tool versions, which are information rather
+        # than failures. Kept separate from the list above so a deliberate
+        # version comparison never reads as a regression.
+        "version_comparisons": [],
     }
 
     machine_name = args_machine_name if args_machine_name else platform.uname().node
@@ -936,11 +940,20 @@ def create_summary_report(
                 significant_changes = detect_significant_changes(df)
 
                 if significant_changes:
-                    test_status["performance_stable"] = significant_changes
-                    summary_report["significant_performance_changes"].append(
-                        {subdir: significant_changes}
-                    )
-                    summary_report["any_tests_failed"] = True
+                    if significant_changes.get("Performance_stable") is False:
+                        test_status["performance_stable"] = significant_changes
+                        summary_report["significant_performance_changes"].append(
+                            {subdir: significant_changes}
+                        )
+                        summary_report["any_tests_failed"] = True
+                    else:
+                        # A difference between two tool versions rather than a
+                        # regression. Recorded so it is visible in the report,
+                        # but it does not fail the run: see the docstring on
+                        # detect_significant_changes for why.
+                        summary_report["version_comparisons"].append(
+                            {subdir: significant_changes["version_comparison"]}
+                        )
         else:
             print("\n\tPerformance file not found: {0}".format(performance_file))
 
