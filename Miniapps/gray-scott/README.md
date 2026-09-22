@@ -1,17 +1,14 @@
-
 # Visualization Vignettes Miniapp - gray-scott
 
 This is a 3D 7-point stencil code to simulate the following [Gray-Scott
 reaction diffusion model](https://doi.org/10.1126/science.261.5118.189):
 
-```
+```text
 u_t = Du * (u_xx + u_yy + u_zz) - u * v^2 + F * (1 - u)  + noise * randn(-1,1)
 v_t = Dv * (v_xx + v_yy + v_zz) + u * v^2 - (F + k) * v
 ```
 
 A reaction-diffusion system is a system in which a dynamical system is attached to a diffusion equation, and it creates various patterns. This is an equation that simulates the chemical reaction between the chemicals $U$ and $V$. $U$ is called the activator and $V$ is called the repressor.
-
-<br>
 
 ## Running with Docker
 
@@ -91,7 +88,7 @@ To run the container, you will create a "shared folder" that links a directory o
    ```bash
    # Navigate to the shared data directory
    cd /app/data
-   
+
    # Run the simulation using the local executable and settings files
    mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json
    ```
@@ -151,7 +148,7 @@ This workflow is an identical to the user workflow, but you will use your locall
    ```powershell
    # PowerShell
    docker run -it --rm -v "${PWD}/data:/app/data" visualization-vignettes-app
-   
+
    # Command Prompt
    docker run -it --rm -v "%cd%/data:/app/data" visualization-vignettes-app
    ```
@@ -161,7 +158,7 @@ This workflow is an identical to the user workflow, but you will use your locall
    ```bash
    # Inside the container, set up your run directory
    setup_rundir.sh
-   
+
    # Run the simulation
    mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json
    ```
@@ -171,8 +168,6 @@ This workflow is an identical to the user workflow, but you will use your locall
    ```bash
    exit
    ```
-
-<br>
 
 ## How to build locally
 
@@ -222,7 +217,7 @@ make -j install
 
 ### Kombyne
 
-`Kombyne` is a closed source, paid, commercial in situ software. They do have a `lite` version, which we make use of in this repo, that is free. We cannot distribute the source, as such you have to get your free download from there [here](https://www.ilight.com/kombyne-lite-downloads-4/).
+`Kombyne` is a closed source, paid, commercial in situ software. They do have a `lite` version, which we make use of in this repo, that is free. We cannot distribute the source, as such you have to get your free copy from the [Kombyne Lite downloads page](https://www.ilight.com/kombyne-lite-downloads-4/).
 
 ```bash
 # Download Kombyne-Lite from the Inteligent Light website.
@@ -312,8 +307,6 @@ make install
 
 ---
 
-<br>
-
 ## Running with ADIOS2 I/O and/or Checkpointing
 
 `ADIOS2` is an optional dependency that enables high-performance, parallel I/O. If enabled during compilation, it provides two major features:
@@ -332,10 +325,10 @@ The ADIOS2 writer adds **Fides** metadata directly into the output BP file. This
 To use the ADIOS2 writer, you must set the `output_type` to `"adios"` in your JSON settings file. You can choose one of three data handling strategies:
 
 | Strategy                    | Description                                                                                                                                  | JSON Flags                                               |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| :-------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------- |
 | **Zero-Copy (Recommended)** | Highest performance. ADIOS2 reads data directly from the simulation's memory, avoiding any data copies.                                      | `"adios_memory_selection": true`, `"adios_span": false`  |
-| **ADIOS-Managed (Span)** | ADIOS2 provides a memory buffer, and the application copies its data into it. Avoids memory allocations in the application's I/O path.       | `"adios_memory_selection": false`, `"adios_span": true`  |
-| **Local Copy (Default)** | A local copy of the data is created and passed to ADIOS2. Easiest to understand but less performant due to the extra memory allocation/copy. | `"adios_memory_selection": false`, `"adios_span": false` |
+| **ADIOS-Managed (Span)**    | ADIOS2 provides a memory buffer, and the application copies its data into it. Avoids memory allocations in the application's I/O path.       | `"adios_memory_selection": false`, `"adios_span": true`  |
+| **Local Copy (Default)**    | A local copy of the data is created and passed to ADIOS2. Easiest to understand but less performant due to the extra memory allocation/copy. | `"adios_memory_selection": false`, `"adios_span": false` |
 
 #### Step 2: 🚀 Execute the Simulation
 
@@ -487,10 +480,7 @@ restart:          from step 10000
 
 </details>
 
-
 ---
-
-<br>
 
 ## Running with VTK
 
@@ -553,8 +543,6 @@ local grid size:      16x16x32
 </details>
 
 ---
-
-<br>
 
 ## Running with Catalyst
 
@@ -643,7 +631,7 @@ Before running, you must edit the **`configs/miniapp-settings/settings-catalyst-
 Choose one of the following scripts for your analysis:
 
 | Script                       | Description                                                                                                                                                                                           |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :--------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `catalyst-extract-jpg.py`    | **(Image Export)** Creates a full volume rendering colored by the 'v' scalar field and saves the visualization as a JPG image at each timestep.                                                       |
 | `catalyst-multi-pipeline.py` | **(Advanced Visualization)** Renders both a semi-transparent volume of the full dataset and a solid clipped surface to reveal internal structures, saving the result as a PNG image at each timestep. |
 | `catalyst-save-data.py`      | **(Data Export)** Saves the mesh and fields as a VTK file at each timestep. Ideal for post-hoc analysis.                                                                                              |
@@ -780,8 +768,6 @@ local grid size:      32x32x64
 
 ---
 
-<br>
-
 ## Running with Ascent
 
 Ascent is an optional dependency and will allow you to use the power of Ascent, trigger, VTK-m, and more, to create great visualization pipelines and renderings. Below are some examples on ways to use Ascent.
@@ -800,10 +786,10 @@ To choose which visualization to run, you must edit **`ascent_options.yaml`** an
 #### Available Actions Scripts
 
 | Script                       | Description                                                                                                                                                               |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :--------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `ascent-extract-png.yaml`    | **(Image Export)** Performs a volume rendering of the **'v'** scalar field and saves the visualization as a series of PNG images.                                         |
 | `ascent-multi-pipeline.yaml` | **(Advanced Visualization)** Renders both a semi-transparent volume and a solid clipped surface of the **'u'** field into a single composite PNG image for each timestep. |
-| `ascent-save-data.yaml`      | **(Data Export)** Saves the simulation data to an HDF5 file.                               |
+| `ascent-save-data.yaml`      | **(Data Export)** Saves the simulation data to an HDF5 file.                                                                                                              |
 
 ### Step 2: 🚀 Execute the Simulation
 
@@ -875,8 +861,6 @@ local grid size:      32x32x64
 
 ---
 
-<br>
-
 ## Running with Kombyne
 
 Kombyne is an optional dependency that provides in-situ capabilities, allowing you to create visualization pipelines and renderings directly from the simulation. Kombyne is a commercial in situ product, as such, this repo makes use of the `lite` version which is free, but not folly featured. Below are instructions on how to configure and run the included Kombyne examples.
@@ -901,7 +885,7 @@ Inside this file, you need to set the `kombynelite_script_path` key to the name 
 #### Available In-Situ Scripts
 
 | Script                        | Description                                                                                                                                 |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| :---------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------ |
 | `kombyne-extract-png.yaml`    | **(Image Export)** Performs a rendering of a slice of the scalar field and saves the visualization as a series of PNG images.               |
 | `kombyne-multi-pipeline.yaml` | **(Advanced Visualization)** Renders two seperate images, first, a slice and second, an isosurface, creating a PNG image for each timestep. |
 | `kombyne-save-data.yaml`      | **(Data Export)** Saves the simulation data to a \*.vtm file at each time step.                                                             |
@@ -960,8 +944,6 @@ local grid size:      64x64x64
 
 ---
 
-<br>
-
 ## ⏱️ Performance Timers and Visualization
 
 This project includes an optional feature to collect and visualize detailed performance timers, helping you understand and analyze the simulation's performance characteristics. The same code and script are used for both the reader and writer performance timers.
@@ -970,12 +952,12 @@ This project includes an optional feature to collect and visualize detailed perf
 
 To instrument the code and collect performance data, you must enable the timers during the CMake configuration step by setting the `ENABLE_TIMERS` option to `ON` (or `1`).
 
-```
-Example of enabling timers during CMake configuration
+```bash
+# Example of enabling timers during CMake configuration
 cmake -DENABLE_TIMERS=ON ..
 ```
 
-When you run a simulation that was built with timers enabled, a new directory named `writer_timers/` will be created in the run directory. This folder will be populated with `.csv` files—one for each MPI rank—containing detailed timing information for each simulation step.
+When you run a simulation that was built with timers enabled, a new directory named `writer_timers/` will be created in the run directory. This folder will be populated with `.csv` files, one for each MPI rank, containing detailed timing information for each simulation step.
 
 ### Visualizing the Timers
 
@@ -1077,7 +1059,7 @@ To get performance data, simply export the following to your environment before 
 
 When enabled, Kombyne will generate one `timings.####.txt` file for each MPI rank in your run directory. Each file contains a detailed, hierarchical breakdown of internal operations and the time each one took.
 
-_(Note: Please refer to your specific Kombyne simulation's documentation for the exact flag or option to enable timer output if it's not on by default.)_
+> **Note:** refer to your specific Kombyne simulation's documentation for the exact flag or option to enable timer output, if it is not on by default.
 
 #### Visualizing the Performance Data
 
@@ -1091,7 +1073,7 @@ Before running the script, you need to ensure you have the required Python packa
 pip install --user pandas plotly "kaleido==0.1.*"
 ```
 
-_(Note: A specific version of Kaleido is recommended for compatibility with recent Plotly versions.)_
+> **Note:** that specific version of Kaleido is the one compatible with recent Plotly versions.
 
 ##### Usage
 
@@ -1102,8 +1084,6 @@ python3 kombyne_sunbukombyne_timings_plotter.py
 ```
 
 This will process all timing files and save a PDF file named `kombyne_sunburst_performance.pdf`. This plot provides an intuitive, hierarchical view of the total time distribution.
-
-<br>
 
 ## 🧪 Configuring the Gray-Scott Simulation
 
@@ -1118,7 +1098,7 @@ The parameters are organized into three main groups:
 These parameters control the reaction-diffusion model itself. Small changes here can dramatically alter the resulting patterns.
 
 | Key     | Description                                                                                            |
-| ------- | ------------------------------------------------------------------------------------------------------ |
+| :------ | :----------------------------------------------------------------------------------------------------- |
 | `L`     | The size of the global simulation grid, creating an **L x L x L** cube.                                |
 | `Du`    | The diffusion coefficient for chemical **U**.                                                          |
 | `Dv`    | The diffusion coefficient for chemical **V**.                                                          |
@@ -1133,120 +1113,42 @@ These parameters control the reaction-diffusion model itself. Small changes here
 
 These control the simulation's execution length and how data is saved or processed live.
 
-| Key                       | Description                                                                                 |
-| ------------------------- | ------------------------------------------------------------------------------------------- |
-| `steps`                   | The total number of timesteps to simulate.                                                  |
-| `plotgap`                 | How often to save output (e.g., a value of 10 saves data every 10 steps).                   |
-| `burn_in_steps`           | The number of simulation steps to run before starting any visualization or output.          |
-| `output_file_name`        | A template for the output filename, ending in `.vti`, `.vtpd`, or `.bp`.                    |
-| `output_type`             | The output mode: `pvti`, `catalyst_io`, `catalyst_insitu`, `adios`, `ascent`, or `kombyne`. |
+| Key                       | Description                                                                                                                                                                              |
+| :------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `steps`                   | The total number of timesteps to simulate.                                                                                                                                               |
+| `plotgap`                 | How often to save output (e.g., a value of 10 saves data every 10 steps).                                                                                                                |
+| `burn_in_steps`           | The number of simulation steps to run before starting any visualization or output.                                                                                                       |
+| `output_file_name`        | A template for the output filename, ending in `.vti`, `.vtpd`, or `.bp`.                                                                                                                 |
+| `output_type`             | The output mode: `pvti`, `catalyst_io`, `catalyst_insitu`, `adios`, `ascent`, or `kombyne`.                                                                                              |
 | `overwrite_last_step`     | **(All Backends)** Set to `true` to overwrite the previous output file at each step. This ensures only the most recent data exists on disk, useful for storage-constrained environments. |
-| `catalyst_script_path`    | **(Catalyst Only)** The absolute path to the Python Catalyst pipeline script.               |
-| `catalyst_lib_path`       | **(Catalyst Only)** The absolute path to your Catalyst library installation.                |
-| `kombynelite_script_path` | **(Kombyne Only)** The path to the Kombyne Lite Python script.                              |
-| `adios_config`            | **(ADIOS Only)** The path to the ADIOS2 XML configuration file.                             |
-| `adios_span`              | **(ADIOS Only)** A boolean to enable ADIOS span functionality for in-transit processing.    |
-| `adios_memory_selection`  | **(ADIOS Only)** A boolean to enable ADIOS memory selection.                                |
+| `catalyst_script_path`    | **(Catalyst Only)** The absolute path to the Python Catalyst pipeline script.                                                                                                            |
+| `catalyst_lib_path`       | **(Catalyst Only)** The absolute path to your Catalyst library installation.                                                                                                             |
+| `kombynelite_script_path` | **(Kombyne Only)** The path to the Kombyne Lite Python script.                                                                                                                           |
+| `adios_config`            | **(ADIOS Only)** The path to the ADIOS2 XML configuration file.                                                                                                                          |
+| `adios_span`              | **(ADIOS Only)** A boolean to enable ADIOS span functionality for in-transit processing.                                                                                                 |
+| `adios_memory_selection`  | **(ADIOS Only)** A boolean to enable ADIOS memory selection.                                                                                                                             |
 
 #### Checkpointing Parameters (Requires ADIOS)
 
 Use these parameters to save and restart a simulation from a specific state.
 
 | Key                 | Description                                                             |
-| ------------------- | ----------------------------------------------------------------------- |
+| :------------------ | :---------------------------------------------------------------------- |
 | `checkpoint`        | Set to `true` to enable saving checkpoint files.                        |
 | `checkpoint_freq`   | How often (in steps) to save a checkpoint.                              |
 | `checkpoint_output` | The filename for the output checkpoint file (e.g., `gs_checkpoint.bp`). |
 | `restart`           | Set to `true` to restart the simulation from a checkpoint.              |
 | `restart_input`     | The name of the checkpoint file to read from when restarting.           |
 
-<table>
-<thead>
-<tr>
-<th colspan="2">✨ Example Parameter Sets</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td colspan="2">
-Here are several example parameter sets and the patterns they generate.
-</td>
-</tr>
-<tr>
-<td valign="top" width="50%">
+### ✨ Example Parameter Sets
 
-Mitosis-like Patterns
+Five parameter sets and the patterns they produce. `Du` and `Dv` are the
+diffusion rates of the two chemicals, `F` the feed rate and `k` the kill rate.
 
-Du: 0.2
-
-Dv: 0.1
-
-F: 0.02
-
-k: 0.048
-
-![](img/example1.jpg?raw=true)
-
-</td>
-<td valign="top" width="50%">
-
-Worms and Loops
-
-Du: 0.2
-
-Dv: 0.1
-
-F: 0.03
-
-k: 0.0545
-
-![](img/example2.jpg?raw=true)
-
-</td>
-</tr>
-<tr>
-<td valign="top" width="50%">
-
-Labyrinthine Structures
-
-Du: 0.2
-
-Dv: 0.1
-
-F: 0.03
-
-k: 0.06
-
-![](img/example3.jpg?raw=true)
-
-</td>
-<td valign="top" width="50%">
-
-Spotted Patterns
-
-Du: 0.2
-
-Dv: 0.1
-
-F: 0.01
-
-k: 0.05
-
-![](img/example4.jpg?raw=true)
-
-</td>
-</tr>
-<tr>
-<td valign="top" width="50%">
-
-Coral Growth
-
-Du: 0.2
-
-Dv: 0.1
-
-F: 0.02
-
-k: 0.06
-
-![](img/example5.jpg?raw=true)
+| Pattern                 | Du  | Dv  | F    | k      | Preview                                                          |
+| :---------------------- | --: | --: | ---: | -----: | :--------------------------------------------------------------: |
+| Mitosis-like            | 0.2 | 0.1 | 0.02 | 0.048  | ![Mitosis-like Gray-Scott pattern](img/example1.jpg?raw=true)    |
+| Worms and loops         | 0.2 | 0.1 | 0.03 | 0.0545 | ![Worms and loops Gray-Scott pattern](img/example2.jpg?raw=true) |
+| Labyrinthine structures | 0.2 | 0.1 | 0.03 | 0.06   | ![Labyrinthine Gray-Scott pattern](img/example3.jpg?raw=true)    |
+| Spotted                 | 0.2 | 0.1 | 0.01 | 0.05   | ![Spotted Gray-Scott pattern](img/example4.jpg?raw=true)         |
+| Coral growth            | 0.2 | 0.1 | 0.02 | 0.06   | ![Coral growth Gray-Scott pattern](img/example5.jpg?raw=true)    |
