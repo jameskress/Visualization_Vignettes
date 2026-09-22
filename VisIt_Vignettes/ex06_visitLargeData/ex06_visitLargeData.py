@@ -98,6 +98,24 @@ print("Running VisIt example script: ", sys.argv[0], "\n")
 script_dir = os.path.abspath(os.path.dirname(__file__))
 print("Running script from: ", script_dir)
 
+# This is the one vignette whose inputs are not in the repository. The cyclone
+# multiblock and the rainfall silo are 5.7 GB extracted, fetched once by
+# data/fetchData.sh, and deliberately not committed. A clone that has not run
+# that script, and CI, which has no business downloading it, are both expected
+# states, so say so and stop.
+#
+# Before the compute engine is opened, deliberately: there is nothing to close
+# down on this path, so the plain exit ctx.skip() uses is the right one.
+for _required in (
+    "cyclone-chapala-2015-11-02_00-00-00-mb.vtm",
+    "currentRainfall.silo",
+):
+    if ctx.dataset(_required, required=False) is None:
+        ctx.skip(
+            "{0} is not present. This vignette needs the 5.7 GB extracted "
+            "dataset; run data/fetchData.sh once to get it.".format(_required)
+        )
+
 # Launch the compute engine when a site was named on the command line.
 #
 # This replaces a positional-argument block that read sys.argv[4] to pick the

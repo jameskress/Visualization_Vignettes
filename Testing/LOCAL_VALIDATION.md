@@ -187,7 +187,10 @@ OK   this machine is ready
 * A tool that is not installed is skipped with a note, not an error, so this is
   safe on a machine that has only ParaView or only VisIt.
 * It will not start the 4.3 GB `fetchData.sh` download on its own. It tells you
-  when ex06's data is absent and leaves that decision to you.
+  when ex06's data is absent and leaves that decision to you. If you run the
+  suite without it, ex06 reports SKIPPED and the other twelve run normally;
+  the suite still exits 0 and the skip is listed under `skipped_tests` in the
+  summary report. That is the state CI runs in permanently.
 
 `ex10` needs nothing prepared; its colour maps ship beside it.
 

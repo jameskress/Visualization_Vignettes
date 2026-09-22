@@ -631,8 +631,16 @@ def check_failure(test_dir, non_gpu_machine):
     """
     reasons = []
 
-    # -- 1. subprocess exit code ----------------------------------------
     run_result = read_run_result(test_dir)
+
+    # -- 0. a vignette that declared itself skipped ----------------------
+    # Its input is absent by design. It produced no images, no results and no
+    # extracts, so every gate below would be comparing this run's nothing
+    # against the committed baseline's something. Nothing here failed.
+    if run_result is not None and run_result.get("skipped"):
+        return False
+
+    # -- 1. subprocess exit code ----------------------------------------
     if run_result is not None and not run_result.get("succeeded", False):
         detail = "exit code {0}".format(run_result.get("returncode"))
         if run_result.get("timed_out"):
@@ -785,6 +793,10 @@ def create_summary_report(
         # than failures. Kept separate from the list above so a deliberate
         # version comparison never reads as a regression.
         "version_comparisons": [],
+        # Vignettes that declared their input absent by design. Not failures,
+        # but not passes either: a reader has to be able to see that the run
+        # covered less than the whole suite.
+        "skipped_tests": [],
     }
 
     machine_name = args_machine_name if args_machine_name else platform.uname().node
@@ -814,8 +826,24 @@ def create_summary_report(
 
         gpu_exempt = is_gpu_test_allowed_to_fail(testing_dir) and args_non_gpu_machine
 
-        # -- subprocess exit code -----------------------------------------
         run_result = read_run_result(testing_dir)
+
+        # -- a vignette that declared itself skipped ----------------------
+        # Its input is absent by design (the 5.7 GB fetchData.sh download is
+        # not in the repository and CI does not pull it), so there is nothing
+        # to compare and nothing to record. Reporting it is the whole job:
+        # silently passing a vignette that never ran is how a suite starts
+        # lying about its coverage.
+        if run_result is not None and run_result.get("skipped"):
+            reason = run_result.get("skip_reason", "no reason given")
+            print("\t{0}: SKIPPED, {1}".format(subdir, reason))
+            test_status["skipped"] = True
+            test_status["skip_reason"] = reason
+            summary_report["skipped_tests"].append({subdir: reason})
+            summary_report["test_results"][subdir] = test_status
+            continue
+
+        # -- subprocess exit code -----------------------------------------
         if run_result is not None and not run_result.get("succeeded", False):
             if gpu_exempt:
                 print(
@@ -1090,7 +1118,18 @@ def run_test(test_dir, dir_name, args):
         metrics = gather_metrics(
             dir_name, start_time, end_time, run_result=run_result, before=rusage_before
         )
-        if args.write_metrics:
+        if isinstance(run_result, dict) and run_result.get("skipped"):
+            # The vignette stopped before doing any work, so its wall time and
+            # peak memory describe the check that found the input missing.
+            # Appending that would put a 0.3 s record in the middle of a
+            # history of 200 s ones and the gate would call the next real run
+            # a regression.
+            print(
+                "  skipped, so nothing was appended to the history: {0}".format(
+                    run_result.get("skip_reason", "no reason given")
+                )
+            )
+        elif args.write_metrics:
             log_performance(
                 dir_name,
                 metrics,

@@ -120,9 +120,11 @@ jobs:
             # committed (see Testing/prepare_machine.py). Without this the
             # suite now refuses to start, which is the point: a stale fixture
             # fails later, disguised as a regression in a vignette.
-            # ex06 needs a 4.3 GB download that CI has no business fetching;
+            # ex06 needs a 4.3 GB download that CI has no business fetching.
             # prepare_machine reports that separately and the preflight lets
-            # it through as a warning.
+            # it through as a warning, and ex06 itself then reports SKIPPED
+            # rather than failing, so the suite below runs unfiltered and the
+            # skip is visible in the summary report artifact.
             python3 prepare_machine.py
             # The version label follows what is actually downloaded above.
             python3 test_suite.py ../ --test_type ParaView --paraview_version 6.0.1 --non_gpu_machine

@@ -431,6 +431,18 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
         payload["tree_cpu_seconds"] = round(tree_cpu_seconds, 3)
         if duration > 0:
             payload["tree_cpu_percent"] = round(100.0 * tree_cpu_seconds / duration, 1)
+
+    # A vignette that found its input missing declares itself skipped and
+    # exits cleanly, so the exit code alone cannot tell the two apart. The
+    # VisIt path reads the same field later for its own reasons; doing it
+    # here as well means ParaView gets it too, from one place.
+    if returncode == 0 and not timed_out:
+        document = _fresh_results_document(output_dir, started)
+        if document is not None and document.get("status") == "skipped":
+            payload["skipped"] = True
+            payload["vignette_status"] = "skipped"
+            payload["skip_reason"] = document.get("message") or "no reason given"
+
     write_run_result(output_dir, payload)
 
     # VisIt's launcher always exits 250, so for that path the exit code says
@@ -440,6 +452,8 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     # verdict it derives itself.
     if not announce_verdict:
         pass
+    elif payload.get("skipped"):
+        print("Vignette SKIPPED: {0}".format(payload["skip_reason"]))
     elif returncode == 0:
         print("Vignette completed successfully in {0:.2f}s".format(duration))
     else:
@@ -552,8 +566,11 @@ def _apply_visit_verdict(payload, output_dir, started_at):
     status = document.get("status", "unknown")
     payload["verdict_source"] = "results JSON status={0}".format(status)
     payload["vignette_status"] = status
-    payload["succeeded"] = status == "ok"
-    if not payload["succeeded"]:
+    payload["succeeded"] = status in ("ok", "skipped")
+    if status == "skipped":
+        payload["skipped"] = True
+        payload["skip_reason"] = document.get("message") or "no reason given"
+    elif not payload["succeeded"]:
         payload["error"] = document.get("message") or "vignette reported {0}".format(
             status
         )
@@ -600,7 +617,9 @@ def run_local_visit(script_path, vignette_args, output_dir, args):
     # run_result.json, sees the real answer.
     payload = _apply_visit_verdict(payload, output_dir, started_at)
     write_run_result(output_dir, payload)
-    if payload["succeeded"]:
+    if payload.get("skipped"):
+        print("Vignette SKIPPED: {0}".format(payload["skip_reason"]))
+    elif payload["succeeded"]:
         print("Vignette passed ({0}).".format(payload["verdict_source"]))
     else:
         print(

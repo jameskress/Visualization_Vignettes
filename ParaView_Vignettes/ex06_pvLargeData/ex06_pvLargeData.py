@@ -89,6 +89,22 @@ if os.path.abspath(ctx.output_dir) != _fixed_output:
     )
     ctx.output_dir = _fixed_output
 os.makedirs(ctx.output_dir, exist_ok=True)
+
+# This is the one vignette whose inputs are not in the repository. The cyclone
+# multiblock and the rainfall silo are 5.7 GB extracted, fetched once by
+# data/fetchData.sh, and deliberately not committed. A clone that has not run
+# that script, and CI, which has no business downloading it, are both expected
+# states, so say so and stop rather than failing inside the reader with a
+# message about a null pointer.
+for _required in (
+    "cyclone-chapala-2015-11-02_00-00-00-mb.vtm",
+    "currentRainfall.silo",
+):
+    if ctx.dataset(_required, required=False) is None:
+        ctx.skip(
+            "{0} is not present. This vignette needs the 5.7 GB extracted "
+            "dataset; run data/fetchData.sh once to get it.".format(_required)
+        )
 # --------------------------------------------------------------------------
 
 print("Running ParaView example script: ", sys.argv[0], "\n")

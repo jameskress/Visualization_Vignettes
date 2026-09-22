@@ -22,6 +22,12 @@ carries the measurement behind each item below.
 - `Testing/OFFLINE_SETUP.md`: preparing a Python environment and a data
   directory on a connected machine and copying both to an air-gapped one,
   with the Shaheen CPU and Ibex CPU/GPU runbooks for both suites.
+- A vignette can report itself **skipped** when its input is absent by design.
+  `ex06` is the only one: its 5.7 GB dataset is fetched by `data/fetchData.sh`
+  and deliberately not committed, so a fresh clone and CI both ran it and
+  failed inside the reader. It now says why and stops, no gate runs against
+  it, nothing is appended to its history, the suite still exits 0, and the
+  skip is listed under `skipped_tests` in the summary report.
 - `Testing/make_offline_bundle.sh`: collects the five runtime dependencies as
   wheels for a target platform, because a virtualenv is not relocatable and
   copying one to another machine produces a Python that cannot import itself.

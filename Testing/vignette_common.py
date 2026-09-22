@@ -759,6 +759,26 @@ class VignetteContext(object):
         self.log("wrote results: {0}".format(path))
         return path
 
+    def skip(self, reason, exit_func=None):
+        """Declare this vignette not runnable here, and stop.
+
+        This is for an input that is absent by design rather than by mistake.
+        `data/fetchData.sh` pulls 5.7 GB that deliberately does not live in
+        the repository, so a clone that has not run it, and CI, which has no
+        business downloading it, are both expected states. A vignette that
+        cannot find that input has not failed and must not be reported as a
+        regression: it writes `status: "skipped"` with a reason, and the
+        harness records a skip, runs no comparisons, and appends no metrics.
+
+        A missing input that is NOT in that category is still a failure. Use
+        `ctx.dataset(key)`, which raises, for anything the repository ships
+        or generates.
+        """
+        self.log("SKIPPED: {0}".format(reason))
+        self.notes.append("SKIPPED: " + reason)
+        self.write_results(status="skipped", message=reason)
+        (exit_func or exit_vignette)(0)
+
     def write_timing_csv(self, filename=None, rows=None):
         """Write a scaling/timing CSV next to the images.
 

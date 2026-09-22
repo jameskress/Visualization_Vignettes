@@ -633,6 +633,40 @@ records it in `run_result.json`, exports `VV_NO_METRICS=1`, and forwards
 appears in the output, which is what you want when you are reading a log
 afterwards and wondering whether that run counted.
 
+### A vignette whose input is not there
+
+`ex06` is the only vignette whose inputs are not in the repository. The
+cyclone multiblock and the rainfall silo are 5.7 GB extracted, fetched once
+by `data/fetchData.sh`, and deliberately not committed. A fresh clone that has
+not run that script, and CI, which has no business downloading it, are both
+expected states.
+
+So `ex06` checks for them first, and if they are absent it reports **SKIPPED**
+and stops:
+
+```text
+Vignette SKIPPED: cyclone-chapala-2015-11-02_00-00-00-mb.vtm is not present.
+This vignette needs the 5.7 GB extracted dataset; run data/fetchData.sh once
+to get it.
+```
+
+A skip is neither a pass nor a failure:
+
+* No gate runs against it. There are no images, results or extracts to
+  compare, so every gate would be measuring this run's nothing against the
+  baseline's something.
+* Nothing is appended to the performance history. The recorded time would
+  describe the existence check, and a 0.3 s record in a history of 190 s ones
+  would make the next real run look like a catastrophic regression.
+* It does not fail the suite. `test_suite.py` still exits 0.
+* It is reported, in the run output and under `skipped_tests` in the summary
+  report. A suite that silently passes a vignette which never ran is lying
+  about its coverage.
+
+This is for an input that is absent *by design*. Anything the repository
+ships or generates uses `ctx.dataset(key)` instead, which raises, because a
+missing generated fixture is a setup problem worth stopping for.
+
 ### What the gate calls a regression, and what it only reports
 
 The gate compares the two most recent records in a history file. What it does
