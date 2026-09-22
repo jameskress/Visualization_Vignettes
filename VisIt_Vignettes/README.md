@@ -158,19 +158,19 @@ instead, and only when that file was written *after* the run started. The line
 to read is `Vignette passed (results JSON status=ok)`.
 
 **2. `-noconfig` leaves you 18 colour tables, not 157.** The suite always passes
-it, so a baseline never depends on whose `~/.visit` blessed it — and a host
+it, so a baseline never depends on whose `~/.visit` blessed it, and a host
 profile in there can silently start a *different VisIt install* with a different
 engine topology, which is how one baseline in this repository spent two hours
 looking corrupt. The cost is that 129 of VisIt's **own** tables, which ship as
 `.ct` files under `$VISITARCHHOME/resources/colortables/`, are not loaded either:
 `viridis`, `plasma`, `magma`, `Blues` and the rest. VisIt does not refuse an
-unknown table name — it accepts it, fails the plot asynchronously, and every
+unknown table name: it accepts it, fails the plot asynchronously, and every
 query on that plot then returns `None`. Vignettes load what they need with
 `vc.ensure_color_table()`, which reads the `.ct` out of the install.
 
 **3. `getattr(visit_object, "name", default)` does not fall back.** VisIt's
 attribute objects raise `ValueError`, not `AttributeError`, for an unknown field,
-so the three-argument form propagates instead of returning the default — and
+so the three-argument form propagates instead of returning the default, and
 `dir()` on them raises too, so you cannot look first. Use `vc.visit_attr()`.
 
 ### Before the first run on a machine

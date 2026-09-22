@@ -4,7 +4,7 @@ Bringing the `regressionTestingUpdates` branch (ex00–ex12, both suites, plus t
 reworked `Testing/` harness) up on a workstation, against **ParaView 6.1.0** and
 **VisIt 3.4.2**, before the same suite is taken to Shaheen.
 
-Machine of record: `KW61316.kaust.edu.sa` — Ubuntu 22.04, 64 cores, 251 GB RAM,
+Machine of record: `KW61316.kaust.edu.sa`, Ubuntu 22.04, 64 cores, 251 GB RAM,
 2 × NVIDIA RTX A5000 (driver 580.173.02).
 
 ---
@@ -12,7 +12,7 @@ Machine of record: `KW61316.kaust.edu.sa` — Ubuntu 22.04, 64 cores, 251 GB RAM
 ## 1. Current status
 
 **ParaView 6.1.0, VisIt 3.4.2 and VisIt 3.4.1: 13 of 13 each, exit 0**, every
-correctness gate — process exit code, image, numeric, CSV and the legacy text
+correctness gate, process exit code, image, numeric, CSV and the legacy text
 comparison. Thirty-nine vignette runs, zero failed comparisons of any kind.
 
 ex12 was the exception for a while, and the reason is worth reading before
@@ -28,7 +28,7 @@ These three runs are the ones recorded in the committed history. Everything
 else behind §4 and §4b was run with `--no-metrics` and left no trace; see
 §3 for the rule.
 
-### ParaView 6.1.0 — `KW61316.kaust.edu.sa`, run `pv610-local-2026-09-21`
+### ParaView 6.1.0, `KW61316.kaust.edu.sa`, run `pv610-local-2026-09-21`
 
 | Vignette | Wall (s) | Peak (MB) | CPU (%) | Notes |
 | :--- | ---: | ---: | ---: | :--- |
@@ -37,21 +37,21 @@ else behind §4 and §4b was run with `--no-metrics` and left no trace; see
 | ex02_pvAnimation | 56.31 | 1,591 | 145 |  |
 | ex03_pvIsosurfaceAnimation | 19.20 | 1,649 | 348 |  |
 | ex04_pvStreamlineAnimation | 67.84 | 1,741 | 603 |  |
-| ex05_pvMultiTimeStepFile | 4.92 | 782 | 418 | XML time series + frame annotation — §4b.13 |
-| ex06_pvLargeData | 192.22 | 61,992 | 2007 | 5% image tolerance — §5 |
+| ex05_pvMultiTimeStepFile | 4.92 | 782 | 418 | XML time series + frame annotation, §4b.13 |
+| ex06_pvLargeData | 192.22 | 61,992 | 2007 | 5% image tolerance, §5 |
 | ex07_pvScaling | 4.52 | 557 | 231 |  |
 | ex08_pvBackendCheck | 3.47 | 598 | 97 | metrics are machine-specific by design |
-| ex09_pvMeshTopologies | 4.22 | 750 | 189 | isovalues fixed; polydata frame fixed — §4b.12 |
+| ex09_pvMeshTopologies | 4.22 | 750 | 189 | isovalues fixed; polydata frame fixed, §4b.12 |
 | ex10_pvColormapFidelity | 3.89 | 627 | 138 | legend format + binning fixed |
 | ex11_pvStateVerification | 3.94 | 684 | 164 | needs xvfb, `--no-offscreen` |
-| ex12_pvExtractRegression | 3.89 | 629 | 250 | extract loop fixed; real time + cycle — §4b.13 |
+| ex12_pvExtractRegression | 3.89 | 629 | 250 | extract loop fixed; real time + cycle, §4b.13 |
 | **TOTAL** | **370.9** | | | ex06 is 52% of the wall clock and the only one that needs more than 2.4 GB |
 
 `ex06_pvLargeData` is intermittent at the pixel level and declares its own 5%
 image tolerance to absorb that; see §5. ex11 runs separately, under `xvfb-run`
 with `--no-offscreen`, tagged with the same run id.
 
-### VisIt 3.4.2 — `KW61316.kaust.edu.sa`, run `visit342-local-2026-09-21`
+### VisIt 3.4.2, `KW61316.kaust.edu.sa`, run `visit342-local-2026-09-21`
 
 | Vignette | Wall (s) | Peak (MB) | CPU (%) | Notes |
 | :--- | ---: | ---: | ---: | :--- |
@@ -60,25 +60,25 @@ with `--no-offscreen`, tagged with the same run id.
 | ex02_visitAnimation | 45.74 | 1,013 | 350 |  |
 | ex03_visitIsosurfaceAnimation | 18.77 | 1,054 | 287 |  |
 | ex04_visitStreamlineAnimation | 82.37 | 2,363 | 244 |  |
-| ex05_visitMultiTimeStepFile | 17.12 | 887 | 205 | XML time series + frame annotation — §4b.13 |
-| ex06_visitLargeData | 207.15 | 36,050 | 107 | baseline is 8-rank — §4b.8 |
-| ex07_visitScaling | 5.23 | 454 | 136 | `MinMax` on an isosurface — §4b.6 |
-| ex08_visitBackendCheck | 1.97 | 424 | 274 | rank count derived from pids — §4b.4 |
-| ex09_visitMeshTopologies | 4.28 | 548 | 168 | `viridis` loaded explicitly; polydata frame fixed — §4b.12 |
-| ex10_visitColormapFidelity | 4.88 | 467 | 134 | `GetNumPlots()` — §4b.5 |
+| ex05_visitMultiTimeStepFile | 17.12 | 887 | 205 | XML time series + frame annotation, §4b.13 |
+| ex06_visitLargeData | 207.15 | 36,050 | 107 | baseline is 8-rank, §4b.8 |
+| ex07_visitScaling | 5.23 | 454 | 136 | `MinMax` on an isosurface, §4b.6 |
+| ex08_visitBackendCheck | 1.97 | 424 | 274 | rank count derived from pids, §4b.4 |
+| ex09_visitMeshTopologies | 4.28 | 548 | 168 | `viridis` loaded explicitly; polydata frame fixed, §4b.12 |
+| ex10_visitColormapFidelity | 4.88 | 467 | 134 | `GetNumPlots()`, §4b.5 |
 | ex11_visitStateVerification | 2.32 | 456 | 256 | identical with and without a display |
-| ex12_visitExtractRegression | 3.62 | 462 | 170 | volume integrals pre-pass; real time + cycle — §4b.13 |
+| ex12_visitExtractRegression | 3.62 | 462 | 170 | volume integrals pre-pass; real time + cycle, §4b.13 |
 | **TOTAL** | **397.4** | | | ex06 is 52% of the wall clock and the only one that needs more than 2.4 GB |
 
 Twelve in one command and ex11 on its own under `xvfb-run`, so one run id files
 one record per vignette (§3). ex11's frames come out bit-identical with and
 without a display, so it does not need a baseline of its own.
 
-Every VisIt baseline in the repository was replaced during this pass — see §5b
+Every VisIt baseline in the repository was replaced during this pass, see §5b
 for which ones were merely stale, which one was never wrong in the first place,
 and which rank count each is blessed at.
 
-### VisIt 3.4.1 — `KW61316.kaust.edu.sa`, run `visit341-local-2026-09-21`
+### VisIt 3.4.1, `KW61316.kaust.edu.sa`, run `visit341-local-2026-09-21`
 
 3.4.1 is what `MODULES.sh` loads on Shaheen and Ibex until spring (§5b), so it
 gets a full run of its own, against the same baselines: **13 of 13, exit 0**,
@@ -151,10 +151,10 @@ cd data
 ./fetchData.sh          # 4.3 GB, needed by ex06 only
 ```
 
-### Generated fixtures — one command
+### Generated fixtures, one command
 
 Five of the suite's inputs are generated by a tool rather than shipped, and
-none of them is portable — two are locked to a ParaView version, one to a VisIt
+none of them is portable: two are locked to a ParaView version, one to a VisIt
 version, one holds absolute paths to this machine's data directory, and one is
 a converted copy of the time series that only stays current while its source
 does. This used to be four
@@ -215,7 +215,7 @@ rather than failed, so an older checkout still runs.
 
 ## 3. Running the suite
 
-### ParaView — everything except ex11
+### ParaView, everything except ex11
 
 ```bash
 export PARAVIEW_PATH=/home/kressjm/packages/ParaView-6.1.0-MPI-Linux-Python3.12-x86_64/bin
@@ -231,7 +231,7 @@ python test_suite.py ../ \
   --timeout 1800
 ```
 
-### ParaView — ex11, which must NOT be offscreen
+### ParaView, ex11, which must NOT be offscreen
 
 `ex11` exists to verify the on-display path a GUI user takes, so it needs a real
 X display and must not be forced offscreen. `--no-offscreen` applies to the
@@ -310,7 +310,7 @@ python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
 
 Above one rank this starts the engine through VisIt's own bundled `mpirun`
 (`-np 8`), which is the cheapest way to find a parallel problem before spending
-queue time on it — and it is how the rank question in §5b was answered without
+queue time on it, and it is how the rank question in §5b was answered without
 spending any.
 
 Bless from it only for a vignette whose baseline is *meant* to be parallel.
@@ -434,8 +434,8 @@ python test_suite.py ../ ... --test_number 7 --bless --no-metrics
 `--generate-metrics --bless` blesses from outputs already on disk without
 re-running, which is useful after a long suite run you have already inspected.
 
-**Clear `output/` before a blessing run.** Nothing in the harness does — it only
-cleans `Testing/` — and ex12 counts files it produced.
+**Clear `output/` before a blessing run.** Nothing in the harness does: it only
+cleans `Testing/`, and ex12 counts files it produced.
 
 ---
 
@@ -443,7 +443,7 @@ cleans `Testing/` — and ex12 counts files it produced.
 
 Everything below was a real failure on this machine, not a theoretical one.
 
-### 4.1 `.vth` has no writer in ParaView 6.1 — `data/make_topology_datasets.py`
+### 4.1 `.vth` has no writer in ParaView 6.1, `data/make_topology_datasets.py`
 
 `SaveData("amr_hierarchy.vth")` finds no writer in 6.x (the extension is
 `.vthb` now), returns a null proxy, and `CreateWriter` then raises
@@ -453,7 +453,7 @@ Everything below was a real failure on this machine, not a theoretical one.
 Fixed by probing both extensions and recording whichever produced a file, so one
 script is correct on 5.13.1 (Shaheen/Ibex) and 6.1 (here).
 
-### 4.2 pvbatch 6.1 segfaults on `sys.exit()` — every rendering vignette
+### 4.2 pvbatch 6.1 segfaults on `sys.exit()`, every rendering vignette
 
 Reduced to its essentials:
 
@@ -466,7 +466,7 @@ sys.exit(0)        # -> "error: exception occurred: Segmentation fault", exit 1
 The same script exits 0 when it falls off the end, and exits 0 under `xvfb-run`
 with a real display. The crash is in interpreter teardown, after the vignette has
 finished and written everything, whenever a render window exists and no X display
-does — which is every offscreen batch run and every compute node.
+does, which is every offscreen batch run and every compute node.
 
 Deleting the view, `ResetSession()` and `servermanager.Finalize()` before exiting
 were each measured; none of them prevent it.
@@ -477,12 +477,12 @@ this turned every clean pass into a failure. Fixed with `vc.exit_vignette(code)`
 still shuts down through `finish_visit_session`, which must close the compute
 engine first.
 
-### 4.3 The numeric gate was dead for ex00 — `Testing/test_suite.py`
+### 4.3 The numeric gate was dead for ex00, `Testing/test_suite.py`
 
 `vignette_script_name()` derived the results-JSON name from the *script filename*.
 Every vignette names that file after its `VIGNETTE` constant, which is the
-*directory* name. The two differ in exactly one place — `ex00_pvQuery/` contains
-`ex00_pvConeStat.py` — so the harness looked for
+*directory* name. The two differ in exactly one place, `ex00_pvQuery/` contains
+`ex00_pvConeStat.py`, so the harness looked for
 `ex00_pvConeStat_results.json`, found neither a produced file nor a baseline,
 concluded "this vignette emits no structured results", and skipped the gate.
 Blessing recorded nothing for the same reason.
@@ -490,12 +490,12 @@ Blessing recorded nothing for the same reason.
 Now resolved from a results JSON that actually exists, then the directory name,
 then the filename.
 
-### 4.4 Animation vignettes could never pass — `Testing/verify.py`
+### 4.4 Animation vignettes could never pass, `Testing/verify.py`
 
 Blessing records at most `--max-baseline-images` (default 5). Image comparison
 reported every *produced* image without a baseline as `NO BASELINE`, which is a
 failing status. So a ten-frame animation had five permanently failing frames the
-moment it was blessed, and no number of re-blesses could fix it — while the
+moment it was blessed, and no number of re-blesses could fix it, while the
 code's own comment said the report was "informational only".
 
 Split into a separate non-failing `NOT BASELINED` status. A genuinely missing
@@ -518,28 +518,28 @@ inside it, and gives the surface a scalar that varies *along* it (the Y
 coordinate) so the contour becomes the isoline the vignette says it is testing.
 Both ex09 vignettes read the per-dataset value from the manifest.
 
-### 4.6 Preset renames — `Viridis (matplotlib)` → `Viridis`
+### 4.6 Preset renames, `Viridis (matplotlib)` → `Viridis`
 
 ParaView 6.0 dropped the ` (matplotlib)` suffix and 6.1 *raises* on an unknown
 preset instead of warning, which aborted ex09. Worse in the other direction:
 5.13 returns `False` and carries on, and every call site here discarded that
-return — so on the cluster a rename would have rendered in the wrong colours
+return, so on the cluster a rename would have rendered in the wrong colours
 with every assertion passing.
 
 `vc.apply_color_preset(lut, candidates, ctx)` takes every spelling the preset has
 had, checks both the exception and the return value, and raises if none work. Now
 used at all seven ParaView call sites.
 
-### 4.7 Legend numbers printed as format strings — ex06 and ex10
+### 4.7 Legend numbers printed as format strings, ex06 and ex10
 
 ParaView 6 formats scalar-bar numbers with `std::format` specs (`{:<#6.3g}`), not
-printf ones — and it does not reject a printf string, it prints it verbatim.
+printf ones, and it does not reject a printf string; it prints it verbatim.
 ex06's QICE legend read `%-#6.3f` where 5.13 drew `0.000 / 0.001`. Nothing in the
 suite asserts on legend text, so blessing a 6.1 baseline would have recorded that
 as correct.
 
 `vc.number_format(bar, "%-#6.3f", "LabelFormat")` reads the build's own default
-for that property to decide which dialect to emit — no version test, no table to
+for that property to decide which dialect to emit, no version test, no table to
 maintain.
 
 ### 4.8 ex11: a keyword that matched no ParaView release
@@ -547,15 +547,15 @@ maintain.
 `LoadState(..., restrict_to_data_files=False)`. The keyword is
 `restrict_to_data_**directory**` in both 5.13.3 and 6.1.0. ParaView forwards an
 unknown keyword to `_LoadStateLegacy`, which tries to set it as a proxy property
-and raises `AttributeError` — while the fallback caught only `TypeError`, so the
+and raises `AttributeError`, while the fallback caught only `TypeError`, so the
 fallback path was unreachable and the vignette simply died.
 
-### 4.9 Peak memory was another test's number — `Testing/metrics.py`
+### 4.9 Peak memory was another test's number, `Testing/metrics.py`
 
 `resource.getrusage(RUSAGE_CHILDREN).ru_maxrss` is a high-water mark over every
 child the process has ever reaped, and never decreases. `test_suite.py` runs all
 thirteen vignettes from one process, so once ex06 touched 62 GB, ex07–ex12 each
-recorded **61965.6 MB** as their peak — ex06's number, written into their
+recorded **61965.6 MB** as their peak, ex06's number, written into their
 committed history and compared against by the performance gate. Six of thirteen
 memory figures per suite run were not measurements of anything.
 
@@ -570,7 +570,7 @@ so the regression detector will not compare across the boundary.
 `SaveExtracts()` without `FrameWindow` extracts *all* timesteps. Called inside the
 per-step loop, a `--steps 3` run wrote all 20 timesteps three times over: the
 extract phase timed 20 frames instead of one, and `data_extract_files` reported
-20 against `steps_extracted` of 3 — a count that would not have moved if per-step
+20 against `steps_extracted` of 3, a count that would not have moved if per-step
 extraction had stopped working altogether. It also left the pipeline parked at
 timestep 19, so the measurements taken afterwards were of the wrong step.
 
@@ -589,18 +589,18 @@ The binning expression scaled by `CATEGORY_COUNT - 1`, which is precisely what
 its own comment said it was avoiding: four equal-width bins plus a fifth holding
 only the exact maximum.
 
-### 4.13 GPU selection pinned for single-rank renders — `Testing/run_tests.py`
+### 4.13 GPU selection pinned for single-rank renders, `Testing/run_tests.py`
 
 With two GPUs visible the driver does not place work consistently. For a
-single-rank job — which was only ever going to use one GPU — the device is now
+single-rank job, which was only ever going to use one GPU, the device is now
 pinned so the choice is deterministic. An explicit `CUDA_VISIBLE_DEVICES`
 (which is what Slurm `--gres=gpu` sets) always wins, and nothing is pinned for a
 multi-rank run.
 
-### 4.14 VisIt reads the developer's config — `Testing/run_tests.py`
+### 4.14 VisIt reads the developer's config, `Testing/run_tests.py`
 
-The VisIt CLI was launched without `-noconfig`, so `~/.visit/config` — saved
-annotation, save-window, window-size and colour-table state — fed into every
+The VisIt CLI was launched without `-noconfig`, so `~/.visit/config`, saved
+annotation, save-window, window-size and colour-table state, fed into every
 baseline. The account running this suite has nine custom colour tables in
 `~/.visit`, so this was not hypothetical. `-noconfig` added.
 
@@ -615,12 +615,12 @@ The rename landed in **6.1**, not 6.0, so all three ParaViews disagree:
 
 | Build | Preset name | Where |
 | :--- | :--- | :--- |
-| 5.13.1 | `Viridis (matplotlib)` | — |
+| 5.13.1 | `Viridis (matplotlib)` |, |
 | 6.0.1 | `Viridis (matplotlib)` | **Ibex** |
 | 6.1.0 | `Viridis` | **Shaheen**, local |
 
 And all three fail *differently* for a name they do not have: 6.1 raises, 5.13
-returns `False`, and **6.0.1 does neither** — it returns something truthy and
+returns `False`, and **6.0.1 does neither**: it returns something truthy and
 silently leaves the transfer function alone. So the first version of
 `apply_color_preset` accepted `"Viridis"` on 6.0.1, never tried the fallback, and
 ex09's tetra contour rendered pale yellow instead of teal: 26.5% of the frame,
@@ -628,7 +628,7 @@ with every assertion passing.
 
 The transfer function is now the witness: a preset that changed nothing is
 investigated rather than trusted. "Nothing changed" has two very different
-causes — the preset was already active (the normal case; ex09 colours four
+causes: the preset was already active (the normal case; ex09 colours four
 topologies through one lookup table), or the name did not resolve and this
 ParaView ignored it. Re-applying from a deliberately different sentinel state
 separates them, and that extra step runs **only** in the ambiguous case, so the
@@ -637,7 +637,7 @@ normal path leaves the lookup table untouched.
 That last detail cost two iterations and is worth recording:
 
 * reading only `RGBPoints` missed categorical presets entirely, whose colours
-  live in `IndexedColors` — ex10's `VV Categorical` looked like a preset that had
+  live in `IndexedColors`, ex10's `VV Categorical` looked like a preset that had
   not applied. The signature now covers `RGBPoints`, `Points`, `IndexedColors`
   and `NanColor`.
 * forcing the sentinel state *unconditionally* perturbed the categorical lookup
@@ -648,7 +648,7 @@ applications, rejects a bogus name, and ex09/ex10 both come back bit-identical.
 
 ### 4.17 `MergeBlocks` refuses AMR on 6.0.1
 
-`Input ... is of type vtkOverlappingAMR, but a vtkDataObjectTree is required` —
+`Input ... is of type vtkOverlappingAMR, but a vtkDataObjectTree is required` ,
 6.1 accepts it, 6.0.1 does not, and VTK reports it through its error channel
 rather than raising, so the failure arrived later and in disguise as
 `Scalar 'scalar' absent from amr_hierarchy.vthb. Available point arrays: []`.
@@ -665,7 +665,7 @@ fallback is not a compromise.
 never executed end to end. Everything below is a real failure on 3.4.2, in the
 order it was hit.
 
-### 4b.1 VisIt's launcher always exits 250 — `Testing/run_tests.py`
+### 4b.1 VisIt's launcher always exits 250, `Testing/run_tests.py`
 
 `visit -cli` is a shell script that execs the real binary and returns its own
 status. It returns **250 on success**, 250 on a Python traceback, and 250 on a
@@ -683,8 +683,8 @@ verdict_source            "results JSON status=ok"
 succeeded                 true
 ```
 
-The results JSON has to be **fresh for this run** — its mtime is compared
-against the launch time — otherwise a vignette that dies before writing anything
+The results JSON has to be **fresh for this run**: its mtime is compared
+against the launch time, otherwise a vignette that dies before writing anything
 inherits the previous run's verdict, which is the worst possible failure mode
 for a regression suite. A timeout is a failure regardless.
 
@@ -694,7 +694,7 @@ harness called it a failure on exactly the right grounds.
 
 ### 4b.2 `-noconfig` also hides 129 of VisIt's own colour tables
 
-`-noconfig` (§4.14) is not optional for a regression suite — without it a
+`-noconfig` (§4.14) is not optional for a regression suite, without it a
 baseline is partly a function of whose `~/.visit` blessed it. But it is blunter
 than it looks:
 
@@ -707,13 +707,13 @@ Only 11 of the 139 that disappear are this user's own. The other **129 are
 VisIt's**, shipped as `.ct` files under
 `$VISITARCHHOME/resources/colortables/` and loaded at startup by the same code
 path `-noconfig` switches off. `viridis`, `plasma`, `Blues`, `magma`, `inferno`
-— all of them.
+, all of them.
 
 And VisIt does not refuse an unknown colour-table name at the point of use. It
 accepts it, fails the plot asynchronously with
 `There is no color table named viridis`, and every subsequent query against that
 plot returns `None`. ex09 died three steps later on `int(None)`, with nothing in
-the traceback pointing at a colour table. ex06 did not die at all — it rendered a
+the traceback pointing at a colour table. ex06 did not die at all: it rendered a
 washed-out grey frame that differed from its baseline in 99.3% of pixels while
 every assertion passed.
 
@@ -735,7 +735,7 @@ and Ibex because they ship with the install.
 Vignettes covered: ex09 (`viridis`), ex06 (`plasma`, `Blues`). ex10 builds its
 own tables from control points and needed nothing.
 
-### 4b.3 `getattr(visit_object, name, default)` does not fall back — `vc.visit_attr`
+### 4b.3 `getattr(visit_object, name, default)` does not fall back, `vc.visit_attr`
 
 VisIt's attribute objects raise **`ValueError`** for an unknown field name, not
 `AttributeError`. `getattr` only catches the latter, so the three-argument form
@@ -762,7 +762,7 @@ field, and the vignette died before rendering anything.
 ### 4b.6 ex07: `MinMax` on an isosurfaced plot returns the isovalue twice
 
 `query_value("MinMax", use_actual_data=1)` on a plot that already carries the
-Isosurface operator returns `(3.0, 3.0)` — every point on an isosurface *is* the
+Isosurface operator returns `(3.0, 3.0)`: every point on an isosurface *is* the
 isovalue. So the "scalar range is non-degenerate" assertion could never pass, and
 the recorded `scalar_min`/`scalar_max` were the isovalue twice rather than
 anything about the data. `use_actual_data=0` asks the original database, which is
@@ -778,7 +778,7 @@ original mesh. Neither survives the contour pipeline:
   surface, so VisIt answers `Volume query requires 3D surface plot data` and
   returns 0.0 with either value of the flag. The vignette divided by it and
   asserted on the resulting NaN.
-* Adding a second, hidden plot does not help either — VisIt does not execute a
+* Adding a second, hidden plot does not help either, VisIt does not execute a
   hidden plot's pipeline, so both integrals come back 0.0. Measured, after
   trying it.
 
@@ -810,7 +810,7 @@ VisIt: Error - Scalable Render Request Failed
 
 A host profile in `~/.visit` was starting an **8-rank parallel engine** from a
 **VisIt 3.4.1 install**, with scalable rendering, none of which had been asked
-for — and on this machine that combination now aborts with SIGABRT and saves no
+for, and on this machine that combination now aborts with SIGABRT and saves no
 image. The conclusion drawn was that the baseline had been made by a different
 VisIt and was not reproducible. It was re-blessed at one rank.
 
@@ -830,7 +830,7 @@ overlapping Pseudocolor plots, two of them translucent, and translucent geometry
 is composited in an order that depends on how the data was partitioned.
 
 So ex06's baseline is now blessed at **eight ranks**, which is what its `.sbat`
-scripts request, and it is **bit-identical run to run** there — zero pixels
+scripts request, and it is **bit-identical run to run** there, zero pixels
 differ, no tolerance needed, unlike ParaView's ex06 (§5). A run at any other
 rank count disables the image gate and says so:
 
@@ -846,7 +846,7 @@ the picture.
 baseline's own results JSON, so there is no constant to keep in step. Every
 other gate stays live: assertions, metrics and extracts all still run.
 
-**`-noconfig` keeps its justification regardless** — a config that silently
+**`-noconfig` keeps its justification regardless**, a config that silently
 substitutes a different VisIt install and a different engine topology is exactly
 what a regression suite must not be subject to. It just was not the cause here.
 
@@ -862,14 +862,14 @@ Vignette passed (results JSON status=ok).
 `_execute()` announced the exit-code verdict unconditionally. The VisIt path,
 which derives the verdict itself, now asks it not to.
 
-### 4b.10 CPU time measured the wrong processes for VisIt — `Testing/metrics.py`
+### 4b.10 CPU time measured the wrong processes for VisIt, `Testing/metrics.py`
 
 The sibling of §4.9, found by disbelieving a number. The first clean VisIt suite
 run reported **ex06 at 13% CPU over 207 seconds**, while its compute engine sat
 at 33 GB resident on a 64-core machine.
 
 `cpu_usage_percent` came from `RUSAGE_CHILDREN`, which accounts only for
-processes this harness reaped. For ParaView that is nearly the whole story —
+processes this harness reaped. For ParaView that is nearly the whole story ,
 `mpirun` is the direct child, `pvbatch` is its child, and the usage chains up as
 each is reaped. For VisIt it is not: `visit -cli` starts a viewer, an mdserver
 and an `engine_ser`/`engine_par`, and the engine is where every second of render
@@ -877,7 +877,7 @@ and query time goes.
 
 `run_tests.py` already walked the process tree every 0.25 s for memory (§4.9),
 so it now records each process's CPU time on the same walk, keeping the maximum
-per pid — process CPU time is cumulative, so the highest value seen for a pid is
+per pid, process CPU time is cumulative, so the highest value seen for a pid is
 its final total, and summing those recovers the tree's CPU even for processes
 that exited between samples. `metrics.py` prefers that figure and records which
 one it used in `cpu_measurement_scope`.
@@ -891,7 +891,7 @@ An eleven-fold correction on the *smallest* vignette in the suite. `metrics_sche
 is bumped to **4**, so the performance gate will not compare a schema-4 run
 against the schema-3 records above it.
 
-### 4b.11 VisIt 3.4.2 loses the times of a `.visit` series — a defect in the tool
+### 4b.11 VisIt 3.4.2 loses the times of a `.visit` series, a defect in the tool
 
 > Read §4b.13 next. This entry is correct but it is not the whole story: the
 > series had no time in it for either tool to lose, and that is what was
@@ -935,7 +935,7 @@ the history shows when it changes back.
 
 **The baseline now holds 3.4.1's values**, because those are the correct ones
 and they are what both clusters produce. So ex12 passes on 3.4.1 and fails on
-3.4.2, twice over — once on the assertion, once on the `time` column — and both
+3.4.2, twice over, once on the assertion, once on the `time` column, and both
 messages name the cause. That is the suite working, not the suite broken.
 
 The old code fell back to the state index when the time query failed, which
@@ -954,7 +954,7 @@ ParaView, over the same twenty `varying*.vtk` files:
 | legacy `.vtk`, as shipped | `0, 1, 2 …` (file index) | `0, 1, 2 …` (file index) | **`0, 0, 0 …`** |
 | legacy `.vtk` + `!TIME` lines in the `.visit` index | n/a | `0, 1, 2 …` (ignored) | `0, 0, 0 …` (ignored) |
 | legacy `.vtk` + `TIME`/`CYCLE` in FieldData | `0, 1, 2 …` (ignored) | **real** | **real** |
-| legacy `.vtk` + `TimeValue` in FieldData | `0, 1, 2 …` (ignored) | — | — |
+| legacy `.vtk` + `TimeValue` in FieldData | `0, 1, 2 …` (ignored) |, |, |
 | `.pvd` collection over legacy `.vtk` | **empty** (PVDReader needs XML) | n/a | n/a |
 | XML `.vtr` + `.pvd` (ParaView) / `.visit` (VisIt) | **real** | **real** | **real** |
 
@@ -1025,7 +1025,7 @@ a comment saying why.
 The image gate caught it immediately, which is the first time in this exercise
 it caught a regression that was mine rather than the tool's.
 
-### 4b.13 The time series had no time in it — `data/make_time_series.py`
+### 4b.13 The time series had no time in it, `data/make_time_series.py`
 
 §4b.11 said VisIt 3.4.2 had lost the times of a `.visit` series, and asserted
 on it. That was right as far as it went and it was not the real problem.
@@ -1130,7 +1130,7 @@ time.
 ## 5. Known issue: ex06 image stability
 
 `ex06_pvLargeData` differs **4.13% of pixels between two consecutive runs** on
-this machine, with the same ParaView, same data and the GPU pinned — against a
+this machine, with the same ParaView, same data and the GPU pinned, against a
 baseline blessed from its own output minutes earlier. The difference is confined
 to the Surface LIC on the terrain; the volume-rendered clouds are stable.
 
@@ -1138,9 +1138,9 @@ Measured, so it is not guesswork:
 
 | Launch | Run-to-run difference |
 | :--- | :--- |
-| `pvbatch script.py` (no launcher, no forced offscreen) | 0.008% — stable |
+| `pvbatch script.py` (no launcher, no forced offscreen) | 0.008%, stable |
 | `mpirun -np 1 pvbatch --force-offscreen-rendering` (what the harness does) | 4.135% |
-| Surface LIC in isolation, offscreen | 0.000% — bit-identical |
+| Surface LIC in isolation, offscreen | 0.000%, bit-identical |
 
 So it is not the LIC noise texture and not the GPU choice; it is something about
 the forced-offscreen GLX path under the launcher. `EnhanceContrast = "LIC and
@@ -1161,7 +1161,7 @@ apart: the widest *legitimate* cross-backend difference anywhere in this suite i
 0.39%, and a 5% global tolerance would make every other vignette blind to a real
 regression in order to accommodate one LIC.
 
-5% still leaves ex06 a real test — the volume rendering, geometry, legends and
+5% still leaves ex06 a real test, the volume rendering, geometry, legends and
 colour maps are all compared at that threshold, and the observed noise is 4.1%.
 If it starts flapping again, the next step is pinning
 `EnhanceContrast = "Off"` on the LIC representation, which would likely make it
@@ -1170,7 +1170,7 @@ deterministic at the cost of changing the picture.
 ### Does ex06 run on Shaheen?
 
 Yes. `ex06_shaheen_runScript.sbat` requests `--partition=workq`, 1 node,
-8 ranks, 200 GB, and `MODULES.sh` loads the `-mesa` variant there — so it runs
+8 ranks, 200 GB, and `MODULES.sh` loads the `-mesa` variant there, so it runs
 under software rendering. It is also the most expensive vignette by a wide
 margin: 192 s of the suite's 371 s, and 62 GB peak.
 
@@ -1193,9 +1193,9 @@ ParaView 6.0.1 (Ibex) and 6.1.0 (Shaheen, local), same GPU, same data,
 | ex10_pvColormapFidelity (4 configs) | **SAME**, 0.0000% |
 | ex12_pvExtractRegression (3 frames) | **SAME**, 0.0000% |
 | ex09 tetra / polydata / ragged | **SAME**, 0.0000% |
-| ex09 amr | differs — a *file* incompatibility, not rendering (below) |
+| ex09 amr | differs, a *file* incompatibility, not rendering (below) |
 
-Bit-identical. But only after two 6.0.1-specific defects were fixed — see §4.16
+Bit-identical. But only after two 6.0.1-specific defects were fixed, see §4.16
 and §4.17. Before those, the same comparison showed 26.5% on ex09 tetra and a
 hard failure on AMR, which would have looked exactly like "we need per-machine
 baselines" and was nothing of the sort.
@@ -1222,19 +1222,19 @@ Worst case **0.39%**, and it is anti-aliasing on contour edges. So:
 ```
 
 covers GPU GLX, Mesa llvmpipe and (by the same argument) EGL, on one baseline
-set, while still failing on a real geometry or colour-map change — those move
+set, while still failing on a real geometry or colour-map change, those move
 whole regions, not edges.
 
 ### What must NOT be shared between machines
 
 **Generated fixtures.** Regenerate them on each machine; do not copy them.
 
-* `data/topologies/amr_hierarchy.vthb` — 6.1.0 writes an AMR that 6.0.1 opens
+* `data/topologies/amr_hierarchy.vthb`, 6.1.0 writes an AMR that 6.0.1 opens
   but only partially reads: 216 points and 125 cells against the 842 and 605
   that 6.1.0 sees. That is the entire remaining ex09 difference on Ibex, and it
   produces no error of its own.
-* `ex11_state.pvsm` — a ParaView state file is version-locked by design.
-* `ex11_visit.session` — likewise, per VisIt version.
+* `ex11_state.pvsm`, a ParaView state file is version-locked by design.
+* `ex11_visit.session`, likewise, per VisIt version.
 
 `python3 Testing/prepare_machine.py` handles all three, and ex09 and ex11 refuse
 to run against a fixture from a different ParaView rather than silently
@@ -1248,7 +1248,7 @@ The VisIt baselines in the repository dated from October 2025 and were all
 replaced. Two independent reasons, and the distinction matters:
 
 * **ex01–ex05, ex07–ex12** were blessed before the vignettes were rewritten and
-  no longer matched even in size — 2048×1784 against the 2048×2048 the scripts
+  no longer matched even in size, 2048×1784 against the 2048×2048 the scripts
   now request. Nothing subtle; they were simply stale.
 * **ex06** matched in size and was not stale at all. It was an **8-rank**
   render, and the suite was comparing it against a 1-rank one. See §4b.8; it
@@ -1313,7 +1313,7 @@ Two things follow from that.
   `ex11_visit.session` under the new version.
 
 What does *not* transfer is ex12's `time` column, and that turned out to be a
-defect in VisIt 3.4.2 rather than a property of the baseline — see §4b.11. The
+defect in VisIt 3.4.2 rather than a property of the baseline, see §4b.11. The
 baseline holds 3.4.1's values.
 
 ### Measured: rank count changes translucent scenes and nothing else
@@ -1351,7 +1351,7 @@ run at anything else. Nothing else needs a per-rank baseline, and Shaheen's
 first VisIt suite should not go red for a rank-count reason.
 
 One incidental fix came out of this. `compute_engine_launched` was recorded as a
-**metric** in ex07, ex10 and ex12 — and `metrics` is a correctness gate, so a
+**metric** in ex07, ex10 and ex12, and `metrics` is a correctness gate, so a
 run at eight ranks failed all three on `expected false, got true` while every
 image was bit-identical. How the engine was launched is a property of the run,
 not of the result; it is a note now. `ex08_visitBackendCheck` keeps it as a
@@ -1397,7 +1397,7 @@ Worth putting `--check` at the top of a job script. It is a two-second probe and
 it turns "the fixtures were from the wrong ParaView" from a confusing numeric
 failure two hours into a queue into a refusal to start.
 
-`--machine_name` must stay stable per site — it names the metrics file, and the
+`--machine_name` must stay stable per site: it names the metrics file, and the
 performance gate needs two runs under the same name before it can fire.
 
 Three things to expect and not be alarmed by:
@@ -1438,7 +1438,7 @@ Two VisIt-specific things to settle before the first of these runs, both of
 which are cheap to answer locally and expensive to discover in a queue:
 
 1. **`MODULES.sh` loads `visit/3.4.1` on both clusters.** The version is
-   hard-coded in two places that must agree — there, and in the Shaheen job
+   hard-coded in two places that must agree, there, and in the Shaheen job
    submitter inside `~/.visit/customlauncher`, which writes
    `module load visit/3.4.1` into the engine's job file. A client and an engine
    from different builds fail as a connection that opens and then dies on a
@@ -1447,7 +1447,7 @@ which are cheap to answer locally and expensive to discover in a queue:
    pixels (§5b). Regenerate `ex11_visit.session` under 3.4.1 on each cluster,
    which `prepare_machine.py` does.
 2. **The `.sbat` scripts ask for 8 ranks**, so pass `--ranks 8` to
-   `test_suite.py` as well — the commands above do. Opaque vignettes are
+   `test_suite.py` as well, the commands above do. Opaque vignettes are
    bit-identical at any rank count and ex06 is blessed at eight, so the
    baselines are already the right shape (§5b). What has not been checked at
    eight ranks is ex02–ex05, the animations.
@@ -1462,7 +1462,7 @@ could be answered on a workstation has been. The clusters are next.
 1. **Shaheen CPU** (`workq`), both suites, collect numbers. Pass `--ranks 8`
    for VisIt, to match the `.sbat` scripts and ex06's baseline.
 2. **Shaheen GPU** (`ppn`, EGL/L40 for ParaView).
-3. **Ibex** — ParaView 6.0.1 and VisIt 3.4.1 are both expected to work
+3. **Ibex**, ParaView 6.0.1 and VisIt 3.4.1 are both expected to work
    unchanged, given §5a and §5b respectively. Neither has been run.
 4. **Spring: move the clusters to 3.4.2.** Decided rather than open, and
    recorded in §5b: this workstation stays on **3.4.2**, Shaheen and Ibex

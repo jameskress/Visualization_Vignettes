@@ -78,7 +78,7 @@ python3 ../Testing/prepare_machine.py --check  # verify only
 these is stale, because every way they fail looks like a regression in a
 vignette rather than a setup problem.
 
-### `topologies/` (35 MB) — `pvbatch make_topology_datasets.py`
+### `topologies/` (35 MB), `pvbatch make_topology_datasets.py`
 
 ex09's four mesh topologies in both suites, plus AMR in ParaView.
 
@@ -115,7 +115,7 @@ The generator is a ParaView script and needs `pvbatch` on `PATH`. It writes
 nothing outside its output directory; `--output-dir` puts the datasets
 elsewhere, and the vignettes follow with `--data-dir` or `$VV_DATA_DIR`.
 
-### `varying_series_xml/` (12 MB) — `pvbatch make_time_series.py`
+### `varying_series_xml/` (12 MB), `pvbatch make_time_series.py`
 
 The same twenty timesteps as XML `.vtr`, **with real `TIME` and `CYCLE` in
 each file's field data**, plus `series.pvd` for ParaView and `series.visit`

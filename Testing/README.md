@@ -7,10 +7,10 @@ This `test_suite.py` script runs performance and regression tests for **VisIt** 
 
 Two companion documents:
 
-* [`LOCAL_VALIDATION.md`](LOCAL_VALIDATION.md) — the current status of every
+* [`LOCAL_VALIDATION.md`](LOCAL_VALIDATION.md), the current status of every
   vignette under each tool version, the defect log behind the fixes, and the
   measurements behind the baseline and tolerance decisions.
-* [`OFFLINE_SETUP.md`](OFFLINE_SETUP.md) — preparing the environment and the
+* [`OFFLINE_SETUP.md`](OFFLINE_SETUP.md), preparing the environment and the
   data for a machine with no network, and the Shaheen and Ibex runbooks.
 
 ---
@@ -20,7 +20,7 @@ Two companion documents:
 When you run `test_suite.py`, it performs several actions for each test vignette:
 
 1. **Regression Test:** Runs the vignette and compares its outputs against the baselines stored in that test's `Testing/Baseline/` directory.
-2. **Performance Test:** Records execution time, memory usage, and CPU usage for the run. Peak memory is sampled from the vignette's own process tree while it runs — `resource.getrusage(RUSAGE_CHILDREN)` reports a high-water mark over every child the harness has ever reaped and never decreases, so after one large vignette every later one in the same invocation reported *its* peak instead of their own.
+2. **Performance Test:** Records execution time, memory usage, and CPU usage for the run. Peak memory is sampled from the vignette's own process tree while it runs, `resource.getrusage(RUSAGE_CHILDREN)` reports a high-water mark over every child the harness has ever reaped and never decreases, so after one large vignette every later one in the same invocation reported *its* peak instead of their own.
 3. **Data Logging:** Saves the new performance metrics into a `performance_metrics_*.json` file in the test's `Testing/` directory.
 4. **Plot Generation:** Updates the performance graphs (`.png` files) inside that same `Testing/` directory, showing the new run alongside all previous ones.
 
@@ -54,8 +54,8 @@ a black frame, or crash outright, and still leave CI green.
 * **An image the run produced that no baseline covers is reported, not failed.**
   Blessing records at most `--max-baseline-images` (default 5), so a ten-frame
   animation has five uncovered frames by design; those are listed as
-  `NOT BASELINED`, which does not fail. `NO BASELINE` — a missing baseline for an
-  image the comparison set does cover — still fails. Raise
+  `NOT BASELINED`, which does not fail. `NO BASELINE`, a missing baseline for an
+  image the comparison set does cover, still fails. Raise
   `--max-baseline-images` to cover more frames.
 
 ### Numeric comparison
@@ -430,8 +430,8 @@ structured results JSON, and any declared numeric CSV extracts. Review the diff
 before committing: a blessed baseline is an assertion about what correct looks
 like.
 
-**Clear `output/` first.** Nothing in the harness does — `--clean` only touches
-`Testing/` — and `ex12` counts the files it produced, so a stale `.vtp` or `.png`
+**Clear `output/` first.** Nothing in the harness does, `--clean` only touches
+`Testing/`, and `ex12` counts the files it produced, so a stale `.vtp` or `.png`
 from an earlier run with a different `--steps` ends up in the baseline.
 
 ### Updating a baseline
@@ -478,14 +478,14 @@ Two things are pinned so that an image baseline means something.
 
 **GPU selection.** On a node with more than one GPU the driver does not place
 work consistently, and a single-rank render job was only ever going to use one
-device anyway — so for `--ranks 1` the harness sets `CUDA_VISIBLE_DEVICES=0` and
+device anyway, so for `--ranks 1` the harness sets `CUDA_VISIBLE_DEVICES=0` and
 says so in the log. An explicit `CUDA_VISIBLE_DEVICES` in the environment always
 wins, which is what Slurm `--gres=gpu` provides, and nothing is pinned for a
 multi-rank run.
 
 **VisIt configuration.** The VisIt CLI is launched with `-noconfig`. Without it
-VisIt reads `~/.visit/config` at startup — saved annotation, save-window,
-window-size and colour-table state — and a blessed baseline becomes partly a
+VisIt reads `~/.visit/config` at startup, saved annotation, save-window,
+window-size and colour-table state, and a blessed baseline becomes partly a
 function of whose home directory ran the suite.
 
 Two consequences of that are worth knowing before you read a VisIt log:
@@ -495,7 +495,7 @@ Two consequences of that are worth knowing before you read a VisIt log:
   ones ship as `.ct` files under `$VISITARCHHOME/resources/colortables/` and are
   loaded by the same code path. `viridis`, `plasma`, `magma` and `Blues` are all
   in that group. VisIt does not refuse an unknown table name at the point of
-  use — it accepts it, fails the plot asynchronously, and every later query on
+  use: it accepts it, fails the plot asynchronously, and every later query on
   that plot returns `None`. Vignettes therefore load what they need explicitly
   through `vc.ensure_color_table()`, which reads the `.ct` out of the install.
   Because those files ship with VisIt, this is identical on Shaheen and Ibex.
@@ -506,13 +506,13 @@ Two consequences of that are worth knowing before you read a VisIt log:
 
 ### VisIt's exit code is not the verdict
 
-`visit -cli` returns **250 whether the script succeeded or not** — on a clean
+`visit -cli` returns **250 whether the script succeeded or not**, on a clean
 run, on a Python traceback, and on a crashed compute engine alike. Gating on it
 would mark every VisIt run as failed.
 
 So for VisIt the harness records the exit code but does not use it. The verdict
 comes from the vignette's own results JSON, and that file must have been written
-**after this run started** — otherwise a vignette that dies before writing
+**after this run started**, otherwise a vignette that dies before writing
 anything would inherit the previous run's verdict. A timeout fails regardless.
 
 `run_result.json` says which rule was applied:
