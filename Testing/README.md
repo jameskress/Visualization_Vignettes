@@ -633,6 +633,40 @@ records it in `run_result.json`, exports `VV_NO_METRICS=1`, and forwards
 appears in the output, which is what you want when you are reading a log
 afterwards and wondering whether that run counted.
 
+### What the gate calls a regression, and what it only reports
+
+The gate compares the two most recent records in a history file. What it does
+with a difference depends on *why* the two records differ, and this is the
+same for ParaView and VisIt.
+
+| The two runs differ by | Gate behaviour |
+| :--- | :--- |
+| Nothing but the numbers, same tool version | **Regression.** Over 10% on a metric fails the run and lands in `significant_performance_changes`. |
+| Tool version (6.0.1 against 6.1.0, 3.4.1 against 3.4.2) | **Reported, not failed.** Printed with both version numbers, either direction, any size, and recorded under `version_comparisons`. |
+| `metrics_schema` | **Refused.** The comparison is skipped and says so. |
+
+Those three are genuinely different situations:
+
+* A version change is a real difference in the software, and seeing it is a
+  large part of why this suite exists. VisIt 3.4.1 costs 2.6x the memory of
+  3.4.2 on `ex02`; a new release that got slower is worth knowing about. It
+  does not fail the run, because the newest record is often deliberately an
+  *older* build, such as the cluster version kept as a local reference, where
+  "slower and fatter" is the expected answer rather than a problem. Read the
+  direction in the message before drawing a conclusion.
+* A `metrics_schema` change means the recorded field measured something else.
+  Before schema 4, memory came from `RUSAGE_CHILDREN`, a high-water mark over
+  every child the harness had reaped. Comparing that against a process-tree
+  sample says nothing about either version, so the number is withheld rather
+  than labelled. It is the only case where the gate hides something.
+
+`--machine_name` names a machine and a rendering configuration, never a tool
+version. Both versions of a tool belong in the same history file, with the
+version recorded inside each record, which is how `shaheen3-cpu` has carried
+VisIt 3.4.1 and 3.4.2 together since 2024 and how the ParaView files carry
+5.13.1 alongside 6.x. Splitting them by file name hides exactly the
+comparison the table above exists to produce.
+
 ### Cleaning up records that are already committed
 
 `Testing/manage_metrics.py` edits the history files without disturbing their
