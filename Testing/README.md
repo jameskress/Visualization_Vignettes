@@ -185,7 +185,7 @@ source ~/testing_paraview_env/bin/activate
 cd ~/Visualization_Vignettes/Testing
 python test_suite.py ~/Visualization_Vignettes/ \
   --test_type ParaView \
-  --paraview_version 5.13.1 \
+  --paraview_version 6.0.1 \
   --machine_name local-machine
 ```
 
@@ -209,7 +209,7 @@ python test_suite.py ~/Visualization_Vignettes/ \
 
 ```bash
 # 1. Load module
-module load paraview/5.13.1-gnu-mesa
+module load paraview/6.0.1-gnu-mesa    # or whatever `module avail paraview` shows
 
 # 2. Request an interactive job
 srun --cpus-per-task=12 --ntasks=1 --time=00:40:00 --mem=100G --pty /bin/bash
@@ -219,7 +219,7 @@ source $SCRATCH/testing_paraview_env/bin/activate
 cd $SCRATCH/Visualization_Vignettes/Testing
 python test_suite.py $SCRATCH/Visualization_Vignettes/ \
   --test_type ParaView \
-  --paraview_version 5.13.1 \
+  --paraview_version 6.0.1 \
   --machine_name ibex-cpu \
   --non_gpu_machine
 ```
@@ -247,7 +247,7 @@ python test_suite.py $SCRATCH/Visualization_Vignettes/ \
 
 ```bash
 # 1. Load module
-module load paraview/5.13.1-gnu-egl
+module load paraview/6.0.1-gnu-egl     # or whatever `module avail paraview` shows
 
 # 2. Request an interactive GPU job (use table below)
 srun <gpu-flag> --cpus-per-task=12 --ntasks=1 --time=00:40:00 --mem=100G --pty /bin/bash
@@ -257,7 +257,7 @@ source $SCRATCH/testing_paraview_env/bin/activate
 cd $SCRATCH/Visualization_Vignettes/Testing
 python test_suite.py $SCRATCH/Visualization_Vignettes/ \
   --test_type ParaView \
-  --paraview_version 5.13.1 \
+  --paraview_version 6.0.1 \
   --machine_name <machine-name>
 ```
 
@@ -299,7 +299,7 @@ python test_suite.py $SCRATCH/Visualization_Vignettes/ \
 
 ```bash
 # 1. Load module
-module load paraview/5.13.1-mesa
+module load paraview/6.0.1-mesa
 
 # 2. Request an interactive job (use table below)
 srun <srun-flags> --pty /bin/bash
@@ -309,7 +309,7 @@ source $SCRATCH/testing_paraview_env/bin/activate
 cd $SCRATCH/Visualization_Vignettes/Testing
 python test_suite.py $SCRATCH/Visualization_Vignettes/ \
   --test_type ParaView \
-  --paraview_version 5.13.1 \
+  --paraview_version 6.0.1 \
   --machine_name <machine-name> \
   --non_gpu_machine
 ```
@@ -350,7 +350,7 @@ python3 test_suite.py $SCRATCH/Visualization_Vignettes/ \
 
 ```bash
 # 1. Load module
-module load paraview/5.13.1-egl
+module load paraview/6.0.1-egl
 
 # 2. Request an interactive GPU job
 srun --cpus-per-task=32 --ntasks=1 -p ppn -G 1 --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
@@ -360,7 +360,7 @@ source $SCRATCH/testing_paraview_gpu_env/bin/activate
 cd $SCRATCH/Visualization_Vignettes/Testing
 python test_suite.py $SCRATCH/Visualization_Vignettes/ \
   --test_type ParaView \
-  --paraview_version 5.13.1 \
+  --paraview_version 6.0.1 \
   --machine_name shaheen3-ppn-gpu-L40
 ```
 

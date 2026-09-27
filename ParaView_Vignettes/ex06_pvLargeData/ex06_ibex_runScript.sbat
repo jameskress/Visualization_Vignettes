@@ -37,7 +37,7 @@
 #SBATCH --partition=batch
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=2
 #SBATCH --mem=200G
 #SBATCH --time=00:15:00
 #SBATCH --gres=gpu:1
@@ -48,9 +48,17 @@
 set -o pipefail
 
 # ============================ RUN CONFIGURATION =============================
+# 8 ranks x 2 threads is 16 cores, which fits every GPU node Ibex has. The
+# binding constraint is not the CPU nodes, it is the GPU ones this job asks
+# for with --gres: Ibex reserves two cores per node for WekaIO, so the
+# smallest of them (Skylake hosts with V100 or GTX-1080Ti) allocate 30 of 32.
+# This was 8 x 32 = 256, which no Ibex node can satisfy.
+#
+# For more OSPRay threads, pin the job to a bigger host and raise this to
+# match: --constraint=a100 gives 62 allocatable cores, so 8 x 7 fits.
 VV_NODES=1
 VV_RANKS=8
-VV_THREADS=32
+VV_THREADS=2
 VV_PARTITION="batch"
 VV_WALLTIME="00:15:00"
 VV_IMAGE_WIDTH=1024

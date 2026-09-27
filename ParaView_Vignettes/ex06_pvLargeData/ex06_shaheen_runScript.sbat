@@ -38,7 +38,7 @@
 #SBATCH --partition=workq
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=24
 #SBATCH --mem=200G
 #SBATCH --time=00:20:00
 
@@ -48,9 +48,14 @@
 set -o pipefail
 
 # ============================ RUN CONFIGURATION =============================
+# 8 ranks x 24 threads is 192, which is exactly one workq node (dual AMD EPYC
+# 9654, 192 cores, 384 GB). workq is allocated exclusively, so the whole node
+# is yours either way and there is no reason to leave two thirds of it idle.
+# This was 8 x 32 = 256, which sbatch rejects: you cannot ask for more cores
+# than the node has.
 VV_NODES=1
 VV_RANKS=8
-VV_THREADS=32
+VV_THREADS=24
 VV_PARTITION="workq"
 VV_WALLTIME="00:20:00"
 VV_IMAGE_WIDTH=1024

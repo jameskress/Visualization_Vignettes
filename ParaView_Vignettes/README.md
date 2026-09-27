@@ -32,7 +32,7 @@ Use this section if you want to run the provided example scripts (`ex01`, `ex02`
 
 1.  **Clone the Repository:**
     ```bash
-    git clone [https://github.com/jameskress/Visualization_Vignettes.git](https://github.com/jameskress/Visualization_Vignettes.git)
+    git clone https://github.com/jameskress/Visualization_Vignettes.git
     cd Visualization_Vignettes/ParaView_Vignettes
     ```
 2.  **Environment Setup:**
@@ -43,7 +43,21 @@ Use this section if you want to run the provided example scripts (`ex01`, `ex02`
     source ../MODULES.sh
     ```
 3.  **Run an Example:**
-    Copy the template script inside an example folder (e.g., `ex01/ex01_template_runScript.sbat`), customize it for your scheduler, and submit it.
+    There is no template script. Each example folder carries two real ones,
+    `<ex>_shaheen_runScript.sbat` and `<ex>_ibex_runScript.sbat`, and the
+    `RUN CONFIGURATION` block near the top of either is the only part you
+    normally edit. Copy the one closer to your scheduler and adjust it:
+
+    ```bash
+    cp ex01_pvScreenshot/ex01_ibex_runScript.sbat ex01_pvScreenshot/ex01_mysite_runScript.sbat
+    ```
+
+    On a workstation with no scheduler at all, run the vignette directly and
+    skip the submission script:
+
+    ```bash
+    pvbatch ex01_pvScreenshot/ex01_pvScreenshot.py --machine local
+    ```
 
 ### KAUST Ibex Setup
 
@@ -51,14 +65,17 @@ Use this section if you want to run the provided example scripts (`ex01`, `ex02`
 2.  **Clone:**
     ```bash
     cd /ibex/scratch/<username>/
-    git clone [https://github.com/jameskress/Visualization_Vignettes.git](https://github.com/jameskress/Visualization_Vignettes.git)
+    git clone https://github.com/jameskress/Visualization_Vignettes.git
     cd Visualization_Vignettes/ParaView_Vignettes
     ```
 3.  **Run:**
     ```bash
-    module load paraview
-    sbatch ex01/ex01_ibex_runScript.sbat
+    sbatch ex01_pvScreenshot/ex01_ibex_runScript.sbat
     ```
+    No `module load` first: the script sources `../MODULES.sh` itself, which
+    reads the site's current ParaView version and loads the `-gnu-egl` or
+    `-gnu-mesa` variant to match. Loading one by hand beforehand has no
+    effect, since `MODULES.sh` unloads it again to read the version number.
 
 ### KAUST Shaheen III Setup
 
@@ -66,16 +83,16 @@ Use this section if you want to run the provided example scripts (`ex01`, `ex02`
 2.  **Clone:**
     ```bash
     cd /scratch/<username>/
-    git clone [https://github.com/jameskress/Visualization_Vignettes.git](https://github.com/jameskress/Visualization_Vignettes.git)
+    git clone https://github.com/jameskress/Visualization_Vignettes.git
     cd Visualization_Vignettes/ParaView_Vignettes
     ```
 3.  **Configure & Run:**
     ```bash
     # You MUST edit the script to add your Project Account (e.g., k01)
-    vim ex01/ex01_shaheen_runScript.sbat
+    vim ex01_pvScreenshot/ex01_shaheen_runScript.sbat
     # Change: #SBATCH --account=k##
 
-    sbatch ex01/ex01_shaheen_runScript.sbat
+    sbatch ex01_pvScreenshot/ex01_shaheen_runScript.sbat
     ```
 
 > **IMPORTANT: GPU Access & The "Video" Group**
@@ -180,7 +197,7 @@ things:
 
 | Variable | Meaning |
 | :--- | :--- |
-| `VV_PARAVIEW_MODULE` | The module that was loaded, e.g. `paraview/5.13.1-gnu-egl`. |
+| `VV_PARAVIEW_MODULE` | The module that was loaded. `MODULES.sh` does not pin a version: it reads the site's current default and appends the variant, giving `paraview/<site default>-gnu-egl` or `-gnu-mesa` on Ibex and `paraview/<site default>-egl` or `-mesa` on Shaheen. Every run prints the value it resolved, and it is recorded in the metrics. |
 | `VTK_DEFAULT_OPENGL_WINDOW` | The render window class ParaView should instantiate. |
 
 An existing `VTK_DEFAULT_OPENGL_WINDOW` in the environment is left alone --
@@ -208,6 +225,13 @@ halves succeed on their own terms.
 | **16 GB - 350 GB** | `workq` | 1 | 192 |
 | **> 350 GB** | `workq` | 2+ | 192 |
 
+> **The 192 is a ceiling, not a suggestion.** A `workq` node is a dual AMD EPYC
+> 9654 with 192 cores and 384 GB, so `ntasks-per-node x cpus-per-task` must
+> come to 192 or less. Ask for more and `sbatch` refuses the job outright, which
+> is at least a loud failure. `workq` is allocated exclusively, so a job that
+> asks for less than 192 is not saving anything; it is leaving cores idle that
+> it already owns.
+
 ### 3. Ibex Configuration Strategy
 *Metric: Tasks = MPI Ranks*
 
@@ -215,6 +239,14 @@ halves succeed on their own terms.
 | :--- | :--- | :--- | :--- |
 | **Standard Vis** | `batch` | 4 | Balanced CPU/RAM usage. |
 | **High RAM** | `batch` | 1 | Gives 100% of node RAM to a single process. |
+
+> **Ibex nodes are not one size.** CPU nodes run from 40 cores (Skylake and
+> Cascade Lake, the bulk of them) to 128 (Rome) and 192 (Turin), so a script
+> with no `--constraint` has to fit the smallest. GPU nodes are tighter still:
+> Ibex pins two cores per node for the WekaIO filesystem, so a 32-core Skylake
+> host with V100 or GTX-1080Ti GPUs allocates 30. Any job using `--gres=gpu`
+> should keep `ntasks-per-node x cpus-per-task` at or under 30 unless it also
+> pins a larger host, for example `--constraint=a100` for 62.
 
 <br>
 

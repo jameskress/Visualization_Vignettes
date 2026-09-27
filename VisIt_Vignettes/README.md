@@ -22,7 +22,10 @@ This repository provides both generic setup instructions that work on any HPC sy
 Each example is self-contained in its own directory with the following structure:
 
 - `ex*.py`: Python script demonstrating VisIt functionality
-- `ex*_template_runScript.sbat`: Template batch script that can be customized for your HPC system
+- `ex*_shaheen_runScript.sbat` and `ex*_ibex_runScript.sbat`: the two batch
+  scripts every example carries. There is no separate template: copy whichever
+  is closer to your scheduler and edit its `RUN CONFIGURATION` block, which is
+  the only part that differs between examples.
 - `README.md`: Detailed explanation of the example and how to run it
 - Additional helper scripts like `createVisItMovie.sh` for post-processing
 
@@ -307,7 +310,7 @@ profile it chose, and warns when `--ranks`/`--nodes` exceed the allocation.
 3. **Run Examples:**
    ```bash
    cd Visualization_Vignettes/VisIt_Vignettes
-   sbatch ex01/ex01_ibex_runScript.sbat
+   sbatch ex01_visitScreenshot/ex01_ibex_runScript.sbat
    ```
 
 ### Shaheen III
@@ -328,9 +331,9 @@ profile it chose, and warns when `--ranks`/`--nodes` exceed the allocation.
    ```bash
    cd Visualization_Vignettes/VisIt_Vignettes
    # Edit account information
-   vim ex01/ex01_shaheen_runScript.sbat
+   vim ex01_visitScreenshot/ex01_shaheen_runScript.sbat
    # Replace --account=<##> with your account
-   sbatch ex01/ex01_shaheen_runScript.sbat
+   sbatch ex01_visitScreenshot/ex01_shaheen_runScript.sbat
    ```
 
 **WARNING**: Version matching between client and server is critical. Always check available versions with `module avail visit`.
@@ -339,7 +342,7 @@ profile it chose, and warns when `--ranks`/`--nodes` exceed the allocation.
 1. Install the VisIt client on your local machine
 2. Check available VisIt versions on your HPC system: `module avail visit`
 3. Download and install the matching client version
-4. Configure host profiles for your HPC systems (see template batch scripts)
+4. Configure host profiles for your HPC systems (the `ex*_shaheen_runScript.sbat` and `ex*_ibex_runScript.sbat` scripts show the resources each example asks for)
 
 The examples in this repository include batch scripts that can be adapted for your specific HPC environment.
 
