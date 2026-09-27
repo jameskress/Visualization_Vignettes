@@ -10,8 +10,9 @@ Two companion documents:
 * [`LOCAL_VALIDATION.md`](LOCAL_VALIDATION.md), the current status of every
   vignette under each tool version, the defect log behind the fixes, and the
   measurements behind the baseline and tolerance decisions.
-* [`OFFLINE_SETUP.md`](OFFLINE_SETUP.md), preparing the environment and the
-  data for a machine with no network, and the Shaheen and Ibex runbooks.
+* [`RUNBOOK.md`](RUNBOOK.md), how to run the suite on a workstation, Ibex,
+  Shaheen `workq` and Shaheen `ppn`, for ParaView and VisIt, online or
+  air-gapped, with a troubleshooting table.
 
 ---
 
@@ -111,7 +112,7 @@ same file as the measurements.
 ## Initial Setup: Python Environments
 
 > **No network on the target machine?** See
-> [`OFFLINE_SETUP.md`](OFFLINE_SETUP.md). Do not copy a virtual environment:
+> [`RUNBOOK.md`](RUNBOOK.md). Do not copy a virtual environment:
 > a venv records absolute paths in `bin/activate` and in every console
 > script's shebang, so it half-works when moved, which is worse than failing.
 > `./make_offline_bundle.sh` collects the five packages as wheels (52 MB) to

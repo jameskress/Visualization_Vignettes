@@ -149,6 +149,6 @@ that wrote them, and `ex11_series.visit` holds absolute paths.
 
 ## Offline machines
 
-See `Testing/OFFLINE_SETUP.md`. The short version: copy the shipped and
+See `Testing/RUNBOOK.md`. The short version: copy the shipped and
 fetched files, **never** copy the generated directories, and run
 `prepare_machine.py` on the target.

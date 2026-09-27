@@ -19,9 +19,10 @@ carries the measurement behind each item below.
 - `data/make_time_series.py`: an XML time series carrying real `TIME` and
   `CYCLE`. The shipped `varying*.vtk` series carries neither, so both tools
   had been inventing a time from the file index and agreeing by coincidence.
-- `Testing/OFFLINE_SETUP.md`: preparing a Python environment and a data
-  directory on a connected machine and copying both to an air-gapped one,
-  with the Shaheen CPU and Ibex CPU/GPU runbooks for both suites.
+- `Testing/RUNBOOK.md`: one document for running the suite on a
+  workstation, Ibex, Shaheen `workq` and Shaheen `ppn`, for ParaView and
+  VisIt, online or air-gapped, with the setup order, the per-machine
+  resource limits and a troubleshooting table.
 - A vignette can report itself **skipped** when its input is absent by design.
   `ex06` is the only one: its 5.7 GB dataset is fetched by `data/fetchData.sh`
   and deliberately not committed, so a fresh clone and CI both ran it and

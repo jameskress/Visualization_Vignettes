@@ -306,7 +306,7 @@ to a ParaView major.minor. A mismatch does not announce itself: an AMR
 hierarchy written by 6.1.0 opens under 6.0.1 and quietly reads 216 points
 where 842 were written. `test_suite.py` refuses to start on a stale fixture
 for that reason. For a machine with no network, see
-`Testing/OFFLINE_SETUP.md`.
+`Testing/RUNBOOK.md`.
 
 ### The shared command-line interface
 

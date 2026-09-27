@@ -51,9 +51,9 @@ This repository is broadly divided into two sections:
 
     * Running the suite, the five independent gates each vignette must pass, blessing baselines, and the committed performance history.
 
-  * [**Offline and Cluster Setup**](./Testing/OFFLINE_SETUP.md)
+  * [**Runbook: every machine, both tools**](./Testing/RUNBOOK.md)
 
-    * Preparing the Python environment and the data on a connected machine for a machine with no network, plus the Shaheen and Ibex runbooks.
+    * How to run the suite on a workstation, Ibex, Shaheen `workq` and Shaheen `ppn`, for ParaView and VisIt, online or air-gapped.
 
 * **In Situ Processing Vignettes**
 
