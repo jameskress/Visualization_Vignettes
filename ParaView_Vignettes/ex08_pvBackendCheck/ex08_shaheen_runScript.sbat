@@ -6,7 +6,16 @@
 #
 # Assert the active OpenGL backend is the one the job requested.
 #
-# Requests a GPU and demands hardware acceleration. Set VV_MODULE_VARIANT=mesa for a CPU-only queue -- the expectation below follows it automatically.
+# Asserts which rendering backend it actually got. This script runs on workq,
+# which has no GPUs at all, so the variant is "mesa" and the expectation below
+# follows it to "osmesa". It had been "egl" here, which cannot succeed on
+# workq: EGL finds no device, falls back to llvmpipe, and the assertion that
+# a GPU was used then fails by design.
+#
+# To exercise Shaheen's GPU path instead, move this script to the ppn
+# partition and set VV_MODULE_VARIANT back to "egl". That needs membership of
+# the video group; see the suite README. Ibex's ex08 covers the EGL path in
+# the meantime, with --gres=gpu:1.
 #
 # SUBMIT
 #     sbatch ex08_shaheen_runScript.sbat
@@ -57,7 +66,7 @@ VV_PARTITION="workq"
 VV_WALLTIME="00:10:00"
 VV_IMAGE_WIDTH=1024
 VV_IMAGE_HEIGHT=1024
-VV_MODULE_VARIANT="egl"
+VV_MODULE_VARIANT="mesa"
 
 # Extra flags handed straight to the vignette. Run the vignette with --help
 # to see what it accepts.

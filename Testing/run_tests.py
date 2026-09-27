@@ -204,9 +204,12 @@ def pin_render_device(env, ranks):
     """
     if ranks != 1:
         return None
-    if env.get("CUDA_VISIBLE_DEVICES"):
+    # Presence, not truthiness. CUDA_VISIBLE_DEVICES="" is the conventional
+    # way to hide every device, and an empty string is falsy, so testing the
+    # value overrode exactly the caller who was being most explicit.
+    if "CUDA_VISIBLE_DEVICES" in env:
         print(
-            "Honouring CUDA_VISIBLE_DEVICES={0} from the environment.".format(
+            "Honouring CUDA_VISIBLE_DEVICES={0!r} from the environment.".format(
                 env["CUDA_VISIBLE_DEVICES"]
             )
         )

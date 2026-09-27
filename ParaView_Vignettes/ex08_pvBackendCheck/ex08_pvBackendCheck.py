@@ -390,11 +390,13 @@ def run(ctx):
             "--expect-backend auto: reporting only. Pass gpu/egl/osmesa to "
             "turn the classification into an assertion."
         )
+        # Neutral wording on purpose: assert_true prints this detail whether
+        # the assertion passed or failed, so a sentence phrased as the failure
+        # reason reads as a contradiction next to [PASS].
         ctx.assert_true(
             "backend classification is conclusive",
             classification in ("hardware", "software"),
-            "GL_RENDERER '{0}' matched neither a known software rasteriser "
-            "nor a known hardware vendor".format(renderer),
+            "GL_RENDERER '{0}' classified as {1}".format(renderer, classification),
         )
 
 

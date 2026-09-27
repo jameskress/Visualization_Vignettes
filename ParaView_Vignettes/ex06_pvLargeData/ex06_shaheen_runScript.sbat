@@ -60,7 +60,12 @@ VV_PARTITION="workq"
 VV_WALLTIME="00:20:00"
 VV_IMAGE_WIDTH=1024
 VV_IMAGE_HEIGHT=1024
-VV_MODULE_VARIANT="egl"
+# workq has no GPUs, so "egl" here could only ever fall back to llvmpipe while
+# claiming otherwise. The scene is volume rendered through OSPRay, which is a
+# CPU ray tracer either way, and the October 2024 history shows this vignette
+# rendering fine on the Mesa path: 517 s on workq against 200 s on a ppn L40
+# node. Slower, correct, and honest about what it is doing.
+VV_MODULE_VARIANT="mesa"
 
 # Extra flags handed straight to the vignette. Run the vignette with --help
 # to see what it accepts.

@@ -55,7 +55,7 @@ VV_PARTITION="workq"
 VV_WALLTIME="00:10:00"
 VV_IMAGE_WIDTH=1024
 VV_IMAGE_HEIGHT=1024
-VV_MODULE_VARIANT="egl"
+VV_MODULE_VARIANT="mesa"
 
 # Extra flags handed straight to the vignette. Run the vignette with --help
 # to see what it accepts.
