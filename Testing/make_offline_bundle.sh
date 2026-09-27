@@ -56,6 +56,38 @@ while [ $# -gt 0 ]; do
 done
 
 mkdir -p "${WHEELHOUSE}"
+# Resolve away the "Testing/.." so every path printed below, and the one in
+# INSTALL.txt, is the one someone would actually type.
+BUNDLE="$(cd "${BUNDLE}" && pwd)"
+WHEELHOUSE="${BUNDLE}/wheelhouse"
+
+# The wheels have to match the interpreter that will run test_suite.py, which
+# is whatever python3 built the venv. It is NOT ParaView's or VisIt's bundled
+# Python: the vignettes run inside those and import nothing but the standard
+# library, by design. So the trap is a login node whose default python3 is
+# ancient: Shaheen's login5 is 3.6.15, which silently yields pandas 1.1.5 and
+# matplotlib 3.3.4 from 2020 rather than anything current.
+RUNNING_MAJOR="$(python3 -c 'import sys; print(sys.version_info[0])')"
+RUNNING_MINOR="$(python3 -c 'import sys; print(sys.version_info[1])')"
+if [ -z "${PYTHON_VERSION}" ] && [ "${RUNNING_MAJOR}" -eq 3 ] && [ "${RUNNING_MINOR}" -lt 9 ]; then
+    cat >&2 <<EOF
+Refusing to build a wheelhouse with $(python3 --version 2>&1).
+
+That is old enough that pip resolves to 2020-era pandas and matplotlib, and
+you would not find out until something behaved oddly on the offline machine.
+
+Load a newer Python first and re-run:
+
+    module avail python
+    module load python/<newer>
+
+Or, if the offline machine's interpreter really is this old, say so
+explicitly and this will build for it:
+
+    $0 --python-version ${RUNNING_MAJOR}.${RUNNING_MINOR}
+EOF
+    exit 2
+fi
 
 echo "Collecting wheels for: ${PACKAGES[*]}"
 if [ -n "${PYTHON_VERSION}" ]; then
@@ -75,22 +107,31 @@ fi
 
 cat > "${BUNDLE}/INSTALL.txt" <<EOF
 Built $(date -u +%Y-%m-%dT%H:%M:%SZ) by $(python3 --version 2>&1)
+Wheels target: ${PYTHON_VERSION:-the interpreter above}
 
-On the offline machine, with the visualization module already loaded so that
-the right python3 is on PATH:
+These wheels must match the python3 that creates the venv below. That is a
+plain Python, not ParaView's or VisIt's: the harness (test_suite.py) imports
+pandas, numpy, PIL, matplotlib and psutil, while the vignettes run inside
+pvbatch or the VisIt CLI and import only the standard library. Load whatever
+modern python module the machine has before creating the venv, and use the
+same one for both suites.
 
+    module load python/<version>     # if the default python3 is old
     python3 -m venv \$SCRATCH/testing_paraview_env
     source \$SCRATCH/testing_paraview_env/bin/activate
-    pip install --no-index --find-links=\$(pwd)/wheelhouse \\
+    pip install --no-index --find-links=${WHEELHOUSE} \\
         ${PACKAGES[*]}
     python -c "import pandas, numpy, PIL, matplotlib, psutil; print('deps ok')"
 
-Repeat with testing_visit_env for the VisIt suite. The wheels are the same.
+Repeat with testing_visit_env for the VisIt suite. The same wheels serve both,
+provided both venvs are built from the same python3.
 EOF
 
 echo
 echo "Wheels : $(find "${WHEELHOUSE}" -name '*.whl' | wc -l)"
-echo "Size   : $(du -sh "${WHEELHOUSE}" | cut -f1)"
+# du -s on the directory reported 9.5K for 40 MB of wheels on Shaheen's
+# scratch filesystem. Summing the files themselves is not filesystem-dependent.
+echo "Size   : $(find "${WHEELHOUSE}" -name '*.whl' -exec du -ch {} + 2>/dev/null | tail -1 | cut -f1)"
 echo "Bundle : ${BUNDLE}"
 echo
 echo "Copy that directory to the offline machine and follow INSTALL.txt."
