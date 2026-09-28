@@ -201,7 +201,7 @@ cd Testing
 python3 prepare_machine.py --check
 python test_suite.py ../ --test_type ParaView --paraview_version <version> \
   --machine_name ibex-cpu --machine ibex --launcher mpirun \
-  --image-tolerance 0.005 --non_gpu_machine \
+  --image-tolerance 0.0075 --non_gpu_machine \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
 
@@ -210,7 +210,7 @@ source VisIt_Vignettes/MODULES.sh                 # visit/3.4.1
 source $SCRATCH/testing_visit_env/bin/activate
 python test_suite.py ../ --test_type VisIt --visit_version 3.4.1 \
   --machine_name ibex-cpu --machine ibex --launcher mpirun \
-  --image-tolerance 0.005 \
+  --image-tolerance 0.0075 \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
 
@@ -302,7 +302,7 @@ srun --nodes=1 --ntasks=8 --cpus-per-task=24 -p workq --time=00:40:00 \
 cd Testing
 python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
   --machine_name shaheen3-cpu --machine shaheen --launcher srun \
-  --image-tolerance 0.005 --non_gpu_machine \
+  --image-tolerance 0.0075 --non_gpu_machine \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
 
@@ -312,7 +312,7 @@ source $SCRATCH/testing_visit_env/bin/activate
 python3 Testing/prepare_machine.py --tool VisIt
 python test_suite.py ../ --test_type VisIt --visit_version 3.4.1 \
   --machine_name shaheen3-cpu --machine shaheen --launcher srun \
-  --nodes 1 --ranks 8 --image-tolerance 0.005 \
+  --nodes 1 --ranks 8 --image-tolerance 0.0075 \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
 
@@ -320,9 +320,11 @@ Both suites share `shaheen3-cpu`: it names a machine and a rendering
 configuration, never a tool version. The tool version lives inside each
 record, and that file has carried both since 2024.
 
-ex11 needs a display. If `xvfb` is available on the compute nodes, wrap it as
-in section 4. If not, leave ex11 to the workstation and CI and say so in the
-run notes rather than recording a failure.
+ex11 needs a display. If the `Xvfb` binary is on the compute nodes, wrap it in
+`Scripts/run_with_display.sh` as in section 4. The wrapper does not need
+`xauth`, which is what `xvfb-run` fails on. If `Xvfb` is absent, leave ex11 to
+the workstation and CI and say so in the run notes rather than recording a
+failure.
 
 Or submit per vignette, which is what the `.sbat` scripts are for. Set your
 account in each first:
@@ -524,10 +526,23 @@ python3 Testing/manage_metrics.py --remove-run <run-id> -y
 ## 10. What to expect the first time
 
 **Image tolerance.** The baselines were blessed on a GPU. Mesa llvmpipe
-differs from them by up to 0.39%, measured, and it is anti-aliasing along
-contour edges. So pass `--image-tolerance 0.005` on any software-rendered run
-and leave the default 0.001 on a GPU. Section 5a of `LOCAL_VALIDATION.md` has
-the measurements.
+differs from them by anti-aliasing along contour edges. An early five-vignette
+sample put the worst case at 0.39% and 0.005 was the recommendation. Running
+the whole suite under llvmpipe later found two the sample did not speak for,
+both stable across two ParaView versions:
+
+| Vignette | Difference | What it is |
+| :--- | ---: | :--- |
+| ex02 frame 1 | 0.5042% | Over 0.005 by four ten-thousandths of a percent |
+| ex05, five frames | 1.80% to 3.55% | The cycle and time annotation, ie. font rasterization |
+
+So pass `--image-tolerance 0.0075` on any software-rendered run, and leave the
+default 0.001 on a GPU. **Expect ex05 to fail anyway on a software renderer.**
+No honest tolerance covers a different font engine while still catching a real
+change, which is why CI leaves ex05 out of its list entirely. On the cluster,
+run it, look at the diff, and record it as a known text difference rather than
+widening the gate to hide it. Section 5a of `LOCAL_VALIDATION.md` has the
+measurements.
 
 **Rank count.** Every ParaView baseline was blessed at one rank and ParaView
 above one rank has never been exercised on a cluster. The submission scripts
@@ -565,7 +580,8 @@ often deliberately the older build.
 | `ParaView : unknown` | the version probe could not read the build | fixed as of `d9d6c8c`; `pvbatch --version` is tried first and unknown no longer counts as stale |
 | `No matching writer found for extension: vth` | ParaView 6.1 dropped that writer | expected, the generator falls through to `.vthb` |
 | Ancient pandas/matplotlib in the wheelhouse | built under the login node's Python 3.6 | `module load python/<newer>` first; the script now refuses below 3.9 |
-| Every image fails by a fraction of a percent | software rendering against GPU-blessed baselines | `--image-tolerance 0.005` |
+| Every image fails by a fraction of a percent | software rendering against GPU-blessed baselines | `--image-tolerance 0.0075` |
+| Only ex05 fails, by 1.8% to 3.5% | font rasterization differs from the GPU baseline | expected on a software renderer, see section 10 |
 | ex08 fails on a GPU queue | the module variant is Mesa, or EGL found no device | check `$VV_PARAVIEW_MODULE` and that you are on `ppn` with the `video` group |
 | ex11 fails | forced offscreen | run it alone under `Scripts/run_with_display.sh` with `--no-offscreen` |
 | ex06 reports SKIPPED | its 5.7 GB is not on this machine | expected; `cd data && bash fetchData.sh` if you want it |

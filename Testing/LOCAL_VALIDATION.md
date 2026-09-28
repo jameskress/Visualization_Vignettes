@@ -1283,6 +1283,10 @@ covers GPU GLX, Mesa llvmpipe and (by the same argument) EGL, on one baseline
 set, while still failing on a real geometry or colour-map change, those move
 whole regions, not edges.
 
+**That figure was later raised to 0.0075.** The sample above is five
+vignettes; running the whole suite under llvmpipe found two more, and the next
+subsection has them. Use 0.0075 on any software-rendered run.
+
 ### Two vignettes that 0.5% does not cover, measured in the CI container
 
 The table above sampled ex01, ex03, ex09, ex10 and ex12. Running the whole
@@ -1499,7 +1503,7 @@ cd $SCRATCH/Visualization_Vignettes/Testing
 
 python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
   --machine_name shaheen3-cpu --machine shaheen --launcher srun \
-  --image-tolerance 0.005 --non_gpu_machine \
+  --image-tolerance 0.0075 --non_gpu_machine \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 
 # --- Shaheen, GPU (ppn, EGL/L40) -------------------------------------------
@@ -1507,7 +1511,7 @@ source ParaView_Vignettes/MODULES.sh egl
 srun --cpus-per-task=32 --ntasks=1 -p ppn -G 1 --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
 python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
   --machine_name shaheen3-ppn-gpu-L40 --machine shaheen \
-  --image-tolerance 0.005 --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
+  --image-tolerance 0.0075 --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
 
 Before the first run on each machine:
@@ -1547,13 +1551,13 @@ cd $SCRATCH/Visualization_Vignettes/Testing
 
 python test_suite.py ../ --test_type VisIt --visit_version 3.4.1 \
   --machine_name shaheen3-visit-cpu --machine shaheen --launcher srun \
-  --nodes 1 --ranks 8 --image-tolerance 0.005 --non_gpu_machine \
+  --nodes 1 --ranks 8 --image-tolerance 0.0075 --non_gpu_machine \
   --timeout 1800
 
 # --- Shaheen, GPU (ppn) -----------------------------------------------------
 python test_suite.py ../ --test_type VisIt --visit_version 3.4.1 \
   --machine_name shaheen3-visit-ppn --machine shaheen \
-  --nodes 1 --ranks 8 --image-tolerance 0.005 --timeout 1800
+  --nodes 1 --ranks 8 --image-tolerance 0.0075 --timeout 1800
 ```
 
 Unlike ParaView, **no vignette is excluded**: VisIt's ex11 restores a session
