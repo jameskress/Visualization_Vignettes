@@ -126,7 +126,12 @@ jobs:
             # it through as a warning, and ex06 itself then reports SKIPPED
             # rather than failing, so the suite below runs unfiltered and the
             # skip is visible in the summary report artifact.
-            python3 prepare_machine.py
+            #
+            # `|| [ $? -eq 3 ]` because this whole block runs under `set -e`.
+            # Exit 3 means "ready except for ex06's data", which is the normal
+            # state here, and swallowing only that code keeps a real failure
+            # (exit 1, a stale fixture) fatal.
+            python3 prepare_machine.py || [ $? -eq 3 ]
             # --image-tolerance 0.005 because CI renders through Mesa llvmpipe
             # while the baselines were blessed on a GPU. Measured worst case is
             # 0.39% on ex09, anti-aliasing along contour edges; see section 5a
@@ -236,7 +241,9 @@ jobs:
             export PATH="$VISIT_DIR:$PATH"
             $VISIT_DIR/visit -version
             cd Testing
-            python3 prepare_machine.py --tool VisIt
+            # || [ $? -eq 3 ]: see the ParaView job. Exit 3 is "ready except
+            # for ex06's data", and this block runs under `set -e`.
+            python3 prepare_machine.py --tool VisIt || [ $? -eq 3 ]
             # This job ran only ex00 for a long time, which meant it never
             # compared a single image: ex00 is a query vignette and has no
             # baseline PNGs. Everything except the two long animations now

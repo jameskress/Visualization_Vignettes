@@ -513,10 +513,17 @@ def main(argv=None):
         return 0
 
     if outstanding == 0:
-        # Exit 3, not 1: the generated fixtures are all current and every
-        # vignette but ex06 will run. test_suite.py's preflight treats this
-        # as a warning; a caller that genuinely needs ex06 can check for it.
         skip("this machine is ready except for ex06's datasets (see above)")
+        if not args.check:
+            # Generate mode's contract is "build what you can", and it did.
+            # The 4.3 GB download is not something it builds; it deliberately
+            # refuses to start it. Reporting that as a non-zero exit made
+            # `set -e` kill both CI jobs before a single vignette ran, which
+            # is a worse outcome than the thing it was warning about.
+            return 0
+        # --check is a status query, so the code carries the answer: 3 means
+        # ready except for ex06. test_suite.py's preflight treats it as a
+        # warning, and a caller that genuinely needs ex06 can test for it.
         return 3
 
     if args.check:
