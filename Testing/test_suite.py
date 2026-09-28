@@ -1195,7 +1195,15 @@ def run_test(test_dir, dir_name, args):
             with open(os.path.join(testing_dir, TEXT_RESULTS_FILENAME), "w") as handle:
                 json.dump([{"logs_match": text_comparison_result}], handle, indent=4)
         else:
-            print("Known good value file not found: {0}".format(known_good_value_file))
+            # ex00 through ex06 carry one; ex07 onward deliberately do not.
+            # The text gate is a subset match with paths and timestamps
+            # stripped, so on a vignette that already declares numeric
+            # metrics and assertions it can only agree. Saying "not found"
+            # made that design decision read like a missing file.
+            print(
+                "No legacy text baseline for {0} (by design from ex07 on; "
+                "the numeric, image and CSV gates still apply)".format(dir_name)
+            )
     else:
         print("Cannot find output.log file @ path: {0}".format(output_log_path))
 

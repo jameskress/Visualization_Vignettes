@@ -17,8 +17,9 @@
 #
 set -e
 
-# Resolved before the job cds anywhere, so the helper is found from Testing/.
+# Resolved before the job cds anywhere, so Scripts/ is found from Testing/.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 PARAVIEW_URL="https://www.paraview.org/paraview-downloads/download.php"
 PARAVIEW_FILE="ParaView-6.1.0-MPI-Linux-Python3.12-x86_64.tar.gz"
@@ -93,7 +94,7 @@ python3 test_suite.py ../ --test_type ParaView \
 # offscreen, which is what every other vignette here wants. --no-offscreen
 # applies to the whole invocation, so it runs alone under a virtual display.
 XVFB_SCREEN=1280x1280x24 \
-    "${SCRIPT_DIR}/run_with_display.sh" \
+    "${REPO_ROOT}/Scripts/run_with_display.sh" \
     python3 test_suite.py ../ --test_type ParaView \
         --paraview_version "${PARAVIEW_VERSION}" \
         --non_gpu_machine --image-tolerance 0.0075 \

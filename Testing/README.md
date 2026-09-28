@@ -469,7 +469,7 @@ Useful related flags:
 | `--launcher {auto,mpirun,srun,none}` | How to launch `pvbatch`. `auto` probes the node. |
 | `--threads N` | Threads per rank. Defaults to `$SLURM_CPUS_PER_TASK`. |
 | `--timeout N` | Seconds before a vignette is killed and marked failed. Default 3600. |
-| `--no-offscreen` | Do not force offscreen rendering. Required by `ex11`, which runs under `xvfb-run`. |
+| `--no-offscreen` | Do not force offscreen rendering. Required by `ex11`, which runs under `Scripts/run_with_display.sh`. |
 | `--image-tolerance F` | Fraction of pixels allowed to be different. Default `0.001`. |
 | `--vignette-arg ARG` | Forward an extra flag verbatim to every vignette. Repeatable. |
 
@@ -597,7 +597,7 @@ queue problem rather than a configuration one.
 offscreen rendering:
 
 ```bash
-xvfb-run -a --server-args="-screen 0 1024x1024x24" \
+XVFB_SCREEN=1024x1024x24 ../Scripts/run_with_display.sh \
   python test_suite.py ../ --test_type ParaView --no-offscreen \
       --machine_name my-machine
 ```

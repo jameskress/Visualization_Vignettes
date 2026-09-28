@@ -148,7 +148,7 @@ fails when forced offscreen, and `--no-offscreen` applies to the whole
 invocation:
 
 ```bash
-xvfb-run -a --server-args="-screen 0 1280x1280x24" \
+XVFB_SCREEN=1280x1280x24 ../Scripts/run_with_display.sh \
   python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
     --machine_name $(hostname) --test_number 11 --no-offscreen --timeout 1800
 ```
@@ -162,7 +162,7 @@ python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
   --machine_name $(hostname) \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 
-xvfb-run -a --server-args="-screen 0 1024x1024x24" \
+XVFB_SCREEN=1024x1024x24 ../Scripts/run_with_display.sh \
   python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
     --machine_name $(hostname) --test_number 11 --timeout 1800
 ```
@@ -567,7 +567,7 @@ often deliberately the older build.
 | Ancient pandas/matplotlib in the wheelhouse | built under the login node's Python 3.6 | `module load python/<newer>` first; the script now refuses below 3.9 |
 | Every image fails by a fraction of a percent | software rendering against GPU-blessed baselines | `--image-tolerance 0.005` |
 | ex08 fails on a GPU queue | the module variant is Mesa, or EGL found no device | check `$VV_PARAVIEW_MODULE` and that you are on `ppn` with the `video` group |
-| ex11 fails | forced offscreen | run it alone under `xvfb-run` with `--no-offscreen` |
+| ex11 fails | forced offscreen | run it alone under `Scripts/run_with_display.sh` with `--no-offscreen` |
 | ex06 reports SKIPPED | its 5.7 GB is not on this machine | expected; `cd data && bash fetchData.sh` if you want it |
 | `sbatch` refuses the job | `ntasks-per-node x cpus-per-task` exceeds the node | 192 on Shaheen `workq`, 128 on `ppn`, as low as 30 on an Ibex GPU node |
 | Suite refuses to start | preflight failed | read what `--check` said; `--skip-preflight` exists but every way a stale fixture fails looks like a regression |

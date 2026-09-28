@@ -15,16 +15,16 @@ jobs:
       contents: write        # <-- needed to push badge to a branch
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+        uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/metadata-action@v5
+      - uses: docker/metadata-action@v6
         id: meta
         with:
           images: ghcr.io/${{ github.repository }}
@@ -32,7 +32,7 @@ jobs:
             type=ref,event=branch
             type=sha,prefix=
             type=raw,value=latest,enable={{is_default_branch}}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -67,7 +67,7 @@ jobs:
           echo '{"schemaVersion":1,"label":"docker image","message":"'"$TAG"'","color":"blue"}' > badges/docker-latest.json
 
       - name: Publish badge to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         if: ${{ github.event_name != 'pull_request' }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -90,7 +90,7 @@ jobs:
         run: |
           rm -rf "${{ github.workspace }}"
           mkdir -p "${{ github.workspace }}"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Run ParaView Test Suite
         run: |
           # Create a custom Dockerfile to prepare our test environment
@@ -123,7 +123,7 @@ jobs:
           # exactly this locally.
           docker run --rm -v "$(pwd)":/workdir paraview-test-env \
             bash /workdir/.github/scripts/ci_paraview.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: paraview-test-results
@@ -148,7 +148,7 @@ jobs:
           # Nuke the workspace directory to ensure a fresh start and save space
           rm -rf "${{ github.workspace }}"
           mkdir -p "${{ github.workspace }}"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Ensure VisIt is Cached on Host
         run: |
           # The runner interprets $HOME automatically
@@ -200,7 +200,7 @@ jobs:
             -e VISIT_TARBALL="$FILENAME" \
             visit-test-env bash /workdir/.github/scripts/ci_visit.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: visit-test-results

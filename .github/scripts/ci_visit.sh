@@ -11,8 +11,9 @@
 #
 set -e
 
-# Resolved before the job cds anywhere, so the helper is found from Testing/.
+# Resolved before the job cds anywhere, so Scripts/ is found from Testing/.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 VISIT_VERSION="${VISIT_VERSION:-3.4.1}"
 VISIT_TARBALL="${VISIT_TARBALL:-visit-${VISIT_VERSION}.tar.gz}"
@@ -83,7 +84,7 @@ python3 test_suite.py ../ --test_type VisIt \
 # warns without a display rather than failing, but warning and rendering
 # something else is the case worth avoiding.
 XVFB_SCREEN=1024x1024x24 \
-    "${SCRIPT_DIR}/run_with_display.sh" \
+    "${REPO_ROOT}/Scripts/run_with_display.sh" \
     python3 test_suite.py ../ --test_type VisIt \
         --visit_version "${VISIT_VERSION}" \
         --image-tolerance 0.0075 \

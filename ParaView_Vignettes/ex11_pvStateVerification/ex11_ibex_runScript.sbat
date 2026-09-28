@@ -72,8 +72,19 @@ cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
 
 # ex11 verifies the on-display path a GUI user takes, so offscreen rendering
 # is deliberately NOT forced and a virtual X server is provided instead.
-if ! command -v xvfb-run >/dev/null 2>&1; then
-    echo "ERROR: xvfb-run not found. ex11 needs a virtual display." >&2
+# Scripts/run_with_display.sh drives Xvfb directly instead of going through
+# xvfb-run. xvfb-run refuses to start without xauth, which is only a
+# Recommends of the xvfb package and is absent from both CI images; a module
+# environment can be missing it just as easily, and the cookie it writes is
+# for a display private to this job anyway. The wrapper needs Xvfb and
+# nothing else.
+VV_DISPLAY_WRAPPER="../../Scripts/run_with_display.sh"
+if ! command -v Xvfb >/dev/null 2>&1; then
+    echo "ERROR: Xvfb not found. ex11 needs a virtual display." >&2
+    exit 127
+fi
+if [ ! -x "$VV_DISPLAY_WRAPPER" ]; then
+    echo "ERROR: $VV_DISPLAY_WRAPPER missing or not executable." >&2
     exit 127
 fi
 
@@ -105,7 +116,7 @@ echo "OpenGL window     : ${VTK_DEFAULT_OPENGL_WINDOW:-<vtk default>}"
 VV_RANKS_PER_NODE=$(( (VV_RANKS + VV_NODES - 1) / VV_NODES ))
 
 STATUS=0
-time xvfb-run -a --server-args="-screen 0 ${VV_IMAGE_WIDTH}x${VV_IMAGE_HEIGHT}x24" \
+time XVFB_SCREEN="${VV_IMAGE_WIDTH}x${VV_IMAGE_HEIGHT}x24" "$VV_DISPLAY_WRAPPER" \
     mpirun -np "$VV_RANKS" --bind-to none --map-by "ppr:${VV_RANKS_PER_NODE}:node" \
     "$PVBATCH" ./ex11_pvStateVerification.py \
         --machine ibex \

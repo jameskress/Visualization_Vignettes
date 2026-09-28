@@ -48,7 +48,7 @@ else behind §4 and §4b was run with `--no-metrics` and left no trace; see
 | **TOTAL** | **370.9** | | | ex06 is 52% of the wall clock and the only one that needs more than 2.4 GB |
 
 `ex06_pvLargeData` is intermittent at the pixel level and declares its own 5%
-image tolerance to absorb that; see §5. ex11 runs separately, under `xvfb-run`
+image tolerance to absorb that; see §5. ex11 runs separately, under a virtual display
 with `--no-offscreen`, tagged with the same run id.
 
 ### VisIt 3.4.2, `KW61316.kaust.edu.sa`, run `visit342-local-2026-09-21`
@@ -70,7 +70,7 @@ with `--no-offscreen`, tagged with the same run id.
 | ex12_visitExtractRegression | 3.62 | 462 | 170 | volume integrals pre-pass; real time + cycle, §4b.13 |
 | **TOTAL** | **397.4** | | | ex06 is 52% of the wall clock and the only one that needs more than 2.4 GB |
 
-Twelve in one command and ex11 on its own under `xvfb-run`, so one run id files
+Twelve in one command and ex11 on its own under a virtual display, so one run id files
 one record per vignette (§3). ex11's frames come out bit-identical with and
 without a display, so it does not need a baseline of its own.
 
@@ -194,6 +194,39 @@ OK   this machine is ready
 
 `ex10` needs nothing prepared; its colour maps ship beside it.
 
+### Which vignettes carry a text baseline, and why the rest do not
+
+`known_good_value.txt` exists for ex00 through ex06 in both tools and for no
+vignette after that. That is deliberate, not an unfinished job.
+
+The text gate (`verify.compare_text_files`) is a **subset match**: it strips
+anything path-shaped, any date and any timestamp, drops blank lines, ignores
+order, and then asks whether every surviving line of the baseline appears
+somewhere in `output.log`. Its own docstring calls it a weak assertion and
+names `compare_results_json()` as the reason it was not extended.
+
+On ex00 through ex06 it is the historical gate, kept working verbatim so the
+baselines blessed under the old harness still pass. From ex07 on, each
+vignette declares its own numbers instead. ex11 is the clearest case:
+
+| Gate | ex11 ParaView | ex11 VisIt |
+| :--- | :--- | :--- |
+| Process exit code | yes | yes (250 ignored, see 4b.1) |
+| Baseline images | 3 | 3 |
+| Numeric metrics in `results.json` | 7 | 3 |
+| In-vignette assertions | 6 | 6 |
+| Declared CSV extract | `ex11_*_steps.csv` | `ex11_*_steps.csv` |
+| Legacy text | none, by design | none, by design |
+
+The numeric gate already asserts `sources_in_state`, `views_in_state`,
+`timesteps_in_state`, `steps_rendered` and the view dimensions, with an
+explicit tolerance on each. A text baseline over the same run could only
+agree with it, and would additionally fail whenever a log line was reworded.
+Blessing one would add a maintenance burden and no coverage.
+
+So there is nothing to bless. If ex11 ever needs a stronger gate, the place
+to add it is `results.json`, not a log transcript.
+
 ### And the vignettes now check, rather than trusting
 
 `prepare_machine.py` only helps if you remember to run it, so the guard is also
@@ -241,7 +274,7 @@ X display and must not be forced offscreen. `--no-offscreen` applies to the
 whole invocation, which is why ex11 runs in its own command:
 
 ```bash
-xvfb-run -a --server-args="-screen 0 1280x1280x24" \
+XVFB_SCREEN=1280x1280x24 ../Scripts/run_with_display.sh \
   python test_suite.py ../ \
     --test_type ParaView --paraview_version 6.1.0 \
     --machine_name KW61316.kaust.edu.sa --run-id <same id as above> \
@@ -274,7 +307,7 @@ past. Running all thirteen here **and** the command below would file ex11 twice
 under one run id, which is what `--test_number` above avoids:
 
 ```bash
-xvfb-run -a --server-args="-screen 0 1024x1024x24" \
+XVFB_SCREEN=1024x1024x24 ../Scripts/run_with_display.sh \
   python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
     --machine_name KW61316.kaust.edu.sa --run-id <same id> --test_number 11
 ```
@@ -289,7 +322,7 @@ the terminal:
 
 Measured: all three frames are **bit-identical** with and without a display, so
 one baseline covers both and the `.sbat` scripts (which already wrap ex11 in
-`xvfb-run`) need nothing special.
+a virtual display) need nothing special.
 
 Two things about a VisIt log that are normal and worth knowing before you read
 one:
@@ -1494,8 +1527,9 @@ performance gate needs two runs under the same name before it can fire.
 Three things to expect and not be alarmed by:
 
 * **ex11 will not run in a batch allocation without a display.** It needs
-  `xvfb-run` and `--no-offscreen`, as locally. If `xvfb` is not available on the
-  compute nodes, skip it there and keep it as a local/CI gate.
+  `Scripts/run_with_display.sh` and `--no-offscreen`, as locally. That wrapper
+  needs the `Xvfb` binary and nothing else, not `xauth`. If `Xvfb` is not on
+  the compute nodes, skip ex11 there and keep it as a local and CI gate.
 * **ex06 needs 62 GB and 192 s**, single-rank. At 8 ranks on `workq` it will be
   different on both counts; that is the point of running it there.
 * **`--ranks > 1` has never been exercised for ParaView.** The harness supports

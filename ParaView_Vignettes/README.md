@@ -397,7 +397,7 @@ site's proven settings, not preferences:
   ParaView gives up and renders offscreen anyway.
 
 `ex11` is the one exception to the offscreen flags: it verifies the
-on-display path a GUI user takes, so it runs under `xvfb-run` and forces
+on-display path a GUI user takes, so it runs under `Scripts/run_with_display.sh` and forces
 nothing.
 
 ### `pvbatch` vs. `pvpython`
