@@ -24,3 +24,14 @@ repos:
       args:
       -   --max-line-length=88
       -   --ignore=E203,E501,W503,F403,F405
+- repo: local
+  hooks:
+  -   id: workflow-shell
+      name: workflow run blocks parse as shell
+      # The runner writes each `run:` block to a file and runs bash on it, so
+      # a quoting mistake there is a syntax error before any step executes.
+      # One apostrophe inside a `bash -c '...'` payload took CI down twice.
+      entry: python3 .github/scripts/check_workflow_shell.py
+      language: system
+      pass_filenames: false
+      files: ^\.github/workflows/.*\.ya?ml$

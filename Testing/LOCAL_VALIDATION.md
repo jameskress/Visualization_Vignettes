@@ -1130,6 +1130,28 @@ time.
 
 ---
 
+### 4b.14 `prepare_machine.py` believed VisIt's exit code, `Testing/prepare_machine.py`
+
+Section 4b.1 above is about VisIt's launcher always exiting 250. The same
+trap caught the preflight script itself. `step_visit_state` generated
+`ex11_visit.session` and `ex11_series.visit`, VisIt wrote both files and said
+so, VisIt then exited 250 on a clean shutdown, and the step returned False on
+that code alone:
+
+```text
+[ex11_make_state] wrote .../ex11_visit.session
+[ex11_make_state] Commit both files.
+FAIL 1 item(s) still outstanding (see above)
+```
+
+Under `set -e` in the CI job that killed the VisIt run before a single
+vignette started, with a message saying an item was outstanding immediately
+below the lines reporting that item finished. The step now ignores the exit
+code, as everything else that drives VisIt does, and checks for the two files
+it asked for. `--force` deletes them first, so their presence afterwards
+means a rebuild actually happened rather than an old pair surviving a failed
+one.
+
 ## 5. Known issue: ex06 image stability
 
 `ex06_pvLargeData` differs **4.13% of pixels between two consecutive runs** on
@@ -1227,6 +1249,72 @@ Worst case **0.39%**, and it is anti-aliasing on contour edges. So:
 covers GPU GLX, Mesa llvmpipe and (by the same argument) EGL, on one baseline
 set, while still failing on a real geometry or colour-map change, those move
 whole regions, not edges.
+
+### Two vignettes that 0.5% does not cover, measured in the CI container
+
+The table above sampled ex01, ex03, ex09, ex10 and ex12. Running the whole
+suite inside the CI image, Debian 12 with llvmpipe, against the same
+GPU-blessed baselines, found two it did not speak for. Both were measured
+twice, under ParaView 6.0.1 and 6.1.0, and came out the same to four decimal
+places, so neither is noise:
+
+| Vignette | Difference | What it is |
+| :--- | ---: | :--- |
+| ex02 frame 1 | **0.5042%** | Four ten-thousandths of a percent over the gate. Stable llvmpipe edge treatment. |
+| ex05, five frames | **1.80% to 3.55%** | The cycle and time annotation. Font rasterization, not the vignette. |
+
+So CI runs at `--image-tolerance 0.0075`, which clears ex02 with margin and
+is still far below ex05, and leaves ex05 out of its list entirely. A
+tolerance loose enough for a different font rasterizer would not be a gate
+any more. The workstation keeps the default 0.001, because there the
+baselines and the run share a renderer.
+
+### ex09 and the ParaView version CI runs
+
+CI downloaded 6.0.1 while every baseline was blessed under 6.1.0, and ex09
+failed on every run: `amr_input_points` 216 against 842, `amr_input_cells`
+125 against 605, `amr_contour_cells` 7 against 57, and the AMR frame
+differing by 44%. That is the file incompatibility described below, not a
+regression, and it disappears completely when CI downloads 6.1.0. Measured:
+with 6.1.0 the suite reports zero numeric failures.
+
+### ex11 in the CI container needs a display, and `xvfb-run` cannot give it one
+
+ex11 restores a saved state and has to run with `--no-offscreen`, so the CI
+job wraps it in a virtual display. The obvious wrapper, `xvfb-run`, aborts in
+both images before the command starts:
+
+```text
+xvfb-run: error: xauth command not found
+```
+
+`xauth` is a *Recommends* of the `xvfb` package, and both Dockerfiles install
+with `--no-install-recommends`, so `Xvfb` is present and `xauth` is not.
+`xvfb-run` requires it unconditionally, to write the cookie for a display
+nothing else can reach anyway. The images also run as an unprivileged uid, so
+`apt-get install xauth` inside the job is not available either, and the
+ParaView image takes seven hours to rebuild.
+
+`.github/scripts/run_with_display.sh` starts `Xvfb` itself, waits for the
+socket rather than the lock file, exports `DISPLAY`, runs the command, and
+propagates its exit code after killing the server. It needs neither `xauth`
+nor root. Both CI job scripts call it, and it works on a workstation too,
+where it steps past `:99` if that display is taken.
+
+### What the VisIt CI job cannot run, and why
+
+The VisIt image is Ubuntu 22.04 with VisIt and nothing else. ex09 and ex12
+read `data/topologies/` and the XML time series, and both of those are
+written by pvbatch (`data/make_topology_datasets.py`,
+`data/make_time_series.py`). `prepare_machine.py` skips those steps when
+pvbatch is not on the machine, so in that container the files never appear
+and both vignettes stop with `Required dataset not found`.
+
+That is a property of the image, not of the vignettes: on the workstation,
+Ibex and Shaheen, ParaView sits beside VisIt and both run for real. CI
+therefore runs `0 1 3 6 7 8 10` plus ex11 under a virtual display, and ex06
+reports SKIPPED. Adding ParaView to that image to satisfy two vignettes would
+put an 866 MB download into the job whose only virtue is being quick.
 
 ### What must NOT be shared between machines
 

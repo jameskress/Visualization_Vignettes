@@ -432,10 +432,37 @@ def step_visit_state(args, visit, visit_ver):
     )
     if args.check:
         return False
-    return run(
+
+    # --force means "rebuild these", so clear them first. Otherwise the
+    # presence check below would pass on the old files if the generator
+    # failed, and report a rebuild that never happened.
+    if args.force:
+        for path in (VISIT_STATE, VISIT_SERIES):
+            if os.path.exists(path):
+                os.remove(path)
+
+    run(
         [visit, "-cli", "-nowin", "-noconfig", "-s", VISIT_STATE_GENERATOR],
         cwd=VISIT_STATE_DIR,
     )
+
+    # VisIt's launcher exits 250 after a clean shutdown -- see section 4b.1
+    # of LOCAL_VALIDATION.md -- so its return code says nothing about whether
+    # the generator worked. Taking it at face value here made a successful
+    # run report one outstanding item, and `set -e` then killed the whole
+    # VisIt CI job before a single vignette ran. The two files it was asked
+    # to write are the only honest answer.
+    still_missing = [
+        os.path.basename(path)
+        for path in (VISIT_STATE, VISIT_SERIES)
+        if not os.path.exists(path)
+    ]
+    if still_missing:
+        bad("ex11 VisIt fixtures still missing: " + ", ".join(still_missing))
+        return False
+
+    ok("ex11_visit.session and ex11_series.visit written")
+    return True
 
 
 # ---------------------------------------------------------------------------
