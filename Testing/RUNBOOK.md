@@ -397,6 +397,52 @@ than failing.
 
 Copy wheels instead and build the venv on the target.
 
+### Getting the repository across without GitHub
+
+Login nodes lose outbound access often enough that this is worth knowing
+before you need it, and it is also the answer when `git pull` on the cluster
+hangs or returns a proxy error. A bundle is a single file holding real git
+history, so the clone on the target stays a clone, with branches and the
+ability to fetch again later.
+
+On a connected machine:
+
+```bash
+cd Visualization_Vignettes
+git bundle create /tmp/vignettes.bundle --all
+scp /tmp/vignettes.bundle <target>:/scratch/$USER/
+```
+
+On the target, first time:
+
+```bash
+cd /scratch/$USER
+git clone /scratch/$USER/vignettes.bundle Visualization_Vignettes
+cd Visualization_Vignettes
+git checkout regressionTestingUpdates
+```
+
+On the target, updating an existing clone:
+
+```bash
+cd /scratch/$USER/Visualization_Vignettes
+git fetch /scratch/$USER/vignettes.bundle 'refs/heads/*:refs/remotes/bundle/*'
+git log --oneline HEAD..bundle/regressionTestingUpdates   # look before you leap
+git merge --ff-only bundle/regressionTestingUpdates
+```
+
+`git bundle verify /scratch/$USER/vignettes.bundle` on the target says whether
+the file arrived intact and which commits it expects to already be present.
+A bundle made with `--all` expects none, so it always applies.
+
+**Before building one, make sure the commits you want are actually in it.**
+`--all` bundles what the connected machine has, not what GitHub has. If you
+committed on the workstation and never pushed, the bundle carries it and
+GitHub does not; if you pushed from somewhere else, the bundle misses it.
+`git log --oneline origin/<branch>..HEAD` on the connected machine tells you
+which way round you are.
+
+
 ### On a connected machine
 
 Match the Python version of the **target's** venv interpreter, not this one:
