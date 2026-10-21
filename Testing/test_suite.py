@@ -467,9 +467,37 @@ def bless_test(test_dir, args):
             test_dir, max_images=args.max_baseline_images, baseline_dir=image_dir
         )
         return
+    # The shared set is the reference machine's own. Refuse to overwrite it from
+    # anywhere else unless told to: every shared image baseline was blessed on
+    # KW61316.kaust.edu.sa (ParaView 6.1.0, GPU), the CI's Mesa runner passes
+    # against it, and a bless from Shaheen would quietly replace it with Mesa
+    # frames. Other machines bless with --machine-baselines.
+    reference = shared_baseline_host(test_dir)
+    here = platform.uname().node
+    if reference and reference != here and not getattr(args, "bless_shared", False):
+        print(
+            "  REFUSED: the shared baselines were blessed on {0}; this is {1}. "
+            "Use --bless --machine-baselines to record this machine's own images, "
+            "or --bless-shared to replace the reference set on purpose.".format(
+                reference, here
+            )
+        )
+        return
     create_baseline_images(test_dir, max_images=args.max_baseline_images)
     bless_numeric_baseline(test_dir)
     bless_csv_baselines(test_dir)
+
+
+def shared_baseline_host(test_dir):
+    """Host that blessed the shared baselines, read from the results JSON there."""
+    script_name = vignette_script_name(test_dir)
+    path = os.path.join(test_dir, "Testing", "Baseline", "{0}_results.json".format(script_name))
+    try:
+        with open(path, "r") as handle:
+            document = json.load(handle)
+        return document.get("hostname") or document.get("host")
+    except (OSError, ValueError):
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -1390,6 +1418,13 @@ def build_parser():
         "it is used automatically. For the gates that differ by renderer "
         "(Surface LIC noise, Mesa vs GPU shading); numeric, CSV and text "
         "baselines stay shared.",
+    )
+    bless_group.add_argument(
+        "--bless-shared",
+        action="store_true",
+        help="Allow --bless to replace the shared baselines from a machine other "
+        "than the one that blessed them (the reference workstation). Normally "
+        "every other machine records its own images with --machine-baselines.",
     )
     bless_group.add_argument(
         "--max-baseline-images",

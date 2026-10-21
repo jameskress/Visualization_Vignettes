@@ -387,7 +387,10 @@ TESTS="6" EXTRA="--no-metrics --bless --machine-baselines" sbatch shaheen_pv_sui
 ```
 
 The machine directory is used automatically once it exists; every other
-image is still judged against the shared baseline.
+image is still judged against the shared baseline. The shared set belongs
+to the workstation (`KW61316.kaust.edu.sa`), which is the only host that
+blesses it; `--bless` from a cluster is refused unless `--bless-shared` is
+given on purpose.
 
 Both suites share `shaheen3-cpu`: it names a machine and a rendering
 configuration, never a tool version. The tool version lives inside each

@@ -83,6 +83,11 @@ Rules that are not negotiable:
   machine and rendering configuration, tool version recorded inside each
   record. That is the existing convention (`ibex-cpu`, `ibex-egl-a100`,
   `shaheen3-ppn-gpu-L40`).
+* **The shared baselines are the workstation's.** Every image, numeric and
+  CSV baseline under `Testing/Baseline/` was blessed on
+  `KW61316.kaust.edu.sa` (ParaView 6.1.0, GPU GLX), and the CI's Mesa runner
+  passes against them. That host blesses the shared set; `--bless` from any
+  other host is refused unless `--bless-shared` says it is deliberate.
 * **Image baselines can be per machine; nothing else is.** Every renderer
   draws its own Surface LIC noise and Mesa shades a few levels off a GPU, so
   `--machine-baselines` judges images against
