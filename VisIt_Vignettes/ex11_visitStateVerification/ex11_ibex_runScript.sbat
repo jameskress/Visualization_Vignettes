@@ -67,7 +67,15 @@ VV_EXTRA_ARGS=()
 # Always run from the vignette directory: the scripts resolve their data and
 # output paths relative to themselves, and sbatch does not guarantee a
 # working directory.
-cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
+# Under sbatch, BASH_SOURCE[0] is Slurm's spool copy of this script, so it cannot locate
+# the vignette: ../MODULES.sh is then "not found" and pvbatch never loads (21 Oct 2026).
+# The harness submits from the vignette directory, so prefer the submit directory and
+# keep the script's own location for a direct `bash` run.
+cd "${SLURM_SUBMIT_DIR:-$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")}" || exit 1
+if [ ! -f ../MODULES.sh ]; then
+    echo "ERROR: ../MODULES.sh not found from $(pwd). Submit from the vignette directory: cd <exNN_dir> && sbatch <script>" >&2
+    exit 1
+fi
 
 # ex11 verifies the on-display path a GUI user takes, so offscreen rendering
 # is deliberately NOT forced and a virtual X server is provided instead.

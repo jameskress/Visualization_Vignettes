@@ -295,8 +295,10 @@ python3 Testing/prepare_machine.py --check # expect 0, or 3 without ex06 data
 Run:
 
 ```bash
-source ParaView_Vignettes/MODULES.sh
-source $SCRATCH/testing_paraview_env/bin/activate
+module load python/3.10.13                 # the same python the venv was built with
+source ParaView_Vignettes/MODULES.sh mesa
+unset PYTHONPATH                           # see below
+source $SCRATCH/testing_paraview_env/bin/activate   # AFTER the modules, so its python wins
 srun --nodes=1 --ntasks=8 --cpus-per-task=24 -p workq --time=00:40:00 \
      --mem=200G -A <account> --pty /bin/bash
 cd Testing
@@ -316,6 +318,20 @@ python test_suite.py ../ --test_type VisIt --visit_version 3.4.1 \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
 
+**Order and `PYTHONPATH` matter on Shaheen** (found 21 Oct 2026). The
+`paraview/6.1.0-mesa` module prepends ParaView's own `lib/python3.12` and its
+`site-packages` to `PYTHONPATH`. Any other python then imports ParaView's 3.12
+standard library and dies with `AssertionError: SRE module mismatch` on the
+first `import re`. `pvbatch` does not need that variable, so unset it after
+`MODULES.sh`. The module also prepends ParaView's `bin`, which carries a
+`python3`, so activate the venv after the modules or `python` is ParaView's.
+And check the venv really holds the packages: a venv built on 2 Oct had none,
+and only looked fine because the `python/3.10.13` module's own `site-packages`
+was on `PYTHONPATH` at the time.
+
+The same recipe as a batch job, which is easier to steer remotely, is
+`run_pv_suite.sbat` in the directory above the clone on Shaheen.
+
 Both suites share `shaheen3-cpu`: it names a machine and a rendering
 configuration, never a tool version. The tool version lives inside each
 record, and that file has carried both since 2024.
@@ -330,9 +346,15 @@ Or submit per vignette, which is what the `.sbat` scripts are for. Set your
 account in each first:
 
 ```bash
-vim ex01_pvScreenshot/ex01_shaheen_runScript.sbat   # #SBATCH --account=k##
-sbatch ex01_pvScreenshot/ex01_shaheen_runScript.sbat
+cd ParaView_Vignettes/ex01_pvScreenshot
+vim ex01_shaheen_runScript.sbat          # #SBATCH --account=k##
+sbatch ex01_shaheen_runScript.sbat       # from inside the vignette directory
 ```
+
+Submit from inside the vignette directory. Slurm runs a copy of the script
+from its spool, so the script finds `../MODULES.sh` through the submit
+directory, not through its own path (fixed 21 Oct 2026; before that every
+`.sbat` failed under `sbatch` with "pvbatch not found").
 
 ---
 
