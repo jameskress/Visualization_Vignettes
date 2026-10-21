@@ -354,15 +354,36 @@ def log_performance(
 # ---------------------------------------------------------------------------
 # Baseline management
 # ---------------------------------------------------------------------------
-def create_baseline_images(output_dir, max_images=5):
+def machine_baseline_dir(test_dir, machine_name):
+    """Where this machine's own image baselines live: Testing/Baseline/<machine_name>/.
+
+    Images are the one gate that legitimately differs between machines: every
+    renderer draws its own Surface LIC noise, Mesa and a GPU shade a surface a
+    few levels apart, and ex06 on Shaheen differed from the workstation
+    baseline over 64% of the frame while being the right picture (21 Oct
+    2026). Numeric, CSV and text baselines stay shared because they do not
+    depend on the renderer. The machine directory is used automatically once
+    it exists; --machine-baselines creates it (with --bless) and selects it.
+    """
+    return os.path.join(test_dir, "Testing", "Baseline", machine_name)
+
+
+def resolve_machine_name(args):
+    """The configuration name every per-machine file is keyed by."""
+    return args.machine_name if args.machine_name else platform.uname().node
+
+
+def create_baseline_images(output_dir, max_images=5, baseline_dir=None):
     """Copy rendered images into the baseline directory.
 
     Called only under --bless. During a normal run a missing baseline is a
     failure, because a baseline created from the run it is about to be
-    compared against is not a test.
+    compared against is not a test. `baseline_dir` defaults to the shared
+    Testing/Baseline; --machine-baselines passes the machine's own directory.
     """
     output_images_dir = os.path.join(output_dir, "output")
-    baseline_dir = os.path.join(output_dir, "Testing", "Baseline")
+    if baseline_dir is None:
+        baseline_dir = os.path.join(output_dir, "Testing", "Baseline")
     os.makedirs(baseline_dir, exist_ok=True)
 
     if not os.path.exists(output_images_dir):
@@ -427,8 +448,25 @@ def bless_csv_baselines(test_dir):
 
 
 def bless_test(test_dir, args):
-    """Record baselines for one vignette from the run that just happened."""
+    """Record baselines for one vignette from the run that just happened.
+
+    Images go to Testing/Baseline/<machine_name>/ under --machine-baselines,
+    otherwise to the shared Testing/Baseline/. Numeric and CSV baselines are
+    always shared: they describe the data, not the renderer.
+    """
     print("Blessing baselines for {0}".format(os.path.basename(test_dir)))
+    if getattr(args, "machine_baselines", False):
+        # Images only. The shared numeric and CSV baselines describe the data
+        # and belong to whoever blessed them on the reference machine; the
+        # first per-machine bless on Shaheen silently replaced ex06's shared
+        # results JSON with Shaheen's numbers (21 Oct 2026).
+        image_dir = machine_baseline_dir(test_dir, resolve_machine_name(args))
+        print("  image baselines for this machine only: {0}".format(image_dir))
+        print("  numeric and CSV baselines left as they are (shared)")
+        create_baseline_images(
+            test_dir, max_images=args.max_baseline_images, baseline_dir=image_dir
+        )
+        return
     create_baseline_images(test_dir, max_images=args.max_baseline_images)
     bless_numeric_baseline(test_dir)
     bless_csv_baselines(test_dir)
@@ -479,6 +517,42 @@ def compare_images(baseline_dir, output_dir, selected_images=None, tolerance=Non
     return verify.compare_image_sets(
         baseline_dir, output_images_dir, tolerance=tolerance
     )
+
+
+def compare_images_per_machine(shared_dir, machine_dir, machine_name, output_dir, tolerance):
+    """Compare each baselined image, preferring this machine's own baseline.
+
+    The driving list is the union of the shared and machine baselines, so a
+    vignette that stops producing an image is still MISSING OUTPUT. An image
+    the machine directory lacks falls back to the shared one, so only the
+    images that genuinely differ per renderer need blessing per machine. Each
+    result records which baseline it was judged against.
+    """
+    output_images_dir = os.path.join(output_dir, "output")
+    shared = set(verify.list_baseline_images(shared_dir))
+    own = set(verify.list_baseline_images(machine_dir))
+    results = []
+    for name in sorted(shared | own):
+        source_dir, source = (machine_dir, machine_name) if name in own else (shared_dir, "shared")
+        result = verify.compare_single_image(
+            os.path.join(source_dir, name),
+            os.path.join(output_images_dir, name),
+            tolerance=tolerance,
+        )
+        result["baseline"] = source
+        results.append(result)
+    for name in verify.list_output_images(output_images_dir):
+        if name not in shared and name not in own:
+            results.append(
+                {
+                    "image": name,
+                    "status": verify.STATUS_UNBASELINED,
+                    "detail": "Produced by the run but not covered by a baseline. "
+                    "Re-run with --bless (and a large enough --max-baseline-images) to record it.",
+                    "tolerance_fraction": tolerance,
+                }
+            )
+    return results
 
 
 def compare_text_files(output_log, known_good_value_path, ignore_patterns=None):
@@ -1168,7 +1242,15 @@ def run_test(test_dir, dir_name, args):
             "  {0} declares an image tolerance of {1:.4%} (suite default "
             "{2:.4%}).".format(dir_name, tolerance, args.image_tolerance)
         )
-    comparison_results = compare_images(baseline_dir, test_dir, tolerance=tolerance)
+    machine_name = resolve_machine_name(args)
+    machine_dir = machine_baseline_dir(test_dir, machine_name)
+    if os.path.isdir(machine_dir) or getattr(args, "machine_baselines", False):
+        print("  image baselines: {0} first, shared for the rest".format(machine_dir))
+        comparison_results = compare_images_per_machine(
+            baseline_dir, machine_dir, machine_name, test_dir, tolerance
+        )
+    else:
+        comparison_results = compare_images(baseline_dir, test_dir, tolerance=tolerance)
     with open(os.path.join(testing_dir, IMAGE_RESULTS_FILENAME), "w") as handle:
         json.dump(comparison_results, handle, indent=4)
 
@@ -1298,6 +1380,16 @@ def build_parser():
         help="Record the current output as the baseline. Without this a "
         "missing baseline is a FAILURE -- baselines are never created "
         "automatically during a normal run.",
+    )
+    bless_group.add_argument(
+        "--machine-baselines",
+        action="store_true",
+        help="Judge images against Testing/Baseline/<machine_name>/ (falling back "
+        "to the shared baseline per image) and, with --bless, record images "
+        "there instead of in the shared directory. Once that directory exists "
+        "it is used automatically. For the gates that differ by renderer "
+        "(Surface LIC noise, Mesa vs GPU shading); numeric, CSV and text "
+        "baselines stay shared.",
     )
     bless_group.add_argument(
         "--max-baseline-images",

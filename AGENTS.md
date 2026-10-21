@@ -83,6 +83,15 @@ Rules that are not negotiable:
   machine and rendering configuration, tool version recorded inside each
   record. That is the existing convention (`ibex-cpu`, `ibex-egl-a100`,
   `shaheen3-ppn-gpu-L40`).
+* **Image baselines can be per machine; nothing else is.** Every renderer
+  draws its own Surface LIC noise and Mesa shades a few levels off a GPU, so
+  `--machine-baselines` judges images against
+  `Testing/Baseline/<machine_name>/` (falling back to the shared file per
+  image) and `--bless --machine-baselines` records them there. Once the
+  directory exists it is used automatically. Bless only the images that
+  genuinely differ by renderer (ex06 on `shaheen3-cpu`, 21 Oct 2026), after
+  looking at them; a per-machine bless touches nothing else, and numeric, CSV
+  and text baselines stay shared.
 * **`metrics_schema` gets bumped whenever a recorded field changes meaning.**
   It is 4. The performance gate and the plots both refuse to compare across
   that boundary, which is the only thing stopping a definition change from
