@@ -98,7 +98,7 @@ echo "ParaView module   : ${VV_PARAVIEW_MODULE:-<unknown>}"
 echo "OpenGL window     : ${VTK_DEFAULT_OPENGL_WINDOW:-<vtk default>}"
 
 STATUS=0
-time srun --nodes="$VV_NODES" --ntasks="$VV_RANKS" --cpus-per-task="$VV_THREADS" --hint=nomultithread --mem-bind=v,none --cpu-bind=v,cores \
+time srun --kill-on-bad-exit=1 --nodes="$VV_NODES" --ntasks="$VV_RANKS" --cpus-per-task="$VV_THREADS" --hint=nomultithread --mem-bind=v,none --cpu-bind=v,cores \
     "$PVBATCH" --force-offscreen-rendering --disable-xdisplay-test \
     ./ex00_pvConeStat.py \
         --machine shaheen \

@@ -295,6 +295,27 @@ class _Phase(object):
 # ---------------------------------------------------------------------------
 # Context
 # ---------------------------------------------------------------------------
+def _use_real_stdio():
+    """Route print() to the process's real stdout and stderr.
+
+    pvbatch replaces sys.stdout with ParaView's capture helper, which hands
+    text to vtkOutputWindow and only reaches file descriptor 1 when the
+    interpreter finalises. exit_vignette() skips finalisation on purpose (see
+    there), so everything a vignette printed was lost: on Shaheen's
+    paraview/6.1.0-mesa, `print("x"); sys.stdout.flush(); os._exit(0)` wrote
+    nothing to a redirected stdout, while the same through sys.__stdout__
+    wrote "x" (measured 21 Oct 2026). Every text gate on that machine failed
+    on an empty output.log. The workstation builds happen to flush earlier,
+    which is why this went unnoticed. sys.__stdout__ is the fd-backed stream
+    Python started with; it is None only inside an embedded GUI interpreter,
+    where we leave things alone.
+    """
+    for name in ("stdout", "stderr"):
+        real = getattr(sys, "__" + name + "__", None)
+        if real is not None:
+            setattr(sys, name, real)
+
+
 class VignetteContext(object):
     """Everything a vignette needs that is not ParaView or VisIt itself.
 
@@ -308,6 +329,8 @@ class VignetteContext(object):
     """
 
     def __init__(self, name, tool, args, script_path=None, script_dir=None):
+        if tool == "ParaView":
+            _use_real_stdio()
         self.name = name
         self.tool = tool
         self.args = args
@@ -1386,7 +1409,8 @@ def exit_vignette(code):
 
     os._exit() ends the process immediately with the requested status and
     never enters finalization, so the status is the vignette's own verdict
-    and nothing else. Nothing is lost by skipping finalization here: the
+    and nothing else. It is used for failures only; a passing vignette
+    returns from here and ends normally (see the comment at the bottom). Nothing is lost by skipping finalization here: the
     results JSON, the images and the extracts are all written and closed
     before this is reached. stdout and stderr are flushed explicitly,
     because os._exit does not flush them.
@@ -1403,6 +1427,19 @@ def exit_vignette(code):
         sys.stderr.flush()
     except Exception:  # noqa: BLE001
         pass
+    # A clean verdict returns and lets the script fall off its end, which is the
+    # one exit that is safe on every build: exit status 0 and, under MPI, rank 0
+    # releases the satellite ranks on its way out. os._exit() never tells them,
+    # so with two or more ranks every satellite waits until Slurm kills the
+    # step at the walltime (Shaheen, 21 Oct 2026: a 2-rank cone hung for the
+    # full step after rank 0 had finished; sys.exit(0) hung the same way, and
+    # servermanager.Finalize() before os._exit() segfaulted). Every call site
+    # is the last statement of its script, so returning is the end of the run.
+    # A failure keeps os._exit(): the status must reach the harness unaltered,
+    # and the srun launches carry --kill-on-bad-exit=1 so the satellites are
+    # torn down with rank 0 instead of waiting.
+    if int(code) == 0:
+        return
     os._exit(int(code))
 
 

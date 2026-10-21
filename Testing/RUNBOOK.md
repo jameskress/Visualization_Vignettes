@@ -282,7 +282,8 @@ git checkout regressionTestingUpdates
 cd data && bash fetchData.sh && cd ..      # only if you want ex06
 
 module avail python && module load python/<newer>    # NOT the 3.6.15 default
-python3 -m venv $SCRATCH/testing_paraview_env
+export PIP_CACHE_DIR=$SCRATCH_IOPS/sw/cache/pip   # home is not for work; pip caches ~1 GB per install
+python3 -m venv $SCRATCH_IOPS/sw/testing_paraview_env   # iops: the small NVMe, fast for python imports
 source $SCRATCH/testing_paraview_env/bin/activate
 pip install pandas numpy pillow matplotlib psutil
 deactivate
@@ -298,7 +299,7 @@ Run:
 module load python/3.10.13                 # the same python the venv was built with
 source ParaView_Vignettes/MODULES.sh mesa
 unset PYTHONPATH                           # see below
-source $SCRATCH/testing_paraview_env/bin/activate   # AFTER the modules, so its python wins
+source $SCRATCH_IOPS/sw/testing_paraview_env/bin/activate   # AFTER the modules, so its python wins
 srun --nodes=1 --ntasks=8 --cpus-per-task=24 -p workq --time=00:40:00 \
      --mem=200G -A <account> --pty /bin/bash
 cd Testing
@@ -329,8 +330,52 @@ And check the venv really holds the packages: a venv built on 2 Oct had none,
 and only looked fine because the `python/3.10.13` module's own `site-packages`
 was on `PYTHONPATH` at the time.
 
-The same recipe as a batch job, which is easier to steer remotely, is
-`run_pv_suite.sbat` in the directory above the clone on Shaheen.
+**Shaheen's ParaView has no numpy.** `paraview/6.1.0-mesa` ships without it, so
+Python Annotation renders the literal text "(error)" and ex05's frames fail the
+image gate at 2 to 4% (21 Oct 2026). Give ParaView's own python a user-site
+copy, built for its interpreter (3.12), on the iops disk:
+
+```bash
+pip download -d /tmp/wh --only-binary=:all: --python-version 3.12 \
+    --platform manylinux2014_x86_64 numpy
+mkdir -p $SCRATCH_IOPS/sw/pv-site && cd $SCRATCH_IOPS/sw/pv-site && \
+    python3 -m zipfile -e /tmp/wh/numpy-*.whl .
+PYTHONPATH=$SCRATCH_IOPS/sw/pv-site:$PYTHONPATH pvpython -c "import numpy; print(numpy.__file__)"
+```
+
+That `PYTHONPATH` is for `pvbatch` only. Run the harness as `python -E
+test_suite.py ...` so the venv python ignores the variable, and the children
+inherit it. `Testing/shaheen_pv_suite.sbat` does all of this; submit it from
+`Testing/` with `TESTS="5 6"` for a subset and `EXTRA="--run-id ..."` for the
+one recorded run (default `--no-metrics`). Ask KSL to add numpy to the module;
+until then the user site is the fix.
+
+**pvbatch's stdout is lost on this build unless the vignette prints through
+`sys.__stdout__`.** ParaView's capture helper only hands text to the real
+stdout at interpreter finalisation, which `exit_vignette()` skips, so every
+text gate failed on an empty `output.log` (21 Oct 2026). `VignetteContext`
+now switches to the real streams for ParaView vignettes; anything else run
+under `pvbatch` on Shaheen must do the same or redirect nothing and expect
+no output.
+
+**More than one rank: the vignette must end by falling off its script.**
+pvbatch runs the script on rank 0 only; the satellites wait for rank 0's
+normal shutdown. `os._exit()` and `sys.exit()` on rank 0 both leave them
+waiting until the walltime (a 2-rank cone on Shaheen, 21 Oct 2026: rank 0
+"done", rank 1 killed at the step's timeout; ex07 at 4, 8 and 16 ranks sat
+for 30 minutes the same way). `exit_vignette()` now returns on a clean
+verdict and keeps `os._exit()` for failures, and every `srun` launch carries
+`--kill-on-bad-exit=1` so a failing rank 0 takes the satellites with it.
+With that, ex07 at 16 ranks on 4 nodes ends in 5.5 s.
+
+**The image gate ignores one-to-four-level pixel noise.** `verify.py`'s
+`CHANNEL_NOISE_FLOOR` is 12 (summed RGB). Shaheen's llvmpipe differs from the
+GPU baselines by that much on a few percent of shaded pixels, which failed
+ex05 five frames out of five at a floor of 1; real changes are 60+ levels.
+
+**Mesa's 3D texture limit is 2048.** ex06's volumes vanished (56% of the frame
+different) because llvmpipe refuses a 2240-wide volume texture. ex06 now
+resamples at 2048 on every machine.
 
 Both suites share `shaheen3-cpu`: it names a machine and a rendering
 configuration, never a tool version. The tool version lives inside each

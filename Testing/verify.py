@@ -81,7 +81,16 @@ DEFAULT_IMAGE_TOLERANCE = 0.001
 
 # Per-channel sum below which a pixel counts as unchanged. Matches the
 # original harness, which ignored pixels whose summed RGB delta was <= 1.
-CHANNEL_NOISE_FLOOR = 1
+# Summed-RGB delta a pixel must exceed to count as different. 12 is about four
+# levels per channel: Shaheen's llvmpipe (LLVM 15, AVX-256) against a GPU
+# baseline differs by one to four levels on 3.7% of the pixels of ex05's shaded
+# cube (JPEG frames), which at a floor of 1 failed the 0.75% gate five frames
+# out of five, while only 0.003% of its pixels differ by more than four levels
+# (21 Oct 2026). Real changes clear this floor easily: the "(error)" text that
+# replaced ex05's time annotation differed by 60+ levels. Note the floor does
+# not rescue a small feature from the fraction test: that annotation is 0.1%
+# of the frame, so it passes a 0.75% tolerance whatever the floor.
+CHANNEL_NOISE_FLOOR = 12
 
 DEFAULT_RTOL = 1e-6
 DEFAULT_ATOL = 1e-9

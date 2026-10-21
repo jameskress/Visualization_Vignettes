@@ -121,7 +121,7 @@ echo "OpenGL window     : ${VTK_DEFAULT_OPENGL_WINDOW:-<vtk default>}"
 
 STATUS=0
 time XVFB_SCREEN="${VV_IMAGE_WIDTH}x${VV_IMAGE_HEIGHT}x24" "$VV_DISPLAY_WRAPPER" \
-    srun --nodes="$VV_NODES" --ntasks="$VV_RANKS" --cpus-per-task="$VV_THREADS" --hint=nomultithread --mem-bind=v,none --cpu-bind=v,cores \
+    srun --kill-on-bad-exit=1 --nodes="$VV_NODES" --ntasks="$VV_RANKS" --cpus-per-task="$VV_THREADS" --hint=nomultithread --mem-bind=v,none --cpu-bind=v,cores \
     "$PVBATCH" ./ex11_pvStateVerification.py \
         --machine shaheen \
         --nodes "$VV_NODES" \

@@ -1,0 +1,48 @@
+#!/bin/bash
+#SBATCH --account=k01
+#SBATCH --job-name=vv-pv-suite
+#SBATCH --partition=workq
+#SBATCH --nodes=1
+#SBATCH --ntasks=8
+#SBATCH --cpus-per-task=24
+#SBATCH --mem=200G
+#SBATCH --time=02:00:00
+#SBATCH --output=vv-pv-suite.%j.out
+# ParaView regression suite on a Shaheen workq node as a batch job (RUNBOOK.md section 6).
+#   cd /scratch/$USER/<clone>/Testing && sbatch shaheen_pv_suite.sbat
+#   TESTS="5 6" sbatch shaheen_pv_suite.sbat          # a subset
+#   EXTRA="--run-id shaheen-2026-10" sbatch ...       # the one recorded run; default is --no-metrics
+#   RANKS=4 TESTS="1 7" sbatch ...                   # MPI ranks per vignette (default 1)
+set -o pipefail
+cd "${SLURM_SUBMIT_DIR:-$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")}/.." || exit 1
+module load python/3.10.13
+source ParaView_Vignettes/MODULES.sh mesa
+# PYTHONPATH must not reach any python but ParaView's. The paraview module prepends its
+# python3.12 dirs, which break every other python ("SRE module mismatch"), and the harness
+# runs child pythons (run_tests.py), so neither unsetting it here nor `python -E` is enough.
+# Instead pvbatch is reached through a wrapper that sets PYTHONPATH for itself only:
+# the user-site numpy (Shaheen's build ships none, so Python Annotation renders "(error)").
+IOPS=${SCRATCH_IOPS:-/scratch/$USER/iops}
+PVSITE=$IOPS/sw/pv-site
+REAL_PVBATCH=$(command -v pvbatch)
+mkdir -p "$IOPS/sw/pvbin"
+for tool in pvbatch pvpython; do
+    cat > "$IOPS/sw/pvbin/$tool" <<WRAP
+#!/bin/bash
+export PYTHONPATH=$PVSITE
+exec $(dirname "$REAL_PVBATCH")/$tool "\$@"
+WRAP
+    chmod +x "$IOPS/sw/pvbin/$tool"
+done
+unset PYTHONPATH
+export PARAVIEW_PATH="$IOPS/sw/pvbin"
+export PATH="$PARAVIEW_PATH:$PATH"
+source "${SCRATCH_IOPS:-/scratch/$USER/iops}/sw/testing_paraview_env/bin/activate"   # after the modules
+echo "python=$(which python) pvbatch=$(which pvbatch) node=$(hostname) start=$(date)"
+echo "pvbatch wrapper: $(cat $PARAVIEW_PATH/pvbatch | tail -1)"
+cd Testing
+python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+  --machine_name shaheen3-cpu --machine shaheen --launcher srun \
+  --image-tolerance 0.0075 --non_gpu_machine ${EXTRA:---no-metrics} --ranks ${RANKS:-1} \
+  --test_number ${TESTS:-0 1 2 3 4 5 6 7 8 9 10 11 12} --timeout 1800
+echo "suite exit=$? end=$(date)"

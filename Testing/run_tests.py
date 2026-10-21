@@ -706,6 +706,9 @@ def build_paraview_command(script_path, vignette_args, args):
         cmd = (
             [
                 srun_exec,
+                # a failing rank 0 exits via os._exit() and would otherwise leave
+                # the satellite ranks waiting until the walltime
+                "--kill-on-bad-exit=1",
                 "--hint=nomultithread",
                 "--nodes={0}".format(args.nodes),
                 "--ntasks={0}".format(args.ranks),
