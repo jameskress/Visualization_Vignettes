@@ -173,18 +173,18 @@ so the default 0.001 is the right gate. Everywhere else, see section 10.
 About 6 minutes per suite, of which ex06 is half.
 
 **A record is only as quiet as the machine.** The 21 Oct 2026 workstation
-record was taken twice: the first time a long-running Omniverse `kit`
-process held three cores and every ParaView vignette came out 3 s slower,
-so it was removed with `manage_metrics.py --remove-run <id> -y` (exact, and
-`git diff` shows what went). The second, with `kit` stopped, still shows
-ParaView 40 to 120% slower than September on the quick vignettes while
-VisIt is unchanged: creating the GLX render window on this X session now
-costs about 3 s in every pvbatch (6.0.1 and 6.1.0 alike; under 1 s with no
-DISPLAY), and the one thing that changed on the display since September is
-an active VNC session. Measured afterwards: it is not VNC but the display GPU being shared with
-the desktop, and the Claude desktop app's GPU process in particular (pausing
-it alone cut GLX context creation by a third). So a clean workstation record
-is taken from a plain terminal with that app closed:
+record took three attempts. With a 24-day-old Omniverse `kit` process holding
+three cores, every ParaView vignette came out 3 s slower; removed with
+`manage_metrics.py --remove-run <id> -y` (exact; `git diff` shows what went).
+With `kit` stopped but the Claude desktop app open, still 40 to 120% slower on
+the quick vignettes: its GPU process shares the display GPU, and pausing it
+alone cut GLX context creation from 1.36 s to 0.9 s. With that app and the VNC
+viewer closed, from a plain terminal (load 1.5): every gate passes, ex06 is
+faster than September (185 s against 192 s) and the quick vignettes carry about
+one extra second each, which is what creating GLX contexts costs on this
+41-day-old X session with four monitors. That is the record. VisIt renders
+without X and never moved. So a clean workstation record is taken from a
+plain terminal with the desktop quiet:
 
 ```bash
 export PARAVIEW_PATH=$HOME/packages/ParaView-6.1.0-MPI-Linux-Python3.12-x86_64/bin
