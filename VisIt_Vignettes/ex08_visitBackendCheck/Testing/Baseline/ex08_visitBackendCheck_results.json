@@ -29,8 +29,6 @@
   "machine": "local",
   "message": "",
   "metrics": {
-    "compute_engine_launched": false,
-    "engine_is_parallel": false,
     "engine_side_render_succeeded": true,
     "hw_accel_requested": false,
     "image_height": 1024,
@@ -40,6 +38,8 @@
   "notes": [
     "visit_version=3.4.2",
     "engine_hosts=KW61316.kaust.edu.sa",
+    "compute_engine_launched=False",
+    "engine_is_parallel=False",
     "engine_num_procs=1",
     "engine_num_nodes=1"
   ],
@@ -49,9 +49,9 @@
   "schema_version": 1,
   "status": "ok",
   "timings": {
-    "render": 0.30171
+    "render": 0.339181
   },
   "tool": "VisIt",
   "vignette": "ex08_visitBackendCheck",
-  "wall_time_s": 0.912335
+  "wall_time_s": 1.20369
 }

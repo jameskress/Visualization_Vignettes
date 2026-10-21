@@ -211,8 +211,12 @@ def run(ctx):
             "engine_hosts={0}".format(",".join(attributes["unique_hosts"]))
         )
 
-    ctx.add_metric("compute_engine_launched", bool(engine_launched))
-    ctx.add_metric("engine_is_parallel", bool(is_parallel))
+    # Launch facts, not data facts: on a workstation at one rank there is no
+    # separate engine and it is serial, on Shaheen at 8 ranks both are true,
+    # and the numeric gate turned that into a regression (21 Oct 2026). They
+    # go to notes, as AGENTS.md says environment-dependent facts must.
+    ctx.notes.append("compute_engine_launched={0}".format(bool(engine_launched)))
+    ctx.notes.append("engine_is_parallel={0}".format(bool(is_parallel)))
     ctx.add_metric("hw_accel_requested", bool(ctx.args.hw_accel))
 
     # Process and node counts are recorded as notes rather than metrics: they

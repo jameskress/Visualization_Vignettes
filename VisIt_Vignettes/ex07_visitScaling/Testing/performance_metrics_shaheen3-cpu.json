@@ -1,0 +1,29 @@
+{
+    "2026-10-21T13:09:32.324527": {
+        "test_name": "ex07_visitScaling",
+        "metrics_schema": 4,
+        "execution_time": 6.054925441741943,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 16.845789594174686,
+        "cpu_seconds": 1.02,
+        "memory_usage_mb": 308.09,
+        "memory_usage": 323055779.84,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.98031,
+        "harness_rss_mb": 151.3359375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00051",
+            "release": "6.4.0-150700.53.81-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Thu Sep  3 13:03:04 UTC 2026 (1eef04e)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        },
+        "run_id": "shaheen3-cpu-2026-10-21"
+    }
+}

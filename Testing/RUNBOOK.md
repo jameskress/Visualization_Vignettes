@@ -206,7 +206,7 @@ python test_suite.py ../ --test_type ParaView --paraview_version <version> \
 ```
 
 ```bash
-source VisIt_Vignettes/MODULES.sh                 # visit/3.4.1
+source VisIt_Vignettes/MODULES.sh                 # visit/3.4.1 on Ibex, 3.4.2 on Shaheen
 source $SCRATCH/testing_visit_env/bin/activate
 python test_suite.py ../ --test_type VisIt --visit_version 3.4.1 \
   --machine_name ibex-cpu --machine ibex --launcher mpirun \
@@ -310,14 +310,28 @@ python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
 ```
 
 ```bash
-module load visit                          # check: module avail visit
-source $SCRATCH/testing_visit_env/bin/activate
+source VisIt_Vignettes/MODULES.sh          # visit/3.4.2: Shaheen III has no 3.4.1 any more,
+                                           # and a bare `module load visit` does not resolve
+source $SCRATCH_IOPS/sw/testing_visit_env/bin/activate
 python3 Testing/prepare_machine.py --tool VisIt
-python test_suite.py ../ --test_type VisIt --visit_version 3.4.1 \
+python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
   --machine_name shaheen3-cpu --machine shaheen --launcher srun \
   --nodes 1 --ranks 8 --image-tolerance 0.0075 \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
+
+As a batch job, which also runs ex11 under Xvfb afterwards (the compute nodes
+have it): `Testing/shaheen_visit_suite.sbat`, submitted from `Testing/`, with
+the same `TESTS`, `RANKS` (default 8, the rank count ex06 is blessed at) and
+`EXTRA` knobs as the ParaView one. Inside the allocation the engine starts
+as a job step (`-l srun -nn 1 -np 8`), which the harness arranges itself.
+
+First VisIt run on Shaheen (21 Oct 2026): 11 of 13 clean. ex06's image
+differs from the workstation baseline by renderer (Mesa volume rendering),
+so it has its own baseline in `Testing/Baseline/shaheen3-cpu/` like the
+ParaView one. ex08 recorded "engine launched" and "engine is parallel" as
+metrics, which are launch facts and are now notes; its shared numeric
+baseline was re-blessed on the workstation.
 
 **Order and `PYTHONPATH` matter on Shaheen** (found 21 Oct 2026). The
 `paraview/6.1.0-mesa` module prepends ParaView's own `lib/python3.12` and its

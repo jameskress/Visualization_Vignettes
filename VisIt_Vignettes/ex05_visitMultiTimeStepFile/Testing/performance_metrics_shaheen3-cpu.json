@@ -49,5 +49,32 @@
             "paraview_version": null,
             "visit_version": "3.4.2"
         }
+    },
+    "2026-10-21T13:08:21.479927": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "metrics_schema": 4,
+        "execution_time": 14.413747787475586,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 64.93800320367131,
+        "cpu_seconds": 9.36,
+        "memory_usage_mb": 763.434,
+        "memory_usage": 800518569.984,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 14.342355,
+        "harness_rss_mb": 144.3203125,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00051",
+            "release": "6.4.0-150700.53.81-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Thu Sep  3 13:03:04 UTC 2026 (1eef04e)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        },
+        "run_id": "shaheen3-cpu-2026-10-21"
     }
 }

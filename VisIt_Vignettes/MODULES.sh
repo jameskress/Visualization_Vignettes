@@ -53,8 +53,11 @@ case "$OSVERSION" in
     module load visit/3.4.1
   ;;
 "\"SLES\""*) # Shaheen
-    module load ffmpeg
-    module load visit/3.4.1
+    module load ffmpeg 2>/dev/null   # no ffmpeg module on Shaheen III; harmless
+    # Shaheen III carries visit/3.4.2 only (21 Oct 2026); a bare `module load visit`
+    # does not resolve there, the version has to be spelled out.
+    module load visit/3.4.2
+    VV_VISIT_MODULE="visit/3.4.2"
   ;;
 *)
     echo ERROR: Unrecognised operating system "$OSVERSION"
@@ -64,5 +67,5 @@ esac
 
 # Recorded for the vignettes and for the log. The engine that the
 # customlauncher submits must be this same version.
-export VV_VISIT_MODULE="visit/3.4.1"
+export VV_VISIT_MODULE="${VV_VISIT_MODULE:-visit/3.4.1}"
 echo "Loaded VisIt module: $VV_VISIT_MODULE"
