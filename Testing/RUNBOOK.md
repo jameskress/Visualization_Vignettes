@@ -181,9 +181,20 @@ ParaView 40 to 120% slower than September on the quick vignettes while
 VisIt is unchanged: creating the GLX render window on this X session now
 costs about 3 s in every pvbatch (6.0.1 and 6.1.0 alike; under 1 s with no
 DISPLAY), and the one thing that changed on the display since September is
-an active VNC session. That record stands, labelled here; re-run it from a
-console session, or with VNC disconnected, and remove this one if the gap
-closes.
+an active VNC session. Measured afterwards: it is not VNC but the display GPU being shared with
+the desktop, and the Claude desktop app's GPU process in particular (pausing
+it alone cut GLX context creation by a third). So a clean workstation record
+is taken from a plain terminal with that app closed:
+
+```bash
+export PARAVIEW_PATH=$HOME/packages/ParaView-6.1.0-MPI-Linux-Python3.12-x86_64/bin
+export VISIT_PATH=$HOME/packages/visit3_4_2.linux-x86_64/bin
+Testing/record_local_run.sh KW61316-2026-10-21 KW61316.kaust.edu.sa
+```
+
+`record_local_run.sh` removes any earlier record with that id, runs both
+suites (VisIt's ex11 under Xvfb), and prints the gate and performance
+verdicts; commit the `performance_metrics_<machine>.json` files it changed.
 
 ---
 
