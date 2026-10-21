@@ -202,11 +202,19 @@ yslice.SliceType.Normal = [0.0, 1.0, 0.0]
 # init the 'Plane' selected for 'HyperTreeGridSlicer'
 yslice.HyperTreeGridSlicer.Origin = [1120.0, 752.5, 44.5]
 
+# Volume resample dimensions. The grid is 2240 wide, but Mesa's llvmpipe caps
+# GL_MAX_3D_TEXTURE_SIZE at 2048: vtkVolumeTexture then logs "Invalid texture
+# dimensions [2240, 1505, 90]" and the two volumes silently vanish from the
+# frame (Shaheen workq, 21 Oct 2026: 56% of pixels differed from the baseline,
+# no clouds, no rain). 2048 is used on every machine so the image is the same
+# everywhere; the 9% coarser sampling in x is invisible at this zoom.
+VOLUME_SAMPLING_DIMENSIONS = [2048, 1505, 90]
+
 # create a new 'Resample To Image'
 resampleToImageqice = ResampleToImage(
     registrationName="ResampleToImage qice", Input=cyclonechapala20151102_000000mbvtm
 )
-resampleToImageqice.SamplingDimensions = [2240, 1505, 90]
+resampleToImageqice.SamplingDimensions = VOLUME_SAMPLING_DIMENSIONS
 resampleToImageqice.SamplingBounds = [0.0, 2240.0, 0.0, 1505.0, 0.0, 712.0]
 
 # create a new 'VisItSiloReader'
@@ -221,7 +229,7 @@ currentRainfallsilo.PointArrayStatus = ["calculatedRain"]
 resampleToImageqrain = ResampleToImage(
     registrationName="ResampleToImage qrain", Input=cyclonechapala20151102_000000mbvtm
 )
-resampleToImageqrain.SamplingDimensions = [2240, 1505, 90]
+resampleToImageqrain.SamplingDimensions = VOLUME_SAMPLING_DIMENSIONS
 resampleToImageqrain.SamplingBounds = [0.0, 2240.0, 0.0, 1505.0, 0.0, 712.0]
 
 # create a new 'Slice'

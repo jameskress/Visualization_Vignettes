@@ -375,7 +375,13 @@ ex05 five frames out of five at a floor of 1; real changes are 60+ levels.
 
 **Mesa's 3D texture limit is 2048.** ex06's volumes vanished (56% of the frame
 different) because llvmpipe refuses a 2240-wide volume texture. ex06 now
-resamples at 2048 on every machine.
+resamples at 2048 on every machine, and its baseline was re-blessed on the
+workstation on 21 Oct 2026. Its image gate still cannot pass across machines:
+the Surface LIC noise pattern is different on every renderer, so Shaheen's
+frame differs from the workstation baseline over most of the LIC plane
+however the volumes come out. Read ex06's image verdict on Shaheen by eye
+(clouds and rain present, terrain and arrows in place) until the harness
+grows per-machine baselines.
 
 Both suites share `shaheen3-cpu`: it names a machine and a rendering
 configuration, never a tool version. The tool version lives inside each

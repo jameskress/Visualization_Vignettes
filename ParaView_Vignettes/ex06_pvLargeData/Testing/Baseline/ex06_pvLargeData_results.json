@@ -12,6 +12,7 @@
     1024,
     1024
   ],
+  "image_tolerance": 0.05,
   "images": [
     "ex06.png"
   ],
@@ -22,7 +23,9 @@
     "missing_images": 0
   },
   "nodes": 1,
-  "notes": [],
+  "notes": [
+    "image tolerance 5.0000%: Surface LIC with contrast enhancement is not reproducible run to run under forced-offscreen GLX; measured 4.1% against its own output"
+  ],
   "numeric_extracts": [],
   "platform": "Linux",
   "ranks": 1,
@@ -31,5 +34,5 @@
   "timings": {},
   "tool": "ParaView",
   "vignette": "ex06_pvLargeData",
-  "wall_time_s": 183.927339
+  "wall_time_s": 183.64867
 }
