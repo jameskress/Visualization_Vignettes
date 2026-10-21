@@ -381,6 +381,7 @@ class VignetteContext(object):
         # default. None means "use whatever --image-tolerance says".
         self.image_tolerance = None
         self.notes = []
+        self._skipped = False
         self._start = time.time()
 
         self.log("=" * 68)
@@ -753,6 +754,13 @@ class VignetteContext(object):
         it sits next to the existing text and image artifacts rather than
         replacing them.
         """
+        # A skip is final. Once skip() has written it, a later call from a
+        # vignette that somehow kept running (a custom exit_func that returned,
+        # say) must not promote the run back to "ok": that is exactly how an
+        # empty scene ended up compared against the real baseline in CI.
+        if self._skipped and status != "skipped":
+            status = "skipped"
+            message = message or (self.notes[-1] if self.notes else "")
         payload = {
             "schema_version": SCHEMA_VERSION,
             "vignette": self.name,
@@ -796,11 +804,27 @@ class VignetteContext(object):
         A missing input that is NOT in that category is still a failure. Use
         `ctx.dataset(key)`, which raises, for anything the repository ships
         or generates.
+
+        Call this before any view or render window exists, and before a VisIt
+        compute engine is opened: it ends the process with sys.exit(0).
         """
         self.log("SKIPPED: {0}".format(reason))
         self.notes.append("SKIPPED: " + reason)
+        self._skipped = True
         self.write_results(status="skipped", message=reason)
-        (exit_func or exit_vignette)(0)
+        # Not exit_vignette(): that returns on code 0 so a finished script can
+        # fall off its end (the only exit that releases MPI satellites), and a
+        # skip is never at the end of its script. Returning here let ex06 run
+        # on without its data, render an empty scene, and overwrite this
+        # verdict with "ok" (GitHub CI run #99, 21 Oct 2026). sys.exit(0) is
+        # safe at this point because no render window exists yet, which is
+        # the one condition under which pvbatch's teardown segfaults.
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:  # noqa: BLE001
+            pass
+        (exit_func or sys.exit)(0)
 
     def write_timing_csv(self, filename=None, rows=None):
         """Write a scaling/timing CSV next to the images.
