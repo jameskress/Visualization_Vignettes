@@ -172,6 +172,19 @@ so the default 0.001 is the right gate. Everywhere else, see section 10.
 
 About 6 minutes per suite, of which ex06 is half.
 
+**A record is only as quiet as the machine.** The 21 Oct 2026 workstation
+record was taken twice: the first time a long-running Omniverse `kit`
+process held three cores and every ParaView vignette came out 3 s slower,
+so it was removed with `manage_metrics.py --remove-run <id> -y` (exact, and
+`git diff` shows what went). The second, with `kit` stopped, still shows
+ParaView 40 to 120% slower than September on the quick vignettes while
+VisIt is unchanged: creating the GLX render window on this X session now
+costs about 3 s in every pvbatch (6.0.1 and 6.1.0 alike; under 1 s with no
+DISPLAY), and the one thing that changed on the display since September is
+an active VNC session. That record stands, labelled here; re-run it from a
+console session, or with VNC disconnected, and remove this one if the gap
+closes.
+
 ---
 
 ## 5. Ibex

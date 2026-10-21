@@ -25,5 +25,32 @@
             "visit_version": null
         },
         "run_id": "pv610-local-2026-09-21"
+    },
+    "2026-10-21T13:27:26.764767": {
+        "test_name": "ex08_pvBackendCheck",
+        "metrics_schema": 4,
+        "execution_time": 7.833381414413452,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 51.06351635884836,
+        "cpu_seconds": 4.0,
+        "memory_usage_mb": 598.277,
+        "memory_usage": 627338903.552,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 7.687926,
+        "harness_rss_mb": 177.0546875,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.1.0",
+            "visit_version": null
+        },
+        "run_id": "KW61316-2026-10-21"
     }
 }
