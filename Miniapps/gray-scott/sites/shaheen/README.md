@@ -1,3 +1,21 @@
+# Running with Catalyst on a workq node: set the OSMesa window first
+
+The Catalyst implementation in `software/paraview-build` is an EGL build. On a
+`workq` node, which has no GPU, its EGL window creation falls into the system
+Mesa (`libEGL_mesa` / `libgallium`) and segfaults in `_glapi_add_dispatch` at
+the first render, on a handful of ranks, before any image is written (21 Oct
+2026, core backtrace). The superbuild also carries OSMesa, so tell VTK to use
+its own offscreen window and EGL is never touched:
+
+```bash
+export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
+srun ... ./gray-scott --settings-file=settings.json
+```
+
+The simulation alone (`output_type: none`) is unaffected; only the Catalyst
+render path needs it. A 256^3 run on one node (64 ranks x 3 threads) with a
+JPG every 10 steps is the HPC Saudi 2026 live demo.
+
 # Building Ascent
 Ascent was not properly passing the `cc` and `CC` compiler wrappers to all of its sub builds. Below is what worked on the last build. 
 

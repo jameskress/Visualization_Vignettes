@@ -751,6 +751,7 @@ often deliberately the older build.
 | ex08 fails on a GPU queue | the module variant is Mesa, or EGL found no device | check `$VV_PARAVIEW_MODULE` and that you are on `ppn` with the `video` group |
 | ex11 fails | forced offscreen | run it alone under `Scripts/run_with_display.sh` with `--no-offscreen` |
 | ex06 reports SKIPPED | its 5.7 GB is not on this machine | expected; `cd data && bash fetchData.sh` if you want it |
+| ex06 fails its image gate by ~70% where its data is absent (CI) | `ctx.skip()` returned instead of exiting, so the vignette rendered an empty scene and overwrote the skipped verdict | fixed 21 Oct 2026: `skip()` ends the process with `sys.exit(0)` and a skipped status is sticky in `write_results()`; see AGENTS.md |
 | `sbatch` refuses the job | `ntasks-per-node x cpus-per-task` exceeds the node | 192 on Shaheen `workq`, 128 on `ppn`, as low as 30 on an Ibex GPU node |
 | Suite refuses to start | preflight failed | read what `--check` said; `--skip-preflight` exists but every way a stale fixture fails looks like a regression |
 | A venv copied from another machine does not work | venvs are not relocatable | rebuild it from the wheelhouse on this machine |

@@ -131,6 +131,13 @@ measurements in `Testing/LOCAL_VALIDATION.md` §4 and §4b.
 * **pvbatch segfaults on `sys.exit()`** when a render window exists and there
   is no X display, which is every offscreen batch run. Use
   `vc.exit_vignette()`.
+* **`exit_vignette(0)` returns; it does not exit.** A clean run must fall
+  off the end of its script so MPI satellites are released, so the call is
+  only meaningful as the last statement. Anything that must stop early, such
+  as `ctx.skip()`, calls `sys.exit(0)` itself, which is safe before any
+  render window exists. When `skip()` used `exit_vignette(0)`, ex06 ran on
+  without its data, rendered an empty scene and overwrote its own skipped
+  verdict with "ok", failing the CI image gate (run #99, 21 Oct 2026).
 * **`Show()` auto-rescales a lookup table** the first time it colours by an
   array. Set the preset and rescale *after* every `Show`/`ColorBy`, or the
   rescale is silently undone. This cost a 26.5% whole-frame regression twice.
