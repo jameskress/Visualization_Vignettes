@@ -1,0 +1,29 @@
+{
+    "2026-10-25T22:34:31.338817": {
+        "test_name": "ex09_pvMeshTopologies",
+        "metrics_schema": 4,
+        "execution_time": 6.413625717163086,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 46.46357819143415,
+        "cpu_seconds": 2.98,
+        "memory_usage_mb": 564.035,
+        "memory_usage": 591433564.16,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.129921,
+        "harness_rss_mb": 208.9375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-07",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-egl-rtx2080ti-2026-10-25"
+    }
+}

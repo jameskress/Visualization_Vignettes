@@ -1,0 +1,29 @@
+{
+    "2026-10-25T22:34:08.873232": {
+        "test_name": "ex07_pvScaling",
+        "metrics_schema": 4,
+        "execution_time": 51.71359467506409,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 6.3619634656463235,
+        "cpu_seconds": 3.29,
+        "memory_usage_mb": 400.062,
+        "memory_usage": 419495411.712,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 41.615763,
+        "harness_rss_mb": 200.9375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-07",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-egl-rtx2080ti-2026-10-25"
+    }
+}
