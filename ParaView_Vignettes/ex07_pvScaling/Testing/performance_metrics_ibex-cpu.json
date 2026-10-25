@@ -1,0 +1,29 @@
+{
+    "2026-10-25T14:01:20.908933": {
+        "test_name": "ex07_pvScaling",
+        "metrics_schema": 4,
+        "execution_time": 1.8119678497314453,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 108.16968967139758,
+        "cpu_seconds": 1.96,
+        "memory_usage_mb": 445.234,
+        "memory_usage": 466861686.784,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 1.768199,
+        "harness_rss_mb": 168.30859375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn511-24",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-cpu-2026-10-25"
+    }
+}

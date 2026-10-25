@@ -1,0 +1,29 @@
+{
+    "2026-10-25T14:01:22.715617": {
+        "test_name": "ex08_pvBackendCheck",
+        "metrics_schema": 4,
+        "execution_time": 1.2089579105377197,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 104.22199061004348,
+        "cpu_seconds": 1.26,
+        "memory_usage_mb": 439.992,
+        "memory_usage": 461365051.392,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 1.167277,
+        "harness_rss_mb": 177.8125,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn511-24",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-cpu-2026-10-25"
+    }
+}

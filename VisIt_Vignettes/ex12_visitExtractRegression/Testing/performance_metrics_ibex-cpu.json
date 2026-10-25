@@ -1,0 +1,29 @@
+{
+    "2026-10-25T14:01:28.771763": {
+        "test_name": "ex12_visitExtractRegression",
+        "metrics_schema": 4,
+        "execution_time": 3.6155951023101807,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 17.147937820909526,
+        "cpu_seconds": 0.62,
+        "memory_usage_mb": 291.941,
+        "memory_usage": 306122326.016,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.571405,
+        "harness_rss_mb": 207.4765625,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn511-21",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        },
+        "run_id": "ibex-cpu-2026-10-25"
+    }
+}
