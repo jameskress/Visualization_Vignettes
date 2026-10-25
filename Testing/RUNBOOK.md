@@ -321,6 +321,12 @@ What the job scripts work around, so you do not rediscover it:
   unmerged on every build and the baseline is the unmerged numbers (re-blessed
   25 Oct 2026).
 * `visit/3.4.2` is the only VisIt; `VisIt_Vignettes/MODULES.sh` loads it.
+* **Ibex compute nodes have no Xvfb**, so ex11 (the one vignette that needs a
+  display) is skipped by the batch suites. The login node has `/usr/bin/Xvfb`;
+  run ex11 there for a record, with the same `--run-id` and `--launcher none`:
+  `XVFB_SCREEN=1280x1280x24 ../Scripts/run_with_display.sh python -E test_suite.py
+  ../ --test_type ParaView ... --test_number 11 --no-offscreen`. It is a
+  two-minute, one-process job, which is all a login node should carry.
 
 ### Submission scripts instead of an interactive session
 
@@ -507,10 +513,17 @@ directory, not through its own path (fixed 21 Oct 2026; before that every
 
 ## 7. Shaheen III, GPU (`ppn`)
 
-The `ppn` partition has the GPUs and **requires membership of the `video`
-Unix group**. Check with `groups`; request it from help@hpc.kaust.edu.sa.
-`ppn` nodes have fewer CPU cores than `workq`, 128 rather than 192, so size
-jobs against that.
+The `ppn` partition has the GPUs: two NVIDIA L40 (46 GB, driver 580) on a
+256-core AMD EPYC 9534 node with 3 TB (25 Oct 2026; the partition also holds
+GPU-less highmem nodes, so always ask for `--gres=gpu:1`). It worked without
+the `video` Unix group that day (`AllowGroups=ALL`); if a submission is
+refused, that group is the first thing to ask help@hpc.kaust.edu.sa for.
+
+As batch jobs: `Testing/shaheen_ppn_pv_suite.sbat` (EGL module, `--gres=gpu:1`,
+machine `shaheen3-ppn-gpu-L40`, GPU baselines at the default tolerance) and
+`Testing/shaheen_ppn_visit_suite.sbat` (machine `shaheen3-ppn`), submitted
+from `Testing/` with the same `TESTS`, `RANKS` and `EXTRA` knobs as the workq
+ones. Run `TESTS="8"` first, for the reason below.
 
 ```bash
 source ParaView_Vignettes/MODULES.sh egl     # paraview/6.1.0-egl
@@ -527,7 +540,7 @@ python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
 ```bash
 source VisIt_Vignettes/MODULES.sh
 source $SCRATCH/testing_visit_env/bin/activate
-python test_suite.py ../ --test_type VisIt --visit_version 3.4.1 \
+python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
   --machine_name shaheen3-ppn --machine shaheen --launcher srun \
   --nodes 1 --ranks 8 --timeout 1800
 ```
