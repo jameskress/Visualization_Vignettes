@@ -1,0 +1,45 @@
+#!/bin/bash -l
+#SBATCH --account=pi-ghanis
+#SBATCH --job-name=vv-visit-suite
+#SBATCH --partition=batch
+#SBATCH --nodes=1
+#SBATCH --ntasks=8
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=100G
+#SBATCH --time=02:00:00
+#SBATCH --output=vv-visit-suite.%j.out
+# VisIt regression suite on an Ibex node as a batch job (RUNBOOK.md section 5).
+#   cd /ibex/scratch/$USER/<clone>/Testing && sbatch ibex_visit_suite.sbat
+#   TESTS="5 6" sbatch ...   EXTRA="--run-id ibex-cpu-2026-10" sbatch ...   RANKS=8 (default)
+set -o pipefail
+# Ibex batch shells do not define `module`; a login shell (-l) plus this makes sure it exists.
+source /usr/share/Modules/init/bash                   # the batch shell has `module` as a binary that cannot change this shell's env
+# Compute nodes default to the CPU module tree (/sw/rl9c), whose ParaView entry requires an
+# OpenMPI build that only the GPU tree (/sw/rl9g) carries. All of /sw is mounted everywhere,
+# so prepend the GPU tree: python/3.11.0 (the venv's base) and paraview then resolve from it.
+module use /sw/rl9g/modulefiles/applications /sw/rl9g/modulefiles/libs /sw/rl9g/modulefiles/compilers
+cd "${SLURM_SUBMIT_DIR:-$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")}/.." || exit 1
+SW=${VV_IBEX_SW:-/ibex/scratch/$USER/hpcsaudi}
+module load python/3.11.0
+source VisIt_Vignettes/MODULES.sh
+unset PYTHONPATH
+source "$SW/venvs/vv/bin/activate"
+VISIT_VERSION=$(visit -version 2>&1 | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
+echo "python=$(which python) visit=$(which visit) version=$VISIT_VERSION node=$(hostname) start=$(date)"
+python Testing/prepare_machine.py --tool VisIt || { echo "prepare_machine failed"; exit 1; }
+cd Testing
+RANKS=${RANKS:-8}
+COMMON="../ --test_type VisIt --visit_version $VISIT_VERSION --machine_name ibex-cpu --machine ibex --launcher mpirun --nodes 1 --ranks $RANKS --image-tolerance 0.0075 ${EXTRA:---no-metrics} --timeout 1800"
+if [ -n "${TESTS:-}" ]; then
+    python test_suite.py $COMMON --test_number $TESTS
+    echo "suite exit=$? end=$(date)"
+else
+    python test_suite.py $COMMON --test_number 0 1 2 3 4 5 6 7 8 9 10 12
+    echo "suite exit=$? end=$(date)"
+    if command -v Xvfb >/dev/null; then
+        XVFB_SCREEN=1024x1024x24 ../Scripts/run_with_display.sh python test_suite.py $COMMON --test_number 11
+        echo "ex11 exit=$? (under Xvfb) end=$(date)"
+    else
+        echo "ex11 skipped: no Xvfb on $(hostname)"
+    fi
+fi

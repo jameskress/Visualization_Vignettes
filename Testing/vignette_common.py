@@ -824,7 +824,12 @@ class VignetteContext(object):
             sys.stderr.flush()
         except Exception:  # noqa: BLE001
             pass
-        (exit_func or sys.exit)(0)
+        if exit_func is not None:
+            exit_func(0)
+        elif _local_partitions() > 1:
+            sys.exit(0)          # satellites must be released; interpreter teardown runs
+        else:
+            os._exit(0)          # one rank: skip teardown, which Ibex's ParaView build segfaults in
 
     def write_timing_csv(self, filename=None, rows=None):
         """Write a scaling/timing CSV next to the images.
@@ -1459,12 +1464,24 @@ def exit_vignette(code):
     # full step after rank 0 had finished; sys.exit(0) hung the same way, and
     # servermanager.Finalize() before os._exit() segfaulted). Every call site
     # is the last statement of its script, so returning is the end of the run.
+    # A single rank has no satellites, so it always takes os._exit(): Ibex's site
+    # ParaView 6.0.1 build segfaults in teardown even on a clean run (25 Oct 2026),
+    # and only a multi-rank run needs to fall off the end.
     # A failure keeps os._exit(): the status must reach the harness unaltered,
     # and the srun launches carry --kill-on-bad-exit=1 so the satellites are
     # torn down with rank 0 instead of waiting.
-    if int(code) == 0:
+    if int(code) == 0 and _local_partitions() > 1:
         return
     os._exit(int(code))
+
+
+def _local_partitions():
+    """MPI ranks in this pvbatch, 1 when not under MPI or not ParaView."""
+    try:
+        from paraview import servermanager as _sm
+        return int(_sm.vtkProcessModule.GetProcessModule().GetNumberOfLocalPartitions())
+    except Exception:  # noqa: BLE001 - VisIt, or no server manager yet
+        return 1
 
 
 def _csv_cell(value):

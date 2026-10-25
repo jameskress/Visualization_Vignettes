@@ -177,24 +177,30 @@ def process_topology(ctx, manifest, view, key, label):
     # that would need updating whenever ParaView renames a reader proxy.
     with ctx.phase("io_{0}".format(key)):
         reader = OpenDataFile(path)
+        # The AMR reader's level limit is a build default, not a file property:
+        # Kitware's binaries read every level, Ibex's site build of 6.0.1 reads
+        # one (125 cells, the 5x5x5 coarsest level, against 605 in the
+        # baseline; 25 Oct 2026). Zero means all levels on every build.
+        if "DefaultNumberOfLevels" in reader.ListProperties():
+            reader.DefaultNumberOfLevels = 0
         if reader is None:
             raise vc.VignetteError("No reader available for {0}".format(path))
         UpdatePipeline(proxy=reader)
 
     source = reader
-    if key in COMPOSITE_KEYS:
-        # MergeBlocks accepts a vtkOverlappingAMR in ParaView 6.1 and refuses
-        # it in 6.0.1 -- "Input ... is of type vtkOverlappingAMR, but a
-        # vtkDataObjectTree is required" -- which matters because Ibex runs
-        # 6.0.1 and Shaheen runs 6.1.0. VTK reports that through its error
-        # channel rather than raising, so the failure arrives later and in
-        # disguise: an empty output, and then "Scalar 'scalar' absent from
-        # amr_hierarchy.vthb. Available point arrays: []".
-        #
-        # Rather than branching on a version, merge and then check whether
-        # anything came out. ParaView's Contour takes composite input
-        # directly, so the unmerged reader is a perfectly good fallback --
-        # flattening was only ever for one predictable code path.
+    if key in COMPOSITE_KEYS and key != "amr":
+        # MergeBlocks accepts a vtkOverlappingAMR in some builds and refuses
+        # it in others -- "Input ... is of type vtkOverlappingAMR, but a
+        # vtkDataObjectTree is required" -- and the two outcomes are not the
+        # same dataset: merging collapses the coincident points on level
+        # boundaries (842 points, scalar max 0.333) while the unmerged
+        # hierarchy keeps them (986 points, max 0.4145). Kitware's 6.0.1 and
+        # 6.1.0 merge; Ibex's site build of 6.0.1 refuses (25 Oct 2026). A
+        # "merge, then fall back if empty" rule therefore made the numeric
+        # baseline depend on the build, so the AMR hierarchy is never merged:
+        # Contour takes the composite directly on every build, and the
+        # baseline is the unmerged numbers. Multiblock still goes through
+        # MergeBlocks, which every build accepts.
         merged = MergeBlocks(Input=reader, registrationName="ex09_merge_" + key)
         UpdatePipeline(proxy=merged)
         if int(merged.GetDataInformation().GetNumberOfPoints()) > 0:

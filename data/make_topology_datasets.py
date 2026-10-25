@@ -522,4 +522,9 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Not sys.exit(): ParaView's python can segfault in interpreter teardown (Ibex's
+    # site 6.0.1 build does, every run, after the files are safely written), and a
+    # 139 from a generator reads as "fixture missing" in prepare_machine.py.
+    _rc = main()
+    sys.stdout.flush(); sys.stderr.flush()
+    os._exit(int(_rc or 0))

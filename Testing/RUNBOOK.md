@@ -230,9 +230,9 @@ python test_suite.py ../ --test_type ParaView --paraview_version <version> \
 ```
 
 ```bash
-source VisIt_Vignettes/MODULES.sh                 # visit/3.4.1 on Ibex, 3.4.2 on Shaheen
+source VisIt_Vignettes/MODULES.sh                 # visit/3.4.2 on both Ibex and Shaheen
 source $SCRATCH/testing_visit_env/bin/activate
-python test_suite.py ../ --test_type VisIt --visit_version 3.4.1 \
+python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
   --machine_name ibex-cpu --machine ibex --launcher mpirun \
   --image-tolerance 0.0075 \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
@@ -272,6 +272,55 @@ srun --gres=gpu:1 --constraint=a100 ...
 No `--image-tolerance` here and no `--non_gpu_machine`: a GPU run should match
 GPU-blessed baselines at the default 0.001, and ex08 asserting hardware is
 exactly what you want to hear about.
+
+### The whole suite as one batch job (25 Oct 2026)
+
+`Testing/ibex_pv_suite.sbat` and `Testing/ibex_visit_suite.sbat`, submitted from
+`Testing/`, with the same `TESTS`, `RANKS` and `EXTRA` knobs as the Shaheen ones
+(default `--no-metrics`; `EXTRA="--run-id ibex-cpu-<date>"` for the one recorded
+run). GPU: `sbatch --gres=gpu:1 --constraint=a100 --ntasks=4 --cpus-per-task=4
+--export=ALL,VARIANT=egl,GPU=a100 ibex_pv_suite.sbat`. Never pass `--partition`
+for a GPU job (Ibex refuses it) and stay within the per-GPU CPU limit (16 on
+A100, 6 on V100). Account `pi-ghanis`.
+
+They expect `$VV_IBEX_SW` (default `/ibex/scratch/$USER/hpcsaudi`) to hold
+`venvs/vv` and `sw/pv-site`. Build both like this, and note the two traps:
+
+```bash
+module load python/3.11.0
+python3 -m venv /ibex/scratch/$USER/hpcsaudi/venvs/vv
+# The python module sets PYTHONPATH to its own site-packages, which already has
+# pandas; pip then reports "already satisfied" and installs nothing into the venv.
+env -u PYTHONPATH /ibex/scratch/$USER/hpcsaudi/venvs/vv/bin/python -m pip install pandas numpy pillow matplotlib psutil scipy
+# numpy for ParaView's own python 3.12 (the module ships none), as on Shaheen:
+pip download -d /tmp/wh --only-binary=:all: --python-version 3.12 --platform manylinux2014_x86_64 numpy
+mkdir -p /ibex/scratch/$USER/hpcsaudi/sw/pv-site && cd $_ && python3 -m zipfile -e /tmp/wh/numpy-*.whl .
+```
+
+What the job scripts work around, so you do not rediscover it:
+
+* **A batch shell has no `module` function.** `#!/bin/bash -l` is not enough on
+  Ibex; the scripts `source /usr/share/Modules/init/bash`.
+* **CPU nodes default to the `/sw/rl9c` module tree**, whose `paraview/6.0.1`
+  entry requires `openmpi/4.1.4/gnu11.2.1-cuda11.8`, which exists only in the GPU
+  tree `/sw/rl9g`. All of `/sw` is mounted everywhere, so the scripts `module
+  use` the GPU tree first and everything resolves.
+* **The site's ParaView 6.0.1 build segfaults in interpreter teardown after
+  every script**, render window or not. The data generators and every
+  single-rank vignette now end with `os._exit()`, and `run_tests.py` runs one
+  rank without `mpirun` (mpirun reports an `os._exit` as "exiting improperly"
+  and returns 1 over a passed vignette). Multi-rank runs still fall off the end
+  of the script to release their satellites; on this build that path is untested.
+* **Its AMR reader reads one level by default.** ex09 now sets
+  `DefaultNumberOfLevels = 0` so every build reads all 605 cells.
+* **ex09 never merges the AMR hierarchy any more.** Kitware's builds let
+  MergeBlocks flatten a vtkOverlappingAMR (842 points after point merging,
+  scalar max 0.333); Ibex's site build refuses it and the old "merge, else
+  fall back" rule then contoured the composite directly (986 points, 0.4145),
+  so the numeric baseline depended on the build. The AMR now goes to Contour
+  unmerged on every build and the baseline is the unmerged numbers (re-blessed
+  25 Oct 2026).
+* `visit/3.4.2` is the only VisIt; `VisIt_Vignettes/MODULES.sh` loads it.
 
 ### Submission scripts instead of an interactive session
 

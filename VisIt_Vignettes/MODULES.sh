@@ -50,7 +50,9 @@ echo "Loading modules for OS Version: $OSVERSION"
 case "$OSVERSION" in
 "\"CentOS\""* | "\"Rocky Linux\""* | "\"Red Hat Enterprise Linux\""* | "\"AlmaLinux\""*) # Ibex
     module load ffmpeg
-    module load visit/3.4.1
+    # visit/3.4.2 since Oct 2026; 3.4.1 is gone from Ibex. Fall back to the site default.
+    module load visit/3.4.2 2>/dev/null || module load visit
+    VV_VISIT_MODULE="$(module list 2>&1 | grep -o 'visit/[0-9.]*' | head -1)"
   ;;
 "\"SLES\""*) # Shaheen
     module load ffmpeg 2>/dev/null   # no ffmpeg module on Shaheen III; harmless
@@ -67,5 +69,5 @@ esac
 
 # Recorded for the vignettes and for the log. The engine that the
 # customlauncher submits must be this same version.
-export VV_VISIT_MODULE="${VV_VISIT_MODULE:-visit/3.4.1}"
+export VV_VISIT_MODULE="${VV_VISIT_MODULE:-visit/3.4.2}"
 echo "Loaded VisIt module: $VV_VISIT_MODULE"

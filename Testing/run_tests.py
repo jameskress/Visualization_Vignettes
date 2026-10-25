@@ -664,6 +664,15 @@ def build_paraview_command(script_path, vignette_args, args):
         else:
             launcher = "none"
 
+    # One rank never needs a launcher, and under mpirun it is actively harmful: a
+    # single-rank vignette ends with os._exit() (exit_vignette, 25 Oct 2026), which
+    # skips MPI_Finalize, and OpenMPI's mpirun then reports "exiting improperly" and
+    # exit 1 over a vignette that passed. srun does not care, mpirun does. Only a
+    # multi-rank run is wrapped.
+    if launcher == "mpirun" and args.ranks == 1:
+        print("One rank requested: running pvbatch directly rather than under mpirun.")
+        launcher = "none"
+
     if launcher == "none":
         if args.ranks > 1:
             return None, (

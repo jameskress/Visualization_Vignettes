@@ -16,12 +16,12 @@
       "passed": true
     },
     {
-      "detail": "842 points, 605 cells",
+      "detail": "986 points, 605 cells",
       "name": "amr: dataset has geometry",
       "passed": true
     },
     {
-      "detail": "contour_cells=57 at isovalue 0.20725728 over range [8.271601177249479e-22, 0.3329651740378353]",
+      "detail": "contour_cells=58 at isovalue 0.20725728 over range [4.849181647814546e-23, 0.4145145590902002]",
       "name": "amr: contour produced geometry",
       "passed": true
     },
@@ -84,10 +84,10 @@
   "machine": "local",
   "message": "",
   "metrics": {
-    "amr_contour_cells": 57,
+    "amr_contour_cells": 58,
     "amr_input_cells": 605,
-    "amr_input_points": 842,
-    "amr_scalar_max": 0.332965,
+    "amr_input_points": 986,
+    "amr_scalar_max": 0.414515,
     "amr_scalar_min": 0.0,
     "polydata_contour_cells": 218,
     "polydata_input_cells": 41700,
@@ -114,20 +114,20 @@
   "schema_version": 1,
   "status": "ok",
   "timings": {
-    "contour_amr": 0.00373,
-    "contour_polydata": 0.007609,
-    "contour_ragged": 0.006147,
-    "contour_tetra": 0.020708,
-    "io_amr": 0.006494,
-    "io_polydata": 0.005665,
-    "io_ragged": 0.006139,
-    "io_tetra": 0.05109,
-    "render_amr": 0.040079,
-    "render_polydata": 0.078732,
-    "render_ragged": 0.074231,
-    "render_tetra": 0.082571
+    "contour_amr": 0.003327,
+    "contour_polydata": 0.007092,
+    "contour_ragged": 0.006582,
+    "contour_tetra": 0.016832,
+    "io_amr": 0.006583,
+    "io_polydata": 0.005858,
+    "io_ragged": 0.006166,
+    "io_tetra": 0.043843,
+    "render_amr": 0.057611,
+    "render_polydata": 0.074398,
+    "render_ragged": 0.070402,
+    "render_tetra": 0.087333
   },
   "tool": "ParaView",
   "vignette": "ex09_pvMeshTopologies",
-  "wall_time_s": 1.603011
+  "wall_time_s": 3.115877
 }
