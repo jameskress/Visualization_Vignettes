@@ -1,0 +1,29 @@
+{
+    "2026-10-25T22:05:43.710185": {
+        "test_name": "ex10_pvColormapFidelity",
+        "metrics_schema": 4,
+        "execution_time": 17.405705451965332,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 12.12246183197219,
+        "cpu_seconds": 2.11,
+        "memory_usage_mb": 462.367,
+        "memory_usage": 484826939.392,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 16.309392,
+        "harness_rss_mb": 209.4609375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu502-06",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-egl-gtx1080ti-2026-10-25"
+    }
+}
