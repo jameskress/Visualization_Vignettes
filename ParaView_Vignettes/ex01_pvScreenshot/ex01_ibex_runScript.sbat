@@ -101,8 +101,17 @@ echo "OpenGL window     : ${VTK_DEFAULT_OPENGL_WINDOW:-<vtk default>}"
 # allocation and a scaling study measures one node however many it asked for.
 VV_RANKS_PER_NODE=$(( (VV_RANKS + VV_NODES - 1) / VV_NODES ))
 
+# One rank runs pvbatch directly. A single-rank vignette ends with os._exit()
+# (the site's ParaView build segfaults in interpreter teardown otherwise), and
+# mpirun then reports "exiting improperly" and a failure over a vignette that
+# passed and wrote its image (25 Oct 2026). Only a multi-rank run is wrapped.
+if [ "$VV_RANKS" -eq 1 ]; then
+    LAUNCH=()
+else
+    LAUNCH=(mpirun -np "$VV_RANKS" --bind-to none --map-by "ppr:${VV_RANKS_PER_NODE}:node")
+fi
 STATUS=0
-time mpirun -np "$VV_RANKS" --bind-to none --map-by "ppr:${VV_RANKS_PER_NODE}:node" \
+time ${LAUNCH[@]+"${LAUNCH[@]}"} \
     "$PVBATCH" --force-offscreen-rendering --disable-xdisplay-test \
     ./ex01_pvScreenshot.py \
         --machine ibex \
