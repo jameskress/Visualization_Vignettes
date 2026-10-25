@@ -49,5 +49,32 @@
             "paraview_version": "6.0.1",
             "visit_version": null
         }
+    },
+    "2026-10-25T14:51:16.112319": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "metrics_schema": 4,
+        "execution_time": 22.059240341186523,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 0.04533247675500923,
+        "cpu_seconds": 0.01,
+        "memory_usage_mb": 27.371,
+        "memory_usage": 28700573.696,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 21.102588,
+        "harness_rss_mb": 153.921875,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn16",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.1.0",
+            "visit_version": null
+        },
+        "run_id": "shaheen3-ppn-gpu-L40-2026-10-25"
     }
 }

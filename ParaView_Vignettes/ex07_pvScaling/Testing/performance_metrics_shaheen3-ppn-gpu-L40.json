@@ -1,0 +1,29 @@
+{
+    "2026-10-25T14:56:20.723444": {
+        "test_name": "ex07_pvScaling",
+        "metrics_schema": 4,
+        "execution_time": 3.3130013942718506,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 0.30184110448277834,
+        "cpu_seconds": 0.01,
+        "memory_usage_mb": 27.48,
+        "memory_usage": 28814868.48,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.221522,
+        "harness_rss_mb": 155.88671875,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn16",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.1.0",
+            "visit_version": null
+        },
+        "run_id": "shaheen3-ppn-gpu-L40-2026-10-25"
+    }
+}

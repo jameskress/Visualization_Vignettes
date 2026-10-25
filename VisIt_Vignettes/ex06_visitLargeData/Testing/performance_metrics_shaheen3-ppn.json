@@ -32,5 +32,32 @@
             "paraview_version": null,
             "visit_version": "3.4.2"
         }
+    },
+    "2026-10-25T15:00:26.086007": {
+        "test_name": "ex06_visitLargeData",
+        "metrics_schema": 4,
+        "execution_time": 56.07878065109253,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 19.56176627350809,
+        "cpu_seconds": 10.97,
+        "memory_usage_mb": 2204.973,
+        "memory_usage": 2312081768.448,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 56.009062,
+        "harness_rss_mb": 124.28125,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn10",
+            "release": "6.4.0-150700.53.81-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Thu Sep  3 13:03:04 UTC 2026 (1eef04e)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2"
+        },
+        "run_id": "shaheen3-ppn-2026-10-25"
     }
 }

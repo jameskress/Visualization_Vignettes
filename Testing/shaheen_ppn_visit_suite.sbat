@@ -1,0 +1,40 @@
+#!/bin/bash
+#SBATCH --account=k01
+#SBATCH --job-name=vv-visit-ppn
+#SBATCH --partition=ppn
+#SBATCH --nodes=1
+#SBATCH --ntasks=8
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=200G
+#SBATCH --time=02:00:00
+#SBATCH --output=vv-visit-ppn.%j.out
+# VisIt regression suite on a Shaheen workq node as a batch job (RUNBOOK.md section 6).
+#   cd /scratch/$USER/<clone>/Testing && sbatch shaheen_ppn_visit_suite.sbat
+#   TESTS="5 6" sbatch ...                           # a subset (default: all but 11, then 11 under Xvfb)
+#   EXTRA="--run-id shaheen-2026-10" sbatch ...       # the one recorded run; default is --no-metrics
+# ex06's VisIt baseline is blessed at 8 ranks, so RANKS defaults to 8 (see AGENTS.md).
+set -o pipefail
+cd "${SLURM_SUBMIT_DIR:-$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")}/.." || exit 1
+module load python/3.10.13
+source VisIt_Vignettes/MODULES.sh
+unset PYTHONPATH                                 # the python module's own entries; the venv has everything
+IOPS=${SCRATCH_IOPS:-/scratch/$USER/iops}
+source "$IOPS/sw/testing_visit_env/bin/activate"   # after the modules
+echo "python=$(which python) visit=$(which visit) node=$(hostname) start=$(date)"
+python Testing/prepare_machine.py --tool VisIt || { echo "prepare_machine failed"; exit 1; }
+cd Testing
+RANKS=${RANKS:-8}
+COMMON="../ --test_type VisIt --visit_version 3.4.2 --machine_name shaheen3-ppn --machine shaheen --launcher srun --nodes 1 --ranks $RANKS --image-tolerance 0.0075 ${EXTRA:---no-metrics} --timeout 1800"
+if [ -n "${TESTS:-}" ]; then
+    python test_suite.py $COMMON --test_number $TESTS
+    echo "suite exit=$? end=$(date)"
+else
+    python test_suite.py $COMMON --test_number 0 1 2 3 4 5 6 7 8 9 10 12
+    echo "suite exit=$? (tests 0 to 10, 12)"
+    if command -v Xvfb >/dev/null; then
+        XVFB_SCREEN=1024x1024x24 ../Scripts/run_with_display.sh python test_suite.py $COMMON --test_number 11
+        echo "ex11 exit=$? (under Xvfb) end=$(date)"
+    else
+        echo "ex11 skipped: no Xvfb on $(hostname)"
+    fi
+fi

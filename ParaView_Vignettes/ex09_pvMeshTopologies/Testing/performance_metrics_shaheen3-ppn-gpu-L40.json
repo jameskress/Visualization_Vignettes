@@ -1,0 +1,29 @@
+{
+    "2026-10-25T14:56:26.927389": {
+        "test_name": "ex09_pvMeshTopologies",
+        "metrics_schema": 4,
+        "execution_time": 2.526700258255005,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "children-rusage",
+        "cpu_usage_percent": 13.068388263356695,
+        "cpu_seconds": 0.33019900000000035,
+        "memory_usage_mb": 27.41,
+        "memory_usage": 28741468.16,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.470084,
+        "harness_rss_mb": 185.6328125,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn16",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.1.0",
+            "visit_version": null
+        },
+        "run_id": "shaheen3-ppn-gpu-L40-2026-10-25"
+    }
+}
