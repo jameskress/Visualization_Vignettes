@@ -284,7 +284,15 @@ for a GPU job (Ibex refuses it) and stay within the per-GPU CPU limit (16 on
 A100, 6 on V100). Account `pi-ghanis`.
 
 They expect `$VV_IBEX_SW` (default `/ibex/scratch/$USER/hpcsaudi`) to hold
-`venvs/vv` and `sw/pv-site`. Build both like this, and note the two traps:
+`venvs/vv` and `sw/pv-site`. Fetch ex06's data once per clone (`cd data && bash
+fetchData.sh`, 4.5 GB from the download server, 5.7 GB unpacked) or ex06 is
+skipped and the record is twelve vignettes, not thirteen. A GPU job that runs
+ex06 needs `--mem=100G`: ex06 peaks at 33.5 GB and was OOM-killed at the 32 GB
+that suits the other twelve (25 Oct 2026). And **never run two suites at once
+in one clone**: they share `data/` and every `Testing/` output directory, so
+three concurrent GPU records all lost ex03 ("Contour array is null", missing
+frames) while one job regenerated the time series another was reading. Chain
+them with `--dependency=afterany:<jobid>`. Build both like this, and note the two traps:
 
 ```bash
 module load python/3.11.0
