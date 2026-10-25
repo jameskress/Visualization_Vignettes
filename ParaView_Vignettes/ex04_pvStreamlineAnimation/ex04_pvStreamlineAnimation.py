@@ -649,4 +649,15 @@ print("\nFinished ParaView example script\n", flush=True)
 # frame.
 # --------------------------------------------------------------------------
 ctx.assert_baselined_images_present()
+# Streamline rasterisation is not reproducible run to run on a GPU: the same
+# frames on three identical V100 nodes differed from the A5000 baseline by 0,
+# 0.16, 0.23 and 0.31% (Ibex, 25 Oct 2026), and the integration itself is
+# unchanged (the numeric gates agree). 0.5% absorbs that and still catches a
+# seed, colour-map or geometry change, which moves whole frames by tens of
+# percent. Declared here, as ex06 does, rather than loosening the whole suite.
+ctx.set_image_tolerance(
+    0.005,
+    "GPU streamline rasterisation differs up to 0.31% run to run on identical V100 nodes",
+)
+
 vc.exit_vignette(ctx.finish())
