@@ -49,5 +49,32 @@
             "paraview_version": "5.13.1",
             "visit_version": null
         }
+    },
+    "2026-10-25T21:52:06.604038": {
+        "test_name": "ex02_pvAnimation",
+        "metrics_schema": 4,
+        "execution_time": 72.40033555030823,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 82.58249018535862,
+        "cpu_seconds": 59.79,
+        "memory_usage_mb": 497.625,
+        "memory_usage": 521797632.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 69.752253,
+        "harness_rss_mb": 185.85546875,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu502-06",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-egl-gtx1080ti-2026-10-25"
     }
 }

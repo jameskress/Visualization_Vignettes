@@ -49,5 +49,32 @@
             "paraview_version": "5.13.1",
             "visit_version": null
         }
+    },
+    "2026-10-25T21:35:00.865966": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "metrics_schema": 4,
+        "execution_time": 85.0830647945404,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 116.18058216250691,
+        "cpu_seconds": 98.85,
+        "memory_usage_mb": 580.434,
+        "memory_usage": 608629161.984,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 84.951238,
+        "harness_rss_mb": 192.47265625,
+        "machine_info": {
+            "system": "Linux",
+            "node": "dgpu501-30",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-egl-p100-2026-10-25"
     }
 }
