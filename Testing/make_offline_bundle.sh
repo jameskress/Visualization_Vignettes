@@ -24,7 +24,7 @@
 #   pip install --no-index --find-links=<bundle>/wheelhouse \
 #       pandas numpy pillow matplotlib psutil
 #
-# See Testing/OFFLINE_SETUP.md for the data and the generated fixtures, which
+# See Testing/RUNBOOK.md section 8 for the data and the generated fixtures, which
 # have their own rules.
 #
 # Author: James Kress, <james@jameskress.com>

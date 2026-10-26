@@ -42,6 +42,16 @@
 #
 # Author: James Kress, <james@jameskress.com>
 #
+# VV_PARAVIEW_MODULE set in the environment names the module to load outright,
+# skipping the per-site detection. For a machine this script has never seen
+# (the air-gapped GPU system reached through the portal), or a site where
+# `module load paraview` no longer resolves. The mesa/egl argument still sets
+# the OpenGL window hint from the module name.
+if [ -n "${VV_PARAVIEW_MODULE:-}" ]; then
+    echo "VV_PARAVIEW_MODULE=$VV_PARAVIEW_MODULE given: loading it directly"
+    module load "$VV_PARAVIEW_MODULE" || { echo "ERROR: module load $VV_PARAVIEW_MODULE failed" >&2; return 1 2>/dev/null || exit 1; }
+    OSVERSION="override"
+else
 # Check OS so we know what machine we are on
 OSVERSION=$( < /etc/os-release  awk -F 'NAME=' '{print $2; exit;}')
 echo "Loading modules for OS Version: $OSVERSION"
@@ -88,6 +98,7 @@ case "$OSVERSION" in
     exit 1 # terminate and indicate error
   ;;
 esac
+fi
 
 export VV_PARAVIEW_MODULE
 echo "Loaded ParaView module: $VV_PARAVIEW_MODULE"
