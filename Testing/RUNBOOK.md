@@ -262,7 +262,11 @@ python test_suite.py ../ --test_type ParaView --paraview_version <version> \
 
 Name the machine after the GPU, continuing the convention already in the
 history: `ibex-egl-a100`, `ibex-egl-v100`, `ibex-egl-p100`,
-`ibex-egl-p6000`, `ibex-egl-rtx2080ti`, `ibex-egl-gtx1080ti`. Pin the GPU you
+`ibex-egl-p6000`, `ibex-egl-rtx2080ti`, `ibex-egl-gtx1080ti`. Those are all
+the GPU types Ibex has (checked with `sinfo -N -o "%G %T"` on 26 Oct 2026),
+and all but the P6000 were recorded that day: Ibex's two P6000 nodes have been
+`DOWN+DRAIN` with the admin reason "ZHARDWARE relocate" since 22 Oct 2026, so
+that configuration cannot be run until they return, if they do. Pin the GPU you
 mean with a constraint, or you will not know which one you measured:
 
 ```bash
