@@ -16,6 +16,6 @@ for f in cyclone-chapala-2015-11-02_00-00-00-mb cyclone-chapala-2015-11-02_00-00
     [ -e "$SRC/data/$f" ] && cp -r "$SRC/data/$f" "$OUT/data_large/" || echo "WARNING: $SRC/data/$f missing (run data/fetchData.sh first)"
 done
 for d in "$WHEELS_FROM"/wheelhouse_* "$WHEELS_FROM"/pv_numpy_*; do [ -d "$d" ] && cp -r "$d" "$OUT/"; done
-cp "$SRC/Testing/gpu_handoff/README.md" "$OUT/README.md"
+cp "$(dirname "$0")/README.md" "$OUT/README.md"      # from this kit, not from $SRC (which may predate it)
 echo "== contents:"; du -sh "$OUT"/* | sed 's#'"$OUT"'/##'
 echo "== bundle:"; git bundle verify "$OUT/vignettes.bundle" 2>&1 | tail -1
