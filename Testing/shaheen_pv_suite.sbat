@@ -22,7 +22,7 @@ source ParaView_Vignettes/MODULES.sh mesa
 # runs child pythons (run_tests.py), so neither unsetting it here nor `python -E` is enough.
 # Instead pvbatch is reached through a wrapper that sets PYTHONPATH for itself only:
 # the user-site numpy (Shaheen's build ships none, so Python Annotation renders "(error)").
-IOPS=${SCRATCH_IOPS:-/scratch/$USER/iops}
+IOPS=${VV_SW:-${SCRATCH_IOPS:-/scratch/$USER/iops}}   # VV_SW: software root on a machine without the iops layout (air-gapped kit)
 PVSITE=$IOPS/sw/pv-site
 REAL_PVBATCH=$(command -v pvbatch)
 mkdir -p "$IOPS/sw/pvbin"
@@ -37,7 +37,7 @@ done
 unset PYTHONPATH
 export PARAVIEW_PATH="$IOPS/sw/pvbin"
 export PATH="$PARAVIEW_PATH:$PATH"
-source "${SCRATCH_IOPS:-/scratch/$USER/iops}/sw/testing_paraview_env/bin/activate"   # after the modules
+source "$IOPS/sw/testing_paraview_env/bin/activate"   # after the modules
 echo "python=$(which python) pvbatch=$(which pvbatch) node=$(hostname) start=$(date)"
 echo "pvbatch wrapper: $(cat $PARAVIEW_PATH/pvbatch | tail -1)"
 cd Testing
