@@ -118,10 +118,29 @@ jobs:
             --build-arg GROUP_ID=$(id -g) \
             -t paraview-test-env -f Dockerfile.paraview.test .
 
+          # Keep the 826 MB ParaView tarball on the runner between runs, the
+          # way the VisIt job does: paraview.org dropped a download mid-stream
+          # on 27 Oct 2026 and the retry's TLS handshake was refused, which
+          # failed the job for nothing in this repository. On a miss the
+          # download happens here, with resume and retries, and is verified
+          # by size before it is kept.
+          CACHE_DIR="$HOME/ci-cache"; mkdir -p "$CACHE_DIR"
+          PV_TARBALL="ParaView-6.1.0-MPI-Linux-Python3.12-x86_64.tar.gz"
+          if [ -f "$CACHE_DIR/$PV_TARBALL" ] && [ "$(stat -c%s "$CACHE_DIR/$PV_TARBALL")" -gt 100000000 ]; then
+            echo "Cache hit: $PV_TARBALL"
+          else
+            echo "Cache miss: downloading $PV_TARBALL"
+            wget --continue --tries=5 --waitretry=20 --retry-connrefused -O "$CACHE_DIR/$PV_TARBALL.part" \
+              "https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v6.1&type=binary&os=Linux&downloadFile=$PV_TARBALL"
+            [ "$(stat -c%s "$CACHE_DIR/$PV_TARBALL.part")" -gt 100000000 ] && mv "$CACHE_DIR/$PV_TARBALL.part" "$CACHE_DIR/$PV_TARBALL"
+          fi
+          ls -la "$CACHE_DIR"
+
           # The job body is a file, not an inline payload. See the header
           # of .github/scripts/ci_paraview.sh for why, and for how to run
           # exactly this locally.
-          docker run --rm -v "$(pwd)":/workdir paraview-test-env \
+          docker run --rm -v "$(pwd)":/workdir -v "$CACHE_DIR":/data-cache:ro \
+            -e PARAVIEW_TARBALL="$PV_TARBALL" paraview-test-env \
             bash /workdir/.github/scripts/ci_paraview.sh
       - uses: actions/upload-artifact@v7
         if: always()
