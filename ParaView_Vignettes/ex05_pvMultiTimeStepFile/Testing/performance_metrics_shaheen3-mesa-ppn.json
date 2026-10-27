@@ -66,5 +66,32 @@
             "paraview_version": "6.0.1",
             "visit_version": null
         }
+    },
+    "2026-10-26T20:21:48.091927": {
+        "test_name": "ex05_pvMultiTimeStepFile",
+        "metrics_schema": 4,
+        "execution_time": 4.048319101333618,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 0.24701610099623195,
+        "cpu_seconds": 0.01,
+        "memory_usage_mb": 27.355,
+        "memory_usage": 28683796.48,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.972932,
+        "harness_rss_mb": 164.89453125,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn13",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.1.0",
+            "visit_version": null
+        },
+        "run_id": "shaheen3-mesa-ppn-2026-10-26"
     }
 }
