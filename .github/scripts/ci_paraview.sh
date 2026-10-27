@@ -39,8 +39,19 @@ df -h /workdir .
 # 216 points where 842 were written, so the numeric gate sees 605 cells
 # against 125 and the image differs by 44%. A file incompatibility, recorded
 # in section 5a of Testing/LOCAL_VALIDATION.md, not a regression.
-wget -O paraview.tar.gz \
-    "${PARAVIEW_URL}?submit=Download&version=v6.1&type=binary&os=Linux&downloadFile=${PARAVIEW_FILE}"
+# The runner keeps the tarball in a cache the workflow mounts at /data-cache
+# (same pattern as the VisIt job), because paraview.org dropped a download
+# mid-stream and refused the retry's TLS handshake on 27 Oct 2026 and the
+# whole job failed for nothing in this repository. Download only on a miss,
+# and then with resume and retries.
+if [ -n "${PARAVIEW_TARBALL:-}" ] && [ -f "/data-cache/${PARAVIEW_TARBALL}" ]; then
+    echo "Cache hit: /data-cache/${PARAVIEW_TARBALL}"
+    cp "/data-cache/${PARAVIEW_TARBALL}" paraview.tar.gz
+else
+    echo "Cache miss: downloading ${PARAVIEW_FILE}"
+    wget --continue --tries=5 --waitretry=20 --retry-connrefused -O paraview.tar.gz \
+        "${PARAVIEW_URL}?submit=Download&version=v6.1&type=binary&os=Linux&downloadFile=${PARAVIEW_FILE}"
+fi
 
 # A full disk truncates the write and a changed URL returns an HTML page.
 # Both then die inside tar with a bare exit 2 that names neither cause.
