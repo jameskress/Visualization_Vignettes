@@ -22,8 +22,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 PARAVIEW_URL="https://www.paraview.org/paraview-downloads/download.php"
-PARAVIEW_FILE="ParaView-6.1.0-MPI-Linux-Python3.12-x86_64.tar.gz"
-PARAVIEW_VERSION="6.1.0"
+PARAVIEW_FILE="ParaView-6.2.0-MPI-Linux-Python3.12-x86_64.tar.gz"
+PARAVIEW_VERSION="6.2.0"
 
 echo "Running ParaView Tests as a non-root user"
 python3 -m venv test-venv
@@ -33,8 +33,9 @@ pip3 install pandas matplotlib pillow psutil scipy
 
 df -h /workdir .
 
-# 6.1.0 because that is what the baselines were blessed with. Running 6.0.1
-# here fails ex09 every time, and not for a reason worth knowing: an AMR
+# 6.2.0 because that is what the baselines were blessed with (6.1.0 until
+# Nov 2026). Running an older minor here fails ex09, and not for a reason
+# worth knowing. Measured under 6.0.1 against 6.1.0 baselines: an AMR
 # hierarchy written by one minor version is read back short by the other,
 # 216 points where 842 were written, so the numeric gate sees 605 cells
 # against 125 and the image differs by 44%. A file incompatibility, recorded
@@ -50,7 +51,7 @@ if [ -n "${PARAVIEW_TARBALL:-}" ] && [ -f "/data-cache/${PARAVIEW_TARBALL}" ]; t
 else
     echo "Cache miss: downloading ${PARAVIEW_FILE}"
     wget --continue --tries=5 --waitretry=20 --retry-connrefused -O paraview.tar.gz \
-        "${PARAVIEW_URL}?submit=Download&version=v6.1&type=binary&os=Linux&downloadFile=${PARAVIEW_FILE}"
+        "${PARAVIEW_URL}?submit=Download&version=v6.2&type=binary&os=Linux&downloadFile=${PARAVIEW_FILE}"
 fi
 
 # A full disk truncates the write and a changed URL returns an HTML page.

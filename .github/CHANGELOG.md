@@ -44,6 +44,10 @@ carries the measurement behind each item below.
   the two suites' CSVs agree column for column.
 
 ### Changed
+- ParaView 6.2.0 is the reference version: the workstation baselines, the CI
+  download and the Docker image (`PARAVIEW_VERSION=v6.2.0`). ADIOS2 in the
+  image is pinned to v2.12.1 instead of following its default branch. ex06's
+  image baseline is re-blessed for 6.2's Surface LIC rendering.
 - Performance metrics: peak memory and CPU are sampled across the vignette's
   whole process tree rather than taken from `RUSAGE_CHILDREN`, which is a
   high-water mark that never falls. `metrics_schema` is bumped to 4, and the
@@ -82,6 +86,10 @@ carries the measurement behind each item below.
   and colour tables.
 
 ### Fixed
+- ParaView 6.2 compatibility, without changing a baseline: ex03 finds the
+  contour normals under 6.2's `Gradients` name, ex05 accepts `CYCLE` as an int,
+  and ex09 drops contour cells from blanked AMR cells, which 6.2's Contour no
+  longer skips.
 - VisIt's launcher exits 250 whether the script succeeded or not, so the
   verdict comes from the vignette's own results JSON, and only when that file
   was written after the run started.
