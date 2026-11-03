@@ -244,6 +244,21 @@ def process_topology(ctx, manifest, view, key, label):
         contour.Isosurfaces = [isovalue]
         contour.PointMergeMethod = "Uniform Binning"
         UpdatePipeline(proxy=contour)
+        if key == "amr":
+            # Coarse AMR cells covered by a finer level are blanked (hidden
+            # ghost cells). Contour up to ParaView 6.1 skips them; 6.2
+            # contours them too, adding a duplicate coarse surface under the
+            # fine one (58 -> 65 cells on the same file). Each contour cell
+            # keeps its source cell's ghost flag, so the blanked pieces are
+            # dropped here and both versions give 58. Filtering the contour
+            # rather than its input leaves the AMR grids, and so the
+            # contour's normals and the picture, exactly as before.
+            visible = Threshold(Input=contour, registrationName="ex09_visible_" + key)
+            visible.Scalars = ["CELLS", "vtkGhostType"]
+            visible.LowerThreshold = 0
+            visible.UpperThreshold = 0
+            UpdatePipeline(proxy=visible)
+            contour = visible
 
     contour_info = contour.GetDataInformation()
     contour_points = int(contour_info.GetNumberOfPoints())
