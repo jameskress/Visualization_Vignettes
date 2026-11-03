@@ -253,7 +253,19 @@ for i in range(35):
     contour1Display.ColorArrayName = ["POINTS", "hardyglobal"]
     contour1Display.LookupTable = hardyglobalLUT
     contour1Display.SelectTCoordArray = "None"
-    contour1Display.SelectNormalArray = "Normals"
+    # The contour's point normals are called "Normals" up to ParaView 6.1 and
+    # "Gradients" in 6.2 for this rectilinear input: the same unit vectors at
+    # the same points, only renamed. Naming one that does not exist silently
+    # falls back to flat shading, which on 6.2 turned every surface faceted
+    # (1-2% of the frame against the baseline). Use whichever this ParaView
+    # produced.
+    contour1.UpdatePipeline()
+    contour_arrays = contour1.PointData.keys()
+    contour1Display.SelectNormalArray = (
+        "Normals" if "Normals" in contour_arrays
+        else "Gradients" if "Gradients" in contour_arrays
+        else "None"
+    )
     contour1Display.SelectTangentArray = "None"
     contour1Display.OSPRayScaleArray = "hardyglobal"
     contour1Display.OSPRayScaleFunction = "PiecewiseFunction"

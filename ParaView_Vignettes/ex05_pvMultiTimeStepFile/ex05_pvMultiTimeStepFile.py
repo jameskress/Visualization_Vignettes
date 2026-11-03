@@ -285,11 +285,19 @@ varying00vtkDisplay.SetScalarBarVisibility(renderView1, True)
 #
 # "%g" rather than a fixed number of decimals, to match how VisIt trims its
 # own $time macro: 0, 0.05, 0.15 in both, not 0.00 against 0.
+#
+# CYCLE is a one-element array up to ParaView 6.1 and a plain int in 6.2.
+# Indexing the int raises inside the filter, and the frame silently shows
+# "(error)" where the label belongs (0.12% of the image, just over the gate),
+# so the expression accepts both.
 timeAnnotation = PythonAnnotation(
     Input=varying00vtk, registrationName="ex05_time_annotation"
 )
 timeAnnotation.ArrayAssociation = "Field Data"
-timeAnnotation.Expression = '"Cycle: %d    Time: %s" % (CYCLE[0], ("%g" % time_value))'
+timeAnnotation.Expression = (
+    '"Cycle: %d    Time: %s" % ('
+    '(CYCLE[0] if hasattr(CYCLE, "__len__") else CYCLE), ("%g" % time_value))'
+)
 timeAnnotationDisplay = Show(timeAnnotation, renderView1, "TextSourceRepresentation")
 timeAnnotationDisplay.WindowLocation = "Upper Left Corner"
 timeAnnotationDisplay.Color = [1.0, 1.0, 1.0]
