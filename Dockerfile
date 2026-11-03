@@ -56,7 +56,11 @@ WORKDIR /builds
 
 # --- Build and Install ADIOS2 ---
 # We will install it to a custom prefix to keep it organized
-RUN git clone --quiet https://github.com/ornladios/ADIOS2.git adios2-src
+# Pinned to a release. Cloning the default branch made every image build a
+# different, untested ADIOS2. v2.12.1 is also the ADIOS2 that ParaView 6.2's
+# own superbuild ships (versions.cmake, "SELECT v2.12.0 DEFAULT" -> 2.12.1).
+ARG ADIOS2_VERSION=v2.12.1
+RUN git clone --quiet --depth 1 --branch ${ADIOS2_VERSION} https://github.com/ornladios/ADIOS2.git adios2-src
 RUN cmake -S adios2-src -B adios2-build \
     -DCMAKE_INSTALL_PREFIX=/opt/adios2 \
     -DCMAKE_C_FLAGS="-D'sys_icache_invalidate(a,s)=__builtin___clear_cache((char*)(a),(char*)(a)+(s))'" \
@@ -70,7 +74,11 @@ RUN cmake --install adios2-build
 # --- Build and Install ParaView via Superbuild ---
 # This is a major build and will take a significant amount of time.
 # The superbuild handles fetching and building ParaView, Catalyst, VTK, and other dependencies.
-ARG PARAVIEW_VERSION=v6.0.1
+# When changing this, also change paraview-6.2 in CMAKE_PREFIX_PATH below.
+# ParaView 6.2's superbuild has no osmesa project any more (VTK loads OSMesa
+# at run time), so ENABLE_osmesa below is ignored and headless rendering
+# relies on libosmesa6 in the runtime stage.
+ARG PARAVIEW_VERSION=v6.2.0
 RUN git clone --quiet --recursive -b ${PARAVIEW_VERSION} https://gitlab.kitware.com/paraview/paraview-superbuild.git
 WORKDIR /builds/paraview-superbuild/build
 RUN cmake \
@@ -90,7 +98,9 @@ RUN cmake \
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
     ..
 # Limiting parallel jobs to 2 to avoid running out of memory, a common issue on large builds.
-RUN cmake --build . -j2
+# A machine with the memory for it can pass --build-arg BUILD_JOBS=N.
+ARG BUILD_JOBS=2
+RUN cmake --build . -j${BUILD_JOBS}
 
 # Reset WORKDIR for any subsequent builds
 WORKDIR /builds
@@ -169,7 +179,7 @@ ENV PATH="/opt/paraview/bin:/opt/adios2/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/opt/paraview/lib:/opt/adios2/lib:/opt/ascent/install/ascent-checkout/lib:/opt/ascent/install/conduit-*/lib:/opt/ascent/install/raja-*/lib:/opt/ascent/install/umpire-*/lib:/opt/ascent/install/mfem-*/lib:/opt/ascent/install/silo-*/lib:/opt/ascent/install/vtk-m-*/lib:/opt/ascent/install/zlib-*/lib:/usr/lib/x86_64-linux-gnu:/usr/lib/aarch64-linux-gnu"
 # The CMAKE_PREFIX_PATH helps CMake find all your custom-built packages
 # We add /opt/ascent/install so CMake can find Ascent's dependencies like Conduit.
-ENV CMAKE_PREFIX_PATH="/opt/ascent/install:/opt/paraview/lib/cmake/paraview-6.0:/opt/paraview/lib/cmake/catalyst-2.0:/opt/adios2/lib/cmake/adios2:/opt/ascent/lib/cmake/ascent"
+ENV CMAKE_PREFIX_PATH="/opt/ascent/install:/opt/paraview/lib/cmake/paraview-6.2:/opt/paraview/lib/cmake/catalyst-2.0:/opt/adios2/lib/cmake/adios2:/opt/ascent/lib/cmake/ascent"
 
 # --- FIX for HDF5 version mismatch ---
 # We must use LD_PRELOAD to force the dynamic linker to load the correct HDF5
