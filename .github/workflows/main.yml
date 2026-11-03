@@ -125,13 +125,13 @@ jobs:
           # download happens here, with resume and retries, and is verified
           # by size before it is kept.
           CACHE_DIR="$HOME/ci-cache"; mkdir -p "$CACHE_DIR"
-          PV_TARBALL="ParaView-6.1.0-MPI-Linux-Python3.12-x86_64.tar.gz"
+          PV_TARBALL="ParaView-6.2.0-MPI-Linux-Python3.12-x86_64.tar.gz"
           if [ -f "$CACHE_DIR/$PV_TARBALL" ] && [ "$(stat -c%s "$CACHE_DIR/$PV_TARBALL")" -gt 100000000 ]; then
             echo "Cache hit: $PV_TARBALL"
           else
             echo "Cache miss: downloading $PV_TARBALL"
             wget --continue --tries=5 --waitretry=20 --retry-connrefused -O "$CACHE_DIR/$PV_TARBALL.part" \
-              "https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v6.1&type=binary&os=Linux&downloadFile=$PV_TARBALL"
+              "https://www.paraview.org/paraview-downloads/download.php?submit=Download&version=v6.2&type=binary&os=Linux&downloadFile=$PV_TARBALL"
             [ "$(stat -c%s "$CACHE_DIR/$PV_TARBALL.part")" -gt 100000000 ] && mv "$CACHE_DIR/$PV_TARBALL.part" "$CACHE_DIR/$PV_TARBALL"
           fi
           ls -la "$CACHE_DIR"
