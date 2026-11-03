@@ -59,7 +59,7 @@ an escape hatch, not a default.
 cd Testing
 
 # normal run
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.0 \
   --machine_name KW61316.kaust.edu.sa --timeout 1800
 
 # anything experimental
@@ -85,7 +85,7 @@ Rules that are not negotiable:
   `shaheen3-ppn-gpu-L40`).
 * **The shared baselines are the workstation's.** Every image, numeric and
   CSV baseline under `Testing/Baseline/` was blessed on
-  `KW61316.kaust.edu.sa` (ParaView 6.1.0, GPU GLX), and the CI's Mesa runner
+  `KW61316.kaust.edu.sa` (ParaView 6.2.0 since Nov 2026, 6.1.0 before; GPU GLX), and the CI's Mesa runner
   passes against them. That host blesses the shared set; `--bless` from any
   other host is refused unless `--bless-shared` says it is deliberate.
 * **Image baselines can be per machine; nothing else is.** Every renderer
@@ -144,6 +144,12 @@ measurements in `Testing/LOCAL_VALIDATION.md` §4 and §4b.
 * Preset names moved in 6.1 (`Viridis (matplotlib)` -> `Viridis`) and the
   three versions in use fail differently for a name they lack. Use
   `vc.apply_color_preset()`.
+* ParaView 6.2 renamed or changed three things the vignettes touch, each
+  handled so 6.0, 6.1 and 6.2 all pass the same baselines: the contour
+  normals of a rectilinear input are called `Gradients` (ex03), the
+  `PythonAnnotation` `CYCLE` variable is an int rather than an array (ex05),
+  and Contour on overlapping AMR no longer skips blanked coarse cells (ex09).
+  `Testing/LOCAL_VALIDATION.md` §4.18 has the details.
 
 **Both**
 
