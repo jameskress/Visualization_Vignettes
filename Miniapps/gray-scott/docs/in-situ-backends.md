@@ -268,3 +268,41 @@ counts. That holds because the solver is bitwise identical across rank
 counts (#15) and each point is stored once. The SST in transit path was
 not run, because the reader build does not link on the workstation (see
 #26).
+
+## Zero-copy and allocations (#25)
+
+**Pointer checks.** Each adaptor checks that the array it hands the backend
+is the solver's own (`Writer::check_zero_copy`). Debug builds check every
+write; release builds check the first. A copy aborts the run.
+
+| Adaptor | What is compared |
+| :--- | :--- |
+| Ascent and Catalyst | the data pointer of `fields/u/values` |
+| PVTI | the pointer inside VTK's `u` array |
+| ADIOS2 memory selection | the pointer passed to `Put` |
+| Kombyne | no getter exists; `KB_MEM_BORROW` is the API's zero-copy guarantee |
+
+**Allocation counts.** Built with `-DGS_COUNT_ALLOCATIONS=ON`, on 2 ranks
+at 64^3 for 30 steps with output every 10:
+
+| Backend | solver step, steps 1 to 30 | wrap, per write (allocations / bytes) | whole backend call, per write |
+| :--- | ---: | ---: | ---: |
+| none | 0 | 0 / 0 | 0 |
+| PVTI | 0 (1 inside Open MPI) | 77 / 9 KB | 1138 |
+| Catalyst | 0 | 389 / 20 KB | 4701 |
+| Kombyne-lite | 0 | 48 / 5 KB | 1775 |
+| ADIOS2 default | 0 | 2 / 2 MB (the deliberate copy of u and v) | 338 |
+| ADIOS2 span | 0 | 0 / 0 | 334 |
+| ADIOS2 memory selection | 0 | 0 / 0 | 346 |
+
+How to read it:
+
+* **Solver step:** nothing in our code allocates. Open MPI allocates
+  about 147 KB on the first exchange, and rarely grows a 4 KB buffer
+  later; the PVTI run shows one such growth on one rank.
+* **Wrap:** no backend allocates field-sized memory except the ADIOS2
+  default mode, which is the copying mode by design. The remaining wrap
+  allocations are metadata: Conduit tree nodes, VTK array objects and
+  Kombyne handles, rebuilt each write.
+* **Whole call:** the counts are the backends' own internal allocations.
+  They are reported, not failed.

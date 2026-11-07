@@ -155,6 +155,7 @@ void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
     if (settings.adios_memory_selection)
     {
         // Zero-copy: ADIOS2 reads the interior of the ghosted arrays.
+        check_zero_copy(sim.u_ghost().data(), u_before, "ADIOS2 u (memory selection)");
         const auto a = clock::now();
         m_engine.BeginStep();
         m_engine.Put(m_var_u, sim.u_ghost().data());
@@ -175,8 +176,11 @@ void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
         adios2::Variable<double>::Span u_span = m_engine.Put<double>(m_var_u);
         adios2::Variable<double>::Span v_span = m_engine.Put<double>(m_var_v);
         const auto b = clock::now();
+        const AllocSnapshot wrap_alloc;
         sim.u_noghost(u_span.data());
         sim.v_noghost(v_span.data());
+        phases.wrap_allocs = wrap_alloc.delta_calls();
+        phases.wrap_alloc_bytes = wrap_alloc.delta_bytes();
         const auto c = clock::now();
         m_engine.EndStep();
         const auto d = clock::now();
@@ -189,8 +193,11 @@ void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
         // One copy here, into u_data and v_data; the engine may copy again
         // into its own buffer (engine-dependent).
         const auto a = clock::now();
+        const AllocSnapshot wrap_alloc;
         const std::vector<double> u_data = sim.u_noghost();
         const std::vector<double> v_data = sim.v_noghost();
+        phases.wrap_allocs = wrap_alloc.delta_calls();
+        phases.wrap_alloc_bytes = wrap_alloc.delta_bytes();
         const auto b = clock::now();
         m_engine.BeginStep();
         m_engine.Put(m_var_u, u_data.data());

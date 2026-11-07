@@ -19,6 +19,8 @@ public:
     ImageSource(int L, const GrayScott &sim, const gs_mesh::Ghosts &ghosts, int rank);
     // Time spent building the vtkImageData in the last pipeline update (s).
     double wrap_seconds() const { return wrap_s_; }
+    std::uint64_t wrap_allocs = 0, wrap_alloc_bytes = 0;
+    const void *u_handed = nullptr;
 
 private:
     double origin_[3], spacing_[3];
@@ -122,6 +124,7 @@ int ImageSource::RequestInformation(vtkInformation *, vtkInformationVector **, v
 void ImageSource::ExecuteDataWithInformation(vtkDataObject *, vtkInformation *outInfo)
 {
     const auto t0 = std::chrono::steady_clock::now();
+    const AllocSnapshot wrap_alloc;
     vtkImageData *imageData = vtkImageData::GetData(outInfo);
     imageData->SetExtent(localExtent_);
     imageData->SetSpacing(spacing_);
@@ -150,6 +153,9 @@ void ImageSource::ExecuteDataWithInformation(vtkDataObject *, vtkInformation *ou
     imageData->GetPointData()->AddArray(ghost_pts);
     imageData->GetCellData()->AddArray(ghost_cells);
     wrap_s_ = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    wrap_allocs = wrap_alloc.delta_calls();
+    wrap_alloc_bytes = wrap_alloc.delta_bytes();
+    u_handed = var_u->GetVoidPointer(0);
 }
 
 int ImageSource::FillOutputPortInformation(int port, vtkInformation *info)
@@ -250,6 +256,9 @@ void WriterPVTI::write(int step, const GrayScott &sim, int rank, int numRanks)
     phases.execute_s = 0.0;
     phases.io_s = total - phases.wrap_s;
     phases.split = true;
+    phases.wrap_allocs = source->wrap_allocs;
+    phases.wrap_alloc_bytes = source->wrap_alloc_bytes;
+    check_zero_copy(source->u_handed, sim.u_ghost().data(), "PVTI u");
 
     vtkLogEndScope("Writing: VTK");
 

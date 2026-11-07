@@ -4,7 +4,10 @@
 #include "gray-scott.h"
 #include "settings.h"
 #include <mpi.h>
+#include <cstdint>
 #include <string>
+
+#include "common/alloc_count.hpp"
 #include <vtkVersion.h>
 #include <vtkSmartPointer.h>
 #include <vtkXMLPImageDataWriter.h>
@@ -34,6 +37,10 @@ public:
         double execute_s = 0.0; // the backend's pipeline, actions or engine
         double io_s = 0.0;      // writing files or moving data out
         bool split = false;
+        // Heap allocations made while wrapping (#25); 0 unless the build
+        // has GS_COUNT_ALLOCATIONS.
+        std::uint64_t wrap_allocs = 0;
+        std::uint64_t wrap_alloc_bytes = 0;
     };
     const Phases &lastPhases() const { return phases; }
     // Backend library and version for the run metadata.
@@ -43,6 +50,23 @@ public:
 
 
 protected:
+    // Zero-copy check (#25): the array handed to the backend must be the
+    // solver's own. Every write in debug builds, the first write in release.
+    void check_zero_copy(const void *handed, const void *own, const char *what)
+    {
+#ifdef NDEBUG
+        if (zero_copy_checked)
+            return;
+#endif
+        zero_copy_checked = true;
+        if (handed != own)
+        {
+            vtkLog(ERROR, "zero-copy check failed: " << what << " handed to the backend is a copy");
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+    }
+    bool zero_copy_checked = false;
+
     Phases phases;
     Settings settings;
     vtkSmartPointer<vtkXMLPImageDataWriter> writer;

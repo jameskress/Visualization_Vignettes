@@ -279,6 +279,7 @@ and the cumulative CPU time (`user_s`, `sys_s`):
 
 * `halo_bytes`: bytes this rank sent in the exchange, from the MPI datatype sizes.
 * `backend_bytes`: bytes of field data handed to the backend on output steps: u and v with their halo layer for the mesh-based backends, the interior block for ADIOS2, 0 for `none`.
+* `allocs_step`, `alloc_bytes_step`, `allocs_wrap`, `alloc_bytes_wrap`, `allocs_write`: heap allocations in the solver step, in our wrapping code and in the whole backend call (#25). These are counted only in builds configured with `-DGS_COUNT_ALLOCATIONS=ON`, a test-only replacement of the global allocation functions that must not be used for timing runs. Otherwise they are 0. The step and wrap counts cover the calling thread; the write count covers all threads.
 
 How each backend reports `wrap`, `execute` and `io`:
 

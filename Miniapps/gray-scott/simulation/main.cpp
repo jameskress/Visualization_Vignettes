@@ -20,6 +20,7 @@
 
 #include "../../gray-scott/common/perf_logger.hpp"
 #include "../../gray-scott/common/run_metadata.hpp"
+#include "../../gray-scott/common/alloc_count.hpp"
 #include "json.hpp"
 
 int unknownArg = 0;
@@ -256,7 +257,9 @@ int main(int argc, char **argv)
                     {"create_writer", "writer_open", "printSelf", "halo", "stencil",
                      "compute_step", "wrap", "execute", "io", "write_step",
                      "create_checkpoint", "total_step"},
-                    {"halo_bytes", "backend_bytes"}, app_comm);
+                    {"halo_bytes", "backend_bytes", "allocs_step", "alloc_bytes_step",
+                     "allocs_wrap", "alloc_bytes_wrap", "allocs_write"},
+                    app_comm);
     perf.setStepPrint({{"stencil", "Stencil"}, {"halo", "Halo"}, {"wrap", "Wrap"},
                        {"execute", "Execute"}});
     // Field data handed to the backend per write (u and v, doubles): none
@@ -366,6 +369,7 @@ int main(int argc, char **argv)
             meta["vtk_version"] = vtkVersion::GetVTKVersion();
             meta["halo_bytes_per_step_rank0"] = sim.halo_bytes_per_step();
             meta["command_line"] = std::vector<std::string>(argv, argv + argc);
+            meta["allocation_counter"] = gs_alloc_counting_enabled();
         }
         // replace: a non-UTF-8 path must not make rank 0 throw here.
         perf.writeMetadata(meta.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
@@ -388,8 +392,11 @@ int main(int argc, char **argv)
         perf.start("total_step");
 
         perf.start("compute_step");
+        const AllocSnapshot step_alloc; // #25: the solver step must not allocate
         sim.iterate();
         perf.stop("compute_step");
+        perf.setCounter("allocs_step", static_cast<double>(step_alloc.delta_calls()));
+        perf.setCounter("alloc_bytes_step", static_cast<double>(step_alloc.delta_bytes()));
         perf.add("halo", sim.last_halo_seconds());
         perf.add("stencil", sim.last_stencil_seconds());
         perf.setCounter("halo_bytes", static_cast<double>(sim.halo_bytes_per_step()));
@@ -412,8 +419,10 @@ int main(int argc, char **argv)
             perf.add("halo", sim.refresh_halos());
 
             perf.start("write_step");
+            const ProcessAllocSnapshot write_alloc; // backend threads included
             writer_main->write(it, sim, rank, procs);
             perf.stop("write_step");
+            perf.setCounter("allocs_write", static_cast<double>(write_alloc.delta_calls()));
             const Writer::Phases &ph = writer_main->lastPhases();
             if (ph.split)
             {
@@ -426,6 +435,8 @@ int main(int argc, char **argv)
                 perf.add("execute", perf.elapsed("write_step"));
             }
             perf.setCounter("backend_bytes", backend_bytes);
+            perf.setCounter("allocs_wrap", static_cast<double>(ph.wrap_allocs));
+            perf.setCounter("alloc_bytes_wrap", static_cast<double>(ph.wrap_alloc_bytes));
         }
 
 #ifdef USE_ADIOS2
