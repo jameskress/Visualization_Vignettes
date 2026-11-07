@@ -5,7 +5,11 @@
 #include <vtkStreamingDemandDrivenPipeline.h>
 #include <iostream>
 #include <exception>
+#include <chrono>
+#include <cstdio>
 #include <filesystem>
+
+#include <catalyst_conduit_blueprint.hpp>
 
 namespace fs = std::filesystem;
 
@@ -15,6 +19,7 @@ namespace fs = std::filesystem;
 void WriterCatalyst::CreateWriter(const Settings &_settings, const GrayScott &sim, MPI_Comm comm, int rank)
 {
     settings = _settings;
+    ghosts.build(sim);
     vtkLog(TRACE, "");
     conduit_cpp::Node node;
 
@@ -94,141 +99,72 @@ void WriterCatalyst::write(int step, const GrayScott &sim, int rank, int numRank
     {
         return;
     }
+    using clock = std::chrono::steady_clock;
+    const auto t0 = clock::now();
 
     conduit_cpp::Node exec_params;
-    // add time/cycle information
     auto state = exec_params["catalyst/state"];
-    state["timestep"].set(step);
-    state["time"].set(step);
-
-    // add optional exectution parameters passed to catalyst
-    state["parameters"].append().set_string("timeParam=" + std::to_string(step));
-
-    // We only force the timestep to 0 if:
-    // 1. The user requested an overwrite.
-    // 2. We are in the automated "catalyst_io" mode.
-    //
-    // If we are in "catalyst_insitu" (Python script), we pass the REAL step
-    // so the script can decide what to do (e.g. annotations).
+    // With overwrite_last_step in catalyst_io mode the step is forced to 0 so
+    // each extract replaces the last; the real step goes in a parameter.
+    // catalyst_insitu scripts always get the real step.
     if (settings.overwrite_last_step && settings.output_type == "catalyst_io")
     {
         state["timestep"].set(0);
         state["time"].set(0.0);
-
-        // Pass the real step as a parameter just in case
         state["parameters"].append().set_string("real_step=" + std::to_string(step));
     }
     else
     {
-        // Standard Behavior
         state["timestep"].set(step);
         state["time"].set(static_cast<double>(step));
-        state["parameters"].append().set_string("timeParam=" + std::to_string(step));
     }
-    // =================================================================
+    state["parameters"].append().set_string("timeParam=" + std::to_string(step));
 
-    // Add channels.
-    // We only have 1 channel here. Let's name it 'grid'.
+    // One channel, "grid", described by the shared Blueprint builder (#21):
+    // every rank's block at its true global position over the full ghosted
+    // array, u and v attached without a copy, and the halo cells flagged
+    // DUPLICATECELL in vtkGhostType so ParaView treats them as ghosts. This
+    // replaces the old adaptor, which copied u and v without halos and
+    // shifted each block's origin until the pieces touched.
     auto channel = exec_params["catalyst/channels/grid"];
-
-    // Since this example is using Conduit Mesh Blueprint to define the mesh,
-    // we set the channel's type to "mesh".
     channel["type"].set("mesh");
-
-    // now create the mesh.
     auto mesh = channel["data"];
+    gs_mesh::GhostFields which;
+    which.vtk_cells = true;
+    gs_mesh::describe(mesh, sim, ghosts, which, step, step * settings.dt, rank);
 
-    // start with coordsets (of course, the sequence is not important, just make
-    // it easier to think in this order).
-    mesh["coordsets/coords/type"].set("uniform");
+    // The tree's shape never changes, so verify once (not timed).
+    const auto t1 = clock::now();
+    if (!verified)
+    {
+        conduit_cpp::Node info;
+        if (!conduit_cpp::BlueprintMesh::verify(mesh, info))
+        {
+            std::cerr << "Blueprint verify failed on rank " << rank << std::endl;
+            info.print();
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        verified = true;
+        // The address lets a script confirm ParaView reads this very array.
+        char where[32];
+        std::snprintf(where, sizeof where, "%p", static_cast<const void *>(sim.u_ghost().data()));
+        vtkLog(INFO, "Blueprint mesh verified on rank " << rank << "; u at " << where);
+    }
 
-    int origin[3] = {0, 0, 0};
-    float spacing[3] = {0.1, 0.1, 0.1};
-    // For no_ghost use
-    int nx = sim.size_x + 0, ny = sim.size_y + 0, nz = sim.size_z + 0;
-
-    // int nx = sim.size_x + 2, ny = sim.size_y + 2, nz = sim.size_z + 2;
-    int dx = sim.offset_x, dy = sim.offset_y, dz = sim.offset_z;
-    int wholeExtent[6] = {0, (int)settings.L, 0, (int)settings.L, 0, (int)settings.L};
-    vtkLog(TRACE, "" << "size " << nx << " " << ny << " " << nz);
-    vtkLog(TRACE, "" << "offsets " << dx << " " << dy << " " << dz);
-    vtkLog(TRACE, "" << "local dims "
-                     << dx << " "
-                     << nx + dx << " "
-                     << dy << " "
-                     << ny + dy << " "
-                     << dz << " "
-                     << nz + dz);
-    vtkLog(TRACE, "" << "global dims "
-                     << 0 << " "
-                     << (int)settings.L << " "
-                     << 0 << " "
-                     << (int)settings.L << " "
-                     << 0 << " "
-                     << (int)settings.L);
-
-    // move the final mesh fragments so that each domain is flush against all other domains.
-    // this is necessary as we could not get ghost cells to work correctly, so with all
-    // domains touching the visulaization is able to create its own
-    mesh["coordsets/coords/origin/x"].set(dx * spacing[0] - (dx / nx) * spacing[0]);
-    mesh["coordsets/coords/origin/y"].set(dy * spacing[1] - (dy / ny) * spacing[1]);
-    mesh["coordsets/coords/origin/z"].set(dz * spacing[2] - (dz / nz) * spacing[2]);
-
-    // mesh["coordsets/coords/origin/x"].set(dx * spacing[0]);
-    // mesh["coordsets/coords/origin/y"].set(dy * spacing[1]);
-    // mesh["coordsets/coords/origin/z"].set(dz * spacing[2]);
-
-    mesh["coordsets/coords/dims/i"].set(nx);
-    mesh["coordsets/coords/dims/j"].set(ny);
-    mesh["coordsets/coords/dims/k"].set(nz);
-
-    mesh["coordsets/coords/spacing/dx"].set(spacing[0]);
-    mesh["coordsets/coords/spacing/dy"].set(spacing[1]);
-    mesh["coordsets/coords/spacing/dz"].set(spacing[2]);
-
-    // Next, add topology
-    mesh["topologies/mesh/type"].set("uniform");
-    mesh["topologies/mesh/coordset"].set("coords");
-
-    // Finally, add fields.
-    auto fields = mesh["fields"];
-    fields["v/association"].set("vertex");
-    fields["v/topology"].set("mesh");
-    fields["v/volume_dependent"].set("false");
-    // fields["v/values"].set_external(sim.v_ghost().data(), sim.v_ghost().size());
-    fields["v/values"].set(sim.v_noghost().data(), sim.v_noghost().size());
-
-    fields["u/association"].set("vertex");
-    fields["u/topology"].set("mesh");
-    fields["u/volume_dependent"].set("false");
-    // fields["u/values"].set_external(sim.u_ghost().data(), sim.u_ghost().size());
-    fields["u/values"].set(sim.u_noghost().data(), sim.u_noghost().size());
-
-    // std::cerr << __FILE__ << __LINE__ << std::endl;
-    // // special case to handle ghost cells by creating a ghost mask
-    // fields["vtkGhostType/association"].set("vertex");
-    // fields["vtkGhostType/topology"].set("mesh");
-    // fields["vtkGhostType/volume_dependent"].set("false");
-    // auto testdata = sim.ghost_point_mask();
-    // std::cerr << testdata.size() << std::endl;
-    // //sim.ghost_cell_mask().size()
-    // fields["vtkGhostType/values"].set(testdata.data(), testdata.size());
-    // std::cerr << __FILE__ << __LINE__ << std::endl;
-
-    // special case to handle ghost cells by creating a ghost mask
-    // fields["qw/association"].set("element");
-    // fields["qw/topology"].set("mesh");
-    // fields["qw/volume_dependent"].set("false");
-    // auto cellData = sim.ghost_cell_mask();
-    // std::cerr << cellData.size() << std::endl;
-    // //sim.ghost_cell_mask().size()
-    // fields["qw/values"].set(cellData.data(), cellData.size());
-
+    // Execute: ParaView converts the tree (zero-copy for the arrays) and
+    // runs the pipeline or script, including any file output it does.
+    const auto t2 = clock::now();
     catalyst_status err = catalyst_execute(conduit_cpp::c_node(&exec_params));
     if (err != catalyst_status_ok)
     {
         vtkLog(ERROR, "Failed to execute Catalyst: " << err);
     }
+    const auto t3 = clock::now();
+
+    phases.wrap_s = std::chrono::duration<double>(t1 - t0).count();
+    phases.execute_s = std::chrono::duration<double>(t3 - t2).count();
+    phases.io_s = 0.0; // file output happens inside ParaView's pipeline
+    phases.split = true;
     vtkLogEndScope("Writing: Catalyst");
 }
 

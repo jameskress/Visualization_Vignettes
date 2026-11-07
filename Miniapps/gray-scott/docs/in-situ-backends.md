@@ -10,8 +10,8 @@ Performance records for every backend are described in the
 ## The shared mesh description
 
 Every Conduit-based backend gets the same Mesh Blueprint tree, built by
-`simulation/mesh_blueprint.h` (#20). Ascent uses it now. Catalyst moves to
-it in #21; Kombyne-lite in #23.
+`simulation/mesh_blueprint.h` (#20). Ascent and Catalyst (#21) use it;
+Kombyne-lite moves to it in #23.
 
 **Mesh.** One Blueprint domain per rank, with `state/domain_id` set to the
 rank. A uniform coordset and topology cover the rank's whole ghosted array,
@@ -90,3 +90,51 @@ Checked on 1, 2 and 4 ranks (64^3, volume render of `v`):
 * 0.4% of pixels differ by more than 8 of 255 between 1 and 4 ranks. This
   is volume-render sampling and compositing across domains. #24 adds an
   exact ghost-volume test.
+
+## Catalyst (ParaView 6.2)
+
+`simulation/writerCatalyst.cpp` puts the shared tree on the channel `grid`
+with the `vtkGhostType` cell field (#21). ParaView's Conduit reader
+recognises the name and makes it the cell ghost array.
+
+* Each block sits at its true global position, over its full ghosted
+  array.
+* The old adaptor copied u and v without halos and shifted each block's
+  origin until the pieces touched. Both are gone.
+* Zero-copy, checked: the address of `u` that the adaptor logs on its
+  first write equals the address of the `u` array in the vtkImageData that
+  ParaView builds for that rank.
+
+Timers:
+
+| Timer | Measures |
+| :--- | :--- |
+| `wrap` | building the tree |
+| `execute` | `catalyst_execute`: ParaView's conversion plus the pipeline or script, including any files it writes |
+| `io` | not separated from `execute` |
+
+Checked on 1, 2, 4 and 8 ranks at 64^3, step 100, with a test script that
+integrates areas using ParaView's `IntegrateVariables` (which skips
+`DUPLICATECELL` cells):
+
+| Quantity | 1 rank | 2, 4 and 8 ranks |
+| :--- | ---: | ---: |
+| contour v = 0.2, area | 17.2025866257 | identical to 10 digits |
+| slice at x = 3.25 (inside a cell layer), area | 40.96 | identical |
+| slice at x = 3.2 (exactly on the 2-rank boundary plane), area | 40.96 | 81.92 |
+
+The contour has no cracks and no doubled faces. The one case that doubles
+is a cut lying exactly on a grid plane that two blocks share:
+
+* Each rank cuts its own owned cell face on that plane, and ParaView's
+  cutter output carries no ghost flags to drop one of the copies.
+* Avoid exact grid planes at rank boundaries, or deduplicate afterwards.
+
+The cell ghost count per rank equals the low-halo cells, for example 8353
+of 139425 on a 33 x 65 x 65 cell block.
+
+The shipped scripts in `configs/catalyst_scripts/` still insert
+`GhostCells` and `CellDatatoPointData`. They were part of the old
+workaround and are now unnecessary, but the scripts' content is out of
+scope here. The ParaView 6.2 build on the workstation has neither EGL nor
+OSMesa, so rendering scripts need an X display.
