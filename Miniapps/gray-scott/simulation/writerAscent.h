@@ -16,6 +16,14 @@ public:
     void write(int step, const GrayScott &sim, int rank, int numRanks) override;
     void close(int rank) override;
     void printSelf() override;
+    std::string backendVersion() const override
+    {
+        conduit::Node about;
+        ascent::about(about);
+        return "Ascent " + (about.has_child("version") ? about["version"].as_string() : std::string("unknown"));
+    }
+    // Ascent reads ascent_options.yaml, which names the actions file.
+    std::string backendScript() const override { return "ascent_options.yaml"; }
 
 private:
     ascent::Ascent ascent;

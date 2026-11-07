@@ -964,48 +964,13 @@ local grid size:      64x64x64
 
 ## ⏱️ Performance Timers and Visualization
 
-This project includes an optional feature to collect and visualize detailed performance timers, helping you understand and analyze the simulation's performance characteristics. The same code and script are used for both the reader and writer performance timers.
+The miniapp's own performance record (run directory, metadata, per-step timers, summary, the
+`ENABLE_TIMERS` switch and `scripts/perf_report.py` for tables and plots) is described in the
+[Performance section of the README](../README.md#performance). It replaced the per-rank
+`writer_timers/*.csv` files and `visualize-performance-metrics.py` in #26. The analysis reader
+uses the same logger and writes `reader_timers/steps/rank_*.jsonl`.
 
-### Enabling Timers
-
-To instrument the code and collect performance data, you must enable the timers during the CMake configuration step by setting the `ENABLE_TIMERS` option to `ON` (or `1`).
-
-```bash
-# Example of enabling timers during CMake configuration
-cmake -DENABLE_TIMERS=ON ..
-```
-
-When you run a simulation that was built with timers enabled, a new directory named `writer_timers/` will be created in the run directory. This folder will be populated with `.csv` files, one for each MPI rank, containing detailed timing information for each simulation step.
-
-### Visualizing the Timers
-
-A Python script is provided to easily parse all the generated timer files and create a comprehensive summary plot.
-
-#### Prerequisites
-
-The script depends on the **pandas**, **matplotlib**, and **numpy** libraries. You can install them using pip:
-
-```bash
-pip install pandas matplotlib numpy
-```
-
-#### Running the Script
-
-```bash
-python3 visualize-gray-scott-timers.py
-```
-
-This will process all `.csv` files in the `writer_timers/` subdirectory and generate an image file named `gray_scott_timers_summary.png`.
-
-The summary image contains four plots providing a comprehensive overview of the run's performance:
-
-1. **Timers per Step**: A line plot showing the mean time for each instrumented region, with shading to indicate the minimum and maximum times across all ranks. This is useful for seeing how performance changes over time and identifying rank-to-rank variation.
-
-2. **Timers (stacked)**: A stacked bar chart showing the composition of the total step time, averaged across all ranks. This helps identify which operations are the most expensive.
-
-3. **System Stats per Step**: A dual-axis plot showing memory usage (RSS) and CPU time (user/system) per step.
-
-4. **Total Step Time by Rank**: A line plot showing the total wall-clock time for each step, with a separate line for each MPI rank. This is excellent for diagnosing load imbalance issues.
+The sections below cover the backends' own timing tools.
 
 ### Ascent specific Performance Analysis
 

@@ -59,6 +59,9 @@ pip install --upgrade pip
 pip install pandas numpy matplotlib
 
 ## Generate the stats
+# reduce_timers.py reads the per-rank writer_timers/*.csv files of runs made
+# before #26 (the 2026 WOIV runs). Newer builds write a run directory under
+# perf/ instead; use scripts/perf_report.py on those (README.md, Performance).
 python3 reduce_timers.py paper1_func_N0064_baseline/writer_timers summary_baseline.csv
 python3 reduce_timers.py paper1_func_N0064_inline_adios_data/writer_timers summary_adios_data.csv
 python3 reduce_timers.py paper1_func_N0064_inline_ascent_data/writer_timers summary_ascent_data.csv

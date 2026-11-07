@@ -17,6 +17,8 @@ public:
     void write(int step, const GrayScott &sim, int rank, int numRanks) override;
     void close(int rank) override;
     void printSelf() override;
+    std::string backendVersion() const override { return std::string("ADIOS2 ") + ADIOS2_VERSION_STR; }
+    std::string backendScript() const override { return settings.adios_config; }
 
 private:
     adios2::IO m_io;

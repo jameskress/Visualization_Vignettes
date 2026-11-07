@@ -32,6 +32,17 @@ public:
     void set_step(std::uint64_t step) { step_ = step; }
     std::uint64_t step() const { return step_; }
 
+    // Timing of the last iterate() in seconds, for the performance log
+    // (#26). Measured only when built with ENABLE_TIMERS, otherwise 0.
+    // Halo time includes waiting for neighbours, so it carries any load
+    // imbalance; stencil time is the update plus the copy back.
+    double last_halo_seconds() const { return last_halo_s_; }
+    double last_stencil_seconds() const { return last_stencil_s_; }
+    // Bytes this rank sends in one halo exchange (both fields, all six
+    // faces), from the MPI datatype sizes. On one rank the periodic
+    // neighbour is the rank itself and MPI copies the same bytes.
+    std::uint64_t halo_bytes_per_step() const { return halo_bytes_; }
+
     #ifdef USE_ADIOS2
     void restart(std::vector<double> &u, std::vector<double> &v);
     #endif
@@ -62,6 +73,10 @@ protected:
     MPI_Datatype xy_face_type = MPI_DATATYPE_NULL;
     MPI_Datatype xz_face_type = MPI_DATATYPE_NULL;
     MPI_Datatype yz_face_type = MPI_DATATYPE_NULL;
+
+    double last_halo_s_ = 0.0;
+    double last_stencil_s_ = 0.0;
+    std::uint64_t halo_bytes_ = 0;
 
     // Number of completed iterations; the noise term depends on it.
     std::uint64_t step_ = 0;

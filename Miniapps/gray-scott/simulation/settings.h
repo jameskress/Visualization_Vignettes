@@ -32,6 +32,8 @@ struct Settings
     bool adios_memory_selection;
     std::string mesh_type;
     std::string kombynelite_script_path;
+    // Parent directory for each run's performance log directory (#26).
+    std::string perf_dir;
     int burn_in_steps;
     bool overwrite_last_step;
 

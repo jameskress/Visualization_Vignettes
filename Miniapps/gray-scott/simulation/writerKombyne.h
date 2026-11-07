@@ -20,6 +20,8 @@ public:
     void write(int step, const GrayScott &sim, int rank, int numRanks) override;
     void close(int rank) override;
     void printSelf() override;
+    std::string backendVersion() const override { return std::string("Kombyne-lite ") + GS_KOMBYNE_VERSION; }
+    std::string backendScript() const override { return settings.kombynelite_script_path; }
 
 private:
     // Kombyne C-style handle for the pipeline collection

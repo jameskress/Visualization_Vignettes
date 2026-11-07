@@ -6,6 +6,7 @@
 
 #include <mpi.h>
 #include <stdexcept> // runtime_error
+#include <chrono>
 #include <initializer_list>
 #include <iostream>
 #include <vector>
@@ -50,8 +51,14 @@ void GrayScott::init()
 
 void GrayScott::iterate()
 {
+#ifdef ENABLE_TIMERS
+    const auto t0 = std::chrono::steady_clock::now();
+#endif
     // Perform halo exchange on the current, valid u and v arrays.
     exchange(u, v);
+#ifdef ENABLE_TIMERS
+    const auto t1 = std::chrono::steady_clock::now();
+#endif
     calc(u, v, u2, v2);
 
     // Copy the results back to u and v.
@@ -70,6 +77,11 @@ void GrayScott::iterate()
             }
         }
     }
+#ifdef ENABLE_TIMERS
+    const auto t2 = std::chrono::steady_clock::now();
+    last_halo_s_ = std::chrono::duration<double>(t1 - t0).count();
+    last_stencil_s_ = std::chrono::duration<double>(t2 - t1).count();
+#endif
     ++step_;
 }
 
@@ -362,6 +374,13 @@ void GrayScott::init_mpi()
     MPI_Type_vector((size_y + 2) * (size_z + 2), 1, size_x + 2, MPI_DOUBLE,
                     &yz_face_type);
     MPI_Type_commit(&yz_face_type);
+
+    // Each exchange sends every face type in both directions, for u and v.
+    int xy = 0, xz = 0, yz = 0;
+    MPI_Type_size(xy_face_type, &xy);
+    MPI_Type_size(xz_face_type, &xz);
+    MPI_Type_size(yz_face_type, &yz);
+    halo_bytes_ = 2ull * 2ull * (static_cast<std::uint64_t>(xy) + xz + yz);
 }
 
 void GrayScott::exchange_xy(std::vector<double> &local_data) const
