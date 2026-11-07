@@ -2,6 +2,7 @@
 #define __WRITERPVTI_H__
 
 #include "writer.h"
+#include "mesh_blueprint.h"
 #include "gray-scott.h"
 #include "settings.h"
 #include <mpi.h>
@@ -26,6 +27,9 @@ class WriterPVTI : public Writer
     {
         return std::string("VTK ") + vtkVersion::GetVTKVersion() + " vtkXMLPImageDataWriter";
     }
+
+private:
+    gs_mesh::Ghosts ghosts; // borrowed by each write's image data
 };
 
 #endif

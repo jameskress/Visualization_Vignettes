@@ -10,8 +10,9 @@ Performance records for every backend are described in the
 ## The shared mesh description
 
 Every Conduit-based backend gets the same Mesh Blueprint tree, built by
-`simulation/mesh_blueprint.h` (#20). Ascent and Catalyst (#21) use it;
-Kombyne-lite moves to it in #23.
+`simulation/mesh_blueprint.h` (#20). Ascent and Catalyst (#21) publish it.
+Kombyne-lite and PVTI take their own objects, so they use the same geometry
+helpers and ownership instead (#23).
 
 **Mesh.** One Blueprint domain per rank, with `state/domain_id` set to the
 rank. A uniform coordset and topology cover the rank's whole ghosted array,
@@ -144,3 +145,60 @@ Colour maps are pinned so that every rank count gets the same colours.
 Rendering needs no X display: the ParaView 6.2 source build renders
 through EGL with `VTK_DEFAULT_OPENGL_WINDOW=vtkEGLRenderWindow` (pass it
 to the ranks with `mpirun -x`).
+
+## Kombyne-lite (free version 1.5)
+
+Kombyne takes its own grid objects, not a Conduit tree. Its adaptor
+(`simulation/writerKombyne.cpp`, #23) builds a rectilinear grid
+(`kb_rgrid`) over the full ghosted block:
+
+* The axis coordinates come from `gs_mesh::axis_points` (the same origin
+  and 0.1 spacing).
+* `U` and `V` are passed with `KB_MEM_BORROW`, so there is no copy.
+* The ghost-cell mask comes from the shared ownership rule, in Kombyne's
+  convention: 0 = ghost, non-zero = real (`kombyne_data_ugrid.h`).
+* The coordinates and mask are built once and borrowed every step.
+* The old adaptor copied u and v without halos and built per-point
+  coordinates, which left a one-cell gap between ranks.
+
+Timers: `wrap` (building the handles, about 50 microseconds at 64^3) and
+`execute` (`kb_simulation_execute`, including its exports).
+
+Checked by exporting with `kombyne-save-data.yaml` on 1, 2 and 4 ranks and
+reading the files in ParaView:
+
+* Contouring v = 0.2 over the cells with `__ghostCells` >= 1 gives the
+  same area on every rank count.
+* The owned volume is 262.144 (6.4^3) on every rank count.
+
+Kombyne's VTK export writes the mask as `__ghostCells` in Kombyne's
+convention, not as `vtkGhostType`, so ParaView does not treat it as a ghost
+array. Contouring the exported files without the threshold double counts
+the halo cells: area 17.61 on 2 ranks and 18.01 on 4, against 17.20.
+Readers of Kombyne exports must apply the mask; #24's test does so.
+
+## PVTI (VTK XML)
+
+`simulation/writerPVTI.cpp` (#23) writes the same geometry:
+
+* **Extents:** each piece is its full ghosted block, with extents in
+  global point indices. The whole extent runs from -1 to L, the halo
+  layers included. The old writer placed every block one point too high
+  and flagged no ghosts.
+* **Fields:** `u` and `v` are the solver's arrays, borrowed by VTK
+  (`SetArray(..., save = 1)`) and written as doubles. The old writer copied
+  them to float. Files are about twice as large as before; in exchange they
+  hold exactly what every other backend sees.
+* **Ghosts:** `vtkGhostType` is written as both a cell array
+  (`DUPLICATECELL` on low-halo cells) and a point array (`DUPLICATEPOINT`
+  on halo points). ParaView applies both when reading.
+
+Timers: `wrap` (building the image inside the pipeline, about 90
+microseconds at 64^3, down from about 11 ms) and `io` (the rest of
+`Write()`).
+
+Checked in ParaView 6.2 on 1, 2 and 4 ranks:
+
+* The volume is 262.144 on every rank count.
+* The contour v = 0.2 area is 17.2025866257 on every rank count, the same
+  value as Catalyst.

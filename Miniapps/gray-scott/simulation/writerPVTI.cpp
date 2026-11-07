@@ -3,6 +3,9 @@
 #include <vtkInformation.h>
 #include <vtkInformationVector.h>
 #include <vtkStreamingDemandDrivenPipeline.h>
+#include <vtkCellData.h>
+#include <vtkDataSetAttributes.h>
+#include <vtkUnsignedCharArray.h>
 
 #include <chrono>
 
@@ -13,7 +16,7 @@
 class ImageSource : public vtkImageAlgorithm
 {
 public:
-    ImageSource(int L, const GrayScott &sim, int rank);
+    ImageSource(int L, const GrayScott &sim, const gs_mesh::Ghosts &ghosts, int rank);
     // Time spent building the vtkImageData in the last pipeline update (s).
     double wrap_seconds() const { return wrap_s_; }
 
@@ -25,8 +28,7 @@ private:
     const GrayScott &sim_;
     double wrap_s_ = 0.0;
 
-    vtkSmartPointer<vtkFloatArray> var_u;
-    vtkSmartPointer<vtkFloatArray> var_v;
+    const gs_mesh::Ghosts &ghosts_;
 
     void setWholeExtent(int x1, int x2, int y1, int y2, int z1, int z2);
     void setLocalExtent(int x1, int x2, int y1, int y2, int z1, int z2);
@@ -40,47 +42,23 @@ private:
     int FillOutputPortInformation(int port, vtkInformation *info);
 };
 
-ImageSource::ImageSource(int L, const GrayScott &sim, int rank) : L_(L), sim_(sim), rank_(rank)
+ImageSource::ImageSource(int L, const GrayScott &sim, const gs_mesh::Ghosts &ghosts, int rank)
+    : L_(L), rank_(rank), sim_(sim), ghosts_(ghosts)
 {
+    // Same geometry as the shared Blueprint description (mesh_blueprint.h,
+    // #23): the full ghosted block, local point i at global index
+    // offset + i - 1, spacing 0.1. Extents are in global point indices, so
+    // the halo layers sit at -1 and L in the whole extent. (The old writer
+    // put the block one point too far up and flagged no ghosts.)
     this->setOrigin(0.0, 0.0, 0.0);
-    this->setSpacing(0.1, 0.1, 0.1);
-
-    int nx = sim_.size_x + 2, ny = sim_.size_y + 2, nz = sim_.size_z + 2;
-    int dx = sim_.offset_x, dy = sim_.offset_y, dz = sim_.offset_z;
-    this->setLocalExtent(0 + dx, nx - 1 + dx, 0 + dy, ny - 1 + dy, 0 + dz, nz - 1 + dz);
-    this->setWholeExtent(0, this->L_, 0, this->L_, 0, this->L_);
-
-    vtkLog(TRACE, "rank_" << this->rank_ << " :: offsets " << sim_.offset_x << " " << sim_.offset_y << " " << sim_.offset_z);
-    vtkLog(TRACE, "rank_" << this->rank_ << " :: local dims " << localExtent_[0] << " "
-                          << localExtent_[1] << " "
-                          << localExtent_[2] << " "
-                          << localExtent_[3] << " "
-                          << localExtent_[4] << " "
-                          << localExtent_[5]);
-    vtkLog(TRACE, "rank_" << this->rank_ << " :: global dims " << wholeExtent_[0] << " "
-                          << wholeExtent_[1] << " "
-                          << wholeExtent_[2] << " "
-                          << wholeExtent_[3] << " "
-                          << wholeExtent_[4] << " "
-                          << wholeExtent_[5]);
-
-    vtkLog(TRACE, "");
-
-    var_u = vtkSmartPointer<vtkFloatArray>::New();
-    var_v = vtkSmartPointer<vtkFloatArray>::New();
-
-    vtkLog(TRACE, "");
-
-    this->var_u->SetNumberOfComponents(1);
-    this->var_u->SetNumberOfTuples(nx * ny * nz);
-
-    vtkLog(TRACE, "");
-
-    this->var_v->SetNumberOfComponents(1);
-    this->var_v->SetNumberOfTuples(nx * ny * nz);
-
-    vtkLog(TRACE, "");
-
+    this->setSpacing(gs_mesh::kSpacing, gs_mesh::kSpacing, gs_mesh::kSpacing);
+    const int x0 = static_cast<int>(sim_.offset_x) - 1;
+    const int y0 = static_cast<int>(sim_.offset_y) - 1;
+    const int z0 = static_cast<int>(sim_.offset_z) - 1;
+    this->setLocalExtent(x0, x0 + static_cast<int>(sim_.size_x) + 1, y0,
+                         y0 + static_cast<int>(sim_.size_y) + 1, z0,
+                         z0 + static_cast<int>(sim_.size_z) + 1);
+    this->setWholeExtent(-1, this->L_, -1, this->L_, -1, this->L_);
     this->SetNumberOfInputPorts(0);
 }
 
@@ -131,7 +109,7 @@ int ImageSource::RequestInformation(vtkInformation *, vtkInformationVector **, v
     outInfo->Print(streamOut);
     vtkLog(MAX, "" << streamOut.str());
 
-    vtkDataObject::SetPointDataActiveScalarInfo(outInfo, VTK_FLOAT, 1);
+    vtkDataObject::SetPointDataActiveScalarInfo(outInfo, VTK_DOUBLE, 1);
 
     outInfo->Set(CAN_PRODUCE_SUB_EXTENT(), 1);
 
@@ -149,27 +127,28 @@ void ImageSource::ExecuteDataWithInformation(vtkDataObject *, vtkInformation *ou
     imageData->SetSpacing(spacing_);
     imageData->SetOrigin(origin_);
 
-    std::vector<double> u = sim_.u_ghost();
-    std::vector<double> v = sim_.v_ghost();
-    // std::vector<double> u = sim.u_noghost();
-    // std::vector<double> v = sim.v_noghost();
-
-    for (int i = 0; i < u.size(); i++)
-    {
-        this->var_v->SetValue(i, (float)v[i]);
-        this->var_u->SetValue(i, (float)u[i]);
-    }
-
-    this->var_v->SetName("v");
-    this->var_u->SetName("u");
-
-    // log object info
-    std::stringstream streamOut;
-    imageData->Print(streamOut);
-    vtkLog(MAX, "" << streamOut.str());
+    // u and v are the solver's own arrays (SetArray with save = 1: VTK
+    // borrows them and never frees them), written as doubles. The ghost
+    // flags are borrowed the same way.
+    const vtkIdType npts = static_cast<vtkIdType>(sim_.u_ghost().size());
+    auto var_u = vtkSmartPointer<vtkDoubleArray>::New();
+    var_u->SetName("u");
+    var_u->SetArray(const_cast<double *>(sim_.u_ghost().data()), npts, 1);
+    auto var_v = vtkSmartPointer<vtkDoubleArray>::New();
+    var_v->SetName("v");
+    var_v->SetArray(const_cast<double *>(sim_.v_ghost().data()), npts, 1);
+    auto ghost_pts = vtkSmartPointer<vtkUnsignedCharArray>::New();
+    ghost_pts->SetName(vtkDataSetAttributes::GhostArrayName());
+    ghost_pts->SetArray(const_cast<unsigned char *>(ghosts_.vtk_points.data()), npts, 1);
+    auto ghost_cells = vtkSmartPointer<vtkUnsignedCharArray>::New();
+    ghost_cells->SetName(vtkDataSetAttributes::GhostArrayName());
+    ghost_cells->SetArray(const_cast<unsigned char *>(ghosts_.vtk_cells.data()),
+                          static_cast<vtkIdType>(ghosts_.vtk_cells.size()), 1);
 
     imageData->GetPointData()->AddArray(var_u);
     imageData->GetPointData()->AddArray(var_v);
+    imageData->GetPointData()->AddArray(ghost_pts);
+    imageData->GetCellData()->AddArray(ghost_cells);
     wrap_s_ = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
 }
 
@@ -187,6 +166,7 @@ int ImageSource::FillOutputPortInformation(int port, vtkInformation *info)
 void WriterPVTI::CreateWriter(const Settings &_settings, const GrayScott &sim, MPI_Comm comm, int rank)
 {
     settings = _settings;
+    ghosts.build(sim);
     vtkLog(TRACE, "");
     controller = static_cast<vtkMPIController *>(vtkMultiProcessController::GetGlobalController());
     if (!controller)
@@ -215,7 +195,7 @@ void WriterPVTI::write(int step, const GrayScott &sim, int rank, int numRanks)
     }
 
     vtkLogStartScope(TRACE, "Creating custom ImageSource object");
-    ImageSource *source = new ImageSource(int(settings.L), sim, rank);
+    ImageSource *source = new ImageSource(int(settings.L), sim, ghosts, rank);
     vtkLogEndScope("Creating custom ImageSource object");
 
     // =================================================================

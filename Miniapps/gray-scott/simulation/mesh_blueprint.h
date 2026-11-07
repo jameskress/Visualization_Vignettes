@@ -37,6 +37,10 @@
 //     A Blueprint tree can hold only one field with that name, so the
 //     element field is "vtkGhostType" and the point flags are offered as
 //     "vtkGhostType_points" for the Catalyst adaptor to place (#21).
+//   * Kombyne-lite: a char or int mask per cell, non-zero = real, 0 = ghost
+//     (kombyne_data_ugrid.h); Ghosts::kombyne_cells. Kombyne takes its own
+//     grid objects, not this tree, so its adaptor uses axis_points() and the
+//     same ownership (#23).
 //
 // The halo must be current when a backend reads it: call
 // GrayScott::refresh_halos() on output steps before describe().
@@ -57,6 +61,17 @@ constexpr std::int32_t kAscentGhost = 1;
 constexpr std::uint8_t kVtkDuplicateCell = 1;  // vtkDataSetAttributes::DUPLICATECELL
 constexpr std::uint8_t kVtkDuplicatePoint = 1; // vtkDataSetAttributes::DUPLICATEPOINT
 
+// Coordinates of the local points along one axis: (offset - 1 + i) * spacing
+// for i = 0 .. size + 1. For APIs that take explicit axis coordinates
+// (Kombyne's rectilinear grid, #23); the same rule as the Blueprint origin.
+inline std::vector<double> axis_points(std::size_t offset, std::size_t size)
+{
+    std::vector<double> x(size + 2);
+    for (std::size_t i = 0; i < x.size(); i++)
+        x[i] = (static_cast<double>(offset) - 1.0 + static_cast<double>(i)) * kSpacing;
+    return x;
+}
+
 // Which ghost fields a backend reads. Each comes from the same ownership.
 struct GhostFields
 {
@@ -72,6 +87,9 @@ struct Ghosts
     std::vector<std::int32_t> ascent_cells;
     std::vector<std::uint8_t> vtk_cells;
     std::vector<std::uint8_t> vtk_points;
+    // Kombyne's mask is the reverse: non-zero = real, 0 = ghost
+    // (kombyne_data_ugrid.h, kb_ugrid_set_ghost_cells).
+    std::vector<unsigned char> kombyne_cells;
     std::size_t owned_cells = 0;
     std::size_t owned_points = 0;
 
@@ -95,6 +113,9 @@ struct Ghosts
                     else
                         owned_cells++;
                 }
+        kombyne_cells.resize(vtk_cells.size());
+        for (std::size_t c = 0; c < vtk_cells.size(); c++)
+            kombyne_cells[c] = vtk_cells[c] ? 0 : 1;
         vtk_points.assign(px * py * pz, 0);
         owned_points = 0;
         for (std::size_t k = 0; k < pz; k++)
