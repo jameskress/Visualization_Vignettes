@@ -306,3 +306,23 @@ How to read it:
   Kombyne handles, rebuilt each write.
 * **Whole call:** the counts are the backends' own internal allocations.
   They are reported, not failed.
+
+## Ghost volume test (#24)
+
+`tests/ghost_volume/ghost_volume.py` checks the ghost handling of every
+backend end to end. The README's Testing section shows how to run it.
+
+At 64^3, step 100, cells with u <= 0.3 on every corner:
+
+| Backend | Counted by | 1, 2, 4 and 8 ranks |
+| :--- | :--- | :--- |
+| ADIOS2 | `bpls`, counted on the periodic global array (the reference) | 356 cells, volume 0.356 |
+| Catalyst | Threshold, then IntegrateVariables, in situ | 356 cells, volume 0.356000097 |
+| PVTI | the same pipeline on the files, in pvpython | 356, 0.356000097 |
+| Kombyne-lite | the same, after masking with `__ghostCells` | 356, 0.356000097 |
+
+The volume differs between the reference and the other three. ParaView
+integrates the threshold output, whose points are float32, so its volume
+differs from 356 x 0.1^3 by 2.7e-7 relative. The comparison uses 1e-12
+between backends integrated the same way and 1e-6 against the analytic
+value. Ascent is not part of the test yet.

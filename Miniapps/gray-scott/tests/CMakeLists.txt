@@ -31,3 +31,58 @@ add_test(NAME gs_regression_bitwise_1_2_4
           -P ${CMAKE_CURRENT_SOURCE_DIR}/compare_hashes.cmake)
 set_tests_properties(gs_regression_bitwise_1_2_4 PROPERTIES
   FIXTURES_REQUIRED gs_regression_hashes)
+
+# Backend ghost volume test (#24): every enabled backend counts the cells
+# with u <= 0.3 at step 100 on 1, 2, 4 and 8 ranks; counts must match across
+# rank counts and across backends. Needs Python 3, and pvpython for the
+# readers of PVTI and Kombyne output, bpls for ADIOS2. CI builds no backends,
+# so none of these tests exist there.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+set(GS_PVPYTHON "" CACHE FILEPATH "pvpython used to read PVTI and Kombyne output in the ghost volume test")
+if(NOT GS_PVPYTHON)
+  find_program(GS_PVPYTHON_FOUND pvpython)
+  if(GS_PVPYTHON_FOUND)
+    set(GS_PVPYTHON ${GS_PVPYTHON_FOUND})
+  endif()
+endif()
+set(_gs_gv_dir ${CMAKE_CURRENT_BINARY_DIR}/ghost_volume)
+set(_gs_gv ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/ghost_volume/ghost_volume.py
+           --exe $<TARGET_FILE:gray-scott> --workdir ${_gs_gv_dir}
+           --mpiexec ${MPIEXEC_EXECUTABLE} "--mpiexec-preflags=${GS_TEST_MPIEXEC_PREFLAGS}")
+set(_gs_gv_backends "")
+if(Python3_Interpreter_FOUND)
+  if(ENABLE_CATALYST)
+    get_filename_component(_cat_impl "${catalyst_DIR}/../../catalyst" ABSOLUTE)
+    set(GS_CATALYST_IMPLEMENTATION_DIR "${_cat_impl}" CACHE PATH "Directory holding libcatalyst-paraview.so")
+    add_test(NAME gs_ghost_volume_catalyst
+      COMMAND ${_gs_gv} --backend catalyst --catalyst-lib ${GS_CATALYST_IMPLEMENTATION_DIR})
+    list(APPEND _gs_gv_backends catalyst)
+  endif()
+  if(GS_PVPYTHON)
+    add_test(NAME gs_ghost_volume_pvti COMMAND ${_gs_gv} --backend pvti --pvpython ${GS_PVPYTHON})
+    list(APPEND _gs_gv_backends pvti)
+    if(ENABLE_KOMBYNELITE)
+      add_test(NAME gs_ghost_volume_kombyne COMMAND ${_gs_gv} --backend kombyne --pvpython ${GS_PVPYTHON})
+      list(APPEND _gs_gv_backends kombyne)
+    endif()
+  endif()
+  if(ENABLE_ADIOS2)
+    find_program(GS_BPLS bpls HINTS ${ADIOS2_DIR}/../../../bin)
+    if(GS_BPLS)
+      add_test(NAME gs_ghost_volume_adios COMMAND ${_gs_gv} --backend adios --bpls ${GS_BPLS})
+      list(APPEND _gs_gv_backends adios)
+    endif()
+  endif()
+endif()
+foreach(b IN LISTS _gs_gv_backends)
+  set_tests_properties(gs_ghost_volume_${b} PROPERTIES
+    LABELS backends TIMEOUT 1800 PROCESSORS 8 RESOURCE_LOCK gs_ghost_volume
+    FIXTURES_SETUP gs_ghost_volume PASS_REGULAR_EXPRESSION "PASSED")
+endforeach()
+if(_gs_gv_backends)
+  add_test(NAME gs_ghost_volume_compare COMMAND ${Python3_EXECUTABLE}
+           ${CMAKE_CURRENT_SOURCE_DIR}/ghost_volume/ghost_volume.py --compare ${_gs_gv_dir})
+  set_tests_properties(gs_ghost_volume_compare PROPERTIES
+    LABELS backends FIXTURES_REQUIRED gs_ghost_volume PASS_REGULAR_EXPRESSION "PASSED")
+  message(STATUS "Ghost volume test backends: ${_gs_gv_backends}")
+endif()

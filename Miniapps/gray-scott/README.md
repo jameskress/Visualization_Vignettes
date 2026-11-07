@@ -353,6 +353,34 @@ What each check means:
   The three hashes must be equal. This catches decomposition errors that the
   norms are too coarse to see.
 
+**Backend ghost volume test** (#24, label `backends`). This test runs only
+in builds with backends enabled, so CI skips it. Every enabled backend runs
+the same seeded 64^3 problem to step 100 on 1, 2, 4 and 8 ranks. Each one
+counts, in its own pipeline or with the reader of its output, the cells
+where every corner has u <= 0.3, and integrates their volume:
+
+* Catalyst runs a threshold and integration in situ.
+* PVTI and Kombyne output is read back with pvpython.
+* ADIOS2 output is read with `bpls` and counted directly on the global
+  array.
+
+A cell counted twice at a rank boundary, or a gap between ranks, changes
+the integer count.
+
+* **Across rank counts:** the count must be identical and the volume must
+  agree within 1e-12.
+* **Across backends:** `gs_ghost_volume_compare` requires equal counts.
+
+On the workstation all four backends count 356 cells on every rank count.
+
+```bash
+ctest --test-dir build/<preset> -L backends --output-on-failure
+```
+
+Set `GS_PVPYTHON` to a pvpython (any ParaView 6.2) for the PVTI and Kombyne
+readers. `bpls` is found next to the ADIOS2 install. Ascent is not in the
+test yet.
+
 If you change the numerics on purpose, regenerate the golden file and say
 why in the PR:
 
