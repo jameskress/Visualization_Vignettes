@@ -6,6 +6,7 @@
 
 #include <mpi.h>
 #include <stdexcept> // runtime_error
+#include <initializer_list>
 #include <iostream>
 #include <vector>
 
@@ -14,7 +15,32 @@ GrayScott::GrayScott(const Settings &settings, MPI_Comm comm)
 {
 }
 
-GrayScott::~GrayScott() {}
+GrayScott::~GrayScott()
+{
+    // Fallback only: main() frees these before MPI_Finalize. After finalize,
+    // MPI calls are not allowed, so check first.
+    int finalized = 0;
+    MPI_Finalized(&finalized);
+    if (!finalized)
+    {
+        free_mpi_resources();
+    }
+}
+
+void GrayScott::free_mpi_resources()
+{
+    for (MPI_Datatype *t : {&xy_face_type, &xz_face_type, &yz_face_type})
+    {
+        if (*t != MPI_DATATYPE_NULL)
+        {
+            MPI_Type_free(t);
+        }
+    }
+    if (cart_comm != MPI_COMM_NULL)
+    {
+        MPI_Comm_free(&cart_comm);
+    }
+}
 
 void GrayScott::init()
 {
@@ -51,7 +77,7 @@ void GrayScott::iterate()
 void GrayScott::restart(std::vector<double> &u_in, std::vector<double> &v_in)
 {
     auto expected_len = (size_x + 2) * (size_y + 2) * (size_z + 2);
-    if (u_in.size() == expected_len)
+    if (u_in.size() == expected_len && v_in.size() == expected_len)
     {
         u = u_in;
         v = v_in;
@@ -284,6 +310,20 @@ void GrayScott::init_mpi()
     py = coords[1];
     pz = coords[2];
 
+    // Every rank must own at least one point per axis: with L smaller than the
+    // number of ranks along an axis, some blocks would be empty and the halo
+    // exchange would send halo values instead of interior ones.
+    if (settings.L < npx || settings.L < npy || settings.L < npz)
+    {
+        if (rank == 0)
+        {
+            std::cerr << "Error: L = " << settings.L << " is smaller than the rank grid "
+                      << npx << " x " << npy << " x " << npz
+                      << "; every rank needs at least one point per axis." << std::endl;
+        }
+        MPI_Abort(comm, 1);
+    }
+
     size_x = settings.L / npx;
     size_y = settings.L / npy;
     size_z = settings.L / npz;
@@ -368,12 +408,17 @@ void GrayScott::exchange_yz(std::vector<double> &local_data) const
 
 void GrayScott::exchange(std::vector<double> &u, std::vector<double> &v) const
 {
-    exchange_xy(u);
+    // Order matters for the edges and corners of the halo. xz faces carry no
+    // halo rows; xy faces carry the y halo rows that xz just filled; yz faces
+    // carry the whole padded plane, so after all three the edges and corners
+    // hold this step's values. The 7-point stencil never reads them, but any
+    // wider stencil or a writer that outputs the halo would (#12).
     exchange_xz(u);
+    exchange_xy(u);
     exchange_yz(u);
 
-    exchange_xy(v);
     exchange_xz(v);
+    exchange_xy(v);
     exchange_yz(v);
 }
 

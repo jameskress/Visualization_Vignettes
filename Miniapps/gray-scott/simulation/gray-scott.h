@@ -24,6 +24,9 @@ public:
     ~GrayScott();
 
     void init();
+    // Free the Cartesian communicator and face datatypes. Idempotent; call it
+    // before MPI_Finalize (the destructor runs too late in main()).
+    void free_mpi_resources();
     void iterate();
     // Step counter used by the noise term; restart sets it from the checkpoint.
     void set_step(std::uint64_t step) { step_ = step; }

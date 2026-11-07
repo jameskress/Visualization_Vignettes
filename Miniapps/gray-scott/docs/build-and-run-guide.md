@@ -422,20 +422,15 @@ You can inspect the contents of the output file with the `bpls` command-line too
 
 The Gray-Scott miniapp utilizes ADIOS2 Global Arrays for checkpointing. This allows you to perform **N-to-M restarts**: you can generate a checkpoint file on $N$ processors and restart the simulation on $M$ processors without losing spatial awareness.
 
-#### ⚠️ The Golden Rule of Restarts: Grid Divisibility
+#### Restarts work for any rank counts (fixed in #12)
 
-To successfully restart a simulation across different node counts, **your global grid dimension (`L`) must be perfectly divisible by the 3D MPI processor topology.**
+Earlier versions required `L` to divide evenly by the MPI processor grid, because the checkpoint code computed each rank's offsets without the remainder the simulation itself uses, and because a restart repeated the checkpointed step. Both are fixed: checkpoints use the simulation's own offsets and store the number of completed steps. A checkpoint written on 3 ranks with `L = 65` and restarted on 2 ranks gives a field bitwise identical to an uninterrupted run.
 
-The miniapp relies on strict integer math. If `MPI_Dims_create` generates a 3D grid where a dimension does not evenly divide `L`, the remainder cells are truncated.
-
-* **The Result:** Lost data during the write phase, resulting in skewed, striped, or "NaN" artifacts when reading the data on a different node count.
-
-**The "Factor of 3" Trap:**
-Many modern HPC nodes have core counts that are multiples of 3 (e.g., AMD Genoa with 192 cores). If you naively assign 48 or 192 MPI tasks per node, your total rank count will contain a factor of 3. `MPI_Dims_create` will create grid dimensions like 24 or 48. If your `L` is a pure power of 2 (e.g., `L=2048` or `L=4096`), dividing by 24 results in a decimal ($4096 / 24 = 170.66$). The simulation will truncate this, drop the remaining cells, and corrupt your checkpoint.
+Power-of-two rank counts are still a good habit for performance (balanced blocks), but no longer needed for correctness.
 
 #### ✅ Recommended Hardware Mapping (e.g., AMD Genoa / Rome)
 
-To guarantee perfect integer division while fully utilizing modern 192-core or 128-core architectures, **force your MPI task count to be a power of 2.**
+For balanced blocks on 192-core or 128-core nodes, a power-of-two MPI task count still works well:
 
 For a 192-core node (like Shaheen III), use **32 MPI Tasks × 6 OpenMP Threads**. This fully utilizes the hardware while ensuring your total rank count remains a pure power of 2, guaranteeing perfect grid division for any `L` that is also a power of 2.
 
