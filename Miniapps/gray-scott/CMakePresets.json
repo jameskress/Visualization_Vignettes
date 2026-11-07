@@ -37,11 +37,25 @@
       "displayName": "Workstation, CPU, Release with timers",
       "inherits": "host-cpu",
       "cacheVariables": { "ENABLE_TIMERS": "ON" }
+    },
+    {
+      "name": "host-cpu-asan",
+      "displayName": "Workstation, CPU, AddressSanitizer + UndefinedBehaviorSanitizer",
+      "description": "Run with tests/sanitizers/run_sanitized.sh and the no-output writer (see tests/sanitizers/README.md).",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined -O1 -g",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=undefined -O1 -g",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address,undefined"
+      }
     }
   ],
   "buildPresets": [
     { "name": "host-cpu", "configurePreset": "host-cpu" },
     { "name": "host-cpu-debug", "configurePreset": "host-cpu-debug" },
-    { "name": "host-cpu-timers", "configurePreset": "host-cpu-timers" }
+    { "name": "host-cpu-timers", "configurePreset": "host-cpu-timers" },
+    { "name": "host-cpu-asan", "configurePreset": "host-cpu-asan" }
   ]
 }

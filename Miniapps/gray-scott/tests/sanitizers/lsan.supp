@@ -1,0 +1,32 @@
+# LeakSanitizer suppressions for the Gray-Scott sanitizer preset (host-cpu-asan, #13).
+#
+# Every entry is a library outside the miniapp that keeps memory until process
+# exit by design. None of these stacks contains a miniapp frame: on 2026-11-07,
+# 112 leak reports over 1, 2 and 4 ranks were checked and 0 had a frame from
+# Miniapps/gray-scott. If a leak report ever shows one of our files, that is a
+# real leak: fix it, do not add an entry here.
+#
+# Use: LSAN_OPTIONS=suppressions=<this file>:print_suppressions=0
+
+# Open MPI keeps operator tables, component state and PMIx/libevent buffers
+# alive until exit (ompi_op_base_op_select and friends).
+leak:libmpi.so
+leak:libopen-pal.so
+leak:libopen-rte.so
+leak:libpmix.so
+leak:libevent
+leak:libhwloc.so
+leak:libfabric.so
+leak:libucs.so
+leak:libucp.so
+
+# Pulled in by Open MPI's PMIx security plugins at MPI_Init.
+leak:libcrypto.so
+
+# Open MPI's components (mca_*.so), named because dlclose_noop.so keeps them
+# mapped until exit; without it their frames read "<unknown module>".
+leak:mca_
+
+# VTK's logger (loguru) stores thread names in a static map for the process
+# lifetime; the miniapp names its threads once at start-up.
+leak:vtkloguru::set_thread_name
