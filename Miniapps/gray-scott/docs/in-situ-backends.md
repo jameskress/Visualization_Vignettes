@@ -202,3 +202,54 @@ Checked in ParaView 6.2 on 1, 2 and 4 ranks:
 * The volume is 262.144 on every rank count.
 * The contour v = 0.2 area is 17.2025866257 on every rank count, the same
   value as Catalyst.
+
+## ADIOS2 (BP5 files and SST staging)
+
+`simulation/writerADIOS.cpp` (#22) writes `U` and `V` as global L^3
+arrays.
+
+**What is stored.** Each rank's block holds its owned points only, so every
+global point is stored exactly once and no halo is written. There is
+nothing for a reader to deduplicate. The geometry matches the shared
+description: point i sits at i * 0.1 (the `Fides_Origin` and
+`Fides_Spacing` attributes).
+
+**Attributes for readers.**
+
+| Attribute | Value |
+| :--- | :--- |
+| `gs_point_ownership` | "each global point stored once" |
+| `gs_halo_layers_written` | 0 |
+| `gs_periodic` | {1, 1, 1} |
+| `gs_ghost_policy` | "readers add their own overlap layer and flag it ghost" |
+
+A reader that builds one mesh per block, such as the in transit analysis
+reader, must read one extra layer past its block itself. It must wrap
+around, because the domain is periodic, and flag that layer as ghost.
+Otherwise there is a one-cell gap between blocks. The reader is fixed in
+phase 5 (#42).
+
+**The three write modes.**
+
+| Mode (setting) | Copies | `wrap` | `execute` | `io` |
+| :--- | :--- | :--- | :--- | :--- |
+| default | two: `u_noghost()` into a local vector, then into ADIOS2's buffer | the first copy | the `Put` calls | `EndStep` (and the close/reopen of `overwrite_last_step`) |
+| `adios_span` | one, straight into ADIOS2's buffer | the copy | the `Put` calls | `EndStep` |
+| `adios_memory_selection` | none: ADIOS2 reads the interior of the ghosted arrays | 0 | the `Put` calls | `EndStep` |
+
+**Pointer lifetime.** `Put()` is deferred: ADIOS2 reads the memory in
+`EndStep()`, not in `Put()`. Each pointer handed to `Put()` therefore stays
+valid until `EndStep()` returns:
+
+* The solver's arrays in memory-selection mode. The writer checks after
+  `EndStep()` that they have not moved, and aborts if they have.
+* The local vectors in the default mode. They live until the end of the
+  block that contains `EndStep()`.
+* ADIOS2's own span buffer in span mode.
+
+**Checked.** BP5 files on 1 and 4 ranks in all three modes: the stored
+`U` at step 100 is identical at full precision across modes and rank
+counts. That holds because the solver is bitwise identical across rank
+counts (#15) and each point is stored once. The SST in transit path was
+not run, because the reader build does not link on the workstation (see
+#26).
