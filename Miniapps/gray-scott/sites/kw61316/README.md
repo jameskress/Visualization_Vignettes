@@ -30,6 +30,16 @@ export CATALYST_DEBUG=1
  -DENABLE_paraview=ON \
  -DENABLE_qt5=ON
 
+## ParaView 6.2 for the miniapp (2026-11-07, #19)
+
+The miniapp builds against VTK and Catalyst from a ParaView 6.2 source build, because the 6.2 binary release ships no CMake configuration for either, and Catalyst must load the same ParaView the miniapp's VTK came from (otherwise two VTKs end up in one process).
+
+* Recipe: `paraview-6.2.cmake` in this directory (a CMake initial-cache file; the header has the exact commands). It mirrors the options of the earlier 6.0.0 build: MPI with the system Open MPI, Python, Catalyst, HDF5, NetCDF, OpenMP.
+* Needs CMake 3.25 or newer; the system has 3.22.1, so CMake 3.31.9 sits in `~/packages/cmake-3.31.9-linux-x86_64` (nothing system-wide changes).
+* Install: `~/packages/paraview-src/build_6.2.0/install`. In `CMakeUserPresets.json`: `VTK_DIR` = `.../lib/cmake/paraview-6.2/vtk`, `catalyst_DIR` = `.../lib/cmake/catalyst-2.0`; settings files use `catalyst_lib_path` = `.../lib/catalyst`.
+* Checked: `pvbatch` and `pvpython` 6.2.0 run (including 2-rank `pvbatch`); the miniapp builds with and without Catalyst; `settings-catalyst-insitu.json` runs on 1 and 2 ranks and writes its images; the binary links only 6.2 libraries.
+* Rendering uses the system OpenGL with X, as the 6.0.0 build did. EGL (GPU, no display) and OSMesa (software, no display) are not switched on in this build; add them when headless rendering is needed.
+
 ## Settings file
 
 ''output_file_name'': The format of this string is extrememly important, as catalyst requires specific things to work correctly. Specifically, the time step information must explicilty list ''ts''
