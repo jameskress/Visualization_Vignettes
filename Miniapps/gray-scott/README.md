@@ -20,7 +20,7 @@ by 6) and a forward Euler step of size `dt`.
 
 Contents: [how it works](#how-it-works) ·
 [prerequisites](#prerequisites) · [build](#build) · [run](#run) ·
-[parameters](#parameters) · [outputs](#outputs) ·
+[parameters](#parameters) · [outputs](#outputs) · [testing](#testing) ·
 [troubleshooting](#troubleshooting) · [more documentation](#more-documentation)
 
 ---
@@ -227,6 +227,56 @@ ranges (the shipped values sit inside them).
 How to run each one, with example settings, scripts and expected results, is
 in the [build and run guide](docs/build-and-run-guide.md). That guide also
 covers Docker, checkpoint and restart, and the in transit reader.
+
+---
+
+## Testing
+
+The build includes a numerical regression test of the simulation core
+(`tests/test_numerical_regression.cpp`, on by default, `GS_BUILD_TESTS=OFF`
+to skip it). It runs a fixed problem, 64^3 for 500 steps with noise on and
+seed 20261107, on 1, 2 and 4 ranks:
+
+```bash
+ctest --test-dir build/my-host-cpu --output-on-failure
+```
+
+About ten seconds on the workstation. Four tests run:
+
+| Test | Checks |
+| :--- | :--- |
+| `gs_regression_np1`, `_np2`, `_np4` | budget every step, and the final norms against the golden file |
+| `gs_regression_bitwise_1_2_4` | final U and V are bitwise identical on 1, 2 and 4 ranks |
+
+What each check means:
+
+* **Budget.** Gray-Scott does not conserve mass, but its budget is exact.
+  Diffusion sums to zero on the periodic domain and the `u*v^2` terms cancel
+  between U and V, so each step the change in sum(U+V) must equal
+  `dt * sum[F(1-U) - (F+k)V + noise*r]`. The tolerance is 16 ulps of
+  sum(|U|+|V|), about 1e-9. The worst observed residual is 1e-4 of that.
+  A missing halo exchange breaks it on the first step (residual about 3).
+* **Norms.** L2 and L-infinity of U and V must match
+  `tests/golden/regression_L64_s500.txt` within 1e-12 relative. The L2 norms
+  are MPI sums, so 2 and 4 ranks differ from the golden by about 3e-14. This
+  catches errors that keep the budget, such as a wrong stencil weight.
+* **Bitwise.** Each run hashes the gathered fields (FNV-1a over the bytes).
+  The three hashes must be equal. This catches decomposition errors that the
+  norms are too coarse to see.
+
+If you change the numerics on purpose, regenerate the golden file and say
+why in the PR:
+
+```bash
+mpirun -np 1 build/my-host-cpu/tests/test_numerical_regression \
+  --golden=tests/golden/regression_L64_s500.txt --bless
+```
+
+The golden norms come from GCC 9.5 on x86-64. A compiler that fuses
+multiply-adds differently can move them by more than 1e-12. If so,
+regenerate the file for that platform; the bitwise test is unaffected
+because all three runs use the same binary. On a machine with fewer than 4
+cores, configure with `-DGS_TEST_MPIEXEC_PREFLAGS=--oversubscribe`.
 
 ---
 

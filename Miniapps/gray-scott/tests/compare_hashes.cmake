@@ -1,0 +1,17 @@
+# Fails unless every file in HASH_FILES (a ;-list) holds the same hash.
+# Each file is written by one test_numerical_regression run.
+set(_first "")
+foreach(f IN LISTS HASH_FILES)
+  if(NOT EXISTS "${f}")
+    message(FATAL_ERROR "missing ${f}: did its regression run fail?")
+  endif()
+  file(READ "${f}" _h)
+  string(STRIP "${_h}" _h)
+  message(STATUS "${_h}  ${f}")
+  if(_first STREQUAL "")
+    set(_first "${_h}")
+  elseif(NOT _h STREQUAL _first)
+    message(FATAL_ERROR "final U and V differ between rank counts (not bitwise identical)")
+  endif()
+endforeach()
+message(STATUS "bitwise identical across all runs")

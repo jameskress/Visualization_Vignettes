@@ -1,0 +1,8 @@
+# Golden norms for tests/test_numerical_regression.cpp
+# L 64, 500 steps, Du 0.2, Dv 0.1, F 0.01, k 0.05, dt 2.0,
+# noise 1e-7, seed 20261107. Regenerate with --bless only when
+# a change to the numerics is intended, and say why in the PR.
+u_l2 483.19770862161334
+u_linf 1.0000004817335246
+v_l2 23.045241184769996
+v_linf 0.41403652775904259
