@@ -229,7 +229,22 @@ tar zxvf kombyne-lite-1.0.0-ubuntu18-gcc7.5-openmpi.tar.gz
 # kombynelite_DIR=/home/kressjm/packages/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite
 ```
 
-### Building Gray-Scott
+### Building Gray-Scott with CMake presets (recommended)
+
+The miniapp ships `CMakePresets.json` (CMake 3.22 or newer). The presets keep every optional backend off and put each build under `build/<preset>`. The one machine-local path, `VTK_DIR` (VTK from your ParaView build), goes in a `CMakeUserPresets.json` next to it, which git ignores; copy `CMakeUserPresets.json.example` and edit the path.
+
+```bash
+cd Miniapps/gray-scott
+cp CMakeUserPresets.json.example CMakeUserPresets.json   # then set VTK_DIR in it
+cmake --list-presets
+cmake --preset my-host-cpu
+cmake --build --preset my-host-cpu -j
+mpirun -np 2 build/my-host-cpu/gray-scott --settings-file=configs/miniapp-settings/settings-none.json
+```
+
+Presets: `host-cpu` (Release), `host-cpu-debug`, `host-cpu-timers` (Release with `ENABLE_TIMERS`). `ENABLE_GPU` exists and is off; it does nothing until the GPU work (#38). Backends are turned on in your user preset with `ENABLE_CATALYST`, `ENABLE_ASCENT`, `ENABLE_ADIOS2` or `ENABLE_KOMBYNELITE` plus their `_DIR` paths.
+
+### Building Gray-Scott by hand
 
 > 💡 **Note:** `Ascent` and `Kombyne` cannot be enabled at the same time due to library conflicts.
 

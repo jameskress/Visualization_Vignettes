@@ -1,0 +1,47 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 22, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "description": "Shared settings: out-of-source build under build/<preset>, every optional backend off.",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "installDir": "${sourceDir}/install/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "ENABLE_CATALYST": "OFF",
+        "ENABLE_ASCENT": "OFF",
+        "ENABLE_ADIOS2": "OFF",
+        "ENABLE_KOMBYNELITE": "OFF",
+        "ENABLE_GPU": "OFF",
+        "ENABLE_TIMERS": "OFF",
+        "BUILD_ANALYSIS_READER": "OFF"
+      }
+    },
+    {
+      "name": "host-cpu",
+      "displayName": "Workstation, CPU, Release",
+      "description": "Native build on the workstation with MPI and VTK only. VTK_DIR comes from CMakeUserPresets.json or the environment.",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "host-cpu-debug",
+      "displayName": "Workstation, CPU, Debug",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "host-cpu-timers",
+      "displayName": "Workstation, CPU, Release with timers",
+      "inherits": "host-cpu",
+      "cacheVariables": { "ENABLE_TIMERS": "ON" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "host-cpu", "configurePreset": "host-cpu" },
+    { "name": "host-cpu-debug", "configurePreset": "host-cpu-debug" },
+    { "name": "host-cpu-timers", "configurePreset": "host-cpu-timers" }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "my-host-cpu",
+      "displayName": "Workstation, CPU, Release (local paths)",
+      "inherits": "host-cpu",
+      "cacheVariables": {
+        "VTK_DIR": "$env{HOME}/packages/paraview-src/build_6.2.0/install/lib/cmake/paraview-6.2/vtk"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "my-host-cpu", "configurePreset": "my-host-cpu" }
+  ]
+}
