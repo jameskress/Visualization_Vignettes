@@ -418,6 +418,8 @@ cores, configure with `-DGS_TEST_MPIEXEC_PREFLAGS=--oversubscribe`.
 * [Build and run guide](docs/build-and-run-guide.md): Docker, building each
   backend SDK, running each output type, checkpoint and restart, the in
   transit reader.
+* [In situ backends](docs/in-situ-backends.md): the shared mesh description,
+  ghost conventions and each backend's adaptor.
 * [AGENTS.md](https://github.com/jameskress/Visualization_Vignettes/blob/master/AGENTS.md) (in the repository root): the working rules and target invariants for
   this miniapp.
 * `sites/kw61316`, `sites/ibex`, `sites/shaheen`: machine-specific notes.
