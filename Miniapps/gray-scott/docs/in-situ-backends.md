@@ -1,11 +1,26 @@
 # In situ backends
 
 How the Gray-Scott miniapp hands its data to each backend, and the rules they
-all follow so that their results and timings can be compared. Phase 3 (#28)
-fills this in backend by backend; #27 completes it.
+all follow so that their results and timings can be compared. It is the reference for phase 3 (#28):
+the shared rules, each backend's adaptor, how to test them and how to
+build against the workstation SDKs.
 
 Performance records for every backend are described in the
 [README's Performance section](../README.md#performance).
+
+## At a glance
+
+| Backend | What it receives | Zero-copy mechanism | Ghost metadata | Pointer lifetime |
+| :--- | :--- | :--- | :--- | :--- |
+| Ascent | shared Blueprint tree | `set_external` on u, v | `ascent_ghosts` (element, int32, 0 owned, 1 ghost) | the solver's arrays, valid between steps |
+| Catalyst | shared Blueprint tree | `set_external` on u, v | `vtkGhostType` (element, uint8, `DUPLICATECELL` = 1) | the same; ParaView wraps them per `catalyst_execute` |
+| Kombyne-lite | `kb_rgrid` | `KB_MEM_BORROW` | ghost-cell mask (0 ghost, 1 real); exported as `__ghostCells` | borrowed for the duration of `kb_simulation_execute` |
+| PVTI | `vtkImageData` in a pipeline | `SetArray(..., save = 1)` | `vtkGhostType` on cells and points | borrowed for the duration of `Write()` |
+| ADIOS2 | global L^3 arrays, owned points only | memory selection (span and default modes copy) | none needed (each point stored once); `gs_*` attributes | until `EndStep()`; checked after it |
+
+All five share the geometry (origin `(offset - 1) * 0.1`, spacing 0.1) and
+the ownership rule (a cell belongs to the rank owning its low corner). That
+is what makes their outputs comparable cell for cell.
 
 ## The shared mesh description
 
@@ -386,3 +401,97 @@ both render through EGL without an X display. Set
 `mpirun -x VTK_DEFAULT_OPENGL_WINDOW`), or give pvpython
 `--opengl-window-backend EGL`. EGL and X images are pixel-identical.
 
+## Debugging seams
+
+The ghost volume test (README, Testing) is the first tool. It prints each
+backend's cell count per rank count. Read a failure as follows:
+
+| Symptom | Likely cause |
+| :--- | :--- |
+| count grows with ranks | ghost cells are not being skipped: wrong field name or value convention, or a reader that does not know the mask (Kombyne exports) |
+| count shrinks with ranks | a gap: the block does not include the cells bridging to the next rank, or its origin is off by one point |
+| count right, volume off beyond 1e-6 | the spacing or origin differs from the shared description |
+| one backend differs from the rest | that adaptor diverged from `mesh_blueprint.h`; compare its tree or objects with `describe()` |
+
+Then look at the images: the render check (Rendering, above) keeps each
+backend's 1-rank and 4-rank images side by side in the build tree. Read
+its failures as follows:
+
+| Symptom in the 4-rank image | Likely cause |
+| :--- | :--- |
+| a plane-shaped face or dark wedge inside a surface | a surface filter without ghost cells on every side (ParaView: add GhostCells before it) |
+| thin shading lines on a contour at block faces | one-sided normals at the high face (the same fix; Kombyne has none) |
+| a crack through a volume at block faces | a GhostCells filter under a volume, or too few volume samples (Ascent) |
+| the whole picture shifted or recoloured | colour ranges rescaled per run, or a block origin off (the pre-#21 shift) |
+| a slice drawn twice | it lies exactly on a grid plane two blocks share; move it between planes |
+
+## Building against the workstation SDKs
+
+Presets keep every backend off. Turn each one on in your
+`CMakeUserPresets.json` (README, Build):
+
+| Backend | CMake | Workstation path (KW61316) | Run-time environment |
+| :--- | :--- | :--- | :--- |
+| Catalyst | `ENABLE_CATALYST=ON`, `catalyst_DIR` | `~/packages/paraview-src/build_6.2.0/install/lib/cmake/catalyst-2.0` | `catalyst_lib_path` in the settings, or `CATALYST_IMPLEMENTATION_PATHS=<install>/lib/catalyst` and `CATALYST_IMPLEMENTATION_NAME=paraview` |
+| Ascent | `ENABLE_ASCENT=ON`, `Ascent_DIR` | `~/packages/ascent/build/install/ascent-checkout/lib/cmake/ascent` | `ascent_options.yaml` and the actions file in the run directory |
+| ADIOS2 | `ENABLE_ADIOS2=ON`, `ADIOS2_DIR` | `~/packages/adios-insitu/adios2-build-pv62/install/lib/cmake/adios2` | `adios2.xml` named by `adios_config` |
+| Kombyne-lite | `ENABLE_KOMBYNELITE=ON`, `kombynelite_DIR` | `~/packages/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite` | the YAML named by `kombynelite_script_path` |
+| PVTI | always built | (VTK from the same ParaView build) | none |
+
+Other options:
+
+* Ascent and Kombyne cannot be enabled together.
+* Add `ENABLE_TIMERS=ON` for the performance log's timers.
+* Add `GS_COUNT_ALLOCATIONS=ON` for allocation counts (test builds only).
+* Set `GS_PVPYTHON` to run the ghost volume test's readers and the PVTI
+  render check.
+
+ADIOS2 on the workstation. The older install in `adios2-build/install`
+uses the system's serial HDF5, which needs the system libcurl. The
+ParaView install directory holds the superbuild's own libcurl, and the
+linker finds that one first through VTK's `-rpath-link`, so ADIOS2-only
+builds and the analysis reader failed to link (unresolved `curl_*` symbols
+in `libhdf5_serial`). Building ADIOS2 against ParaView's HDF5 instead does
+not work either: Ascent ships its own serial HDF5 with the same soname
+(`libhdf5.so.310`), and a process loads only one of the two.
+
+The ADIOS2 in `adios2-build-pv62` (2.9.1) is built against ParaView 6.2's
+Catalyst, without HDF5. The miniapp uses only the BP5 and SST engines, so
+nothing is lost. With it every combination links and passes its tests:
+ADIOS2 alone, ADIOS2 + Ascent + Catalyst with the analysis reader, and
+ADIOS2 + Kombyne + Catalyst. SST in transit (4 simulation ranks streaming
+to 2 analysis-reader ranks rendering with Ascent) runs end to end. Its
+configuration:
+
+```bash
+cmake -S ADIOS2 -B adios2-build-pv62 -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=$PWD/adios2-build-pv62/install \
+  -DADIOS2_USE_MPI=ON -DADIOS2_USE_HDF5=OFF -DADIOS2_USE_Catalyst=ON \
+  -Dcatalyst_DIR=$PV/lib/cmake/catalyst-2.0 \
+  -DADIOS2_USE_SST=ON -DADIOS2_USE_DataMan=ON -DADIOS2_USE_Fortran=ON \
+  -DADIOS2_USE_Python=ON -DADIOS2_USE_PNG=ON -DADIOS2_USE_BZip2=ON \
+  -DADIOS2_USE_ZeroMQ=OFF -DADIOS2_USE_ZFP=OFF -DADIOS2_USE_SZ=OFF \
+  -DADIOS2_USE_CUDA=OFF -DADIOS2_USE_Kokkos=OFF -DBUILD_TESTING=OFF \
+  -DADIOS2_BUILD_EXAMPLES=OFF \
+  -DCMAKE_INSTALL_RPATH="$PWD/adios2-build-pv62/install/lib;$PV/lib"
+```
+
+where `PV=~/packages/paraview-src/build_6.2.0/install`. The ADIOS2 HDF5
+engine can come back once Ascent is built against ParaView's HDF5 (one
+HDF5 in the process), for example with the GPU Ascent build in phase 4.
+
+## Reading the performance log
+
+Every backend reports into the same record (README, Performance):
+
+| Timer or counter | Meaning |
+| :--- | :--- |
+| `wrap` | building the backend's description of the data. Microseconds when zero-copy, milliseconds when copying (ADIOS2 default and span modes) |
+| `execute` | the backend's own work |
+| `io` | data written or moved, where the backend lets us separate it (PVTI, ADIOS2, Ascent's manual relay save) |
+| `halo` | the solver's exchange, plus the refresh before each output step |
+| `allocs_*` | heap allocations, in builds with the counter |
+
+Use `scripts/perf_report.py` to put runs of different backends side by
+side. The phase split is directly comparable because every backend sees
+the same data, at the same steps, with the same ghost rule.
