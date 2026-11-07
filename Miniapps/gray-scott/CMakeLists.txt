@@ -3,7 +3,7 @@
 # accompanying file Copyright.txt for details.
 #------------------------------------------------------------------------------#
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.22)
 
 project(Visualization_Vignettes_Miniapp
         VERSION 0.1.0
@@ -67,6 +67,10 @@ option(ENABLE_CATALYST "Enable Catalyst writer" OFF)
 option(ENABLE_ASCENT "Enable Ascent writer" OFF)
 option(ENABLE_ADIOS2 "Enable ADIOS2" OFF)
 option(ENABLE_KOMBYNELITE "Enable Kombyne lite in situ writer" OFF)
+option(ENABLE_GPU "Enable GPU execution (no effect yet; organizes the GPU work in phase 4, #38)" OFF)
+if(ENABLE_GPU)
+  message(STATUS "ENABLE_GPU is ON but no GPU code exists yet; building the CPU version.")
+endif()
 option(BUILD_ANALYSIS_READER "Build the in-situ analysis reader" OFF)
 
 # --- Check for conflicting in situ library options ---
