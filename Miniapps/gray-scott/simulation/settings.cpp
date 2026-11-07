@@ -16,6 +16,7 @@ void to_json(nlohmann::json &j, const Settings &s)
                        {"Du", s.Du},
                        {"Dv", s.Dv},
                        {"noise", s.noise},
+                       {"seed", s.seed},
                        {"output_file_name", s.output_file_name},
                        {"output_type", s.output_type},
                        {"catalyst_script_path", s.catalyst_script_path},
@@ -45,6 +46,7 @@ void from_json(const nlohmann::json &j, Settings &s)
     j.at("Du").get_to(s.Du);
     j.at("Dv").get_to(s.Dv);
     j.at("noise").get_to(s.noise);
+    s.seed = j.value("seed", static_cast<std::uint64_t>(20261107));
     j.at("output_file_name").get_to(s.output_file_name);
     j.at("output_type").get_to(s.output_type);
     j.at("catalyst_script_path").get_to(s.catalyst_script_path);
@@ -74,6 +76,7 @@ Settings::Settings()
     Du = 0.05;
     Dv = 0.1;
     noise = 0.0;
+    seed = 20261107;
     output_file_name = "foo.bp";
     output_type = "file";
     catalyst_script_path = "";

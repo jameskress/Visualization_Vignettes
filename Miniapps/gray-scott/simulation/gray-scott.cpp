@@ -5,14 +5,12 @@
 #include "gray-scott.h"
 
 #include <mpi.h>
-#include <random>
 #include <stdexcept> // runtime_error
 #include <iostream>
 #include <vector>
 
 GrayScott::GrayScott(const Settings &settings, MPI_Comm comm)
-    : settings(settings), comm(comm), rand_dev(), mt_gen(rand_dev()),
-      uniform_dist(-1.0, 1.0)
+    : settings(settings), comm(comm)
 {
 }
 
@@ -46,6 +44,7 @@ void GrayScott::iterate()
             }
         }
     }
+    ++step_;
 }
 
 #ifdef USE_ADIOS2
@@ -198,6 +197,30 @@ double GrayScott::calcV(double tu, double tv) const
     return tu * tv * tv - (settings.F + settings.k) * tv;
 }
 
+namespace
+{
+// SplitMix64 (Steele, Lea and Flood 2014): a fast, well-mixed 64-bit hash.
+inline std::uint64_t splitmix64(std::uint64_t x)
+{
+    x += 0x9E3779B97F4A7C15ULL;
+    x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    x = (x ^ (x >> 27)) * 0x94D049BB133111EBULL;
+    return x ^ (x >> 31);
+}
+} // namespace
+
+double GrayScott::noise_at(std::uint64_t gx, std::uint64_t gy, std::uint64_t gz) const
+{
+    // Counter-based: the value depends only on the seed, the step and the global
+    // index, never on the rank or on how many values were drawn before it.
+    const std::uint64_t L = settings.L;
+    const std::uint64_t index = (gz * L + gy) * L + gx;
+    std::uint64_t h = splitmix64(settings.seed ^ splitmix64(step_));
+    h = splitmix64(h ^ index);
+    // 53 random bits to a double in [0, 1), then to [-1, 1).
+    return static_cast<double>(h >> 11) * (1.0 / 9007199254740992.0) * 2.0 - 1.0;
+}
+
 double GrayScott::laplacian(int x, int y, int z,
                             const std::vector<double> &s) const
 {
@@ -229,7 +252,11 @@ void GrayScott::calc(const std::vector<double> &u, const std::vector<double> &v,
                 dv = settings.Dv * laplacian(x, y, z, v);
                 du += calcU(u[i], v[i]);
                 dv += calcV(u[i], v[i]);
-                du += settings.noise * uniform_dist(mt_gen);
+                if (settings.noise != 0.0)
+                {
+                    du += settings.noise * noise_at(offset_x + x - 1, offset_y + y - 1,
+                                                    offset_z + z - 1);
+                }
                 u2[i] = u[i] + du * settings.dt;
                 v2[i] = v[i] + dv * settings.dt;
             }

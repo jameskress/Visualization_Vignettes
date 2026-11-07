@@ -226,6 +226,7 @@ int main(int argc, char **argv)
     if (settings.restart)
     {
         restart_step = ReadRestart(app_comm, settings, sim, io_ckpt);
+        sim.set_step(static_cast<std::uint64_t>(restart_step));
         vtkLog(INFO, "Restarting simulation from step " << restart_step);
     }
 #endif

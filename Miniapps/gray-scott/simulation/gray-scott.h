@@ -1,7 +1,7 @@
 #ifndef __GRAY_SCOTT_H__
 #define __GRAY_SCOTT_H__
 
-#include <random>
+#include <cstdint>
 #include <vector>
 
 #include <mpi.h>
@@ -25,6 +25,9 @@ public:
 
     void init();
     void iterate();
+    // Step counter used by the noise term; restart sets it from the checkpoint.
+    void set_step(std::uint64_t step) { step_ = step; }
+    std::uint64_t step() const { return step_; }
 
     #ifdef USE_ADIOS2
     void restart(std::vector<double> &u, std::vector<double> &v);
@@ -56,9 +59,10 @@ protected:
     MPI_Datatype xz_face_type;
     MPI_Datatype yz_face_type;
 
-    std::random_device rand_dev;
-    std::mt19937 mt_gen;
-    std::uniform_real_distribution<double> uniform_dist;
+    // Number of completed iterations; the noise term depends on it.
+    std::uint64_t step_ = 0;
+    // Noise in [-1, 1) for global point (gx, gy, gz) at the current step.
+    double noise_at(std::uint64_t gx, std::uint64_t gy, std::uint64_t gz) const;
 
     // Setup cartesian communicator data types
     void init_mpi();

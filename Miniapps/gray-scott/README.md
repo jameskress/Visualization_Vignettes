@@ -11,7 +11,7 @@ It solves the [Gray-Scott model](https://doi.org/10.1126/science.261.5118.189)
 for two chemicals, U (consumed) and V (produced):
 
 ```text
-du/dt = Du * lap(u) - u * v^2 + F * (1 - u) + noise * r      r uniform in [-1, 1]
+du/dt = Du * lap(u) - u * v^2 + F * (1 - u) + noise * r      r in [-1, 1), from (seed, step, x, y, z)
 dv/dt = Dv * lap(v) + u * v^2 - (F + k) * v
 ```
 
@@ -182,7 +182,8 @@ distances by 0.1, and multiply output gradients by 0.1, to get solver units.
 | `Du` | diffusion coefficient of U | 0.05 |
 | `Dv` | diffusion coefficient of V | 0.1 |
 | `dt` | forward Euler time step | 0.2 |
-| `noise` | amplitude of uniform noise added to U each step | 0.0 |
+| `noise` | amplitude of uniform noise in [-1, 1) added to U each step | 0.0 |
+| `seed` | seed for the noise; the value at each point and step depends only on the seed, the step and the global position, so reruns and any rank count give identical fields | 20261107 |
 | `output_type` | `none`, `pvti`, `catalyst_io`, `catalyst_insitu`, `ascent`, `adios`, `kombyne` | `file` (set it explicitly) |
 | `output_file_name` | output file or prefix for file-writing backends | `foo.bp` |
 | `catalyst_script_path` | Catalyst Python script for `catalyst_*` | empty |

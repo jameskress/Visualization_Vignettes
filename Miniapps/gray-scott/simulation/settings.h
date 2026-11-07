@@ -1,6 +1,7 @@
 #ifndef __SETTINGS_H__
 #define __SETTINGS_H__
 
+#include <cstdint>
 #include <string>
 
 struct Settings
@@ -14,6 +15,9 @@ struct Settings
     double Du;
     double Dv;
     double noise;
+    // Seed for the noise term. The noise at each point and step is a pure function of
+    // (seed, step, global x, y, z), so any rank layout and any rerun give the same values.
+    std::uint64_t seed;
     std::string output_file_name;
     std::string output_type;
     std::string catalyst_script_path;
