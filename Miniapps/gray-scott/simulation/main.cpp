@@ -367,7 +367,8 @@ int main(int argc, char **argv)
             meta["halo_bytes_per_step_rank0"] = sim.halo_bytes_per_step();
             meta["command_line"] = std::vector<std::string>(argv, argv + argc);
         }
-        perf.writeMetadata(meta.dump());
+        // replace: a non-UTF-8 path must not make rank 0 throw here.
+        perf.writeMetadata(meta.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
 
     if (rank == 0)

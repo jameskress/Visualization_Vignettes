@@ -242,7 +242,7 @@ void PerfLogger::writeMetadata(const std::string &meta_json)
     meta["counter_names"] = counter_names_;
     const std::string path = run_dir_ + "/metadata.json";
     std::ofstream out(path);
-    out << meta.dump(2) << "\n";
+    out << meta.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
     out.close();
     report_write(out, path);
 }
@@ -273,7 +273,7 @@ void PerfLogger::writeStepFile() const
         nlohmann::json j = {{"step", r.step},     {"rank", rank_},     {"host", hostname_},
                             {"rss_MB", r.rss_MB}, {"user_s", r.user_s}, {"sys_s", r.sys_s},
                             {"t", t},             {"c", c}};
-        out << j.dump() << "\n";
+        out << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
     }
     out.close();
     report_write(out, path);
@@ -352,7 +352,7 @@ void PerfLogger::finalize()
     {
         const std::string path = run_dir_ + "/summary.json";
         std::ofstream out(path);
-        out << s.dump(2) << "\n";
+        out << s.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
         out.close();
         report_write(out, path);
     }
