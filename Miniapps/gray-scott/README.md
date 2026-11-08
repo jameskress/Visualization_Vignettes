@@ -363,6 +363,9 @@ where every corner has u <= 0.3, and integrates their volume:
 * PVTI and Kombyne output is read back with pvpython.
 * ADIOS2 output is read with `bpls` and counted directly on the global
   array.
+* Ascent runs a threshold in situ and saves it with a relay extract,
+  counted with h5py. Its threshold keeps a cell if any corner is in range,
+  so it is checked against the ADIOS2 count under that rule.
 
 A cell counted twice at a rank boundary, or a gap between ranks, changes
 the integer count.
@@ -371,15 +374,17 @@ the integer count.
   agree within 1e-12.
 * **Across backends:** `gs_ghost_volume_compare` requires equal counts.
 
-On the workstation all four backends count 356 cells on every rank count.
+On the workstation Catalyst, PVTI, Kombyne and ADIOS2 count 356 cells on
+every rank count; Ascent counts 2460 (any corner), equal to the ADIOS2
+count under the same rule.
 
 ```bash
 ctest --test-dir build/<preset> -L backends --output-on-failure
 ```
 
 Set `GS_PVPYTHON` to a pvpython (any ParaView 6.2) for the PVTI and Kombyne
-readers. `bpls` is found next to the ADIOS2 install. Ascent is not in the
-test yet.
+readers. `bpls` is found next to the ADIOS2 install. The Ascent test needs
+h5py for the Python that runs CTest.
 
 If you change the numerics on purpose, regenerate the golden file and say
 why in the PR:

@@ -320,9 +320,17 @@ At 64^3, step 100, cells with u <= 0.3 on every corner:
 | Catalyst | Threshold, then IntegrateVariables, in situ | 356 cells, volume 0.356000097 |
 | PVTI | the same pipeline on the files, in pvpython | 356, 0.356000097 |
 | Kombyne-lite | the same, after masking with `__ghostCells` | 356, 0.356000097 |
+| Ascent | threshold pipeline and relay extract, owned cells counted with h5py | 2460 (any-corner rule) |
 
 The volume differs between the reference and the other three. ParaView
 integrates the threshold output, whose points are float32, so its volume
 differs from 356 x 0.1^3 by 2.7e-7 relative. The comparison uses 1e-12
 between backends integrated the same way and 1e-6 against the analytic
-value. Ascent is not part of the test yet.
+value.
+
+Ascent's threshold keeps a cell if any corner is in range; this Ascent has
+no all-corners option. Its count is therefore compared with the ADIOS2
+reference under the same rule (2460 on both). Ascent's pipelines keep ghost
+cells, and Ascent strips them only before rendering, so the extract still
+carries `ascent_ghosts` and the test counts cells where it is 0. The
+rendered images are checked separately (Rendering, below).

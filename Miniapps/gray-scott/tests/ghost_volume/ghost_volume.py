@@ -20,9 +20,16 @@ Backends and how they count:
             carry vtkGhostType
   kombyne   Kombyne's VTK export read by pvpython; its mask is __ghostCells
             (1 = real), applied before counting
+  ascent    in situ: an Ascent threshold pipeline (u <= 0.3) saved with a
+            relay extract, counted with h5py. Ascent's threshold keeps a cell
+            if ANY corner is in range (this Ascent has no all-corners option),
+            and its pipelines keep ghost cells (Ascent strips them only
+            before rendering), so the count is of cells with ascent_ghosts
+            == 0. Compared with the ADIOS2 reference under the same rule.
   adios     the BP5 output read with bpls; U holds every global point once,
             so the count is computed directly on the periodic global array
-            (the reference: no ghost handling involved)
+            (the reference: no ghost handling involved). It records both the
+            all-corners and the any-corner count.
 """
 import argparse
 import json
@@ -74,6 +81,26 @@ def catalyst_execute(info):
         print("GHOSTVOL %%d %%.17g" %% (owned, vol.GetValue(0)))
 '''
 
+ASCENT_ACTIONS = r'''
+- action: "add_pipelines"
+  pipelines:
+    th:
+      f1:
+        type: "threshold"
+        params:
+          field: "u"
+          min_value: -1.0e30
+          max_value: %(t)r
+- action: "add_extracts"
+  extracts:
+    e1:
+      type: "relay"
+      pipeline: "th"
+      params:
+        path: "gv_ascent"
+        protocol: "blueprint/mesh/hdf5"
+'''
+
 READER_SCRIPT = r'''
 import sys
 from paraview.simple import *
@@ -121,6 +148,12 @@ def settings_for(backend, args, d):
     elif backend == "kombyne":
         shutil.copy(HERE.parent.parent / "configs/kombyne_scripts/kombyne-save-data.yaml", d)
         s.update(output_type="kombyne", kombynelite_script_path="kombyne-save-data.yaml")
+    elif backend == "ascent":
+        (d / "ascent_actions.yaml").write_text(ASCENT_ACTIONS % {"t": THRESHOLD})
+        (d / "ascent_options.yaml").write_text(
+            'runtime:\n  type: "ascent"\n  vtkm:\n    backend: "serial"\n'
+            'actions_file: "ascent_actions.yaml"\nmessages: "quiet"\n')
+        s.update(output_type="ascent")
     elif backend == "adios":
         shutil.copy(HERE.parent.parent / "configs/adios2_configs/adios2.xml", d)
         s.update(output_type="adios", output_file_name="gv.bp", adios_config="adios2.xml",
@@ -136,6 +169,27 @@ def parse(text):
     raise RuntimeError("no GHOSTVOL line in output")
 
 
+def ascent_count(d):
+    """Owned cells (ascent_ghosts == 0) in Ascent's threshold extract."""
+    import h5py
+    files = sorted(d.glob(f"gv_ascent.cycle_{STEP:06d}/*.hdf5")) or [d / f"gv_ascent.cycle_{STEP:06d}.root"]
+    owned = 0
+    def domains(g, out):
+        if "fields/ascent_ghosts/values" in g:  # a domain (the .root index has no values)
+            out.append(g)
+            return
+        for k in g:
+            if isinstance(g[k], h5py.Group):
+                domains(g[k], out)
+    for f in files:
+        with h5py.File(f, "r") as h:
+            doms = []
+            domains(h, doms)
+            for g in doms:
+                owned += int((g["fields/ascent_ghosts/values"][()] == 0).sum())
+    return owned, owned * SPACING ** 3
+
+
 def adios_count(d, bpls):
     out = subprocess.run([bpls, "-d", str(d / "gv.bp"), "U", "-s", "1,0,0,0", "-c", "1,64,64,64",
                           "-f", "%.17g"], capture_output=True, text=True, check=True).stdout
@@ -149,12 +203,14 @@ def adios_count(d, bpls):
     u = lambda x, y, z: vals[(z % L) * L * L + (y % L) * L + (x % L)]  # U is [z][y][x]
     below = [v <= THRESHOLD for v in vals]
     b = lambda x, y, z: below[(z % L) * L * L + (y % L) * L + (x % L)]
-    n = 0
+    n = n_any = 0
     for z in range(L):  # periodic: L^3 cells, each owned once
         for y in range(L):
             for x in range(L):
-                if all(b(x + i, y + j, z + k) for i in (0, 1) for j in (0, 1) for k in (0, 1)):
-                    n += 1
+                corners = [b(x + i, y + j, z + k) for i in (0, 1) for j in (0, 1) for k in (0, 1)]
+                n += all(corners)
+                n_any += any(corners)
+    adios_count.any = n_any
     return n, n * SPACING ** 3
 
 
@@ -176,6 +232,8 @@ def run_backend(args):
             n, v = parse(p.stdout + p.stderr)
         elif args.backend == "adios":
             n, v = adios_count(d, args.bpls)
+        elif args.backend == "ascent":
+            n, v = ascent_count(d)
         else:
             path = d / (f"gv-{STEP:04d}.pvti" if args.backend == "pvti" else f"extracts/full_grid.{STEP:06d}.vtm")
             (d / "reader.py").write_text(READER_SCRIPT % {"t": THRESHOLD})
@@ -193,8 +251,11 @@ def run_backend(args):
             ok = False
     if n1 == 0:
         print("FAIL: no cells below the threshold; the test would prove nothing")
-    method = "analytic" if args.backend == "adios" else "vtk_integrate"
-    (work / f"{args.backend}.json").write_text(json.dumps({"cells": n1, "volume": v1, "method": method}))
+    method = "analytic" if args.backend in ("adios", "ascent") else "vtk_integrate"
+    rec = {"cells": n1, "volume": v1, "method": method, "rule": "any" if args.backend == "ascent" else "all"}
+    if args.backend == "adios":
+        rec["cells_any"] = adios_count.any
+    (work / f"{args.backend}.json").write_text(json.dumps(rec))
     print("PASSED" if ok else "FAILED")
     return 0 if ok else 1
 
@@ -209,8 +270,17 @@ def compare(workdir):
         print(f"only {sorted(res)} ran; nothing to compare")
         print("PASSED")
         return 0
-    names = sorted(res)
     ok = True
+    # Ascent counts under the any-corner rule; check it against the ADIOS2
+    # reference under the same rule, then leave it out of the all-corners table.
+    if "ascent" in res:
+        a = res.pop("ascent")
+        print(f"ascent: {a['cells']} cells (any-corner rule)")
+        if "adios" in res:
+            same = a["cells"] == res["adios"]["cells_any"]
+            print(("" if same else "FAIL ") + f"ascent vs adios (any corner): {a['cells']} / {res['adios']['cells_any']}")
+            ok &= same
+    names = sorted(res)
     for a in names:
         print(f"{a}: {res[a]['cells']} cells, volume {res[a]['volume']:.12g} ({res[a].get('method')})")
     for i, a in enumerate(names):
@@ -228,7 +298,7 @@ def compare(workdir):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--backend", choices=["catalyst", "pvti", "kombyne", "adios"])
+    ap.add_argument("--backend", choices=["catalyst", "pvti", "kombyne", "adios", "ascent"])
     ap.add_argument("--compare", metavar="WORKDIR")
     ap.add_argument("--exe")
     ap.add_argument("--workdir")
