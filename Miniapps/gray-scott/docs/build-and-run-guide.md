@@ -1067,7 +1067,7 @@ This will save a file named ascent_performance_breakdown.png.
 To open the plot in an interactive window (in addition to saving the file), use the `--show` flag:
 
 ```bash
-python3 plot_ascent_performance.py ascent_timings_summary.json --show
+python3 ascent_timings_plotter.py ascent_timings_summary.json --show
 ```
 
 ### Kombyne specific Performance Analysis
