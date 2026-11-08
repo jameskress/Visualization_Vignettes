@@ -18,9 +18,14 @@ Performance records for every backend are described in the
 | PVTI | `vtkImageData` in a pipeline | `SetArray(..., save = 1)` | `vtkGhostType` on cells and points | borrowed for the duration of `Write()` |
 | ADIOS2 | global L^3 arrays, owned points only | memory selection (span and default modes copy) | none needed (each point stored once); `gs_*` attributes | until `EndStep()`; checked after it |
 
-All five share the geometry (origin `(offset - 1) * 0.1`, spacing 0.1) and
-the ownership rule (a cell belongs to the rank owning its low corner). That
-is what makes their outputs comparable cell for cell.
+The four in situ and file-per-block backends share the geometry (origin
+`(offset - 1) * 0.1`, spacing 0.1, each rank's full ghosted block) and the
+ownership rule (a cell belongs to the rank owning its low corner). That is
+what makes their outputs comparable cell for cell. ADIOS2 is the exception
+in form: it writes owned points only, as one global L^3 array with origin
+0, and no cells or ghosts. A reader that cuts it into blocks must add the
+overlap layer and the periodic wrap itself before its cells match the
+others (ADIOS2 section).
 
 ## The shared mesh description
 
@@ -281,8 +286,8 @@ valid and unchanged until `EndStep()` returns:
 `U` at step 100 is identical at full precision across modes and rank
 counts. That holds because the solver is bitwise identical across rank
 counts (#15) and each point is stored once. The SST in transit path was
-not run, because the reader build does not link on the workstation (see
-#26).
+first checked once the reader linked; see Building against the workstation
+SDKs for the run.
 
 ## Zero-copy and allocations (#25)
 
@@ -414,8 +419,12 @@ backend's cell count per rank count. Read a failure as follows:
 | Symptom | Likely cause |
 | :--- | :--- |
 | count grows with ranks | ghost cells are not being skipped: wrong field name or value convention, or a reader that does not know the mask (Kombyne exports) |
-| count shrinks with ranks | a gap: the block does not include the cells bridging to the next rank, or its origin is off by one point |
-| count right, volume off beyond 1e-6 | the spacing or origin differs from the shared description |
+| count shrinks with ranks | a gap: the block does not include the cells bridging to the next rank |
+| count right, volume off beyond 1e-6 | the spacing differs from the shared description |
+
+The test counts cells and volume, not positions, so a block moved by a
+wrong origin can pass it. Check origins in the images (Rendering) or by
+comparing each block's bounds with `describe()`.
 | one backend differs from the rest | that adaptor diverged from `mesh_blueprint.h`; compare its tree or objects with `describe()` |
 
 Then look at the images: the render check (Rendering, above) keeps each
@@ -498,5 +507,8 @@ Every backend reports into the same record (README, Performance):
 | `allocs_*` | heap allocations, in builds with the counter |
 
 Use `scripts/perf_report.py` to put runs of different backends side by
-side. The phase split is directly comparable because every backend sees
-the same data, at the same steps, with the same ghost rule.
+side. Every backend sees the same data, at the same steps, with the same
+ghost rule, so the total backend time (`wrap + execute + io`) compares
+directly. Individual phases need each backend's definition: Catalyst and
+Kombyne write their files inside `execute`, so an `io` of 0 there does not
+mean no I/O, while PVTI and ADIOS2 report their writes as `io`.
