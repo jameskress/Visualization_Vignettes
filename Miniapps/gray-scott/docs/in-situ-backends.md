@@ -478,7 +478,7 @@ cmake -S ADIOS2 -B adios2-build-pv62 -G Ninja -DCMAKE_BUILD_TYPE=Release \
 
 where `PV=~/packages/paraview-src/build_6.2.0/install`. The ADIOS2 HDF5
 engine can come back once Ascent is built against ParaView's HDF5 (one
-HDF5 in the process), for example with the GPU Ascent build in phase 4.
+HDF5 in the process, #59), for example with the GPU Ascent build in phase 4.
 
 ## Reading the performance log
 
