@@ -1,4 +1,6 @@
 #include "writerAscent.h"
+
+#include <fstream>
 #include <vtkLogger.h>
 #include <iostream>
 #include <chrono>
@@ -30,24 +32,36 @@ void WriterAscent::CreateWriter(const Settings &_settings, const GrayScott &sim,
 // ManualOverwrite so each save replaces the last one.
 void WriterAscent::load_actions()
 {
+    int rank = 0;
+    MPI_Comm_rank(comm, &rank);
     conduit::Node loaded;
     std::string actions_file = "ascent_actions.yaml"; // Ascent's default
-    try
+    // A missing options file is normal (Ascent's defaults apply); one that
+    // exists but does not parse is an error worth reporting.
+    if (std::ifstream("ascent_options.yaml").good())
     {
-        conduit::Node options;
-        conduit::relay::io::load("ascent_options.yaml", "yaml", options);
-        if (options.has_path("actions_file"))
-            actions_file = options["actions_file"].as_string();
-    }
-    catch (...)
-    {
+        try
+        {
+            conduit::Node options;
+            conduit::relay::io::load("ascent_options.yaml", "yaml", options);
+            if (options.has_path("actions_file"))
+                actions_file = options["actions_file"].as_string();
+        }
+        catch (const conduit::Error &e)
+        {
+            if (rank == 0)
+                vtkLog(ERROR, "Ascent: cannot read ascent_options.yaml: " << e.message());
+        }
     }
     try
     {
         conduit::relay::io::load(actions_file, "yaml", loaded);
     }
-    catch (...)
+    catch (const conduit::Error &e)
     {
+        if (rank == 0)
+            vtkLog(ERROR, "Ascent: cannot read actions file '" << actions_file << "': " << e.message()
+                          << "; no Ascent actions will run");
     }
 
     actions.set(conduit::DataType::list());
@@ -69,11 +83,10 @@ void WriterAscent::load_actions()
                 const std::string type = extract.has_path("type") ? extract["type"].as_string() : "";
                 if (type == "relay")
                 {
-                    manual_relay = true;
-                    if (extract.has_path("params/path"))
-                        relay_path = extract["params/path"].as_string();
-                    if (extract.has_path("params/protocol"))
-                        relay_protocol = extract["params/protocol"].as_string();
+                    relay_extracts.emplace_back(
+                        extract.has_path("params/path") ? extract["params/path"].as_string() : "ascent_data",
+                        extract.has_path("params/protocol") ? extract["params/protocol"].as_string()
+                                                            : "blueprint/mesh/hdf5");
                 }
                 else
                     kept[name].set(extract);
@@ -142,8 +155,8 @@ void WriterAscent::write(int step, const GrayScott &sim, int rank, int numRanks)
     const auto t3 = clock::now();
 
     // I/O: the manual relay save used with overwrite_last_step.
-    if (manual_relay)
-        ManualOverwrite(data["mesh"], relay_path, relay_protocol, this->comm);
+    for (const auto &rx : relay_extracts)
+        ManualOverwrite(data["mesh"], rx.first, rx.second, this->comm);
     const auto t4 = clock::now();
 
     phases.wrap_s = std::chrono::duration<double>(t1 - t0).count();

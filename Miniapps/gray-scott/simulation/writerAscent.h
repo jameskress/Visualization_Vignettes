@@ -10,6 +10,10 @@
 
 #include "mesh_blueprint.h"
 
+#include <string>
+#include <utility>
+#include <vector>
+
 class WriterAscent : public Writer
 {
 public:
@@ -39,9 +43,8 @@ private:
     // Actions, loaded and filtered once in CreateWriter. With
     // overwrite_last_step, relay extracts are replaced by a manual save.
     conduit::Node actions;
-    bool manual_relay = false;
-    std::string relay_path = "ascent_data";
-    std::string relay_protocol = "blueprint/mesh/hdf5";
+    // Each relay extract's (path, protocol), saved one by one.
+    std::vector<std::pair<std::string, std::string>> relay_extracts;
     void load_actions();
 
     void ManualOverwrite(conduit::Node &mesh, const std::string &base_path, const std::string &protocol, MPI_Comm comm);
