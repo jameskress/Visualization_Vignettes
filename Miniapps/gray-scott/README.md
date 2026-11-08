@@ -263,9 +263,9 @@ With them, each step record holds these timers, in seconds per rank:
 
 | Timer | Measures |
 | :--- | :--- |
-| `halo` | halo exchange (`MPI_Sendrecv` of all faces); includes waiting for neighbours |
+| `halo` | halo exchange (`MPI_Sendrecv` of all faces); includes waiting for neighbours. On output steps it also includes the refresh of the halo before the write |
 | `stencil` | the 7-point update and the copy back |
-| `compute_step` | `halo` + `stencil` as seen from `main` |
+| `compute_step` | `halo` + `stencil` as seen from `main`, except on output steps, where `halo` also holds the pre-write refresh and `compute_step` does not |
 | `wrap` | building the backend's description of the data |
 | `execute` | the backend's own work (pipeline, actions, engine) |
 | `io` | files written or data sent |
