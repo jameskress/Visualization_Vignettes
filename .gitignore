@@ -73,3 +73,6 @@ software/
 Miniapps/gray-scott/install/
 Miniapps/gray-scott/local_tests/
 Miniapps/gray-scott/shaheenDownload/
+
+# CMake user presets hold machine-local paths (see Miniapps/gray-scott/CMakeUserPresets.json.example).
+CMakeUserPresets.json
