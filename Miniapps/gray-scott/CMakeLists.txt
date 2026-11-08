@@ -226,6 +226,7 @@ add_custom_target(gs_build_info
           -DGS_ENABLED_BACKENDS=${_gs_backends}
           -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gs_build_info.cmake
   BYPRODUCTS ${GS_GENERATED_DIR}/gs_build_info.h
+  VERBATIM
   COMMENT "Recording git state and compiler settings for run metadata")
 
 add_library(common common/perf_logger.cpp common/run_metadata.cpp)

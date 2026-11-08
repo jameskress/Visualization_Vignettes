@@ -239,6 +239,13 @@ def main():
     print(write_tables(rows, out))
 
     if not args.no_plots:
+        try:
+            import matplotlib  # noqa: F401  (only the plots need it)
+        except ImportError:
+            print("matplotlib not found: tables written, plots skipped (install it, or pass --no-plots)",
+                  file=sys.stderr)
+            args.no_plots = True
+    if not args.no_plots:
         caption = common_caption(runs)
         made = [p for p in (plot_phases(runs, rows, out, caption), plot_scaling(rows, out, caption)) if p]
         (out / "captions.md").write_text(
