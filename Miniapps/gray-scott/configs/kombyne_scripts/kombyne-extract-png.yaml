@@ -5,8 +5,11 @@ pipelines:
     enabled: "true"
     frequency: 1
     attributes:
-      # Define the slice plane at the center of the 128^3 domain
-      origin: [64, 64, 64]
+      # Slice through the centre of the domain. Coordinates follow the shared mesh
+      # (docs/in-situ-backends.md): spacing 0.1, so L = 64 spans 0 to 6.4. The
+      # slice sits at 3.25, between grid planes: a slice exactly on a plane two
+      # ranks share (3.2 here) is drawn by both.
+      origin: [3.25, 3.25, 3.25]
       # The normal vector points along the X-axis, creating a YZ plane
       normal: [1, 0, 0]
     outputs:
@@ -20,8 +23,8 @@ pipelines:
           height: 1338
           scene:
             camera:
-              position: [307, 307, 307]
-              focus: [64, 64, 64] 
+              position: [15.4, 15.4, 15.4]
+              focus: [3.2, 3.2, 3.2]
               up: [0, 1, 0]
               fov: 30.0
             lights:
@@ -32,5 +35,9 @@ pipelines:
                 intensity: 0.8
             pseudocolor:
               variable: "V"
+              # Fixed range: by default Kombyne colours with the current data range,
+              # which differs between rank counts and steps.
+              minimum: 0.0
+              maximum: 0.45
               color_table: "cool to warm"
 

@@ -4,8 +4,11 @@ pipelines:
     enabled: "true"
     frequency: 1
     attributes:
-      # Define the slice plane at the center of the 128^3 domain
-      origin: [64, 64, 64]
+      # Slice through the centre of the domain. Coordinates follow the shared mesh
+      # (docs/in-situ-backends.md): spacing 0.1, so L = 64 spans 0 to 6.4. The
+      # slice sits at 3.25, between grid planes: a slice exactly on a plane two
+      # ranks share (3.2 here) is drawn by both.
+      origin: [3.25, 3.25, 3.25]
       normal: [1, 0, 0] # YZ Plane
     outputs:
       - type: "render"
@@ -17,8 +20,8 @@ pipelines:
           height: 1338
           scene:
             camera:
-              position: [307, 307, 307]
-              focus: [64, 64, 64] 
+              position: [15.4, 15.4, 15.4]
+              focus: [3.2, 3.2, 3.2]
               up: [0, 1, 0]
               fov: 30.0
             lights:
@@ -29,6 +32,10 @@ pipelines:
                 intensity: 0.8
             pseudocolor:
               variable: "U"
+              # Fixed range: by default Kombyne colours with the current data range,
+              # which differs between rank counts and steps.
+              minimum: 0.0
+              maximum: 1.0
               color_table: "cool to warm"
 
   # Pipeline 2: A semi-transparent isosurface of "U".
@@ -49,8 +56,8 @@ pipelines:
           quality: "high"
           scene:
             camera:
-              position: [307, 307, 307]
-              focus: [64, 64, 64] 
+              position: [15.4, 15.4, 15.4]
+              focus: [3.2, 3.2, 3.2]
               up: [0, 1, 0]
               fov: 30.0
             lights:
@@ -61,8 +68,9 @@ pipelines:
                 intensity: 0.8
             pseudocolor:
               variable: "U"
-              color_table: "cool to warm"
-              # Set an explicit data range to fix rendering issues.
+              # Fixed range: by default Kombyne colours with the current data range,
+              # which differs between rank counts and steps.
               minimum: 0.0
-              maximum: 5.0
+              maximum: 1.0
+              color_table: "cool to warm"
 
