@@ -159,7 +159,7 @@ The step count, grid and output are all in the settings file; the
 
 ## Parameters
 
-From `simulation/settings.cpp`. Every key is required except the two marked
+From `simulation/settings.cpp`. Every key is required except those marked
 optional; a settings file that leaves out a required key stops the run with
 an error. The last column is the value in the code's constructor, for
 reference only, except for the optional keys, where it is the value used
@@ -183,7 +183,7 @@ distances by 0.1, and multiply output gradients by 0.1, to get solver units.
 | `Dv` | diffusion coefficient of V | 0.1 |
 | `dt` | forward Euler time step | 0.2 |
 | `noise` | amplitude of uniform noise in [-1, 1) added to U each step | 0.0 |
-| `seed` | seed for the noise; the value at each point and step depends only on the seed, the step and the global position, so reruns and any rank count give identical fields | 20261107 |
+| `seed` | optional: seed for the noise; the value at each point and step depends only on the seed, the step and the global position, so reruns and any rank count give identical fields | 20261107 |
 | `output_type` | `none`, `pvti`, `catalyst_io`, `catalyst_insitu`, `ascent`, `adios`, `kombyne` | `file` (set it explicitly) |
 | `output_file_name` | output file or prefix for file-writing backends | `foo.bp` |
 | `catalyst_script_path` | Catalyst Python script for `catalyst_*` | empty |
