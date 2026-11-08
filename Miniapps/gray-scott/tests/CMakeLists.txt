@@ -21,8 +21,7 @@ foreach(np 1 2 4)
   set_tests_properties(gs_regression_np${np} PROPERTIES
     PROCESSORS ${np}
     TIMEOUT 300
-    FIXTURES_SETUP gs_regression_hashes
-    PASS_REGULAR_EXPRESSION "PASSED")
+    FIXTURES_SETUP gs_regression_hashes)
 endforeach()
 
 # Bitwise equivalence across rank counts: all three hash files must match.
@@ -87,14 +86,14 @@ endif()
 foreach(b IN LISTS _gs_gv_backends)
   set_tests_properties(gs_ghost_volume_${b} PROPERTIES
     LABELS backends TIMEOUT 1800 PROCESSORS 8 RESOURCE_LOCK gs_ghost_volume
-    FIXTURES_SETUP gs_ghost_volume PASS_REGULAR_EXPRESSION "PASSED")
+    FIXTURES_SETUP gs_ghost_volume)
 endforeach()
 if(_gs_gv_backends)
   add_test(NAME gs_ghost_volume_compare COMMAND ${Python3_EXECUTABLE}
            ${CMAKE_CURRENT_SOURCE_DIR}/ghost_volume/ghost_volume.py --compare ${_gs_gv_dir}
            "--expect=$<JOIN:${_gs_gv_backends},,>")
   set_tests_properties(gs_ghost_volume_compare PROPERTIES
-    LABELS backends FIXTURES_REQUIRED gs_ghost_volume PASS_REGULAR_EXPRESSION "PASSED")
+    LABELS backends FIXTURES_REQUIRED gs_ghost_volume)
   message(STATUS "Ghost volume test backends: ${_gs_gv_backends}")
 endif()
 
@@ -126,7 +125,7 @@ if(Python3_Interpreter_FOUND AND _gs_no_pil EQUAL 0)
   endif()
   foreach(b IN LISTS _gs_rc_backends)
     set_tests_properties(gs_render_${b} PROPERTIES
-      LABELS "backends;render" TIMEOUT 1800 PROCESSORS 4 PASS_REGULAR_EXPRESSION "PASSED")
+      LABELS "backends;render" TIMEOUT 1800 PROCESSORS 4)
   endforeach()
   if(_gs_rc_backends)
     message(STATUS "Render check backends: ${_gs_rc_backends}")
