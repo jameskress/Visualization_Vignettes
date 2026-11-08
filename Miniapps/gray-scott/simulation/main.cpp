@@ -259,9 +259,16 @@ int main(int argc, char **argv)
                     {"halo_bytes", "backend_bytes"}, app_comm);
     perf.setStepPrint({{"stencil", "Stencil"}, {"halo", "Halo"}, {"wrap", "Wrap"},
                        {"execute", "Execute"}});
-    // Field data handed to the backend per write: u and v, with halo.
-    const double backend_bytes = 2.0 * sizeof(double) * (sim.size_x + 2) *
-                                 (sim.size_y + 2) * (sim.size_z + 2);
+    // Field data handed to the backend per write (u and v, doubles): none
+    // for "none"; ADIOS2 writes each rank's interior block; the mesh-based
+    // backends take the full block with its halo layer.
+    const double interior_points = static_cast<double>(sim.size_x) * sim.size_y * sim.size_z;
+    const double halo_points = static_cast<double>(sim.size_x + 2) * (sim.size_y + 2) * (sim.size_z + 2);
+    double backend_bytes = 2.0 * sizeof(double) * halo_points;
+    if (settings.output_type == "none")
+        backend_bytes = 0.0;
+    else if (settings.output_type == "adios")
+        backend_bytes = 2.0 * sizeof(double) * interior_points;
 
     // ------------------- Writer creation -------------------
     perf.start("create_writer");

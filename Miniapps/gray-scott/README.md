@@ -257,7 +257,8 @@ section.
 
 The timers are compiled in only with `ENABLE_TIMERS`, in the
 `host-cpu-timers` preset or with `-DENABLE_TIMERS=ON` in your user preset.
-Without them, runs stay quiet and write only the metadata and the wall time.
+Without them, the performance log holds only the metadata and the wall
+time, and the console shows one progress line per step.
 With them, each step record holds these timers, in seconds per rank:
 
 | Timer | Measures |
@@ -277,7 +278,7 @@ Each record also holds two counters, the memory high-water mark (`rss_MB`)
 and the cumulative CPU time (`user_s`, `sys_s`):
 
 * `halo_bytes`: bytes this rank sent in the exchange, from the MPI datatype sizes.
-* `backend_bytes`: bytes of field data handed to the backend on output steps (u and v with halo).
+* `backend_bytes`: bytes of field data handed to the backend on output steps: u and v with their halo layer for the mesh-based backends, the interior block for ADIOS2, 0 for `none`.
 
 How each backend reports `wrap`, `execute` and `io`:
 
