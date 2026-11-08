@@ -1,6 +1,8 @@
 #include "writerADIOS.h"
 #include "mesh_blueprint.h"
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 
 WriterADIOS::WriterADIOS() = default;
@@ -9,6 +11,21 @@ WriterADIOS::~WriterADIOS() = default;
 void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, MPI_Comm comm, int rank)
 {
     settings = _settings;
+
+    // Span and memory selection are checked with BP5 only. With SST they are
+    // untested here and reported not to work (span Put unsupported; FFS
+    // marshalling may ignore the memory selection), so SST uses the default
+    // mode until the in transit path is tested in phase 5 (#42).
+    std::string engine = m_io.EngineType();
+    std::transform(engine.begin(), engine.end(), engine.begin(), ::tolower);
+    if (engine == "sst" && (settings.adios_span || settings.adios_memory_selection))
+    {
+        if (rank == 0)
+            vtkLog(WARNING, "ADIOS2: adios_span and adios_memory_selection are not supported with SST; "
+                            "using the default write mode");
+        settings.adios_span = false;
+        settings.adios_memory_selection = false;
+    }
 
     // --- DEFINE THE SIMULATION VARIABLES ---
     const adios2::Dims shape = {settings.L, settings.L, settings.L};

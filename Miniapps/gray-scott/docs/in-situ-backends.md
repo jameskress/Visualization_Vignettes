@@ -244,6 +244,12 @@ this yet; the fix is planned for phase 5 (#42).
 In every mode, `io` also includes the close and reopen that
 `overwrite_last_step` does before each write.
 
+Span and memory selection are checked with BP5 only. With the SST engine
+the writer ignores both settings, logs a warning and uses the default
+mode: SST does not implement span `Put()`, and its FFS marshalling is
+reported to ignore memory selections. Revisit when the in transit path is
+tested in phase 5 (#42).
+
 **Pointer lifetime.** `Put()` is deferred: ADIOS2 may read the memory at
 `Put()` or at any point up to `EndStep()`, depending on the engine. Each
 pointer handed to `Put()`, and the data it points to, must therefore stay
