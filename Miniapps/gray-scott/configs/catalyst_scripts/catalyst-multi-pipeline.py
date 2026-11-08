@@ -87,7 +87,13 @@ extractSubset1 = ExtractSubset(registrationName="ExtractSubset1", Input=producer
 extractSubset1.VOI = [0, 65, 0, 65, 0, 65]
 
 # create a new 'Clip'
-clip1 = Clip(registrationName="Clip1", Input=producer)
+# Surface filters (Clip, Contour, Slice) need ghost cells on every side of a
+# block: the adaptor marks one ghost layer on the low side only, so without
+# this the high face of each rank's block is drawn as an internal surface and
+# contour normals are one-sided there. Volume rendering reads the producer
+# directly (a GhostCells layer under a volume shows as cracks).
+ghostCells1 = GhostCells(registrationName="GhostCells1", Input=producer)
+clip1 = Clip(registrationName="Clip1", Input=ghostCells1)
 clip1.ClipType = "Plane"
 clip1.HyperTreeGridClipper = "Plane"
 clip1.Scalars = ["POINTS", "u"]
@@ -133,6 +139,8 @@ uLUT.RGBPoints = [
     0.14902,
 ]
 uLUT.ScalarRangeInitialized = 1.0
+# Keep the range fixed so images compare across rank counts and steps.
+uLUT.AutomaticRescaleRangeMode = "Never"
 
 # get opacity transfer function/opacity map for 'u'
 uPWF = GetOpacityTransferFunction("u")
