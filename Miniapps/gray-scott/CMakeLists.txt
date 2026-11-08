@@ -390,5 +390,5 @@ install(FILES
 )
 # The README links to the detailed guide under docs/, and the guide shows
 # the pattern images under img/; install both at the same relative paths.
-install(FILES docs/build-and-run-guide.md DESTINATION docs)
+install(FILES docs/build-and-run-guide.md docs/in-situ-backends.md DESTINATION docs)
 install(DIRECTORY img/ DESTINATION img FILES_MATCHING PATTERN "*.jpg")
