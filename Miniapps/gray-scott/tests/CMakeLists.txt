@@ -91,7 +91,8 @@ foreach(b IN LISTS _gs_gv_backends)
 endforeach()
 if(_gs_gv_backends)
   add_test(NAME gs_ghost_volume_compare COMMAND ${Python3_EXECUTABLE}
-           ${CMAKE_CURRENT_SOURCE_DIR}/ghost_volume/ghost_volume.py --compare ${_gs_gv_dir})
+           ${CMAKE_CURRENT_SOURCE_DIR}/ghost_volume/ghost_volume.py --compare ${_gs_gv_dir}
+           "--expect=$<JOIN:${_gs_gv_backends},,>")
   set_tests_properties(gs_ghost_volume_compare PROPERTIES
     LABELS backends FIXTURES_REQUIRED gs_ghost_volume PASS_REGULAR_EXPRESSION "PASSED")
   message(STATUS "Ghost volume test backends: ${_gs_gv_backends}")

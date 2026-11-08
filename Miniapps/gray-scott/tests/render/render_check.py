@@ -28,6 +28,7 @@ import argparse
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -187,6 +188,20 @@ def headless_env():
     return env
 
 
+def run_group(cmd, cwd, env, timeout):
+    """Run cmd in its own process group. On timeout, kill the whole group
+    (mpirun and any ranks it left behind) and return (None, output)."""
+    p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                         text=True, start_new_session=True)
+    try:
+        out, _ = p.communicate(timeout=timeout)
+        return p.returncode, out
+    except subprocess.TimeoutExpired:
+        os.killpg(p.pid, signal.SIGKILL)
+        out, _ = p.communicate()
+        return None, out
+
+
 def run(args, np_):
     d = Path(args.workdir) / args.backend / f"np{np_}"
     shutil.rmtree(d, ignore_errors=True)
@@ -212,24 +227,28 @@ def run(args, np_):
     cmd = [args.mpiexec, "-np", str(np_)] + args.mpiexec_preflags.split()
     if "mpirun" in Path(args.mpiexec).name or "mpiexec" in Path(args.mpiexec).name:
         cmd += ["-x", "VTK_DEFAULT_OPENGL_WINDOW", "-x", "OMP_NUM_THREADS"]
-    p = subprocess.run(cmd + [args.exe, "--settings-file=settings.json"], cwd=d, env=env,
-                       capture_output=True, text=True, timeout=1200)
-    (d / "run.log").write_text(p.stdout + p.stderr)
-    if p.returncode != 0:
+    rc, out = run_group(cmd + [args.exe, "--settings-file=settings.json"], d, env, 1200)
+    (d / "run.log").write_text(out)
+    if rc is None:
+        sys.exit(f"{b} np{np_}: miniapp timed out after 1200 s; killed (see {d}/run.log)")
+    if rc != 0:
         sys.exit(f"{b} np{np_}: miniapp failed (see {d}/run.log)")
     if b == "pvti":
         (d / "render.py").write_text(PVTI_SCRIPT % {"views": PARAVIEW_VIEWS})
         q = subprocess.run([args.pvpython, str(d / "render.py"), str(d / f"rc-{STEP:04d}.pvti"), str(d)],
                            env=env, capture_output=True, text=True, timeout=600)
         (d / "render.log").write_text(q.stdout + q.stderr)
-    # Normalise names: <view>.png for the output step.
+        if q.returncode != 0:
+            sys.exit(f"{b} np{np_}: pvpython render failed (see {d}/render.log)")
+    # Normalise names: <view>.png for the output step. Catalyst, Ascent and
+    # PVTI write <view>.png at the output step only; Kombyne writes one file
+    # per output step, so take the one named for STEP and nothing else.
     for v in VIEWS[b]:
-        hits = sorted(d.glob(f"{v}*.png"))
-        hits = [h for h in hits if str(STEP) in h.name] or hits
-        if not hits:
-            sys.exit(f"{b} np{np_}: no {v} image (see {d})")
-        if hits[-1].name != f"{v}.png":
-            shutil.copy(hits[-1], d / f"{v}.png")
+        if not (d / f"{v}.png").exists():
+            hits = sorted(h for h in d.glob(f"{v}_*.png") if h.stem.split("_")[-1].lstrip("0") == str(STEP))
+            if len(hits) != 1:
+                sys.exit(f"{b} np{np_}: no {v} image for step {STEP} (see {d})")
+            shutil.copy(hits[0], d / f"{v}.png")
     return d
 
 

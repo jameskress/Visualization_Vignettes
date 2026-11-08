@@ -216,6 +216,8 @@ def adios_count(d, bpls):
 
 def run_backend(args):
     work = Path(args.workdir)
+    # A record from an earlier run must not stand in for this one.
+    (work / f"{args.backend}.json").unlink(missing_ok=True)
     results = {}
     for np_ in RANKS:
         d = work / f"{args.backend}_np{np_}"
@@ -239,6 +241,9 @@ def run_backend(args):
             (d / "reader.py").write_text(READER_SCRIPT % {"t": THRESHOLD})
             q = subprocess.run([args.pvpython, str(d / "reader.py"), args.backend, str(path)],
                                capture_output=True, text=True, timeout=600)
+            (d / "reader.log").write_text(q.stdout + q.stderr)
+            if q.returncode != 0:
+                sys.exit(f"{args.backend} np{np_}: pvpython reader failed (see {d}/reader.log)")
             n, v = parse(q.stdout + q.stderr)
         results[np_] = (n, v)
         print(f"{args.backend} np{np_}: {n} cells, volume {v:.12g}")
@@ -255,22 +260,30 @@ def run_backend(args):
     rec = {"cells": n1, "volume": v1, "method": method, "rule": "any" if args.backend == "ascent" else "all"}
     if args.backend == "adios":
         rec["cells_any"] = adios_count.any
-    (work / f"{args.backend}.json").write_text(json.dumps(rec))
+    if ok:  # only a passing run leaves a record for --compare
+        (work / f"{args.backend}.json").write_text(json.dumps(rec))
     print("PASSED" if ok else "FAILED")
     return 0 if ok else 1
 
 
-def compare(workdir):
+def compare(workdir, expect):
     """Cell counts must be equal exactly. Volumes must agree within 1e-12
     between backends integrated the same way. ParaView's integration runs
     on the threshold output, whose points are float32, so against the
     analytic count * 0.1^3 (ADIOS2) the tolerance is 1e-6."""
-    res = {p.stem: json.loads(p.read_text()) for p in Path(workdir).glob("*.json")}
-    if len(res) < 2:
-        print(f"only {sorted(res)} ran; nothing to compare")
-        print("PASSED")
-        return 0
+    res = {}
     ok = True
+    if not expect:  # by hand: compare whatever records are there
+        expect = sorted(p.stem for p in Path(workdir).glob("*.json"))
+    for b in expect:
+        p = Path(workdir) / f"{b}.json"
+        if p.exists():
+            res[b] = json.loads(p.read_text())
+        else:
+            print(f"FAIL {b}: no result record (its ghost volume test did not pass)")
+            ok = False
+    if len(expect) < 2:
+        print(f"only {expect} configured; nothing to compare")
     # Ascent counts under the any-corner rule; check it against the ADIOS2
     # reference under the same rule, then leave it out of the all-corners table.
     if "ascent" in res:
@@ -300,6 +313,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--backend", choices=["catalyst", "pvti", "kombyne", "adios", "ascent"])
     ap.add_argument("--compare", metavar="WORKDIR")
+    ap.add_argument("--expect", default="", help="with --compare: comma-separated backends that must have results")
     ap.add_argument("--exe")
     ap.add_argument("--workdir")
     ap.add_argument("--mpiexec", default="mpirun")
@@ -309,7 +323,7 @@ def main():
     ap.add_argument("--bpls", default="bpls")
     args = ap.parse_args()
     if args.compare:
-        return compare(args.compare)
+        return compare(args.compare, [b for b in args.expect.split(",") if b])
     if not (args.backend and args.exe and args.workdir):
         ap.error("--backend, --exe and --workdir are required")
     return run_backend(args)
