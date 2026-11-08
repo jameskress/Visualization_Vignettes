@@ -1076,11 +1076,15 @@ Kombyne has a built-in timing infrastructure that can be used to generate detail
 
 #### How to Enable Kombyne Timings
 
-To get performance data, simply export the following to your environment before execution:
+To get performance data, export the following to your environment before execution:
+
+```bash
+export KB_TIMERS_ENABLED=true   # Kombyne-lite's timers (default false; see its docs, "Environment variables")
+```
 
 When enabled, Kombyne will generate one `timings.####.txt` file for each MPI rank in your run directory. Each file contains a detailed, hierarchical breakdown of internal operations and the time each one took.
 
-> **Note:** refer to your specific Kombyne simulation's documentation for the exact flag or option to enable timer output, if it is not on by default.
+`KB_TIMERS_FILENAME` sets the output name, and `KB_TIMERS_PROGRESSIVE` (default true) writes the timers as the run goes.
 
 #### Visualizing the Performance Data
 
@@ -1101,7 +1105,7 @@ pip install --user pandas plotly "kaleido==0.1.*"
 Navigate to the directory containing the `timings.*.txt` files and run the script:
 
 ```bash
-python3 kombyne_sunbukombyne_timings_plotter.py
+python3 kombyne_timings_plotter.py   # from the miniapp's scripts/ directory
 ```
 
 This will process all timing files and save a PDF file named `kombyne_sunburst_performance.pdf`. This plot provides an intuitive, hierarchical view of the total time distribution.
