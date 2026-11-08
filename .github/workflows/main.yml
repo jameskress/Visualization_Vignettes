@@ -59,7 +59,9 @@ jobs:
             exit 0
           fi
           # Three-dot: only what the pull request itself changes.
-          if ! changed=$(git diff --name-only "$BASE...$HEAD"); then
+          # --no-renames lists both paths of a move, so a file moved into
+          # Miniapps/gray-scott/ from elsewhere still counts as outside.
+          if ! changed=$(git diff --name-only --no-renames "$BASE...$HEAD"); then
             echo "cannot diff $BASE...$HEAD: run everything"
             echo "vignettes=true" >> "$GITHUB_OUTPUT"
             exit 0
@@ -89,6 +91,8 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
         run: |
+          # A cache left by an interrupted run must never be rotated in.
+          rm -rf /tmp/.buildx-cache-new
           HAVE_CACHE=false
           [ -f /tmp/.buildx-cache/index.json ] && HAVE_CACHE=true
           if [ "$EVENT" = "pull_request" ]; then
@@ -99,6 +103,7 @@ jobs:
             WRITE=true
           fi
           echo "cache present: $HAVE_CACHE, write cache: $WRITE"
+          echo "write_cache=$WRITE" >> "$GITHUB_OUTPUT"
           if [ "$WRITE" = true ]; then
             echo "cache_to=type=local,dest=/tmp/.buildx-cache-new,mode=max" >> "$GITHUB_OUTPUT"
           else
@@ -155,14 +160,15 @@ jobs:
         if: always()
         env:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
+          WROTE_CACHE: ${{ steps.plan.outputs.write_cache }}
         run: |
-          if [ "$BUILD_OUTCOME" = "success" ] && [ -f /tmp/.buildx-cache-new/index.json ]; then
+          if [ "$BUILD_OUTCOME" = "success" ] && [ "$WROTE_CACHE" = "true" ] && [ -f /tmp/.buildx-cache-new/index.json ]; then
             rm -rf /tmp/.buildx-cache
             mv /tmp/.buildx-cache-new /tmp/.buildx-cache
             echo "cache rotated"
           else
             rm -rf /tmp/.buildx-cache-new
-            echo "build $BUILD_OUTCOME: kept the existing cache"
+            echo "build $BUILD_OUTCOME, cache written: $WROTE_CACHE; kept the existing cache"
           fi
           echo "buildx cache: $(du -sh /tmp/.buildx-cache 2>/dev/null | cut -f1)"
           df -h /tmp /home 2>/dev/null || df -h
