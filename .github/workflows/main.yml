@@ -1,10 +1,31 @@
 name: CI Pipeline
 
+# The full pipeline runs on the shared self-hosted runner, so it runs once
+# per change: on pull requests, and on pushes to master (which publish the
+# image and the badge). Any other branch can be run by hand from the Actions
+# tab (workflow_dispatch); such runs build and test but publish nothing.
 on:
   push:
-    branches: [ '**' ]
+    branches: [ master ]
   pull_request:
     branches: [ '**' ]
+  workflow_dispatch:
+
+# A newer push to the same pull request replaces the run still in progress.
+# The event name keeps manual runs apart from master pushes: GitHub replaces
+# a pending run with a newer one in the same group, and a manual run does not
+# publish, so it must never displace a pending master push.
+# Master pushes run one at a time and are never cancelled. If several land
+# while one is running, only the newest waits; the ones in between are
+# skipped on purpose (one shared runner). The "newest" check below keeps an
+# older commit from moving `latest` or the badge after a newer one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Read-only token by default; the build job widens it to publish.
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -16,6 +37,16 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
+      # Publish `latest` and the badge only from master's current tip, so a
+      # run for an older commit can never overwrite a newer one's.
+      - name: Check this commit is master's tip
+        id: tip
+        run: |
+          TIP=$(git ls-remote origin refs/heads/master | cut -f1)
+          NEWEST=false
+          if [ "${{ github.event_name }}" = "push" ] && [ "$TIP" = "${{ github.sha }}" ]; then NEWEST=true; fi
+          echo "master tip $TIP, this run ${{ github.sha }}, newest=$NEWEST"
+          echo "newest=$NEWEST" >> "$GITHUB_OUTPUT"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
@@ -31,12 +62,12 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ steps.tip.outputs.newest == 'true' }}
       - uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=local,src=/tmp/.buildx-cache
@@ -59,7 +90,7 @@ jobs:
           df -h /tmp /home 2>/dev/null || df -h
 
       - name: Generate latest image badge
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ steps.tip.outputs.newest == 'true' }}
         run: |
           TAG=$(echo "${{ steps.meta.outputs.tags }}" | grep -Eo ':[a-f0-9]{7,}' | head -n 1 | tr -d ':')
           [ -z "$TAG" ] && TAG=$(git rev-parse --short HEAD)
@@ -68,7 +99,7 @@ jobs:
 
       - name: Publish badge to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ steps.tip.outputs.newest == 'true' }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
