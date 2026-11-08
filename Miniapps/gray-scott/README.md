@@ -66,10 +66,11 @@ layer of halo points on every face, filled from its neighbours each step.
 
 The goal for every backend is the same: hand the solver's arrays over
 without copying, tag ghost cells, and give the same result across backends
-and across rank counts. The code does not meet it yet: PVTI copies and
-converts to float, Catalyst tags no ghosts, and the noise is seeded per
-rank, so runs with noise differ between rank counts. The phase 3 and seeded
-noise work (#14, #20 to #25) closes these gaps. The
+and across rank counts. Results already match across rank counts, noise
+included: the noise depends only on the seed, the step and the global
+position. The backends do not meet the rest yet: PVTI copies and converts
+to float, and Catalyst tags no ghosts. Phase 3 (#20 to #25) closes these
+gaps. The
 [build and run guide](docs/build-and-run-guide.md) covers each backend in
 detail.
 
