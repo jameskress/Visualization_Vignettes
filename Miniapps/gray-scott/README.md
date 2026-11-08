@@ -64,8 +64,12 @@ layer of halo points on every face, filled from its neighbours each step.
                                                   in situ
 ```
 
-Every backend is held to the same rules: zero-copy, ghost cells tagged, and
-the same result across backends and across rank counts. The
+The goal for every backend is the same: hand the solver's arrays over
+without copying, tag ghost cells, and give the same result across backends
+and across rank counts. The code does not meet it yet: PVTI copies and
+converts to float, Catalyst tags no ghosts, and the noise is seeded per
+rank, so runs with noise differ between rank counts. The phase 3 and seeded
+noise work (#14, #20 to #25) closes these gaps. The
 [build and run guide](docs/build-and-run-guide.md) covers each backend in
 detail.
 
@@ -269,7 +273,7 @@ covers Docker, checkpoint and restart, and the in transit reader.
 * [Build and run guide](docs/build-and-run-guide.md): Docker, building each
   backend SDK, running each output type, checkpoint and restart, the in
   transit reader.
-* [AGENTS.md](../../AGENTS.md): the working rules and target invariants for
+* [AGENTS.md](https://github.com/jameskress/Visualization_Vignettes/blob/master/AGENTS.md) (in the repository root): the working rules and target invariants for
   this miniapp.
 * `sites/kw61316`, `sites/ibex`, `sites/shaheen`: machine-specific notes.
 * The plan of work: phase issues #11, #18, #28, #38 and #46 on GitHub.
