@@ -190,6 +190,7 @@ The easiest way to get `Catalyst` and `VTK` is to use the `ParaView Superbuild`.
 git clone --recursive https://gitlab.kitware.com/paraview/paraview-superbuild.git
 cd paraview-superbuild
 git checkout v6.0.0
+git submodule update --init --recursive   # match the submodules to the tag
 cd ..
 mkdir paraview-build
 cd paraview-build
