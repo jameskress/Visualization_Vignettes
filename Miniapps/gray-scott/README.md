@@ -64,10 +64,10 @@ layer of halo points on every face, filled from its neighbours each step.
                                                   in situ
 ```
 
-The rules every backend is held to (zero-copy, ghost cell tagging,
-equivalence between backends and between rank counts) and where the code
-stands on each are in the Gray-Scott section of the repository's
-[AGENTS.md](../../AGENTS.md).
+Every backend is held to the same rules: zero-copy, ghost cells tagged, and
+the same result across backends and across rank counts. The
+[build and run guide](docs/build-and-run-guide.md) covers each backend in
+detail.
 
 ---
 
@@ -100,7 +100,7 @@ goes in `CMakeUserPresets.json`, which git ignores.
 
 ```bash
 cd Miniapps/gray-scott
-cp CMakeUserPresets.json.example CMakeUserPresets.json   # edit VTK_DIR if your ParaView lives elsewhere
+cp -n CMakeUserPresets.json.example CMakeUserPresets.json   # -n keeps an existing file; edit VTK_DIR if your ParaView lives elsewhere
 cmake --list-presets
 cmake --preset my-host-cpu
 cmake --build --preset my-host-cpu -j
@@ -155,13 +155,20 @@ The step count, grid and output are all in the settings file; the
 
 ## Parameters
 
-From `simulation/settings.cpp`. "Default" is the value the code uses when a
-settings file omits an optional key; the shipped files set most keys
-explicitly (`settings-none.json` uses L 64, 100 steps, Du 0.2, Dv 0.1,
-F 0.01, k 0.05, dt 2.0, noise 1e-7). All quantities are dimensionless; the
-grid spacing is 1.
+From `simulation/settings.cpp`. Every key is required except the two marked
+optional; a settings file that leaves out a required key stops the run with
+an error. The last column is the value in the code's constructor, for
+reference only, except for the optional keys, where it is the value used
+when the key is missing. The shipped files set every key
+(`settings-none.json` uses L 64, 100 steps, Du 0.2, Dv 0.1, F 0.01, k 0.05,
+dt 2.0, noise 1e-7).
 
-| Key | Meaning | Default |
+All quantities are dimensionless. The solver works on a grid of spacing 1.
+The backends publish the grid with spacing 0.1, so in ParaView,
+VisIt or any output file the domain is 0.1 * L wide: divide output
+distances by 0.1, and multiply output gradients by 0.1, to get solver units.
+
+| Key | Meaning | Constructor value |
 | :--- | :--- | :--- |
 | `L` | grid points per side; the global grid is L^3 | 128 |
 | `steps` | number of time steps | 20000 |
@@ -180,10 +187,17 @@ grid spacing is 1.
 | `adios_span`, `adios_memory_selection` | ADIOS2 write paths (span or memory selection) | false |
 | `mesh_type` | mesh description for backends that use it | `image` |
 | `kombynelite_script_path` | Kombyne-lite script | empty |
-| `checkpoint`, `checkpoint_freq`, `checkpoint_output` | ADIOS2 checkpoints every N steps | false, 2000, `ckpt.bp` |
-| `restart`, `restart_input` | restart from a checkpoint | false, `ckpt.bp` |
-| `burn_in_steps` | steps to run before output starts | 0 |
-| `overwrite_last_step` | keep only the latest output step | false |
+| `checkpoint`, `checkpoint_freq`, `checkpoint_output` | ADIOS2 checkpoints every N steps; needs an `ENABLE_ADIOS2=ON` build (see below) | false, 2000, `ckpt.bp` |
+| `restart`, `restart_input` | restart from a checkpoint; same requirement | false, `ckpt.bp` |
+| `burn_in_steps` | optional: steps to run before output starts | 0 |
+| `overwrite_last_step` | optional: keep only the latest output step. Every backend honours it except `catalyst_insitu`, whose script names its own files and keeps every step unless the script overwrites them | false |
+
+Checkpointing and restart use ADIOS2 and are compiled only when
+`ENABLE_ADIOS2=ON` (the presets turn it off). In any other build the
+`checkpoint` and `restart` keys are read and ignored: no checkpoint is
+written and a restart starts from step 0. Turn on ADIOS2 in
+`CMakeUserPresets.json` and point `adios_config` at an ADIOS2 XML file (the
+ones under `configs/adios2_configs/` work).
 
 Stability: forward Euler on this stencil needs roughly `dt * max(Du, Dv) <= 1`
 for the diffusion part; patterns form for F and k in the classic Pearson
