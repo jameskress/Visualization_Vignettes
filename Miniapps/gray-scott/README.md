@@ -65,13 +65,17 @@ layer of halo points on every face, filled from its neighbours each step.
                                                   in situ
 ```
 
-The goal for every backend is the same: hand the solver's arrays over
-without copying, tag ghost cells, and give the same result across backends
-and across rank counts. Results already match across rank counts, noise
-included: the noise depends only on the seed, the step and the global
-position. The backends do not meet the rest yet: PVTI copies and converts
-to float, and Catalyst tags no ghosts. Phase 3 (#20 to #25) closes these
-gaps. The
+Every backend follows the same rules. It gets the solver's arrays without
+a copy (ADIOS2 only in memory-selection mode). Ghost cells are tagged,
+except in ADIOS2, which writes each point once with no ghosts; a block-wise
+reader of its output must add the overlap itself, and the in transit
+reader does not yet (#42). Results match across backends and across rank
+counts, noise included (the noise depends only on the seed, the step and
+the global position), within what the checks test: the ghost volume test
+compares cell counts and volumes, and the render check allows 0.1% of
+pixels to differ (the Kombyne iso surface uses some of that). Known
+exceptions, such as a slice placed exactly on a plane two ranks share,
+are listed in [in situ backends](docs/in-situ-backends.md). The
 [build and run guide](docs/build-and-run-guide.md) covers each backend in
 detail.
 

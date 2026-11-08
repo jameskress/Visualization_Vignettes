@@ -421,6 +421,7 @@ backend's cell count per rank count. Read a failure as follows:
 | count grows with ranks | ghost cells are not being skipped: wrong field name or value convention, or a reader that does not know the mask (Kombyne exports) |
 | count shrinks with ranks | a gap: the block does not include the cells bridging to the next rank |
 | count right, volume off beyond 1e-6 | the spacing differs from the shared description |
+| Ascent differs from the rest | expected: Ascent's threshold keeps a cell if any corner is in range, the others need every corner. Compare Ascent with the ADIOS2 any-corner count (the compare test does) before suspecting its adaptor |
 
 The test counts cells and volume, not positions, so a block moved by a
 wrong origin can pass it. Check origins in the images (Rendering) or by
@@ -478,6 +479,7 @@ to 2 analysis-reader ranks rendering with Ascent) runs end to end. Its
 configuration:
 
 ```bash
+PV=~/packages/paraview-src/build_6.2.0/install
 cmake -S ADIOS2 -B adios2-build-pv62 -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX=$PWD/adios2-build-pv62/install \
   -DADIOS2_USE_MPI=ON -DADIOS2_USE_HDF5=OFF -DADIOS2_USE_Catalyst=ON \
@@ -490,7 +492,7 @@ cmake -S ADIOS2 -B adios2-build-pv62 -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_RPATH="$PWD/adios2-build-pv62/install/lib;$PV/lib"
 ```
 
-where `PV=~/packages/paraview-src/build_6.2.0/install`. The ADIOS2 HDF5
+`PV` is the ParaView 6.2 install. The ADIOS2 HDF5
 engine can come back once Ascent is built against ParaView's HDF5 (one
 HDF5 in the process, #59), for example with the GPU Ascent build in phase 4.
 
@@ -508,7 +510,12 @@ Every backend reports into the same record (README, Performance):
 
 Use `scripts/perf_report.py` to put runs of different backends side by
 side. Every backend sees the same data, at the same steps, with the same
-ghost rule, so the total backend time (`wrap + execute + io`) compares
-directly. Individual phases need each backend's definition: Catalyst and
-Kombyne write their files inside `execute`, so an `io` of 0 there does not
-mean no I/O, while PVTI and ADIOS2 report their writes as `io`.
+ghost rule. For the cost of a whole backend call, compare `write_step`;
+`wrap + execute + io` covers only the timed phases (PVTI sets up its source
+before the timed write, Kombyne frees pipeline data after `execute`).
+Individual phases need each backend's definition: Catalyst and Kombyne
+write their files inside `execute`, so an `io` of 0 there does not mean no
+I/O, while PVTI and ADIOS2 report their writes as `io`. And compare like
+work: a Catalyst script that renders an image and PVTI writing data files
+are different jobs, so a time difference between them is not a backend
+difference unless the outputs are equivalent.
