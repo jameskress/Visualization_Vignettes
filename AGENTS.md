@@ -232,33 +232,39 @@ ADIOS2 in transit).
 **Rules that hold now**
 
 * **Bare metal first.** Develop and test natively on the workstation with
-  the CMake presets in `Miniapps/gray-scott/CMakePresets.json`; machine-local
-  paths go in a gitignored `CMakeUserPresets.json`. The top-level
+  the CMake presets in `Miniapps/gray-scott/CMakePresets.json` (added by #47);
+  machine-local paths go in `CMakeUserPresets.json`, which #47 also adds to
+  `.gitignore`. The top-level
   `Dockerfile` is a downstream distribution artifact: do not build inside it
   or change it as part of miniapp work.
 * **VTK is required.** The VTK logger is used throughout. VTK and Catalyst
   must come from the same ParaView build that Catalyst loads at run time, or
   two VTKs end up in one process; the workstation uses a ParaView 6.2 source
-  build (#19).
+  build (#19; recipe in #52).
 * **Backend equivalence is the headline rule.** Every backend (PVTI,
   Catalyst, Ascent, ADIOS2, Kombyne) does roughly the same thing with the
   same data, so results across them can be claimed equivalent. A change to
   one backend's mesh, ghosts or fields is a change to all of them, or a
   recorded, measured exception.
 * **Measure everything.** Every code path that runs per step gets a named
-  timer, and every run writes its metadata (git commit, machine, compiler,
-  MPI, ranks and decomposition, grid, backend and version, settings) next to
-  its numbers, so results can go straight into papers. Logging stays cheap,
-  and off by default where it costs. The structured log is #26.
+  timer, and every run must write its metadata (git commit, machine,
+  compiler, MPI, ranks and decomposition, grid, backend and version,
+  settings) next to its numbers, so results can go straight into papers.
+  Logging stays cheap, and off by default where it costs. The structured
+  log that records this metadata is #26; until it merges, the log has only
+  rank, host, resource usage and timer columns.
 
 **Target invariants** (goals; each says where the code is today and which
 phase makes it true; update the line when that changes)
 
 * **Zero-copy.** Arrays handed to Conduit or VTK reuse the simulation's own
-  pointer (`assert(wrapped_ptr == raw_sim_ptr)`), and nothing allocates in
-  the timestep loop. *Today:* Ascent, Catalyst, Kombyne and PVTI copy every
-  step through `u_noghost()`; ADIOS2 already passes the simulation array to
-  a deferred `Put()`. *Made true in phase 3* (#20 to #25).
+  pointer (`assert(wrapped_ptr == raw_sim_ptr)`), and nothing field-sized
+  is allocated in the timestep loop. Small per-write metadata allocations
+  inside the backends are accepted (James, 2026-11-08, on #25). *Today:* Ascent, Catalyst, Kombyne and PVTI copy every
+  step (PVTI through `u_ghost()`, converted to float; the others through
+  `u_noghost()`). ADIOS2 passes the simulation array to a deferred `Put()`
+  only with `adios_memory_selection`; its default and span modes copy, so
+  default ADIOS2 timings are not zero-copy timings. *Made true in phase 3* (#20 to #25).
 * **Ghost cell tagging.** Halo cells are flagged (Conduit Blueprint ghost
   field, `vtkGhostType` for ParaView) so pipelines drop duplicate boundaries
   and seams disappear; each cell is owned by exactly one rank. *Today:*
