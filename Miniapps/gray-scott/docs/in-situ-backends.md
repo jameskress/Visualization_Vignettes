@@ -334,3 +334,55 @@ reference under the same rule (2460 on both). Ascent's pipelines keep ghost
 cells, and Ascent strips them only before rendering, so the extract still
 carries `ascent_ghosts` and the test counts cells where it is 0. The
 rendered images are checked separately (Rendering, below).
+
+## Rendering
+
+The images are the acceptance test: a seam, crack or internal face at a
+rank boundary is a failure even when the counts above agree.
+`tests/render/render_check.py` (CTest label `render`) renders each backend
+on 1 and 4 ranks with the same camera and fixed colour ranges, and fails
+if more than 0.1% of pixels differ by more than 24/255. The images stay in
+the build tree under `tests/render/<backend>/` for review.
+
+Workstation, 64^3, step 2000, 4 vs 1 ranks (pixels off by more than 24/255):
+
+| Backend | Volume | Contour |
+| :--- | :--- | :--- |
+| Catalyst | 0.002% | 0.000% |
+| Ascent | 0.000% | 0.000% |
+| PVTI | 0.000% | 0.000% |
+| Kombyne-lite | (no volume) | 0.012% |
+
+The pre-#21 adaptor, which moved each rank's block back by one cell per
+block index instead of marking ghosts, fails the same check: 2.1% of
+volume pixels and 15% of contour pixels change between 1 and 4 ranks. Its
+images looked continuous, but each rank boundary lost one cell layer and
+the structures moved as ranks were added.
+
+Rules each backend needs for clean images:
+
+* **ParaView / Catalyst.** Render volumes straight from the producer. Put
+  a `GhostCells` filter before surface filters (Contour, Clip, Slice). The
+  adaptor marks one ghost layer, on the low side of each block, so without
+  it the high face of each block is drawn as an internal surface and
+  contour normals there are one-sided. Under a volume, the extra layer
+  cracks the image. Pin colour maps (`AutomaticRescaleRangeMode =
+  "Never"`): rescaling to each run's range makes the same data render
+  differently per rank count.
+* **Ascent.** Set `samples` on volume plots, about 9 per cell along the
+  diagonal (1000 for L = 64). The default of 100 bands, and streaks at
+  block faces differently for each rank count. Ascent strips ghost cells
+  before rendering, so meshes show no internal faces.
+* **Kombyne-lite.** Give pseudocolor a `minimum` and `maximum`; Kombyne
+  otherwise uses the current data range, which differs between rank
+  counts. Its iso surfaces keep a faint one-sided normal at block faces
+  (0.012% of pixels above); there is no GhostCells equivalent.
+* **Slices** exactly on a grid plane two ranks share are drawn by both.
+  Place them between grid planes (the shipped scripts use 3.25, not 3.2).
+
+Headless rendering: the ParaView 6.2 source build and the Kitware binaries
+both render through EGL without an X display. Set
+`VTK_DEFAULT_OPENGL_WINDOW=vtkEGLRenderWindow` (and pass it to the ranks,
+`mpirun -x VTK_DEFAULT_OPENGL_WINDOW`), or give pvpython
+`--opengl-window-backend EGL`. EGL and X images are pixel-identical.
+

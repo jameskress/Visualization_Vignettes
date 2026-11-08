@@ -96,3 +96,38 @@ if(_gs_gv_backends)
     LABELS backends FIXTURES_REQUIRED gs_ghost_volume PASS_REGULAR_EXPRESSION "PASSED")
   message(STATUS "Ghost volume test backends: ${_gs_gv_backends}")
 endif()
+
+# Backend render check (#24, label render): each backend renders the same
+# views on 1 and 4 ranks, headless through EGL, and the images must match
+# (tests/render/render_check.py). Needs Python 3 with numpy and Pillow; the
+# images stay in the build tree under tests/render/<backend>/ for review.
+execute_process(COMMAND ${Python3_EXECUTABLE} -c "import numpy, PIL" RESULT_VARIABLE _gs_no_pil OUTPUT_QUIET ERROR_QUIET)
+set(_gs_rc_backends "")
+if(Python3_Interpreter_FOUND AND _gs_no_pil EQUAL 0)
+  set(_gs_rc ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/render/render_check.py
+             --exe $<TARGET_FILE:gray-scott> --workdir ${CMAKE_CURRENT_BINARY_DIR}/render
+             --mpiexec ${MPIEXEC_EXECUTABLE} "--mpiexec-preflags=${GS_TEST_MPIEXEC_PREFLAGS}")
+  if(ENABLE_CATALYST)
+    add_test(NAME gs_render_catalyst COMMAND ${_gs_rc} --backend catalyst --catalyst-lib ${GS_CATALYST_IMPLEMENTATION_DIR})
+    list(APPEND _gs_rc_backends catalyst)
+  endif()
+  if(ENABLE_ASCENT)
+    add_test(NAME gs_render_ascent COMMAND ${_gs_rc} --backend ascent)
+    list(APPEND _gs_rc_backends ascent)
+  endif()
+  if(ENABLE_KOMBYNELITE)
+    add_test(NAME gs_render_kombyne COMMAND ${_gs_rc} --backend kombyne)
+    list(APPEND _gs_rc_backends kombyne)
+  endif()
+  if(GS_PVPYTHON)
+    add_test(NAME gs_render_pvti COMMAND ${_gs_rc} --backend pvti --pvpython ${GS_PVPYTHON})
+    list(APPEND _gs_rc_backends pvti)
+  endif()
+  foreach(b IN LISTS _gs_rc_backends)
+    set_tests_properties(gs_render_${b} PROPERTIES
+      LABELS "backends;render" TIMEOUT 1800 PROCESSORS 4 PASS_REGULAR_EXPRESSION "PASSED")
+  endforeach()
+  if(_gs_rc_backends)
+    message(STATUS "Render check backends: ${_gs_rc_backends}")
+  endif()
+endif()

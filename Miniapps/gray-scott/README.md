@@ -382,6 +382,16 @@ count under the same rule.
 ctest --test-dir build/<preset> -L backends --output-on-failure
 ```
 
+**Backend render check** (#24, labels `backends` and `render`). Each
+enabled backend renders the same views on 1 and 4 ranks, headless, and the
+images must match: at most 0.1% of pixels may differ by more than 24/255.
+The images are kept under `build/<preset>/tests/render/<backend>/`. Needs
+numpy and Pillow. See docs/in-situ-backends.md, Rendering.
+
+```bash
+ctest --test-dir build/<preset> -L render --output-on-failure
+```
+
 Set `GS_PVPYTHON` to a pvpython (any ParaView 6.2) for the PVTI and Kombyne
 readers. `bpls` is found next to the ADIOS2 install. The Ascent test needs
 h5py for the Python that runs CTest.
