@@ -1,10 +1,20 @@
 name: CI Pipeline
 
+# The full pipeline runs on the shared self-hosted runner, so it runs once
+# per change: on pull requests, and on pushes to master (which publish the
+# image and the badge). Any other branch can be run by hand from the Actions
+# tab (workflow_dispatch); such runs build and test but publish nothing.
 on:
   push:
-    branches: [ '**' ]
+    branches: [ master ]
   pull_request:
     branches: [ '**' ]
+  workflow_dispatch:
+
+# A newer push to the same pull request replaces the run still in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -36,7 +46,7 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=local,src=/tmp/.buildx-cache
@@ -59,7 +69,7 @@ jobs:
           df -h /tmp /home 2>/dev/null || df -h
 
       - name: Generate latest image badge
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name == 'push' }}
         run: |
           TAG=$(echo "${{ steps.meta.outputs.tags }}" | grep -Eo ':[a-f0-9]{7,}' | head -n 1 | tr -d ':')
           [ -z "$TAG" ] && TAG=$(git rev-parse --short HEAD)
@@ -68,7 +78,7 @@ jobs:
 
       - name: Publish badge to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name == 'push' }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
