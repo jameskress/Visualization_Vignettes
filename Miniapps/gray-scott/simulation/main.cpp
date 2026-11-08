@@ -334,11 +334,15 @@ int main(int argc, char **argv)
         }
 
 #ifdef USE_ADIOS2
-        if (settings.checkpoint && (it > 0) && (it % settings.checkpoint_freq) == 0)
+        // A checkpoint records the number of completed iterations: after
+        // iterate() in loop pass `it`, that is it + 1. A restart resumes the
+        // loop and the noise step from that number, so no iteration runs twice.
+        const int completed = it + 1;
+        if (settings.checkpoint && (completed % settings.checkpoint_freq) == 0)
         {
             perf.start("create_checkpoint");
-            vtkLog(INFO, "Writing checkpoint at step " << it);
-            WriteCkpt(app_comm, it, settings, sim, io_ckpt);
+            vtkLog(INFO, "Writing checkpoint after " << completed << " iterations");
+            WriteCkpt(app_comm, completed, settings, sim, io_ckpt);
             perf.stop("create_checkpoint");
         }
 #endif
@@ -355,18 +359,6 @@ int main(int argc, char **argv)
         perf.logStep(it);
     }
 
-    // FInal checkpoint check
-    #ifdef USE_ADIOS2
-    // Check if the final step (which happens after the loop ends) matches the frequency
-    // e.g. steps=100, freq=100. Loop 0-99. End is 100. 100%100==0. Write.
-    if (settings.checkpoint && (settings.steps % settings.checkpoint_freq) == 0)
-    {
-        perf.start("create_checkpoint");
-        vtkLog(INFO, "Writing final checkpoint at step " << settings.steps);
-        WriteCkpt(app_comm, settings.steps, settings, sim, io_ckpt);
-        perf.stop("create_checkpoint");
-    }
-#endif
 
     writer_main->close(rank);
     perf.finalize();

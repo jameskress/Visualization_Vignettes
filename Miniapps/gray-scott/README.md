@@ -192,7 +192,7 @@ distances by 0.1, and multiply output gradients by 0.1, to get solver units.
 | `adios_span`, `adios_memory_selection` | ADIOS2 write paths (span or memory selection) | false |
 | `mesh_type` | mesh description for backends that use it | `image` |
 | `kombynelite_script_path` | Kombyne-lite script | empty |
-| `checkpoint`, `checkpoint_freq`, `checkpoint_output` | ADIOS2 checkpoints every N steps; needs an `ENABLE_ADIOS2=ON` build (see below) | false, 2000, `ckpt.bp` |
+| `checkpoint`, `checkpoint_freq`, `checkpoint_output` | ADIOS2 checkpoint after every N completed steps (a restart resumes from exactly that state); needs an `ENABLE_ADIOS2=ON` build (see below) | false, 2000, `ckpt.bp` |
 | `restart`, `restart_input` | restart from a checkpoint; same requirement | false, `ckpt.bp` |
 | `burn_in_steps` | optional: steps to run before output starts | 0 |
 | `overwrite_last_step` | optional: keep only the latest output step. Every backend honours it except `catalyst_insitu`, whose script names its own files and keeps every step unless the script overwrites them | false |
