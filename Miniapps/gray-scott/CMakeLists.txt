@@ -283,6 +283,10 @@ endif()
 # allocations per step. Off by default; never use it for timing runs.
 option(GS_COUNT_ALLOCATIONS "Count heap allocations per step (test builds only)" OFF)
 # The counter wraps malloc through glibc's __libc_* entry points.
+# The counts reach the performance log only through the timer build.
+if(GS_COUNT_ALLOCATIONS AND NOT ENABLE_TIMERS)
+  message(FATAL_ERROR "GS_COUNT_ALLOCATIONS needs ENABLE_TIMERS=ON; without timers the counts are not logged")
+endif()
 if(GS_COUNT_ALLOCATIONS AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
   message(FATAL_ERROR "GS_COUNT_ALLOCATIONS needs Linux with glibc (it wraps __libc_malloc and friends)")
 endif()

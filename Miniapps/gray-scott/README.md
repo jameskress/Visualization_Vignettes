@@ -236,7 +236,7 @@ covers Docker, checkpoint and restart, and the in transit reader.
 
 Every run writes a performance record to its own directory,
 `<perf_dir>/<UTC date-time>_<output_type>_np<ranks>/`. The format is
-versioned (`schema_version`, now 1) because the analysis script and papers
+versioned (`schema_version`, now 2) because the analysis script and papers
 depend on it. Change it only by bumping the version and updating this
 section.
 
@@ -279,7 +279,7 @@ cumulative CPU time (`user_s`, `sys_s`) and these counters:
 
 * `halo_bytes`: bytes this rank sent in the exchange, from the MPI datatype sizes.
 * `backend_bytes`: bytes of field data handed to the backend on output steps: u and v with their halo layer for the mesh-based backends, the interior block for ADIOS2, 0 for `none`.
-* `allocs_step`, `alloc_bytes_step`, `allocs_wrap`, `alloc_bytes_wrap`, `allocs_write`: heap allocations in the solver step, in our wrapping code and in the whole backend call (#25). These are counted only in builds configured with `-DGS_COUNT_ALLOCATIONS=ON`, a test-only replacement of the global allocation functions (Linux with glibc only) that must not be used for timing runs. Otherwise they are 0. The step and wrap counts cover the calling thread; the write count covers all threads.
+* `allocs_step`, `alloc_bytes_step`, `allocs_wrap`, `alloc_bytes_wrap`, `allocs_write`: heap allocations in the solver step, in our wrapping code and in the whole backend call (#25). These are counted only in builds configured with `-DGS_COUNT_ALLOCATIONS=ON` (which needs `ENABLE_TIMERS=ON`), a test-only replacement of the global allocation functions (Linux with glibc only) that must not be used for timing runs. Otherwise they are 0. The step and wrap counts cover the calling thread; the write count covers all threads.
 
 How each backend reports `wrap`, `execute` and `io`:
 

@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <memory>
@@ -394,9 +395,13 @@ int main(int argc, char **argv)
         perf.start("compute_step");
         const AllocSnapshot step_alloc; // #25: the solver step must not allocate
         sim.iterate();
+        // Read both deltas before any logger call: building a counter name
+        // can allocate, and argument order is unspecified.
+        const std::uint64_t step_allocs = step_alloc.delta_calls();
+        const std::uint64_t step_alloc_bytes = step_alloc.delta_bytes();
         perf.stop("compute_step");
-        perf.setCounter("allocs_step", static_cast<double>(step_alloc.delta_calls()));
-        perf.setCounter("alloc_bytes_step", static_cast<double>(step_alloc.delta_bytes()));
+        perf.setCounter("allocs_step", static_cast<double>(step_allocs));
+        perf.setCounter("alloc_bytes_step", static_cast<double>(step_alloc_bytes));
         perf.add("halo", sim.last_halo_seconds());
         perf.add("stencil", sim.last_stencil_seconds());
         perf.setCounter("halo_bytes", static_cast<double>(sim.halo_bytes_per_step()));
@@ -421,8 +426,9 @@ int main(int argc, char **argv)
             perf.start("write_step");
             const ProcessAllocSnapshot write_alloc; // backend threads included
             writer_main->write(it, sim, rank, procs);
+            const std::uint64_t write_allocs = write_alloc.delta_calls();
             perf.stop("write_step");
-            perf.setCounter("allocs_write", static_cast<double>(write_alloc.delta_calls()));
+            perf.setCounter("allocs_write", static_cast<double>(write_allocs));
             const Writer::Phases &ph = writer_main->lastPhases();
             if (ph.split)
             {

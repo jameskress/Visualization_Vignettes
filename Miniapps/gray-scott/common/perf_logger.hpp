@@ -30,7 +30,8 @@
 class PerfLogger
 {
 public:
-    static constexpr int kSchemaVersion = 1;
+    // 2: allocation counters (#25) added to step and summary records.
+    static constexpr int kSchemaVersion = 2;
 
     // run_dir: directory for this run's files (created if missing).
     // timers: per-step timer names, in record order.
