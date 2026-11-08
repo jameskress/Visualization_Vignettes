@@ -391,7 +391,12 @@ Rules each backend needs for clean images:
 * **Kombyne-lite.** Give pseudocolor a `minimum` and `maximum`; Kombyne
   otherwise uses the current data range, which differs between rank
   counts. Its iso surfaces keep a faint one-sided normal at block faces
-  (0.012% of pixels above); there is no GhostCells equivalent.
+  (0.012% of pixels above); there is no GhostCells equivalent. This is a
+  known exception, accepted 2026-11-08: the lines are within the render
+  check's 0.1% budget and hard to see at publication size. Removing them
+  would take a ghost layer on both sides of every block for Kombyne alone,
+  that is more memory and a second exchange for one backend, which is not
+  worth it. Revisit if a figure shows the lines.
 * **Slices** exactly on a grid plane two ranks share are drawn by both.
   Place them between grid planes (the shipped scripts use 3.25, not 3.2).
 
