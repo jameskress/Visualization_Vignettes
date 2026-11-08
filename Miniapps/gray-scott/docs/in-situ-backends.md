@@ -422,11 +422,11 @@ backend's cell count per rank count. Read a failure as follows:
 | count shrinks with ranks | a gap: the block does not include the cells bridging to the next rank |
 | count right, volume off beyond 1e-6 | the spacing differs from the shared description |
 | Ascent differs from the rest | expected: Ascent's threshold keeps a cell if any corner is in range, the others need every corner. Compare Ascent with the ADIOS2 any-corner count (the compare test does) before suspecting its adaptor |
+| one backend differs from the rest | that adaptor diverged from `mesh_blueprint.h`; compare its tree or objects with `describe()` |
 
 The test counts cells and volume, not positions, so a block moved by a
 wrong origin can pass it. Check origins in the images (Rendering) or by
 comparing each block's bounds with `describe()`.
-| one backend differs from the rest | that adaptor diverged from `mesh_blueprint.h`; compare its tree or objects with `describe()` |
 
 Then look at the images: the render check (Rendering, above) keeps each
 backend's 1-rank and 4-rank images side by side in the build tree. Read
