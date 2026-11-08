@@ -72,19 +72,36 @@ std::string PerfLogger::makeRunDir(const std::string &base, const std::string &l
     int rank = 0;
     MPI_Comm_rank(comm, &rank);
     std::string dir;
+    std::string error;
     if (rank == 0)
     {
         char stamp[32];
         std::time_t now = std::time(nullptr);
         std::strftime(stamp, sizeof stamp, "%Y%m%d-%H%M%S", std::gmtime(&now));
         const std::string stem = base + "/" + stamp + "_" + label;
-        dir = stem;
-        for (int n = 2; fs::exists(dir); n++)
-            dir = stem + "_" + std::to_string(n);
-        fs::create_directories(dir);
+        try
+        {
+            fs::create_directories(base);
+            // create_directory is atomic and returns false if the directory
+            // already exists, so two jobs starting in the same second (a job
+            // array sharing one perf_dir) never get the same directory.
+            dir = stem;
+            for (int n = 2; !fs::create_directory(dir); n++)
+                dir = stem + "_" + std::to_string(n);
+        }
+        catch (const std::exception &e)
+        {
+            error = e.what();
+            dir.clear();
+        }
     }
-    int len = static_cast<int>(dir.size());
+    // len < 0 tells every rank that rank 0 failed, so all of them stop
+    // together instead of the others waiting in the next broadcast.
+    int len = error.empty() ? static_cast<int>(dir.size()) : -1;
     MPI_Bcast(&len, 1, MPI_INT, 0, comm);
+    if (len < 0)
+        throw std::runtime_error("performance log: cannot create a run directory under '" + base +
+                                 "'" + (error.empty() ? std::string() : ": " + error));
     dir.resize(len);
     MPI_Bcast(&dir[0], len, MPI_CHAR, 0, comm);
     return dir;

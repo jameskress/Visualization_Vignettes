@@ -30,6 +30,8 @@ if(GIT_FOUND)
   endif()
 endif()
 
-# Flags go into a C string literal.
+# Flags go into a C string literal: escape backslashes first, then quotes,
+# so a flag such as -DFOO=\"bar\" stays one valid literal.
+string(REPLACE "\\" "\\\\" GS_CXX_FLAGS "${GS_CXX_FLAGS}")
 string(REPLACE "\"" "\\\"" GS_CXX_FLAGS "${GS_CXX_FLAGS}")
 configure_file(${TEMPLATE} ${OUT_FILE} @ONLY)

@@ -178,7 +178,9 @@ def plot_scaling(rows, out, caption):
     for row in rows:
         if row["ms_per_step"] == "" or row["ranks"] == "":
             continue
-        key = (row["backend"], row["L"])
+        # Runs with a different plotgap or step count do different output
+        # work per step; only like runs share a line.
+        key = (row["backend"], row["L"], row["plotgap"], row["steps"])
         # Several runs at one rank count: keep the fastest (least noise).
         prev = groups[key].get(row["ranks"])
         groups[key][row["ranks"]] = min(prev, row["ms_per_step"]) if prev else row["ms_per_step"]
@@ -186,11 +188,11 @@ def plot_scaling(rows, out, caption):
     if not groups:
         return None
     fig, ax = plt.subplots(figsize=(6, 4.5))
-    for i, ((backend, L), pts) in enumerate(sorted(groups.items())):
+    for i, ((backend, L, plotgap, steps), pts) in enumerate(sorted(groups.items(), key=lambda kv: tuple(map(str, kv[0])))):
         ranks = sorted(pts)
         ms = [pts[r] for r in ranks]
         color = COLORS[i % len(COLORS)]
-        ax.plot(ranks, ms, marker="o", color=color, linewidth=2, label=f"{backend}, L={L}")
+        ax.plot(ranks, ms, marker="o", color=color, linewidth=2, label=f"{backend}, L={L}, plotgap {plotgap}, {steps} steps")
         ax.plot(ranks, [ms[0] * ranks[0] / r for r in ranks], linestyle="--", color=color,
                 alpha=0.5, linewidth=1)
     from matplotlib.ticker import LogLocator, NullFormatter, ScalarFormatter
