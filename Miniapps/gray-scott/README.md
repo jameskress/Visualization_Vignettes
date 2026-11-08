@@ -373,6 +373,8 @@ the integer count.
 * **Across rank counts:** the count must be identical and the volume must
   agree within 1e-12.
 * **Across backends:** `gs_ghost_volume_compare` requires equal counts.
+  Ascent is checked only against the ADIOS2 any-corner count, so that check
+  needs the ADIOS2 test (and `bpls`) too.
 
 On the workstation Catalyst, PVTI, Kombyne and ADIOS2 count 356 cells on
 every rank count; Ascent counts 2460 (any corner), equal to the ADIOS2
@@ -397,7 +399,10 @@ ctest --test-dir build/my-host-cpu -L render --output-on-failure   # use your bu
 
 Set `GS_PVPYTHON` to a pvpython (any ParaView 6.2) for the PVTI and Kombyne
 readers. `bpls` is found next to the ADIOS2 install. The Ascent test needs
-h5py for the Python that runs CTest.
+h5py for the Python that runs CTest. A backend whose requirement is missing
+gets no test, while the others still run and pass; check the configure
+output ("Ghost volume test backends: ...") or `ctest -N` for what is
+registered.
 
 If you change the numerics on purpose, regenerate the golden file and say
 why in the PR:
