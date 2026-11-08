@@ -297,7 +297,7 @@ int main(int argc, char **argv)
             const double residual = std::fabs(change - expected);
             const double tol = 16.0 * eps * g[3];
             worst_budget = std::max(worst_budget, residual / tol);
-            if (residual > tol)
+            if (!(residual <= tol)) // also catches a NaN residual
             {
                 if (rank == 0 && failures < 10)
                     std::printf("FAIL budget step %d: change %.17g expected %.17g "
@@ -338,7 +338,21 @@ int main(int argc, char **argv)
             const std::pair<const char *, double> got[] = {
                 {"u_l2", n.u_l2}, {"u_linf", n.u_linf}, {"v_l2", n.v_l2}, {"v_linf", n.v_linf}};
 
-            if (bless)
+            bool finite = true;
+            for (const auto &kv : got)
+                finite = finite && std::isfinite(kv.second);
+            if (!finite)
+            {
+                std::printf("FAIL non-finite norm; not comparing or blessing\n");
+                failures++;
+            }
+
+            if (bless && failures > 0)
+            {
+                std::printf("FAIL not blessing: this run already failed, so %s is left unchanged\n",
+                            golden.c_str());
+            }
+            else if (bless)
             {
                 std::ofstream out(golden);
                 out << "# Golden norms for tests/test_numerical_regression.cpp\n"
