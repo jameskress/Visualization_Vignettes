@@ -183,6 +183,109 @@ measurements in `Testing/LOCAL_VALIDATION.md` §4 and §4b.
 
 ---
 
+## How work is organized
+
+Shared with the other KVL repositories so every agent works the same way.
+
+* **Issue first.** Every piece of work that ships as one PR has a GitHub
+  issue with five sections: Problem (in James's words), Done when (what James
+  will see when it works), Out of scope, Risk (what it touches that is real or
+  shared, what needs James's OK), Docs (which pages change). A phase or larger
+  effort gets a short parent issue with a task list of its children and a
+  `phase::<n>` label.
+* **Work starts on James's go.** No file changes without an issue and his go
+  on it; reading to understand needs neither.
+* **Status labels live on issues only**: `status::refining` (being written),
+  `status::ready` (James said go), `status::in-progress`, `status::merged`
+  (PR in, issue open until the result is checked), `status::deferred`
+  (agreed for later). The owner closes the issue after checking the merged
+  result.
+* **One PR per issue, from a worktree.** Branch `<issue>-<short-name>` made
+  with `git worktree add <dir> -b <branch> origin/master`; never edit the main
+  checkout. The PR says "Related to #N", never "Closes", "Fixes" or
+  "Resolves" (those close the issue at merge, before it is checked).
+* **James merges.** `master` is protected. Say "ready to merge" only after
+  the last push and a green pipeline, and push nothing after that.
+* **Docs ship with the change** in the same PR.
+* **Answer every CodeRabbit finding.** CodeRabbit reviews every PR, stacked
+  ones included (`.coderabbit.yaml`, #60). Fix each finding, or reply on its
+  thread with the reason; never leave one unanswered.
+* **Stay in scope.** Anything else becomes a comment or a new issue, never a
+  quiet fix. Ask instead of half baking a choice.
+* **Subagents** get a precise question and return facts with sources (file,
+  line, time); the owning session makes the changes.
+* **Shared machines.** CI runs on the self-hosted runner `z2n-fe`, which has
+  no CPU cap yet; tell the KVL Coordinator session before adding CI load.
+* **No secrets** in git, docs, commit messages or chat; print key names or
+  masked values only.
+
+---
+
+## The Gray-Scott miniapp (`Miniapps/gray-scott`)
+
+A 3D reaction-diffusion simulation (U and V, 7-point Laplacian, periodic in
+all three directions, MPI Cartesian decomposition with one halo layer)
+feeding in situ and in transit backends: VTK PVTI files, Catalyst 2
+(ParaView), Ascent, ADIOS2 (BP5, SST) and Kombyne-lite. The work on it is
+planned in phases, each a parent issue: #11 (bootstrap), #18 (stencil
+audit, sanitizers, regression tests), #28 (in situ ghosts, zero-copy,
+performance logging), #38 (GPU and hybrid modes), #46 (Ascent features,
+ADIOS2 in transit).
+
+**Rules that hold now**
+
+* **Bare metal first.** Develop and test natively on the workstation with
+  the CMake presets in `Miniapps/gray-scott/CMakePresets.json` (added by #47);
+  machine-local paths go in `CMakeUserPresets.json`, which #47 also adds to
+  `.gitignore`. The top-level
+  `Dockerfile` is a downstream distribution artifact: do not build inside it
+  or change it as part of miniapp work.
+* **VTK is required.** The VTK logger is used throughout. VTK and Catalyst
+  must come from the same ParaView build that Catalyst loads at run time, or
+  two VTKs end up in one process; the workstation uses a ParaView 6.2 source
+  build (#19; recipe in #52).
+* **Backend equivalence is the headline rule.** Every backend (PVTI,
+  Catalyst, Ascent, ADIOS2, Kombyne) does roughly the same thing with the
+  same data, so results across them can be claimed equivalent. A change to
+  one backend's mesh, ghosts or fields is a change to all of them, or a
+  recorded, measured exception.
+* **Measure everything.** Every code path that runs per step gets a named
+  timer, and every run must write its metadata (git commit, machine,
+  compiler, MPI, ranks and decomposition, grid, backend and version,
+  settings) next to its numbers, so results can go straight into papers.
+  Logging stays cheap, and off by default where it costs. The structured
+  log that records this metadata is #26; until it merges, the log has only
+  rank, host, resource usage and timer columns.
+
+**Target invariants** (goals; each says where the code is today and which
+phase makes it true; update the line when that changes)
+
+* **Zero-copy.** Arrays handed to Conduit or VTK reuse the simulation's own
+  pointer (`assert(wrapped_ptr == raw_sim_ptr)`), and nothing field-sized
+  is allocated in the timestep loop. Small per-write metadata allocations
+  inside the backends are accepted (James, 2026-11-08, on #25). *Today:* Ascent, Catalyst, Kombyne and PVTI copy every
+  step (PVTI through `u_ghost()`, converted to float; the others through
+  `u_noghost()`). ADIOS2 passes the simulation array to a deferred `Put()`
+  only with `adios_memory_selection`; its default and span modes copy, so
+  default ADIOS2 timings are not zero-copy timings. *Made true in phase 3* (#20 to #25).
+* **Ghost cell tagging.** Halo cells are flagged (Conduit Blueprint ghost
+  field, `vtkGhostType` for ParaView) so pipelines drop duplicate boundaries
+  and seams disappear; each cell is owned by exactly one rank. *Today:*
+  untagged, and the Catalyst adaptor shifts each rank's mesh until the pieces
+  touch instead. *Made true in phase 3* (#20, #21, #24).
+* **Numerical equivalence.** 1 rank matches N ranks within 1e-12 relative
+  (the fields themselves should match bitwise; only reductions differ by
+  order). *Today:* true with `noise = 0`; with noise on, each rank seeds its
+  own generator from `std::random_device`, so no two runs match. *Made true
+  with noise in phase 2* (#14, enforced by #15); extended to CPU vs GPU in
+  phase 4 (#33).
+* **Four hybrid modes.** Simulation on GPU or CPU, visualization on GPU or
+  CPU, with data moved only when a backend on the other side asks.
+  *Today:* no GPU code. *Phase 4* (#31, #34). ParaView-Catalyst stays CPU
+  only.
+
+---
+
 ## Where things are
 
 | | |
@@ -194,5 +297,6 @@ measurements in `Testing/LOCAL_VALIDATION.md` §4 and §4b.
 | `Testing/plot_metrics.py` | trend and comparison plots from that history |
 | `data/make_topology_datasets.py` | ex09's four mesh topologies |
 | `data/make_time_series.py` | the XML time series with real times |
+| `Miniapps/gray-scott/` | the Gray-Scott miniapp; see its section above and its README |
 
-Out of scope unless asked: `Miniapps/` and the in-situ work.
+The in situ vignettes (`In_Situ_Vignettes/`) are out of scope unless asked.
