@@ -188,6 +188,14 @@ def headless_env():
     return env
 
 
+def is_open_mpi(launcher):
+    try:
+        v = subprocess.run([launcher, "--version"], capture_output=True, text=True, timeout=30)
+        return "Open MPI" in v.stdout + v.stderr or "OpenRTE" in v.stdout + v.stderr
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
 def run_group(cmd, cwd, env, timeout):
     """Run cmd in its own process group. On timeout, kill the whole group
     (mpirun and any ranks it left behind) and return (None, output)."""
@@ -225,7 +233,9 @@ def run(args, np_):
     (d / "settings.json").write_text(json.dumps(s, indent=1))
     env = headless_env()
     cmd = [args.mpiexec, "-np", str(np_)] + args.mpiexec_preflags.split()
-    if "mpirun" in Path(args.mpiexec).name or "mpiexec" in Path(args.mpiexec).name:
+    # -x (forward an environment variable) is Open MPI's option; MPICH and
+    # Intel MPI reject it. Local ranks inherit env either way.
+    if is_open_mpi(args.mpiexec):
         cmd += ["-x", "VTK_DEFAULT_OPENGL_WINDOW", "-x", "OMP_NUM_THREADS"]
     rc, out = run_group(cmd + [args.exe, "--settings-file=settings.json"], d, env, 1200)
     (d / "run.log").write_text(out)
