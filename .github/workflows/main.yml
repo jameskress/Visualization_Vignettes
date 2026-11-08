@@ -27,7 +27,51 @@ concurrency:
 permissions:
   contents: read
 
+# What a pull request runs (#69). The image build always runs, because the
+# image compiles the Gray-Scott miniapp with every backend; on pull requests
+# it builds amd64 only (arm64 runs under emulation and takes hours) and
+# publishes nothing. The ParaView and VisIt suites test the vignettes with
+# their own downloads, not the miniapp, so a pull request that changes only
+# Miniapps/gray-scott/ skips them. Pushes to master and manual runs always run
+# everything.
 jobs:
+  changes:
+    name: Decide what to run
+    runs-on: ubuntu-latest   # a git diff only; keeps it off the shared runner
+    timeout-minutes: 10
+    outputs:
+      vignettes: ${{ steps.diff.outputs.vignettes }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Compare with the pull request's base
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "not a pull request: run everything"
+            echo "vignettes=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Three-dot: only what the pull request itself changes.
+          if ! changed=$(git diff --name-only "$BASE...$HEAD"); then
+            echo "cannot diff $BASE...$HEAD: run everything"
+            echo "vignettes=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$changed"
+          if [ -n "$changed" ] && ! echo "$changed" | grep -qv '^Miniapps/gray-scott/'; then
+            echo "only Miniapps/gray-scott/ changed: skip the ParaView and VisIt suites"
+            echo "vignettes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "vignettes=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build and Push Docker Image
     runs-on: self-hosted
@@ -37,6 +81,29 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
+      # A pull request reads the cache but writes it only when there is
+      # none; otherwise its amd64-only cache would replace master's
+      # two-platform one and the next master build would redo arm64.
+      - name: Choose platforms and cache
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          HAVE_CACHE=false
+          [ -f /tmp/.buildx-cache/index.json ] && HAVE_CACHE=true
+          if [ "$EVENT" = "pull_request" ]; then
+            echo "platforms=linux/amd64" >> "$GITHUB_OUTPUT"
+            if [ "$HAVE_CACHE" = true ]; then WRITE=false; else WRITE=true; fi
+          else
+            echo "platforms=linux/amd64,linux/arm64" >> "$GITHUB_OUTPUT"
+            WRITE=true
+          fi
+          echo "cache present: $HAVE_CACHE, write cache: $WRITE"
+          if [ "$WRITE" = true ]; then
+            echo "cache_to=type=local,dest=/tmp/.buildx-cache-new,mode=max" >> "$GITHUB_OUTPUT"
+          else
+            echo "cache_to=" >> "$GITHUB_OUTPUT"
+          fi
       # Publish `latest` and the badge only from master's current tip, so a
       # run for an older commit can never overwrite a newer one's.
       - name: Check this commit is master's tip
@@ -64,9 +131,10 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest,enable=${{ steps.tip.outputs.newest == 'true' }}
       - uses: docker/build-push-action@v7
+        id: build
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ steps.plan.outputs.platforms }}
           push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -77,14 +145,24 @@ jobs:
           # without bound on a self-hosted runner, where /tmp survives every
           # run. A full disk then shows up as a truncated download and a bare
           # `tar` exit 2 in the test jobs, naming nothing.
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          cache-to: ${{ steps.plan.outputs.cache_to }}
 
+      # Swap in the new cache only after a successful build that wrote a
+      # complete one (index.json last). A cancelled or failed run used to
+      # rotate a partial directory in, and the next build started from
+      # nothing (4 hours on 2026-11-08).
       - name: Rotate the buildx cache
         if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
         run: |
-          if [ -d /tmp/.buildx-cache-new ]; then
+          if [ "$BUILD_OUTCOME" = "success" ] && [ -f /tmp/.buildx-cache-new/index.json ]; then
             rm -rf /tmp/.buildx-cache
             mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+            echo "cache rotated"
+          else
+            rm -rf /tmp/.buildx-cache-new
+            echo "build $BUILD_OUTCOME: kept the existing cache"
           fi
           echo "buildx cache: $(du -sh /tmp/.buildx-cache 2>/dev/null | cut -f1)"
           df -h /tmp /home 2>/dev/null || df -h
@@ -114,7 +192,8 @@ jobs:
 
   paraview-test:
     name: ParaView Tests
-    needs: build
+    needs: [changes, build]
+    if: ${{ needs.changes.outputs.vignettes == 'true' }}
     runs-on: self-hosted
     steps:
       - name: Clean workspace
@@ -184,7 +263,8 @@ jobs:
 
   visit-test:
     name: VisIt Tests
-    needs: build
+    needs: [changes, build]
+    if: ${{ needs.changes.outputs.vignettes == 'true' }}
     runs-on: self-hosted
     env:
       VISIT_VER: "3.4.1"
