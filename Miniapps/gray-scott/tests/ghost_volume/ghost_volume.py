@@ -322,6 +322,13 @@ def main():
     ap.add_argument("--catalyst-lib", default="")
     ap.add_argument("--bpls", default="bpls")
     args = ap.parse_args()
+    # The miniapp runs inside a per-run directory, so relative paths given
+    # on the command line must be made absolute first. Bare command names
+    # (looked up on PATH) are left alone.
+    for name in ("exe", "catalyst_lib", "pvpython", "bpls", "workdir"):
+        v = getattr(args, name, None)
+        if v and (name in ("exe", "catalyst_lib", "workdir") or "/" in v):
+            setattr(args, name, os.path.abspath(v))
     if args.compare:
         return compare(args.compare, [b for b in args.expect.split(",") if b])
     if not (args.backend and args.exe and args.workdir):
