@@ -122,8 +122,8 @@ void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
     }
     const auto t_reopen = clock::now();
 
-    // Pointer lifetime (#22). Put() is deferred by default: ADIOS2 reads the
-    // memory at EndStep(), not at Put(). Every pointer handed to Put() below
+    // Pointer lifetime (#22). Put() is deferred by default: ADIOS2 may read
+    // the memory at Put() or at any point up to EndStep(). Every pointer handed to Put() below
     // must stay valid and unchanged until EndStep() returns:
     //  * memory selection: the solver's own u and v (nothing touches them
     //    during write(); checked after EndStep below)
@@ -169,7 +169,8 @@ void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
     }
     else
     {
-        // Two copies: into u_data and v_data here, then into ADIOS2's buffer.
+        // One copy here, into u_data and v_data; the engine may copy again
+        // into its own buffer (engine-dependent).
         const auto a = clock::now();
         const std::vector<double> u_data = sim.u_noghost();
         const std::vector<double> v_data = sim.v_noghost();

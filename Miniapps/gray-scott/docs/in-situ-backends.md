@@ -224,28 +224,37 @@ description: point i sits at i * 0.1 (the `Fides_Origin` and
 | `gs_ghost_policy` | "readers add their own overlap layer and flag it ghost" |
 
 A reader that builds one mesh per block, such as the in transit analysis
-reader, must read one extra layer past its block itself. It must wrap
-around, because the domain is periodic, and flag that layer as ghost.
-Otherwise there is a one-cell gap between blocks. The reader is fixed in
-phase 5 (#42).
+reader, must read one extra layer of points past the high side of its
+block itself, wrapping around because the domain is periodic. Otherwise
+there is a one-cell gap between blocks. Those added points are ghost
+points (`DUPLICATEPOINT`), but the cells they close are owned by the
+block: only cells whose low corner belongs to another block are ghosts.
+Flagging every cell that touches an added point would remove owned
+boundary cells and open the gap again. The analysis reader does not do
+this yet; the fix is planned for phase 5 (#42).
 
 **The three write modes.**
 
-| Mode (setting) | Copies | `wrap` | `execute` | `io` |
+| Mode (setting) | Copies made by the miniapp | `wrap` | `execute` | `io` |
 | :--- | :--- | :--- | :--- | :--- |
-| default | two: `u_noghost()` into a local vector, then into ADIOS2's buffer | the first copy | the `Put` calls | `EndStep` (and the close/reopen of `overwrite_last_step`) |
-| `adios_span` | one, straight into ADIOS2's buffer | the copy | the `Put` calls | `EndStep` |
-| `adios_memory_selection` | none: ADIOS2 reads the interior of the ghosted arrays | 0 | the `Put` calls | `EndStep` |
+| default | one: `u_noghost()` into a local vector (ADIOS2 may copy again into its own buffer; that depends on the engine) | the copy | `BeginStep` and the `Put` calls | `EndStep` |
+| `adios_span` | one, straight into ADIOS2's buffer | the copy | `BeginStep` and the `Put` calls | `EndStep` |
+| `adios_memory_selection` | none: ADIOS2 reads the interior of the ghosted arrays | 0 | `BeginStep` and the `Put` calls | `EndStep` |
 
-**Pointer lifetime.** `Put()` is deferred: ADIOS2 reads the memory in
-`EndStep()`, not in `Put()`. Each pointer handed to `Put()` therefore stays
-valid until `EndStep()` returns:
+In every mode, `io` also includes the close and reopen that
+`overwrite_last_step` does before each write.
 
-* The solver's arrays in memory-selection mode. The writer checks after
-  `EndStep()` that they have not moved, and aborts if they have.
-* The local vectors in the default mode. They live until the end of the
-  block that contains `EndStep()`.
-* ADIOS2's own span buffer in span mode.
+**Pointer lifetime.** `Put()` is deferred: ADIOS2 may read the memory at
+`Put()` or at any point up to `EndStep()`, depending on the engine. Each
+pointer handed to `Put()`, and the data it points to, must therefore stay
+valid and unchanged until `EndStep()` returns:
+
+* The solver's arrays in memory-selection mode. Nothing writes them
+  during `write()`; the writer also checks after `EndStep()` that they
+  have not moved, and aborts if they have.
+* The local vectors in the default mode. They are const and live until
+  the end of the block that contains `EndStep()`.
+* ADIOS2's own span buffer in span mode, filled before `EndStep()`.
 
 **Checked.** BP5 files on 1 and 4 ranks in all three modes: the stored
 `U` at step 100 is identical at full precision across modes and rank
