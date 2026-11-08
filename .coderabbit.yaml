@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit review settings (#60).
+#
+# Work in this repository lands as stacked pull requests, whose base is
+# another feature branch rather than master. CodeRabbit reviews only PRs
+# against the default branch unless told otherwise, so base_branches matches
+# every branch. Each finding is fixed or answered on its thread (AGENTS.md).
+reviews:
+  profile: chill
+  auto_review:
+    enabled: true
+    base_branches:
+      - ".*"
