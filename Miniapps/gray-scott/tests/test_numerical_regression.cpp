@@ -325,6 +325,14 @@ int main(int argc, char **argv)
                 char buf[32];
                 std::snprintf(buf, sizeof buf, "%016" PRIx64, h);
                 out << buf << "\n";
+                out.close();
+                // A missing or stale hash file would let the rank comparison
+                // pass on old data, so a failed write fails the test.
+                if (!out)
+                {
+                    std::printf("FAIL could not write %s\n", hash_out.c_str());
+                    failures++;
+                }
             }
 
             const std::pair<const char *, double> got[] = {
@@ -343,7 +351,16 @@ int main(int argc, char **argv)
                     std::snprintf(buf, sizeof buf, "%s %.17g\n", kv.first, kv.second);
                     out << buf;
                 }
-                std::printf("wrote %s\n", golden.c_str());
+                out.close();
+                if (out)
+                {
+                    std::printf("wrote %s\n", golden.c_str());
+                }
+                else
+                {
+                    std::printf("FAIL could not write %s\n", golden.c_str());
+                    failures++;
+                }
             }
             else
             {
