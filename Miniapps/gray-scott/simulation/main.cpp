@@ -214,6 +214,14 @@ int main(int argc, char **argv)
     //--
 
     Settings settings = Settings::from_json(fileName);
+    // The checkpoint test is completed % checkpoint_freq; zero would divide by zero.
+    if (settings.checkpoint && settings.checkpoint_freq <= 0)
+    {
+        if (rank == 0)
+            std::cerr << "Error: checkpoint is on but checkpoint_freq is " << settings.checkpoint_freq
+                      << "; it must be positive." << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
     GrayScott sim(settings, app_comm);
     sim.init();
 
