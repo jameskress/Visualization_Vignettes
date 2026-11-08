@@ -421,7 +421,7 @@ backend's cell count per rank count. Read a failure as follows:
 | count grows with ranks | ghost cells are not being skipped: wrong field name or value convention, or a reader that does not know the mask (Kombyne exports) |
 | count shrinks with ranks | a gap: the block does not include the cells bridging to the next rank |
 | count right, volume off beyond 1e-6 | the spacing differs from the shared description |
-| Ascent differs from the rest | expected: Ascent's threshold keeps a cell if any corner is in range, the others need every corner. Compare Ascent with the ADIOS2 any-corner count (the compare test does) before suspecting its adaptor |
+| Ascent differs from the rest | expected: Ascent's threshold keeps a cell if any corner is in range, the others need every corner. Compare Ascent with the ADIOS2 any-corner count before suspecting its adaptor. The compare test does this only when ADIOS2 (with `bpls`) is also enabled; in an Ascent-only build nothing checks Ascent's count against another backend |
 | one backend differs from the rest | that adaptor diverged from `mesh_blueprint.h`; compare its tree or objects with `describe()` |
 
 The test counts cells and volume, not positions, so a block moved by a
@@ -510,7 +510,9 @@ Every backend reports into the same record (README, Performance):
 
 Use `scripts/perf_report.py` to put runs of different backends side by
 side. Every backend sees the same data, at the same steps, with the same
-ghost rule. For the cost of a whole backend call, compare `write_step`;
+ghost rule. For the cost of a whole backend call, compare `write_step`
+(in each run's `summary.json` and step records; `perf_report.py` does not
+tabulate it yet);
 `wrap + execute + io` covers only the timed phases (PVTI sets up its source
 before the timed write, Kombyne frees pipeline data after `execute`).
 Individual phases need each backend's definition: Catalyst and Kombyne
