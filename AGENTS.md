@@ -207,6 +207,9 @@ Shared with the other KVL repositories so every agent works the same way.
 * **James merges.** `master` is protected. Say "ready to merge" only after
   the last push and a green pipeline, and push nothing after that.
 * **Docs ship with the change** in the same PR.
+* **Answer every CodeRabbit finding.** CodeRabbit reviews every PR, stacked
+  ones included (`.coderabbit.yaml`, #60). Fix each finding, or reply on its
+  thread with the reason; never leave one unanswered.
 * **Stay in scope.** Anything else becomes a comment or a new issue, never a
   quiet fix. Ask instead of half baking a choice.
 * **Subagents** get a precise question and return facts with sources (file,
