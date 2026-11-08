@@ -422,11 +422,11 @@ You can inspect the contents of the output file with the `bpls` command-line too
 
 The Gray-Scott miniapp utilizes ADIOS2 Global Arrays for checkpointing. This allows you to perform **N-to-M restarts**: you can generate a checkpoint file on $N$ processors and restart the simulation on $M$ processors without losing spatial awareness.
 
-#### Restarts work for any rank counts (fixed in #12)
+#### Restarts work for any rank count that fits the grid (fixed in #12)
 
 Earlier versions required `L` to divide evenly by the MPI processor grid, because the checkpoint code computed each rank's offsets without the remainder the simulation itself uses, and because a restart repeated the checkpointed step. Both are fixed: checkpoints use the simulation's own offsets and store the number of completed steps. A checkpoint written on 3 ranks with `L = 65` and restarted on 2 ranks gives a field bitwise identical to an uninterrupted run.
 
-Power-of-two rank counts are still a good habit for performance (balanced blocks), but no longer needed for correctness.
+The one limit: the solver stops at start-up if the MPI process grid has more ranks than `L` points along any axis, since every rank must own at least one point per axis. That applies to the restarted run as to any other. Power-of-two rank counts are still a good habit for performance (balanced blocks), but no longer needed for correctness.
 
 #### ✅ Recommended Hardware Mapping (e.g., AMD Genoa / Rome)
 
