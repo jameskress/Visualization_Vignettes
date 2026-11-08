@@ -426,6 +426,8 @@ The Gray-Scott miniapp utilizes ADIOS2 Global Arrays for checkpointing. This all
 
 Earlier versions required `L` to divide evenly by the MPI processor grid, because the checkpoint code computed each rank's offsets without the remainder the simulation itself uses, and because a restart repeated the checkpointed step. Both are fixed: checkpoints use the simulation's own offsets and store the number of completed steps. A checkpoint written on 3 ranks with `L = 65` and restarted on 2 ranks gives a field bitwise identical to an uninterrupted run.
 
+**Regenerate checkpoints written before this fix.** The reader cannot tell an old file from a new one, and does not repair it. An old checkpoint written on a rank grid that did not divide `L` can have overlapping blocks and unwritten points, and any old checkpoint written mid-run is labelled one step early. Restarting from either gives wrong fields without an error.
+
 The one limit: the solver stops at start-up if the MPI process grid has more ranks than `L` points along any axis, since every rank must own at least one point per axis. That applies to the restarted run as to any other. Power-of-two rank counts are still a good habit for performance (balanced blocks), but no longer needed for correctness.
 
 #### ✅ Recommended Hardware Mapping (e.g., AMD Genoa / Rome)
