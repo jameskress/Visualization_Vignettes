@@ -133,8 +133,14 @@ is a cut lying exactly on a grid plane that two blocks share:
 The cell ghost count per rank equals the low-halo cells, for example 8353
 of 139425 on a 33 x 65 x 65 cell block.
 
-The shipped scripts in `configs/catalyst_scripts/` still insert
-`GhostCells` and `CellDatatoPointData`. They were part of the old
-workaround and are now unnecessary, but the scripts' content is out of
-scope here. The ParaView 6.2 build on the workstation has neither EGL nor
-OSMesa, so rendering scripts need an X display.
+The shipped scripts in `configs/catalyst_scripts/` follow what the
+renders on 1, 2, 4 and 8 ranks showed. Volumes are rendered straight from
+the producer: a `GhostCells` filter under a volume cracks it at rank
+boundaries. Surface filters (Clip, Contour) read `GhostCells(producer)`:
+with ghosts on the low side only, the high face of each block is otherwise
+drawn as an internal surface, and contour normals there are one-sided.
+Colour maps are pinned so that every rank count gets the same colours.
+
+Rendering needs no X display: the ParaView 6.2 source build renders
+through EGL with `VTK_DEFAULT_OPENGL_WINDOW=vtkEGLRenderWindow` (pass it
+to the ranks with `mpirun -x`).
