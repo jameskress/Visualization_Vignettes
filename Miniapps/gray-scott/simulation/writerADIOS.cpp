@@ -154,8 +154,9 @@ void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
 
     if (settings.adios_memory_selection)
     {
-        // Zero-copy: ADIOS2 reads the interior of the ghosted arrays.
-        check_zero_copy(sim.u_ghost().data(), u_before, "ADIOS2 u (memory selection)");
+        // Zero-copy: ADIOS2 reads the interior of the ghosted arrays. Put()
+        // receives the solver's own pointers by construction, so there is no
+        // copy to detect here; the check after EndStep() catches a move.
         const auto a = clock::now();
         m_engine.BeginStep();
         m_engine.Put(m_var_u, sim.u_ghost().data());

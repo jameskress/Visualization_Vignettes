@@ -282,6 +282,10 @@ endif()
 # functions in the executable so the performance log can report heap
 # allocations per step. Off by default; never use it for timing runs.
 option(GS_COUNT_ALLOCATIONS "Count heap allocations per step (test builds only)" OFF)
+# The counter wraps malloc through glibc's __libc_* entry points.
+if(GS_COUNT_ALLOCATIONS AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  message(FATAL_ERROR "GS_COUNT_ALLOCATIONS needs Linux with glibc (it wraps __libc_malloc and friends)")
+endif()
 if(GS_COUNT_ALLOCATIONS)
   list(APPEND SRC_FILES common/alloc_counter.cpp)
   message(STATUS "Allocation counter is ENABLED (test build, not for timing)")

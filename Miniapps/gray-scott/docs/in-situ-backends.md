@@ -279,7 +279,7 @@ write; release builds check the first. A copy aborts the run.
 | :--- | :--- |
 | Ascent and Catalyst | the data pointer of `fields/u/values` |
 | PVTI | the pointer inside VTK's `u` array |
-| ADIOS2 memory selection | the pointer passed to `Put` |
+| ADIOS2 memory selection | nothing to compare: `Put` takes the solver's own pointer directly, and the writer checks after `EndStep()` that the arrays have not moved |
 | Kombyne | no getter exists; `KB_MEM_BORROW` is the API's zero-copy guarantee |
 
 **Allocation counts.** Built with `-DGS_COUNT_ALLOCATIONS=ON`, on 2 ranks
