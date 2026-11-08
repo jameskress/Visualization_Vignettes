@@ -157,7 +157,8 @@ int ReadRestart(MPI_Comm comm, const Settings &settings, GrayScott &sim,
             // Allowed (a deliberate change), but the run will no longer match
             // an uninterrupted one, so say so.
             auto attr_seed = io.InquireAttribute<std::uint64_t>("seed");
-            if (attr_seed && attr_seed.Data()[0] != settings.seed) {
+            // With noise off the seed is unused, so a different one changes nothing.
+            if (settings.noise != 0.0 && attr_seed && attr_seed.Data()[0] != settings.seed) {
                 vtkLog(WARNING, "Noise seed mismatch: File seed=" << attr_seed.Data()[0] << ", Settings seed=" << settings.seed
                                 << "; the restarted run will not match an uninterrupted one");
             }
