@@ -54,8 +54,24 @@ PerfLogger::PerfLogger(const std::string &run_dir, int rank, const std::string &
 
     std::error_code ec;
     fs::create_directories(run_dir_, ec);
-    if (ec)
-        throw std::runtime_error("PerfLogger: cannot create " + run_dir_ + ": " + ec.message());
+    // Every rank must reach the run directory (it may be rank-local on a
+    // non-shared file system). Agree on the outcome so all ranks stop
+    // together instead of some waiting in the next collective.
+    int ok = ec ? 0 : 1;
+    if (comm_ != MPI_COMM_NULL)
+        MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, comm_);
+    if (!ok)
+        throw std::runtime_error("PerfLogger: cannot create " + run_dir_ +
+                                 (ec ? ": " + ec.message() : std::string(" on another rank")));
+}
+
+// Logging must not stop a run, but a missing or partial record must not go
+// unnoticed either: report and carry on.
+static void report_write(const std::ofstream &out, const std::string &path)
+{
+    if (!out)
+        std::fprintf(stderr, "PerfLogger: could not write %s; this run's performance record is incomplete\n",
+                     path.c_str());
 }
 
 PerfLogger::~PerfLogger()
@@ -224,8 +240,11 @@ void PerfLogger::writeMetadata(const std::string &meta_json)
     meta["timers_enabled"] = timersEnabled();
     meta["timer_names"] = timer_names_;
     meta["counter_names"] = counter_names_;
-    std::ofstream out(run_dir_ + "/metadata.json");
+    const std::string path = run_dir_ + "/metadata.json";
+    std::ofstream out(path);
     out << meta.dump(2) << "\n";
+    out.close();
+    report_write(out, path);
 }
 
 void PerfLogger::setRunTotals(double loop_wall_s, int steps_run)
@@ -242,7 +261,8 @@ void PerfLogger::writeStepFile() const
     fs::create_directories(run_dir_ + "/steps", ec);
     char name[40];
     std::snprintf(name, sizeof name, "/steps/rank_%05d.jsonl", rank_);
-    std::ofstream out(run_dir_ + name);
+    const std::string path = run_dir_ + name;
+    std::ofstream out(path);
     for (const Record &r : records_)
     {
         nlohmann::json t = nlohmann::json::object(), c = nlohmann::json::object();
@@ -255,6 +275,8 @@ void PerfLogger::writeStepFile() const
                             {"t", t},             {"c", c}};
         out << j.dump() << "\n";
     }
+    out.close();
+    report_write(out, path);
 }
 
 void PerfLogger::finalize()
@@ -327,8 +349,13 @@ void PerfLogger::finalize()
         s["counters"] = counters;
     }
 
-    std::ofstream out(run_dir_ + "/summary.json");
-    out << s.dump(2) << "\n";
+    {
+        const std::string path = run_dir_ + "/summary.json";
+        std::ofstream out(path);
+        out << s.dump(2) << "\n";
+        out.close();
+        report_write(out, path);
+    }
 
     if (timersEnabled())
     {

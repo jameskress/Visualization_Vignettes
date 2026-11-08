@@ -306,10 +306,12 @@ To turn a set of runs into tables and plots:
 python3 scripts/perf_report.py perf/ --out perf_report
 ```
 
-This writes `summary.md` and `summary.csv` (one row per run). It also writes
-`phases.png` (per-phase stacked bars) and `scaling.png` (ms/step against
-ranks with ideal scaling), each captioned with the host, CPU, compiler, MPI
-and commit of the runs. The plots need matplotlib.
+This writes `summary.md` and `summary.csv` (one row per run). When the
+runs allow, it also writes `phases.png` (per-phase stacked bars; needs at
+least one run built with timers) and `scaling.png` (ms/step against ranks
+with ideal scaling; needs comparable runs, same backend, L, plotgap and
+steps, at two or more rank counts). Each is captioned with the host, CPU,
+compiler, MPI and commit of the runs. The plots need matplotlib.
 
 ---
 
