@@ -338,9 +338,19 @@ int main(int argc, char **argv)
             std::ifstream sf(fileName);
             std::stringstream raw;
             raw << sf.rdbuf();
+            // Rank 0 only: nothing here may throw, or the other ranks would
+            // wait in the next collective.
+            std::error_code ec;
+            const std::filesystem::path abs_path = std::filesystem::absolute(fileName, ec);
             meta["settings_file"] = {{"path", fileName},
-                                     {"absolute_path", std::filesystem::absolute(fileName).string()}};
-            meta["settings"] = nlohmann::json::parse(raw.str(), nullptr, false);
+                                     {"absolute_path", ec ? std::string() : abs_path.string()}};
+            nlohmann::json parsed = nlohmann::json::parse(raw.str(), nullptr, false);
+            // The settings were parsed for the run already; keep the text if
+            // this strict parse fails rather than recording null.
+            if (parsed.is_discarded())
+                meta["settings_text"] = raw.str();
+            else
+                meta["settings"] = parsed;
             meta["mpi"]["decomposition"] = {sim.npx, sim.npy, sim.npz};
             meta["mpi"]["local_size_rank0"] = {sim.size_x, sim.size_y, sim.size_z};
             meta["problem"] = {{"L", settings.L},          {"steps", settings.steps},

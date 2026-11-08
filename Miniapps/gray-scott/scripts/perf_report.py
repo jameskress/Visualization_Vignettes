@@ -48,9 +48,15 @@ def find_runs(paths):
 
 
 def load_run(d):
-    meta = json.loads((d / "metadata.json").read_text())
-    summ_path = d / "summary.json"
-    summ = json.loads(summ_path.read_text()) if summ_path.is_file() else {}
+    """One run directory, or None if its files cannot be read (a run killed
+    while writing summary.json leaves it truncated)."""
+    try:
+        meta = json.loads((d / "metadata.json").read_text())
+        summ_path = d / "summary.json"
+        summ = json.loads(summ_path.read_text()) if summ_path.is_file() else {}
+    except (OSError, ValueError) as e:
+        print(f"warning: {d}: skipped, cannot read its metadata or summary ({e})", file=sys.stderr)
+        return None
     v = meta.get("schema_version")
     if v not in SCHEMA_VERSIONS:
         print(f"warning: {d}: schema_version {v} not understood (knows {sorted(SCHEMA_VERSIONS)})",
@@ -229,7 +235,9 @@ def main():
     dirs = find_runs(args.paths)
     if not dirs:
         sys.exit("no run directories (with metadata.json) found")
-    runs = [load_run(d) for d in dirs]
+    runs = [r for r in (load_run(d) for d in dirs) if r is not None]
+    if not runs:
+        sys.exit("no readable run directories found")
     runs.sort(key=lambda r: (r["meta"].get("backend", {}).get("output_type", ""),
                              r["meta"].get("problem", {}).get("L", 0),
                              r["meta"].get("mpi", {}).get("ranks", 0), r["dir"].name))
