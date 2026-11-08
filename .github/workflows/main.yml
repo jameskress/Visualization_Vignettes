@@ -12,8 +12,11 @@ on:
   workflow_dispatch:
 
 # A newer push to the same pull request replaces the run still in progress.
+# The event name keeps manual runs apart from master pushes: GitHub replaces
+# a pending run with a newer one in the same group, and a manual run does not
+# publish, so it must never displace a pending master push.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
