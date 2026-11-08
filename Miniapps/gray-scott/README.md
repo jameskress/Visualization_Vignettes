@@ -242,7 +242,7 @@ ctest --test-dir build/my-host-cpu --output-on-failure
 ```
 
 About ten seconds on the workstation. CI runs the same build and tests on
-every push and pull request (the "Gray-Scott Miniapp Tests" job,
+every pull request and every push to master (the "Gray-Scott Miniapp Tests" job,
 `.github/scripts/ci_gray_scott.sh`, Debian 12 with its VTK 9.1 package).
 Four tests run:
 

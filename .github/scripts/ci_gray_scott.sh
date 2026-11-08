@@ -34,4 +34,4 @@ rm -rf build/host-cpu
 # slots from what it sees, which may be fewer than the 4 ranks the test uses.
 cmake --preset host-cpu -DGS_TEST_MPIEXEC_PREFLAGS=--oversubscribe
 cmake --build --preset host-cpu -j 4
-ctest --test-dir build/host-cpu --output-on-failure
+ctest --test-dir build/host-cpu --output-on-failure --no-tests=error
