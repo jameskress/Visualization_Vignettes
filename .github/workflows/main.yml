@@ -217,8 +217,8 @@ jobs:
           # The job body is a file; see the header of
           # .github/scripts/ci_gray_scott.sh for how to run it locally.
           docker build \
-            --build-arg USER_ID=$(id -u) \
-            --build-arg GROUP_ID=$(id -g) \
+            --build-arg USER_ID="$(id -u)" \
+            --build-arg GROUP_ID="$(id -g)" \
             -t gray-scott-test-env -f .github/docker/Dockerfile.gray-scott.test .github/docker
           docker run --rm --cpus=4 -v "$(pwd)":/workdir gray-scott-test-env \
             bash /workdir/.github/scripts/ci_gray_scott.sh
