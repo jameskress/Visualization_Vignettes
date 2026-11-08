@@ -225,7 +225,13 @@ int main(int argc, char **argv)
 
     if (settings.restart)
     {
-        restart_step = ReadRestart(app_comm, settings, sim, io_ckpt);
+        // Read through a separate IO with the same engine settings: the
+        // attributes a read brings into an IO would otherwise suppress the
+        // current run's (seed included) in every later checkpoint.
+        adios2::IO io_restart = adios.DeclareIO("SimulationRestart");
+        io_restart.SetEngine(io_ckpt.EngineType());
+        io_restart.SetParameters(io_ckpt.Parameters());
+        restart_step = ReadRestart(app_comm, settings, sim, io_restart);
         sim.set_step(static_cast<std::uint64_t>(restart_step));
         vtkLog(INFO, "Restarting simulation from step " << restart_step);
     }
