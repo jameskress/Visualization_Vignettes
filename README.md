@@ -84,7 +84,7 @@ These examples are designed to run on HPC or local systems and demonstrate commo
 
 ### 2. Using the In Situ Miniapp with Docker
 
-The in situ portion of this repo is centered around a "miniapp" that generates data and performs live visualization. A pre-built Docker image is automatically created by our CI/CD pipeline, providing a consistent and reproducible environment. The pipeline runs on every pull request and on every push to `master`; only `master` publishes the image. Other branches can be run by hand from the Actions tab.
+The in situ portion of this repo is centered around a "miniapp" that generates data and performs live visualization. A pre-built Docker image is automatically created by our CI/CD pipeline, providing a consistent and reproducible environment. The pipeline runs on every pull request and on every push to `master`; only `master` publishes the image. A pull request builds the image for amd64 only, and if it changes nothing outside `Miniapps/gray-scott/` it skips the ParaView and VisIt suites, which do not test the miniapp. Other branches can be run by hand from the Actions tab.
 
 1. **Pull the latest Docker image from the registry:**
    `docker pull ghcr.io/jameskress/visualization_vignettes:latest`
