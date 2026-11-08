@@ -263,7 +263,7 @@ covers Docker, checkpoint and restart, and the in transit reader.
 
 **Memory and undefined behaviour checks**
 
-* Build the `host-cpu-asan` preset and run `tests/sanitizers/run_sanitized.sh build/<preset> <ranks>`; a clean run prints nothing from the sanitizers. Details and the suppression file are in `tests/sanitizers/README.md`.
+* Build the `my-host-asan` preset from `CMakeUserPresets.json.example` (it inherits `host-cpu-asan` and adds your `VTK_DIR`) and run `tests/sanitizers/run_sanitized.sh build/my-host-asan <ranks>`; a clean run prints nothing from the sanitizers. Details and the suppression file are in `tests/sanitizers/README.md`.
 
 **Build**
 
