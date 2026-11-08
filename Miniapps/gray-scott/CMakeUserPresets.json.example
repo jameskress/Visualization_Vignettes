@@ -8,9 +8,24 @@
       "cacheVariables": {
         "VTK_DIR": "$env{HOME}/packages/paraview-src/build_6.2.0/install/lib/cmake/paraview-6.2/vtk"
       }
+    },
+    {
+      "name": "my-host-asan",
+      "displayName": "Workstation, CPU, ASan + UBSan (local paths; tests/sanitizers)",
+      "inherits": "host-cpu-asan",
+      "cacheVariables": {
+        "VTK_DIR": "$env{HOME}/packages/paraview-src/build_6.2.0/install/lib/cmake/paraview-6.2/vtk"
+      }
     }
   ],
   "buildPresets": [
-    { "name": "my-host-cpu", "configurePreset": "my-host-cpu" }
+    {
+      "name": "my-host-cpu",
+      "configurePreset": "my-host-cpu"
+    },
+    {
+      "name": "my-host-asan",
+      "configurePreset": "my-host-asan"
+    }
   ]
 }
