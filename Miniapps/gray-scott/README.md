@@ -73,7 +73,7 @@ reader does not yet (#42). Results match across backends and across rank
 counts, noise included (the noise depends only on the seed, the step and
 the global position), within what the checks test: the ghost volume test
 compares cell counts and volumes, and the render check allows 0.1% of
-pixels to differ (the Kombyne iso surface uses some of that). Known
+pixels to differ by more than 24/255, and any number by less (the Kombyne iso surface uses some of that). Known
 exceptions, such as a slice placed exactly on a plane two ranks share,
 are listed in [in situ backends](docs/in-situ-backends.md). The
 [build and run guide](docs/build-and-run-guide.md) covers each backend in

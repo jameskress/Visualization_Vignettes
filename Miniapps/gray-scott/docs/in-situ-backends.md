@@ -302,7 +302,7 @@ write; release builds check the first. A copy aborts the run.
 | ADIOS2 memory selection | nothing to compare: `Put` takes the solver's own pointer directly, and the writer checks after `EndStep()` that the arrays have not moved |
 | Kombyne | no getter exists; `KB_MEM_BORROW` is the API's zero-copy guarantee |
 
-**Allocation counts.** Built with `-DGS_COUNT_ALLOCATIONS=ON`, on 2 ranks
+**Allocation counts.** Built with `-DGS_COUNT_ALLOCATIONS=ON -DENABLE_TIMERS=ON`, on 2 ranks
 at 64^3 for 30 steps with output every 10:
 
 | Backend | solver step, steps 1 to 30 | wrap, per write (allocations / bytes) | whole backend call, per write |
@@ -457,7 +457,7 @@ Other options:
 
 * Ascent and Kombyne cannot be enabled together.
 * Add `ENABLE_TIMERS=ON` for the performance log's timers.
-* Add `GS_COUNT_ALLOCATIONS=ON` for allocation counts (test builds only).
+* Add `GS_COUNT_ALLOCATIONS=ON` together with `ENABLE_TIMERS=ON` for allocation counts (test builds only; configuring fails without timers).
 * Set `GS_PVPYTHON` to run the ghost volume test's readers and the PVTI
   render check.
 
@@ -512,7 +512,10 @@ Use `scripts/perf_report.py` to put runs of different backends side by
 side. Every backend sees the same data, at the same steps, with the same
 ghost rule. For the cost of a whole backend call, compare `write_step`
 (in each run's `summary.json` and step records; `perf_report.py` does not
-tabulate it yet);
+tabulate it yet). It is timed on output steps only, so the per-call cost is
+`write_step` total divided by the number of output steps, or the mean over
+the output-step records. The summary's `per_step_ms_mean` spreads it over every
+step, so it is plotgap times smaller than the cost of one call.
 `wrap + execute + io` covers only the timed phases (PVTI sets up its source
 before the timed write, Kombyne frees pipeline data after `execute`).
 Individual phases need each backend's definition: Catalyst and Kombyne
