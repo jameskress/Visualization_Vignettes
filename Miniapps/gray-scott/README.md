@@ -204,6 +204,7 @@ distances by 0.1, and multiply output gradients by 0.1, to get solver units.
 | `burn_in_steps` | optional: steps to run before output starts | 0 |
 | `overwrite_last_step` | optional: keep only the latest output step. Every backend honours it except `catalyst_insitu`, whose script names its own files and keeps every step unless the script overwrites them | false |
 | `perf_dir` | optional: parent directory of each run's performance log directory ([performance](#performance)) | `perf` |
+| `teardown_timeout_s` | optional: seconds allowed for closing the output and `MPI_Finalize` once every output and the performance log are written; after that the process logs why and exits with status 0. 0 disables it. The analysis reader reads the same key from its settings file ([in situ backends](docs/in-situ-backends.md), Shutdown) | 300 |
 
 Checkpointing and restart use ADIOS2 and are compiled only when
 `ENABLE_ADIOS2=ON` (the presets turn it off). In any other build the
@@ -243,6 +244,10 @@ Every run writes a performance record to its own directory,
 versioned (`schema_version`, now 2) because the analysis script and papers
 depend on it. Change it only by bumping the version and updating this
 section.
+
+The record is written once the last step is done and before the output is
+closed, so a shutdown that hangs (ADIOS2 SST over RDMA can) cannot lose it
+(#75).
 
 | File | Written | Contents |
 | :--- | :--- | :--- |

@@ -289,6 +289,31 @@ counts (#15) and each point is stored once. The SST in transit path was
 first checked once the reader linked; see Building against the workstation
 SDKs for the run.
 
+**Shutdown (#75).** An in transit run can finish every step and write every
+output, then never exit. On Shaheen III with ADIOS2 2.12, SST's RDMA data
+plane sometimes hangs in writer teardown (libfabric `fi_close` spinning in
+`fini_fabric`), and every other rank then waits in `MPI_Finalize`. No SST
+parameter bounds this; `OpenTimeoutSecs` is SST's only timeout. So both
+the simulation and the analysis reader:
+
+* write their performance log before closing the output;
+* allow `teardown_timeout_s` seconds (default 300) for the close and
+  `MPI_Finalize`; after that each process prints `teardown did not finish
+  within N s ...` to stderr and exits with status 0.
+
+Every result is on disk by then. The launcher may still call the end
+abnormal, because the processes skipped `MPI_Finalize` (Open MPI's `mpirun`
+returns 1; Slurm may mark the step failed): check the stderr line, the
+images and `summary.json` rather than the job state. Set
+`teardown_timeout_s` to 0 to wait forever. The simulation also honours
+`GS_TEST_STUCK_TEARDOWN=1`, a test-only hook that makes the close never
+return.
+
+SST's MPI data plane (`DataTransport="MPI"`) shut down cleanly in the same
+tests but crashed the simulation (`MpiReadRequestHandler`) with the
+Catalyst reader at 64 + 4 nodes; the transport choice for large runs is
+tracked in #72.
+
 ## Zero-copy and allocations (#25)
 
 **Pointer checks.** Each adaptor checks that the array it hands the backend

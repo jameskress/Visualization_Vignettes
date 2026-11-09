@@ -44,6 +44,8 @@ struct BackendOptions
     std::string catalyst_output_file;
     std::string output_type;
     MPI_Comm comm = MPI_COMM_WORLD;
+    // Seconds allowed for teardown once the reader has finished (#75).
+    double teardown_timeout_s = 300.0;
 
     static BackendOptions FromSettingsFile(const std::string &settings_path)
     {
@@ -72,6 +74,8 @@ struct BackendOptions
             opts.catalyst_lib_path = js["catalyst_lib_path"];
         if (js.contains("output_file_name"))
             opts.catalyst_output_file = js["output_file_name"];
+        if (js.contains("teardown_timeout_s"))
+            opts.teardown_timeout_s = js["teardown_timeout_s"];
 
         return opts;
     }
