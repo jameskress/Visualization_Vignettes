@@ -1,11 +1,31 @@
 # In situ backends
 
 How the Gray-Scott miniapp hands its data to each backend, and the rules they
-all follow so that their results and timings can be compared. Phase 3 (#28)
-fills this in backend by backend; #27 completes it.
+all follow so that their results and timings can be compared. It is the reference for phase 3 (#28):
+the shared rules, each backend's adaptor, how to test them and how to
+build against the workstation SDKs.
 
 Performance records for every backend are described in the
 [README's Performance section](../README.md#performance).
+
+## At a glance
+
+| Backend | What it receives | Zero-copy mechanism | Ghost metadata | Pointer lifetime |
+| :--- | :--- | :--- | :--- | :--- |
+| Ascent | shared Blueprint tree | `set_external` on u, v | `ascent_ghosts` (element, int32, 0 owned, 1 ghost) | the solver's arrays, valid between steps |
+| Catalyst | shared Blueprint tree | `set_external` on u, v | `vtkGhostType` (element, uint8, `DUPLICATECELL` = 1) | the same; ParaView wraps them per `catalyst_execute` |
+| Kombyne-lite | `kb_rgrid` | `KB_MEM_BORROW` | ghost-cell mask (0 ghost, 1 real); exported as `__ghostCells` | borrowed for the duration of `kb_simulation_execute` |
+| PVTI | `vtkImageData` in a pipeline | `SetArray(..., save = 1)` | `vtkGhostType` on cells and points | borrowed for the duration of `Write()` |
+| ADIOS2 | global L^3 arrays, owned points only | memory selection (span and default modes copy) | none needed (each point stored once); `gs_*` attributes | until `EndStep()`; checked after it |
+
+The four in situ and file-per-block backends share the geometry (origin
+`(offset - 1) * 0.1`, spacing 0.1, each rank's full ghosted block) and the
+ownership rule (a cell belongs to the rank owning its low corner). That is
+what makes their outputs comparable cell for cell. ADIOS2 is the exception
+in form: it writes owned points only, as one global L^3 array with origin
+0, and no cells or ghosts. A reader that cuts it into blocks must add the
+overlap layer and the periodic wrap itself before its cells match the
+others (ADIOS2 section).
 
 ## The shared mesh description
 
@@ -266,8 +286,8 @@ valid and unchanged until `EndStep()` returns:
 `U` at step 100 is identical at full precision across modes and rank
 counts. That holds because the solver is bitwise identical across rank
 counts (#15) and each point is stored once. The SST in transit path was
-not run, because the reader build does not link on the workstation (see
-#26).
+first checked once the reader linked; see Building against the workstation
+SDKs for the run.
 
 ## Zero-copy and allocations (#25)
 
@@ -282,7 +302,7 @@ write; release builds check the first. A copy aborts the run.
 | ADIOS2 memory selection | nothing to compare: `Put` takes the solver's own pointer directly, and the writer checks after `EndStep()` that the arrays have not moved |
 | Kombyne | no getter exists; `KB_MEM_BORROW` is the API's zero-copy guarantee |
 
-**Allocation counts.** Built with `-DGS_COUNT_ALLOCATIONS=ON`, on 2 ranks
+**Allocation counts.** Built with `-DGS_COUNT_ALLOCATIONS=ON -DENABLE_TIMERS=ON`, on 2 ranks
 at 64^3 for 30 steps with output every 10:
 
 | Backend | solver step, steps 1 to 30 | wrap, per write (allocations / bytes) | whole backend call, per write |
@@ -376,7 +396,12 @@ Rules each backend needs for clean images:
 * **Kombyne-lite.** Give pseudocolor a `minimum` and `maximum`; Kombyne
   otherwise uses the current data range, which differs between rank
   counts. Its iso surfaces keep a faint one-sided normal at block faces
-  (0.012% of pixels above); there is no GhostCells equivalent.
+  (0.012% of pixels above); there is no GhostCells equivalent. This is a
+  known exception, accepted 2026-11-08: the lines are within the render
+  check's 0.1% budget and hard to see at publication size. Removing them
+  would take a ghost layer on both sides of every block for Kombyne alone,
+  that is more memory and a second exchange for one backend, which is not
+  worth it. Revisit if a figure shows the lines.
 * **Slices** exactly on a grid plane two ranks share are drawn by both.
   Place them between grid planes (the shipped scripts use 3.25, not 3.2).
 
@@ -386,3 +411,116 @@ both render through EGL without an X display. Set
 `mpirun -x VTK_DEFAULT_OPENGL_WINDOW`), or give pvpython
 `--opengl-window-backend EGL`. EGL and X images are pixel-identical.
 
+## Debugging seams
+
+The ghost volume test (README, Testing) is the first tool. It prints each
+backend's cell count per rank count. Read a failure as follows:
+
+| Symptom | Likely cause |
+| :--- | :--- |
+| count grows with ranks | ghost cells are not being skipped: wrong field name or value convention, or a reader that does not know the mask (Kombyne exports) |
+| count shrinks with ranks | a gap: the block does not include the cells bridging to the next rank |
+| count right, volume off beyond 1e-6 | the spacing differs from the shared description |
+| Ascent differs from the rest | expected: Ascent's threshold keeps a cell if any corner is in range, the others need every corner. Compare Ascent with the ADIOS2 any-corner count before suspecting its adaptor. The compare test does this only when ADIOS2 (with `bpls`) is also enabled; in an Ascent-only build nothing checks Ascent's count against another backend |
+| one backend differs from the rest | that adaptor diverged from `mesh_blueprint.h`; compare its tree or objects with `describe()` |
+
+The test counts cells and volume, not positions, so a block moved by a
+wrong origin can pass it. Check origins in the images (Rendering) or by
+comparing each block's bounds with `describe()`.
+
+Then look at the images: the render check (Rendering, above) keeps each
+backend's 1-rank and 4-rank images side by side in the build tree. Read
+its failures as follows:
+
+| Symptom in the 4-rank image | Likely cause |
+| :--- | :--- |
+| a plane-shaped face or dark wedge inside a surface | a surface filter without ghost cells on every side (ParaView: add GhostCells before it) |
+| thin shading lines on a contour at block faces | one-sided normals at the high face (the same fix; Kombyne has none) |
+| a crack through a volume at block faces | a GhostCells filter under a volume, or too few volume samples (Ascent) |
+| the whole picture shifted or recoloured | colour ranges rescaled per run, or a block origin off (the pre-#21 shift) |
+| a slice drawn twice | it lies exactly on a grid plane two blocks share; move it between planes |
+
+## Building against the workstation SDKs
+
+Presets keep every backend off. Turn each one on in your
+`CMakeUserPresets.json` (README, Build):
+
+| Backend | CMake | Workstation path (KW61316) | Run-time environment |
+| :--- | :--- | :--- | :--- |
+| Catalyst | `ENABLE_CATALYST=ON`, `catalyst_DIR` | `~/packages/paraview-src/build_6.2.0/install/lib/cmake/catalyst-2.0` | `catalyst_lib_path` in the settings, or `CATALYST_IMPLEMENTATION_PATHS=<install>/lib/catalyst` and `CATALYST_IMPLEMENTATION_NAME=paraview` |
+| Ascent | `ENABLE_ASCENT=ON`, `Ascent_DIR` | `~/packages/ascent/build/install/ascent-checkout/lib/cmake/ascent` | `ascent_options.yaml` and the actions file in the run directory |
+| ADIOS2 | `ENABLE_ADIOS2=ON`, `ADIOS2_DIR` | `~/packages/adios-insitu/adios2-build-pv62/install/lib/cmake/adios2` | `adios2.xml` named by `adios_config` |
+| Kombyne-lite | `ENABLE_KOMBYNELITE=ON`, `kombynelite_DIR` | `~/packages/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite` | the YAML named by `kombynelite_script_path` |
+| PVTI | always built | (VTK from the same ParaView build) | none |
+
+Other options:
+
+* Ascent and Kombyne cannot be enabled together.
+* Add `ENABLE_TIMERS=ON` for the performance log's timers.
+* Add `GS_COUNT_ALLOCATIONS=ON` together with `ENABLE_TIMERS=ON` for allocation counts (test builds only; configuring fails without timers).
+* Set `GS_PVPYTHON` to run the ghost volume test's readers and the PVTI
+  render check.
+
+ADIOS2 on the workstation. The older install in `adios2-build/install`
+uses the system's serial HDF5, which needs the system libcurl. The
+ParaView install directory holds the superbuild's own libcurl, and the
+linker finds that one first through VTK's `-rpath-link`, so ADIOS2-only
+builds and the analysis reader failed to link (unresolved `curl_*` symbols
+in `libhdf5_serial`). Building ADIOS2 against ParaView's HDF5 instead does
+not work either: Ascent ships its own serial HDF5 with the same soname
+(`libhdf5.so.310`), and a process loads only one of the two.
+
+The ADIOS2 in `adios2-build-pv62` (2.9.1) is built against ParaView 6.2's
+Catalyst, without HDF5. The miniapp uses only the BP5 and SST engines, so
+nothing is lost. With it every combination links and passes its tests:
+ADIOS2 alone, ADIOS2 + Ascent + Catalyst with the analysis reader, and
+ADIOS2 + Kombyne + Catalyst. SST in transit (4 simulation ranks streaming
+to 2 analysis-reader ranks rendering with Ascent) runs end to end. Its
+configuration:
+
+```bash
+PV=~/packages/paraview-src/build_6.2.0/install
+cmake -S ADIOS2 -B adios2-build-pv62 -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=$PWD/adios2-build-pv62/install \
+  -DADIOS2_USE_MPI=ON -DADIOS2_USE_HDF5=OFF -DADIOS2_USE_Catalyst=ON \
+  -Dcatalyst_DIR=$PV/lib/cmake/catalyst-2.0 \
+  -DADIOS2_USE_SST=ON -DADIOS2_USE_DataMan=ON -DADIOS2_USE_Fortran=ON \
+  -DADIOS2_USE_Python=ON -DADIOS2_USE_PNG=ON -DADIOS2_USE_BZip2=ON \
+  -DADIOS2_USE_ZeroMQ=OFF -DADIOS2_USE_ZFP=OFF -DADIOS2_USE_SZ=OFF \
+  -DADIOS2_USE_CUDA=OFF -DADIOS2_USE_Kokkos=OFF -DBUILD_TESTING=OFF \
+  -DADIOS2_BUILD_EXAMPLES=OFF \
+  -DCMAKE_INSTALL_RPATH="$PWD/adios2-build-pv62/install/lib;$PV/lib"
+```
+
+`PV` is the ParaView 6.2 install. The ADIOS2 HDF5
+engine can come back once Ascent is built against ParaView's HDF5 (one
+HDF5 in the process, #59), for example with the GPU Ascent build in phase 4.
+
+## Reading the performance log
+
+Every backend reports into the same record (README, Performance):
+
+| Timer or counter | Meaning |
+| :--- | :--- |
+| `wrap` | building the backend's description of the data. Microseconds when zero-copy, milliseconds when copying (ADIOS2 default and span modes) |
+| `execute` | the backend's own work |
+| `io` | data written or moved, where the backend lets us separate it (PVTI, ADIOS2, Ascent's manual relay save) |
+| `halo` | the solver's exchange, plus the refresh before each output step |
+| `allocs_*` | heap allocations, in builds with the counter |
+
+Use `scripts/perf_report.py` to put runs of different backends side by
+side. Every backend sees the same data, at the same steps, with the same
+ghost rule. For the cost of a whole backend call, compare `write_step`
+(in each run's `summary.json` and step records; `perf_report.py` does not
+tabulate it yet). It is timed on output steps only, so the per-call cost is
+`write_step` total divided by the number of output steps, or the mean over
+the output-step records. The summary's `per_step_ms_mean` spreads it over every
+step, so it is plotgap times smaller than the cost of one call.
+`wrap + execute + io` covers only the timed phases (PVTI sets up its source
+before the timed write, Kombyne frees pipeline data after `execute`).
+Individual phases need each backend's definition: Catalyst and Kombyne
+write their files inside `execute`, so an `io` of 0 there does not mean no
+I/O, while PVTI and ADIOS2 report their writes as `io`. And compare like
+work: a Catalyst script that renders an image and PVTI writing data files
+are different jobs, so a time difference between them is not a backend
+difference unless the outputs are equivalent.
