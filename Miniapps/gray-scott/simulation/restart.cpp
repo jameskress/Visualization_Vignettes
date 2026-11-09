@@ -188,7 +188,8 @@ int ReadRestart(MPI_Comm comm, const Settings &settings, GrayScott &sim,
     }
     catch (std::exception &e)
     {
-        if (rank == 0) vtkLog(ERROR, "Restart read failed: " << e.what());
+        // Every rank that fails says so: rank 0 may not be one of them (#78).
+        vtkLog(ERROR, "Restart read failed on rank " << rank << ": " << e.what());
         MPI_Abort(comm, 1);
     }
 

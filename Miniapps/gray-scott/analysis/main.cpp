@@ -218,8 +218,9 @@ int main(int argc, char **argv)
     }
     catch (const std::exception &e)
     {
-        if (global_rank == 0)
-            std::cerr << "Fatal error: " << e.what() << "\n";
+        // Print from every rank that throws. In an MPMD job world rank 0 is
+        // a simulation rank, so a rank-0-only message hid every reader error (#78).
+        std::cerr << "[analysis-reader rank " << global_rank << "] Fatal error: " << e.what() << std::endl;
         MPI_Abort(MPI_COMM_WORLD, -1);
     }
     MPI_Finalize();

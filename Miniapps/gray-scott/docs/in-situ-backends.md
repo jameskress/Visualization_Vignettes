@@ -289,6 +289,15 @@ counts (#15) and each point is stored once. The SST in transit path was
 first checked once the reader linked; see Building against the workstation
 SDKs for the run.
 
+**Startup (#78).** The analysis reader waits `sst_open_timeout_s` seconds
+(default 600) for the simulation's SST stream to appear. Before, it used
+ADIOS2's default of 60 s: at 1024 nodes the simulation was still reading a
+1.1 TB checkpoint when every reader rank gave up. The simulation prints
+`restart read: N s (slowest rank)` and records `restart_read_s` in
+`metadata.json`. Both programs now print a fatal error from every rank
+that throws it; in an MPMD job world rank 0 is a simulation rank, so a
+rank-0-only message used to hide every reader error.
+
 **Shutdown (#75).** An in transit run can finish every step and write every
 output, then never exit. On Shaheen III with ADIOS2 2.12, SST's RDMA data
 plane sometimes hangs in writer teardown (libfabric `fi_close` spinning in
