@@ -2,6 +2,7 @@
 #include "analysis_backend_interface.h"
 #include <numeric>
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 
 AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
@@ -25,7 +26,9 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
     }
     else
     {
-        m_io->SetParameter("OpenTimeoutSecs", std::to_string(static_cast<int>(m_opts.sst_open_timeout_s)));
+        // SST takes whole seconds: round up, at least 1, within int range.
+        const double t = std::min(std::max(std::ceil(m_opts.sst_open_timeout_s), 1.0), 2147483647.0);
+        m_io->SetParameter("OpenTimeoutSecs", std::to_string(static_cast<int>(t)));
     }
 
     m_engine = std::make_unique<adios2::Engine>(m_io->Open(m_opts.adios_file, adios2::Mode::Read));
