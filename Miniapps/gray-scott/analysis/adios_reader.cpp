@@ -33,10 +33,18 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
     ReadFidesAttributes(); // Read attributes and potentially update m_opts
 }
 
-AdiosReader::~AdiosReader()
+void AdiosReader::Close()
 {
     if (m_engine)
-        m_engine->Close();
+    {
+        m_engine->Close(); // Sends the network handshake to free the simulation
+        m_engine.reset();  // Destroys the pointer so the destructor doesn't double-close
+    }
+}
+
+AdiosReader::~AdiosReader()
+{
+    Close(); // Safe to call here just in case the program exits early
 }
 
 adios2::StepStatus AdiosReader::BeginStep()

@@ -35,8 +35,6 @@ void AdiosWriterBackend::Run()
         m_reader.ReadRepartition(m_opts.v_var, v_buf, read_info);
         m_perf_logger.stop("ADIOS_Read_Time");
 
-	//End the step, force the data to be sent
-        m_reader.EndStep();
 
 	// --- STRIP THE GHOST CELL FOR THE WRITER MATH ---
         auto write_dims = read_info.local_dims;
@@ -70,10 +68,10 @@ void AdiosWriterBackend::Run()
 
         m_writer.EndStep();
         m_perf_logger.stop("ADIOS_Write_Time");
-        m_perf_logger.stop("total_step");
         
-        // Log performance metrics identically to the other backends
-        m_perf_logger.logStep(step); 
+	m_reader.EndStep();
+	m_perf_logger.stop("total_step");
+	m_perf_logger.logStep(step); 
     }
     
     m_writer.Close();

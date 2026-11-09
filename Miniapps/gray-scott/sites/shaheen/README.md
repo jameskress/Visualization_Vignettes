@@ -26,8 +26,13 @@ env prefix=build enable_mpi=ON enable_openmp=ON \
 ```
 
 # ADIOS2
-ADIOS worked following the README instructions.
+ADIOS has issues with RDMA on shaheen, perfroamnce and hangs are inconsistent, when usingadios v2.11. I also tried wan, mpi, ucx, everything ends up crashing on the slingshot.
 
+I upgraded to v2.12.0 and it seems to work consistenatly using mpi data transport on the slingshot. 
+
+
+# Paraview
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUSE_SYSTEM_mpi=ON -DUSE_SYSTEM_python3=OFF -DENABLE_catalyst=ON -DENABLE_mpi=ON -DENABLE_netcdf=ON -DENABLE_hdf5=ON -DENABLE_python3=ON -DENABLE_openmp=ON -DENABLE_ospray=ON ../paraview-superbuild
 
 
 # Performance scripts
@@ -107,4 +112,52 @@ python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py  --results-dir /scratc
 python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py  --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/ --paper paper2  --submit --nodes 512
 python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py  --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/ --paper paper2  --submit --nodes 1024
 
+I added the ability to select runs based on grid size as I wanted to put the restart files in fast storage, and it was limited tso could not place all data there at once
+python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/ --paper paper2 --grid 1024 --dry-run
 
+
+
+
+
+# Shaheen III Exascale Staging & ADIOS2 Survival Guide
+
+### 1. Network & Transport (Slingshot 11 / OFI)
+* **The MPI Socket Explosion:** At massive scales (e.g., 32,768 tasks), using `DataTransport="MPI"` for the SST engine will overwhelm the network control plane with connection requests. **Always use `DataTransport="RDMA"`** for large in-transit transfers.
+* **The RDMA Fan-In Bomb (Segfaults in `CP_sendToPeer`):** Slingshot 11 OFI queue pairs have hardware limits. If you have 32k simulation tasks sending data to only 256 staging tasks, the staging tasks are hit with a 128:1 fan-in ratio and the network card drops the connections, causing a segfault. **Keep the fan-in ratio to 16:1 or 32:1** (e.g., use 1024 or 2048 staging tasks).
+* **The Teardown Hang:** When the simulation finishes and sends the "Disconnect/FIN" packet, staging nodes might miss it if their CPUs are locked up doing heavy Lustre I/O. The simulation and reader will wait for each other infinitely. **Fix:** Add `<parameter key="ControlTimeoutSecs" value="120.0"/>` to `SimulationOutput` so SST gracefully gives up and exits after 2 minutes.
+
+### 2. Lustre & POSIX I/O Limits
+* **The 2 GiB POSIX Wall:** The Linux kernel (`MAX_RW_COUNT`) forbids writing a single memory block larger than 2 GiB. If an ADIOS2 aggregator's payload exceeds this (e.g., 17 GB per aggregator), it will deadlock or crash mid-write. **Fix:** Ensure the payload-per-aggregator stays under 2 GB, or rely on 1 aggregator per node to correctly stitch small chunks.
+* **The Lustre MDS Storm:** If thousands of independent tasks try to create files simultaneously (e.g., using `EveryoneWrites`), the Lustre Metadata Server locks up and times out. **Fix:** Add `<parameter key="MaxOpenFilesAtOnce" value="64"/>` to throttle file creation.
+* **Lustre Striping:** When writing hundreds or thousands of files in a staging pool, keep the stripe count low to avoid locking up Object Storage Targets (OSTs). **Use `lfs setstripe -c 1`**.
+
+### 3. ADIOS2 BP5 Aggregation & Memory
+* **The Shared Memory OOM Crash:** BP5 coordinates writers using `/dev/shm` (shared memory). If you force multiple aggregators onto a single compute node (e.g., 32 aggregators on 1 node), they will all request the default 4 GB (or more) memory buffer. This will exhaust the node's physical RAM, and Linux will silently assassinate the tasks mid-write (resulting in truncated 3.0 MB files).
+* **The "Gold Standard" Configuration:**
+    * **Rule:** Exactly **1 Aggregator per Node** (`NumAggregators` = Number of staging nodes).
+    * **Rule:** Override the default memory buffer to safely hold the node's entire payload. Use `<parameter key="MaxShmSize" value="42949672960"/>` (40 GB).
+
+### 4. Slurm MPMD Lifecycle
+* **The `--wait=0` Assassin:** In an MPMD job (`srun sim : reader`), the `--wait=0` flag tells Slurm to kill the entire job the absolute millisecond the *first* application exits. If the simulation finishes while the readers are still writing to disk, Slurm will violently kill the readers, truncating your files and destroying the metadata. **Fix: Completely remove `--wait=0`** and `--kill-on-bad-exit=1` so Slurm patiently waits for the reader nodes to finish their I/O.
+
+### 5. ParaView Catalyst Headless Rendering
+* **OSMesa Segfaults:** When rendering on compute nodes without displays (`unset DISPLAY`), you must use software rendering (`vtkOSOpenGLRenderWindow`). If Catalyst cannot find `libOSMesa.so`, it falls back to hardware X11, returns a `NULL` pointer, and crashes all 512 tasks instantly. **Fix:** Ensure the ParaView `install/lib` directory is appended to `LD_LIBRARY_PATH` in the `.sbat` script.
+
+***
+
+### The Golden ADIOS2 In-Transit Staging Block
+*Paste this into `adios2.xml` when using the staging backend to avoid POSIX crashes, OOM errors, and MDS storms.*
+
+```xml
+    <io name="AnalysisOutput">
+        <engine type="BP5">
+            <parameter key="verbose" value="0"/>
+            
+            <parameter key="NumAggregators" value="{stage_aggregators}"/>
+            
+            <parameter key="MaxShmSize" value="42949672960"/>
+            
+            <parameter key="AsyncWrite" value="false"/>
+        </engine>
+    </io>
+"""

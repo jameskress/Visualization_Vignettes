@@ -22,7 +22,7 @@ SYSTEM_CONFIG = {
 GLOBAL_SETTINGS = {
     "init_steps": 65000,      
     "init_burn_in": 0,        
-    "run_steps": 101,         
+    "run_steps": 41,         
     "plotgap": 20,            
     "output_type": "adhoc",
     "logging_level": "INFO"
@@ -82,10 +82,12 @@ ADIOS_XML_TEMPLATE = """<?xml version="1.0"?>
             <parameter key="RendezvousReaderCount" value="{rendezvous}"/>
             <parameter key="QueueLimit" value="1"/>
             <parameter key="QueueFullPolicy" value="Block"/>
-            <parameter key="DataTransport" value="RDMA"/>
+            <parameter key="DataTransport" value="{data_transport}"/>
             <parameter key="ControlModule" value="epoll"/>
             <parameter key="OpenTimeoutSecs" value="600.0"/>
+            <parameter key="ControlTimeoutSecs" value="300.0"/>
             <parameter key="AsyncWrite" value="false"/>
+            <parameter key="NumAggregators" value="{sim_aggregators}"/>
         </engine>
     </io>
     <io name="SimulationCheckpoint">
@@ -93,6 +95,13 @@ ADIOS_XML_TEMPLATE = """<?xml version="1.0"?>
             <parameter key="verbose" value="0"/>
             <parameter key="DataTransport" value="MPI"/>
             <parameter key="NumAggregators" value="1"/>
+            <parameter key="AsyncWrite" value="false"/>
+        </engine>
+    </io>
+    <io name="AnalysisOutput">
+        <engine type="BP5">
+            <parameter key="verbose" value="0"/>
+            <parameter key="NumAggregators" value="{stage_aggregators}"/>
             <parameter key="AsyncWrite" value="false"/>
         </engine>
     </io>
@@ -229,7 +238,9 @@ renderView1.Set(
     CameraViewUp=[{cam_up_x}, {cam_up_y}, {cam_up_z}],
     CameraFocalDisk=1.0,
     CameraParallelScale={parallel_scale},
-    StereoType="Crystal Eyes"
+    StereoType="Crystal Eyes",
+    EnableRayTracing=1,
+    BackEnd="OSPRay raycaster"
 )
 SetActiveView(None)
 layout1 = CreateLayout(name="Layout #1")
@@ -296,19 +307,15 @@ CATALYST_VOLUME_TEMPLATE = """
 from paraview import catalyst
 from paraview.simple import *
 
-_DisableFirstRenderCameraReset()
+# Removed _DisableFirstRenderCameraReset() so it auto-frames!
 
 renderView1 = CreateView("RenderView")
 renderView1.Set(
     ViewSize=[2048, 2048],
     AxesGrid="GridAxes3DActor",
-    CenterOfRotation=[{center}, {center}, {center}],
-    CameraPosition=[{cam_x}, {cam_y}, {cam_z}],
-    CameraFocalPoint=[{center}, {center}, {center}],
-    CameraViewUp=[{cam_up_x}, {cam_up_y}, {cam_up_z}],
-    CameraFocalDisk=1.0,
-    CameraParallelScale={parallel_scale},
-    StereoType="Crystal Eyes"
+    StereoType="Crystal Eyes",
+    EnableRayTracing=1,           # Ensure OSPRay is ON
+    BackEnd="OSPRay raycaster"    # Ensure OSPRay is ON
 )
 SetActiveView(None)
 layout1 = CreateLayout(name="Layout #1")
@@ -318,8 +325,17 @@ SetActiveView(renderView1)
 
 producer = TrivialProducer(registrationName="grid")
 
-# CRITICAL FIX: Do not force 'GeometryRepresentation'. Let ParaView pick the volumetric default.
-volDisplay = Show(producer, renderView1)
+# =====================================================================
+# RESAMPLE HACK: Clamp massive distributed grids into a safe 512^3 box
+# to bypass OSPRay's MPI partition compositing bugs.
+# =====================================================================
+resample = ResampleToImage(registrationName="resample", Input=producer)
+resample.SamplingDimensions = [512, 512, 512] 
+
+# Point the display to the resampled data
+volDisplay = Show(resample, renderView1)
+
+volDisplay.SetRepresentationType('Volume')
 
 ColorBy(volDisplay, ('POINTS', 'v'))
 
@@ -330,28 +346,18 @@ vLUT.Set(
     ScalarRangeInitialized=1
 )
 
-# 2. Setup Opacity (Locked so ParaView doesn't overwrite it)
+# 2. Setup Opacity (Raised floor to 0.01)
 vPWF = GetOpacityTransferFunction("v")
 vPWF.Set(
-    Points=[0.0, 0.0, 0.5, 0.0, 1.0, 1.0, 0.5, 0.0],
+    Points=[0.0, 0.01, 0.5, 0.0, 1.0, 1.0, 0.5, 0.0], 
     ScalarRangeInitialized=1
 )
 
-# 3. Setup 2D Transfer Function (Required for PV6 Volume Mapper)
-vTF2D = GetTransferFunction2D("v")
-vTF2D.Set(
-    Range=[0.0, 1.0, 0.0, 1.0],
-    ScalarRangeInitialized=1
-)
-
-# Explicitly bind the Volume representation and all transfer functions to the display
+# Explicitly bind all transfer functions to the display
 volDisplay.Set(
-    Representation='Volume',
     ColorArrayName=['POINTS', 'v'], 
     LookupTable=vLUT, 
-    ScalarOpacityFunction=vPWF,
-    TransferFunction2D=vTF2D,
-    ScalarOpacityUnitDistance={ray_step}
+    ScalarOpacityFunction=vPWF
 )
 
 volDisplay.SetScalarBarVisibility(renderView1, True)
@@ -366,12 +372,22 @@ options.EnableCatalystLive = 0
 options.ExtractsOutputDirectory = 'data'
 
 def catalyst_execute(info):
-    grid = FindSource("grid")
-    grid.UpdatePipeline()
-    data_info = grid.GetDataInformation()
+    # Update the resample filter!
+    data_source = FindSource("resample")
+    data_source.UpdatePipeline()
+    
+    # Force camera to wrap the data bounds on every step to prevent clipping
+    renderView1.ResetCamera()
+    
+    data_info = data_source.GetDataInformation()
     v_array_info = data_info.GetPointDataInformation().GetArrayInformation("v")
     if v_array_info:
         v_min, v_max = v_array_info.GetComponentRange(0)
+        
+        # Prevent colormap squashing
+        if (v_max - v_min) < 1e-5:
+            v_max = v_min + 0.1
+            
         vLUT = GetColorTransferFunction("v")
         vLUT.RescaleTransferFunction(v_min, v_max)
         vPWF = GetOpacityTransferFunction("v")
@@ -398,7 +414,9 @@ renderView1.Set(
     CameraViewUp=[{cam_up_x}, {cam_up_y}, {cam_up_z}],
     CameraFocalDisk=1.0,
     CameraParallelScale={parallel_scale},
-    StereoType="Crystal Eyes"
+    StereoType="Crystal Eyes",
+    EnableRayTracing=1,
+    BackEnd="OSPRay raycaster"
 )
 SetActiveView(None)
 layout1 = CreateLayout(name="Layout #1")
@@ -436,7 +454,7 @@ def catalyst_execute(info):
     grid = FindSource("grid")
     grid.UpdatePipeline()
     
-    # CRITICAL FIX: Scale the colors based on the Contour range, NOT the global grid
+    # Scale the colors based on the Contour range, NOT the global grid
     contour = FindSource("Contour")
     contour.UpdatePipeline()
     data_info = contour.GetDataInformation()
@@ -501,6 +519,61 @@ SBATCH_TEMPLATE = """#!/bin/bash
 
 source {repo_path}/Miniapps/gray-scott/sites/shaheen/MODULES.sh
 
+
+# =============================================================================
+# PRE-FLIGHT CHECK: Lustre Inode & Disk Space Quota
+# =============================================================================
+echo "Checking Lustre quota (Inodes and Disk Space)..."
+
+# Run lfs quota (without -h for raw numbers in KB and counts)
+# Columns: $2=Used_KB, $4=Limit_KB, $6=Used_Inodes, $8=Limit_Inodes
+QUOTA_INFO=$(lfs quota -u $USER /scratch | awk '/\/scratch/ {print $2, $4, $6, $8}')
+
+USED_KB=$(echo $QUOTA_INFO | awk '{print $1}')
+LIMIT_KB=$(echo $QUOTA_INFO | awk '{print $2}')
+USED_INODES=$(echo $QUOTA_INFO | awk '{print $3}')
+LIMIT_INODES=$(echo $QUOTA_INFO | awk '{print $4}')
+
+# --- Thresholds ---
+REQUIRED_INODES=150000
+
+# Require at least 500 GB of free space (500 * 1024 * 1024 KB)
+REQUIRED_KB=524288000 
+
+AVAILABLE_INODES=$((LIMIT_INODES - USED_INODES))
+AVAILABLE_KB=$((LIMIT_KB - USED_KB))
+
+# Convert KB to GB for human-readable console output
+AVAILABLE_GB=$((AVAILABLE_KB / 1024 / 1024))
+REQUIRED_GB=$((REQUIRED_KB / 1024 / 1024))
+
+FAIL=0
+
+if [ "$AVAILABLE_INODES" -lt "$REQUIRED_INODES" ]; then
+    echo " -> CRITICAL: Insufficient inodes! Available: $AVAILABLE_INODES (Requires $REQUIRED_INODES)"
+    FAIL=1
+fi
+
+if [ "$AVAILABLE_KB" -lt "$REQUIRED_KB" ]; then
+    echo " -> CRITICAL: Insufficient disk space! Available: ${AVAILABLE_GB}GB (Requires ${REQUIRED_GB}GB)"
+    FAIL=1
+fi
+
+if [ "$FAIL" -eq 1 ]; then
+    echo "====================================================================="
+    echo "JOB ABORTED: Storage quotas exceeded."
+    echo "Action: Clean up your /scratch directory before submitting."
+    echo "This prevents silent I/O failures, 0-byte files, and MPI deadlocks."
+    echo "====================================================================="
+    exit 1
+else
+    echo "Pre-flight checks passed."
+    echo " -> Available Inodes: $AVAILABLE_INODES"
+    echo " -> Available Space:  ${AVAILABLE_GB}GB"
+fi
+# =============================================================================
+
+
 # --- Environment Protection ---
 # Strip virtual environments so Catalyst loads OSMesa correctly
 export CATALYST_LIB_DIR="{catalyst_lib_path}"
@@ -509,8 +582,11 @@ export CATALYST_LIB_DIR="{catalyst_lib_path}"
 unset DISPLAY
 export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
 export GS_CATALYST_BACKEND=osmesa
+#export GALLIUM_DRIVER=softpipe
+#export LP_NUM_THREADS=1
 export GALLIUM_DRIVER=softpipe
 export LP_NUM_THREADS=1
+
 
 # --- Exascale Slingshot-11 OFI Tuning ---
 export FI_CXI_RX_MATCH_MODE=software
@@ -518,7 +594,9 @@ export FI_CXI_DEFAULT_CQ_SIZE=1310720
 export FI_CXI_OFLOW_BUF_SIZE=8388608
 export FI_CXI_CQ_FILL_PERCENT=20
 export FI_TCP_IFACE=hsn0
-ulimit -n 1310720
+export CM_NETWORK_INTERFACE=hsn0
+export CM_DISABLE_SHM=1
+ulimit -n $(ulimit -Hn)
 ulimit -l unlimited
 
 # --- Silencing ADIOS2 Logs ---
@@ -527,6 +605,7 @@ export ADIOS2_LOG_LEVEL=OFF
 
 export MPICH_MAX_THREAD_SAFETY=multiple
 export OMP_NUM_THREADS={omp_threads}
+export OSPRAY_THREADS={omp_threads}
 export OMP_PLACES=threads
 export OMP_PROC_BIND=spread
 export PYTHONDONTWRITEBYTECODE=1
@@ -542,9 +621,33 @@ mkdir -p $OUTPUT_DIR/data
 lfs setstripe -c -1 $OUTPUT_DIR/data
 cd $OUTPUT_DIR
 
+# =============================================================================
+# WATCHDOG: Prevent MPMD Hangs
+# =============================================================================
+# This runs in the background and watches for the writer to finish.
+(
+    while true; do
+        # Check if the simulation log exists and contains the closing message
+        if grep -q "Closing ADIOS2 writer" "$OUTPUT_DIR/simulation.log" 2>/dev/null; then
+            echo "Watchdog: Writer has cleanly closed ADIOS2. Simulation is complete."
+            sleep 15 # Give the reader 15 seconds to finish its final processing
+            echo "Watchdog: Terminating srun job step to release stuck reader..."
+            scancel ${{SLURM_JOB_ID}}.0
+            break
+        fi
+        sleep 10
+    done
+) &
+WATCHDOG_PID=$!
+
+
 echo "Starting Run: {id}"
 
 {command}
+
+
+# Kill the watchdog if srun happens to exit cleanly on its own
+kill $WATCHDOG_PID 2>/dev/null
 
 # =============================================================================
 # POST-PROCESSING & INODE CLEANUP
@@ -584,7 +687,7 @@ CMD_INLINE = """srun --exclusive --propagate=NOFILE --hint=nomultithread \\
     --settings-file=$OUTPUT_DIR/settings.json
 """
 
-CMD_INTRANSIT = """srun --exclusive --propagate=NOFILE --hint=nomultithread --kill-on-bad-exit=1 --wait=0 \\
+CMD_INTRANSIT = """srun --exclusive --propagate=NOFILE --hint=nomultithread --kill-on-bad-exit=1 --wait=60 \\
     --nodes={sim_nodes} --ntasks={sim_ranks} --ntasks-per-node={mpi_per_node} --cpus-per-task={omp_threads} --mem-bind=v,local --cpu-bind=threads \\
     $EXE_SIM \\
     --logging-level={logging_level} \\
@@ -607,6 +710,9 @@ def generate_settings_json(exp, output_dir, copied_files, args):
     run_noise_level = 0.00001
     steps = exp['total_steps']
     
+    uses_adios = (exp['backend'] == 'adios' or exp['type'] == 'intransit')
+    overwrite = False if uses_adios else (True if exp.get('workload') == 'data_save' else False)
+
     config = {
         "L": exp['grid_size'],        
         "Du": 0.2, "Dv": 0.1, "F": 0.03, "k": 0.0545, "dt": 2.0, 
@@ -622,7 +728,7 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         "checkpoint_output": f"{output_dir}/data/checkpoint.bp" if is_init else "",
         "restart": False if is_init else True, 
         "restart_input": f"{os.path.join(args.results_dir, exp.get('parent_id', ''))}/data/checkpoint.bp" if not is_init else "", 
-        "overwrite_last_step": True if exp.get('workload') == 'data_save' else False,
+        "overwrite_last_step": overwrite,
         "catalyst_script_path": "", 
         "catalyst_lib_path": CATALYST_LIB_PATH,
         "kombynelite_script_path": "",
@@ -642,7 +748,11 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         stage_backend = parts[0]
         
         if stage_backend == "catalyst":
-            config_stage["output_type"] = "catalyst_io" if exp['workload'] == 'data_save' else "catalyst_insitu"
+            if exp['workload'] == 'data_save':
+                config_stage["output_type"] = "catalyst_io"
+                config_stage["output_file_name"] = f"{output_dir}/data/grayScott_staged-%04ts.vtpd"
+            else:
+                config_stage["output_type"] = "catalyst_insitu"
         elif stage_backend == "adios":
             config_stage["output_type"] = "adios_writer"  # Map "adios" to "adios_writer" for the C++ factory
         else:
@@ -682,7 +792,23 @@ def generate_settings_json(exp, output_dir, copied_files, args):
 def generate_adios_xml(exp, output_dir):
     engine = "SST" if exp['type'] == 'intransit' else "BP5"
     rendezvous = 1 if exp['type'] == 'intransit' else 0
-    xml_content = ADIOS_XML_TEMPLATE.format(engine_type=engine, rendezvous=rendezvous)
+    
+    # Automatically use RDMA for in-transit to bypass OFI socket limits, MPI for inline
+    data_transport = "RDMA" if exp['type'] == 'intransit' else "MPI"
+    
+    # Simulation aggregators (1 per simulation node)
+    sim_aggregators = exp['sim_nodes']
+    
+    # Staging aggregators (1 per staging node). Default to 1 for inline runs (unused)
+    stage_aggregators = exp.get('stage_nodes', 1)
+    
+    xml_content = ADIOS_XML_TEMPLATE.format(
+        engine_type=engine, 
+        rendezvous=rendezvous, 
+        data_transport=data_transport,
+        sim_aggregators=sim_aggregators,
+        stage_aggregators=stage_aggregators
+    )
     with open(f"{output_dir}/adios2.xml", "w") as f:
         f.write(xml_content)
 
@@ -775,8 +901,14 @@ def generate_scripts(args):
             init_nodes = INIT_NODE_MAP.get(grid_size, 512)
             init_id = f"init_N{init_nodes:04d}_L{grid_size}"
 
-            # The 8192^3 grid restarts from 200,000. Everything else from 65,000.
-            base_steps = 200000 if grid_size == 8192 else GLOBAL_SETTINGS['init_steps']
+            # Explicit restart steps based on grid size
+            if grid_size == 8192:
+                base_steps = 200000
+            elif grid_size == 4096:
+                base_steps = 130000
+            else:
+                base_steps = GLOBAL_SETTINGS['init_steps'] # 65000
+
             EXPERIMENTS.append({ "id": init_id, "paper": "init", "type": "inline", "backend": "adios", "workload": "initialization", "sim_nodes": init_nodes, "grid_size": grid_size, "total_steps": base_steps })
             init_info[grid_size] = (init_id, base_steps)
         return init_info[grid_size]

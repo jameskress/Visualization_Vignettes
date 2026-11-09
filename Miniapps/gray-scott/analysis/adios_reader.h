@@ -16,6 +16,7 @@ class AdiosReader
 public:
     AdiosReader(const BackendOptions &opts, PerfLogger &logger);
     ~AdiosReader();
+    void Close();
 
     // Stream control
     adios2::StepStatus BeginStep();

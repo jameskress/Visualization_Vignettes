@@ -3,6 +3,7 @@ import argparse
 import subprocess
 import glob
 import shutil
+import json  # Added for parsing grid size
 
 def main():
     parser = argparse.ArgumentParser(description="Gray-Scott Experiment Orchestrator")
@@ -13,10 +14,9 @@ def main():
     
     parser.add_argument("--paper", choices=["paper1", "paper2", "init", "all"], default="all", help="Target specific paper (use 'init' for initialization runs)")
     parser.add_argument("--nodes", type=str, help="Target specific SIMULATION node count (e.g. 64, 256, 4096)")
+    parser.add_argument("--grid", type=str, help="Target specific grid size (L) (e.g., 1024, 2048)") # NEW
     parser.add_argument("--backend", choices=["adios", "ascent", "catalyst", "kombyne", "baseline", "all"], default="all", help="Target backend")
     parser.add_argument("--type", choices=["inline", "intransit", "all"], default="all", help="Target coupling type")
-    
-    # NEW: Workload filter so you can isolate Paper 2 tasks vs Paper 3 stockpiling tasks
     parser.add_argument("--workload", choices=["data", "render", "volume", "isosurface", "all"], default="all", help="Target specific workload type")
     
     # Mode Selection
@@ -62,14 +62,13 @@ def main():
         elif "catalyst" in basename: p_backend = "catalyst"
         elif "kombyne" in basename: p_backend = "kombyne"
 
-        # NEW: Workload Identification
         p_workload = "unknown"
         if "data" in basename: p_workload = "data"
         elif "render" in basename: p_workload = "render"
         elif "volume" in basename: p_workload = "volume"
         elif "isosurface" in basename: p_workload = "isosurface"
 
-        # Apply Filters
+        # Apply Standard Filters
         if args.paper != "all" and args.paper != p_paper: continue
         
         if not is_init:
@@ -77,8 +76,7 @@ def main():
             if args.backend != "all" and args.backend != p_backend: continue
             if args.workload != "all" and args.workload != p_workload: continue
         
-        # FIXED: Node filtering based on Simulation Nodes (NXXXX tag) in the filename
-        # This prevents skipping In-Transit runs where the SLURM #SBATCH --nodes is higher
+        # Node filtering
         if args.nodes:
             try:
                 node_tag = f"_N{int(args.nodes):04d}"
@@ -86,6 +84,19 @@ def main():
                     continue
             except ValueError:
                 print(f"Warning: Invalid node count provided: {args.nodes}")
+                continue
+
+        # --- NEW: Grid Size Filtering via settings.json ---
+        if args.grid:
+            settings_path = os.path.join(args.results_dir, basename, "settings.json")
+            try:
+                with open(settings_path, "r") as f:
+                    settings_data = json.load(f)
+                    if str(settings_data.get("L")) != args.grid:
+                        continue
+            except (FileNotFoundError, json.JSONDecodeError):
+                # If settings.json is missing, skip it so we don't accidentally launch the wrong size
+                print(f"Warning: Could not read {settings_path} to verify grid size. Skipping.")
                 continue
 
         selected_scripts.append(s)
@@ -111,8 +122,7 @@ def main():
             if os.path.exists(result_path):
                 print(f"  [CLEAN] Cleaning artifacts in: {result_path}")
                 
-                # FIXED: Added 'writer_timers' to the clean targets
-                dirs_to_remove = ["data", "analysis_output", "writer_timers"]
+                dirs_to_remove = ["data", "analysis_output", "writer_timers", "reader_timers"]
                 for d in dirs_to_remove:
                     d_path = os.path.join(result_path, d)
                     if os.path.exists(d_path):
@@ -135,7 +145,6 @@ def main():
         if args.submit:
             # Check if output exists (safety)
             if os.path.exists(result_path):
-                # Only skip if SLURM logs exist (indicates a run happened)
                 has_logs = any(f.startswith("slurm-") for f in os.listdir(result_path))
                 
                 if has_logs:
