@@ -31,7 +31,6 @@ AdiosWriterBackend::AdiosWriterBackend(const BackendOptions &opts)
 
 AdiosWriterBackend::~AdiosWriterBackend()
 {
-    // Run() closes the file; this is for a run that threw part way.
     if (m_writer_open)
     {
         try { m_writer.Close(); } catch (...) {}
@@ -83,8 +82,8 @@ void AdiosWriterBackend::Run()
         m_perf_logger.stop("total_step");
         m_perf_logger.logStep(step);
     }
-    m_writer.Close();
-    m_writer_open = false;
-    // Write the timings now, before teardown can get stuck (#75).
+    // Write the timings now, before teardown can get stuck (#75). The
+    // destructor closes the file; by then main() has armed the guard. BP5
+    // has written every step's data and metadata at its EndStep.
     m_perf_logger.finalize();
 }
