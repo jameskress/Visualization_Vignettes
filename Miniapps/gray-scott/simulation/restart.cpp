@@ -1,6 +1,7 @@
 #include "restart.h"
 
 #include <cstdint>
+#include <iostream>
 #include <stdexcept>
 #include <vector>
 #include <vtkLogger.h>
@@ -189,6 +190,9 @@ int ReadRestart(MPI_Comm comm, const Settings &settings, GrayScott &sim,
     catch (std::exception &e)
     {
         // Every rank that fails says so: rank 0 may not be one of them (#78).
+        // Also to stderr: with logging off, vtkLog prints nothing on most ranks.
+        std::cerr << "[gray-scott rank " << rank << "] Restart read failed: " << e.what()
+                  << std::endl;
         vtkLog(ERROR, "Restart read failed on rank " << rank << ": " << e.what());
         MPI_Abort(comm, 1);
     }

@@ -2,6 +2,7 @@
 #include "analysis_backend_interface.h"
 #include <numeric>
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <iostream>
 
@@ -20,7 +21,11 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
     // This prevents the application from hanging indefinitely on corrupt/inaccessible files.
     // For SST, wait long enough for the simulation to start, which at scale
     // includes reading its checkpoint (ADIOS2's default of 60 s is too short, #78).
-    if (m_opts.adios_engine != "SST")
+    // ADIOS2 matches engine names case-insensitively ("sst" is SST too).
+    std::string engine = m_opts.adios_engine;
+    std::transform(engine.begin(), engine.end(), engine.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    if (engine != "SST")
     {
         m_io->SetParameter("OpenTimeoutSecs", "5.0");
     }
