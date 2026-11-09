@@ -44,7 +44,21 @@ env prefix=build enable_mpi=ON enable_openmp=ON \
 ```
 
 # ADIOS2
-ADIOS worked following the README instructions.
+ADIOS2 builds following the README instructions. Use 2.12 or newer for in
+transit runs. With 2.11, SST over RDMA on Shaheen III hung or performed
+inconsistently, and the WAN, MPI and UCX data planes crashed on Slingshot.
+With 2.12.0, SST over the MPI data plane ran consistently in the Paper 2
+tests. SST over RDMA with 2.12.1 completed a 1,024 + 32 node Catalyst run
+(#79), with the shutdown bounded by #75. #72 compares the two at scale.
+
+# ParaView
+The superbuild configuration used on Shaheen III:
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUSE_SYSTEM_mpi=ON -DUSE_SYSTEM_python3=OFF \
+    -DENABLE_catalyst=ON -DENABLE_mpi=ON -DENABLE_netcdf=ON -DENABLE_hdf5=ON \
+    -DENABLE_python3=ON -DENABLE_openmp=ON -DENABLE_ospray=ON ../paraview-superbuild
+```
 
 
 
@@ -82,3 +96,128 @@ python3 plot_performance.py
 # (replace <run> with the run directory name, e.g. 20261109-105657_none_np2).
 python3 reduce_timers.py paper1_func_N0064_baseline/perf/<run> summary_baseline.csv
 ```
+
+# Paper 2: runs at scale
+
+## Generate and submit
+`generate_experiments.py` writes one sbatch script per run into
+`generated_scripts/` and a run directory per run under `--results-dir`.
+`orchestrate.py` selects and submits them.
+
+```bash
+cd /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs
+python3 ../sites/shaheen/2026-WOIV-scripts/generate_experiments.py \
+    --repo-path /scratch/kressjm/Visualization_Vignettes/ \
+    --bin-path /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/install/ \
+    --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/
+
+# Submit by simulation node count, grid size (L) or workload; --dry-run lists them.
+python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py \
+    --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/ \
+    --paper paper2 --nodes 64 --submit
+python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py \
+    --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/ \
+    --paper paper2 --grid 1024 --dry-run
+```
+
+Do not run the orchestrator from the Python environment made for the
+analysis scripts: inside a run that environment breaks Catalyst. Each job
+activates it (`--perf-env`, default `/scratch/$USER/perf_env`) only after
+the run, to reduce its timings.
+
+`--grid` exists to submit one grid size at a time, for example to stage only
+that size's restart files on fast storage.
+
+Paper 2 workloads: baseline, ADIOS2 data, and for Ascent and Catalyst data,
+slices (`render`), `volume` and `isosurface`; inline for strong and weak
+scaling, in transit for three sizes and a staging-node sweep at 4096 nodes.
+In transit ADIOS2 data uses the reader's `adios_writer` backend, so the
+staging nodes write the data. Paper 1's jobs are unchanged (501 steps).
+
+## After the runs
+Each job reduces its own timings when it ends:
+
+* `<results>/<id>_writer.csv`, from the newest run directory under `perf/`,
+  with that run's `metadata.json` and `summary.json` copied beside it as
+  `<id>_metadata.json` and `<id>_summary.json`;
+* `<results>/<id>_reader.csv`, from `reader_timers/` (in transit runs);
+* `perf/` and `reader_timers/` are then compressed to `.tar.gz`, to save inodes.
+
+`large-runs/audit_runs.py <results>` lists runs that are missing, failed
+(time limit, out of memory, crash) or still running. `large-runs/reduce.sh`
+reduces every run's `perf/` again into `summary_<scale>_<workload>.csv`
+(for a run whose in-job reduction failed), and
+`large-runs/scalability_plotting.py` plots those.
+
+## Lessons from Shaheen III at scale
+
+**MPMD jobs overlap unless told not to.** For `srun sim : reader`, Slurm
+packs tasks as densely as it can, and without explicit settings it puts the
+reader ranks on the simulation's nodes. The simulation plus a VTK-m render
+then runs out of memory. Give each side `--exclusive`, `--nodes`,
+`--ntasks-per-node` and `--cpus-per-task`; the generator does.
+
+**VTK-m indexes with 32-bit integers.** With one reader rank per node the
+local partition grew to 4.36 billion points per rank, past 2^31, and
+contouring crashed with SIGSEGV. Keep points per rank under 2.1 billion,
+without so many ranks that the per-rank VTK-m overhead fills the node's
+memory. The generator uses 8 reader ranks of 24 threads per staging node.
+
+**Connection storms.** At 512 simulation nodes and 32 or more staging nodes,
+SST builds a peer-to-peer mesh across about 33,000 ranks. The Slingshot NIC's
+queues (PTEs) and memory registration caches can be exhausted by that many
+simultaneous connections, and pinned zero-copy memory makes it worse. An
+overloaded NIC, or a rank killed by out-of-memory during the handshake,
+shows up as `PERM_VIOLATION` or `PTLTE_NOT_FOUND` errors on many ranks.
+
+**Fan-in.** With 32,768 simulation tasks sending to 256 staging tasks
+(128:1), the staging side dropped connections and segfaulted in
+`CP_sendToPeer`. Keep the ratio at 16:1 to 32:1 (1,024 to 2,048 staging
+tasks for that case).
+
+**SST data plane.** At about 32,768 tasks, SST over the MPI data plane
+overwhelmed the control plane with connection requests, so the generator
+uses RDMA for in transit runs. #72 retests MPI against RDMA with the current
+launch setup.
+
+**Timeouts.** The reader waits `sst_open_timeout_s` seconds (default 600)
+for the stream to open (#78): ADIOS2's default of 60 s ran out while the
+simulation read a multi-terabyte checkpoint. `OpenTimeoutSecs` is SST's only
+timeout; there is no `ControlTimeoutSecs`. A shutdown that hangs in SST's
+RDMA teardown is bounded by `teardown_timeout_s` (#75).
+
+**Other engines and transports.** SST over WAN (TCP) needs
+`ControlModule=select`; with `epoll` it aborts at once. SSC uses MPI
+one-sided communication and is fast, but with ADIOS2 created on a split
+communicator (not `MPI_COMM_WORLD`) the writers and readers never see each
+other and the job hangs.
+
+**Errors from every rank.** A reader rank that threw used to print nothing,
+because only world rank 0 printed and in an MPMD job that is a simulation
+rank. Both programs now print fatal errors from every rank (#78).
+
+**Slurm job end.** `--wait=0` ends the whole step the moment the first
+program exits, which killed readers that were still writing. The generator
+uses `--wait=60` with `--kill-on-bad-exit=1`.
+
+**Lustre.**
+* One write larger than 2 GiB fails (`MAX_RW_COUNT`); an ADIOS2 aggregator
+  with a 17 GB payload deadlocked or crashed. Keep the payload per
+  aggregator under 2 GiB, or use one aggregator per node.
+* Thousands of tasks creating files at once (`EveryoneWrites`) lock up the
+  metadata server. `MaxOpenFilesAtOnce` (for example 64) throttles creation.
+* Many small files: keep the stripe count low (`lfs setstripe -c 1`). The
+  generator stripes each run's `data/` across all OSTs (`-c -1`) because
+  BP5 aggregation writes a few large files.
+
+**BP5 aggregation and shared memory.** BP5 coordinates writers through
+`/dev/shm`. Several aggregators on one node each take their buffer (4 GB by
+default), exhaust the node's memory, and get killed mid-write, leaving
+truncated (about 3 MB) files. Use exactly one aggregator per node
+(`NumAggregators` = staging nodes) and a buffer that holds the node's whole
+payload (`MaxShmSize`, 40 GB). The generator's `AnalysisOutput` IO does both.
+
+**Headless Catalyst.** On compute nodes without a display, Catalyst must
+render through OSMesa (`VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow`,
+see the top of this file). If ParaView's `lib` directory is not on
+`LD_LIBRARY_PATH`, Catalyst falls back to X11 and every rank crashes.
