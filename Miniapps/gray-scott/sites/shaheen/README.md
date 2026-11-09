@@ -143,7 +143,7 @@ Each job reduces its own timings when it ends:
 * `<results>/<id>_reader.csv`, from `reader_timers/` (in transit runs);
 * `perf/` and `reader_timers/` are then compressed to `.tar.gz`, to save inodes.
 
-`large-runs/audit_runs.py <results>` lists runs that are missing, failed
+`large-runs/audit_runs.py --results-dir <results>` lists runs that are missing, failed
 (time limit, out of memory, crash) or still running. `large-runs/reduce.sh`
 reduces every run's `perf/` again into `summary_<scale>_<workload>.csv`
 (for a run whose in-job reduction failed), and

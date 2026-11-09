@@ -779,10 +779,15 @@ echo "Checking Lustre quota (Inodes and Disk Space)..."
 # Columns: $2=Used_KB, $4=Limit_KB, $6=Used_Inodes, $8=Limit_Inodes
 QUOTA_INFO=$(lfs quota -u $USER /scratch | awk '/\/scratch/ {{print $2, $4, $6, $8}}')
 
-USED_KB=$(echo $QUOTA_INFO | awk '{{print $1}}')
-LIMIT_KB=$(echo $QUOTA_INFO | awk '{{print $2}}')
-USED_INODES=$(echo $QUOTA_INFO | awk '{{print $3}}')
-LIMIT_INODES=$(echo $QUOTA_INFO | awk '{{print $4}}')
+# lfs marks an exceeded quota with '*' (e.g. 123456*): keep digits only.
+USED_KB=$(echo $QUOTA_INFO | awk '{{print $1}}' | tr -cd '0-9')
+LIMIT_KB=$(echo $QUOTA_INFO | awk '{{print $2}}' | tr -cd '0-9')
+USED_INODES=$(echo $QUOTA_INFO | awk '{{print $3}}' | tr -cd '0-9')
+LIMIT_INODES=$(echo $QUOTA_INFO | awk '{{print $4}}' | tr -cd '0-9')
+if [ -z "$USED_KB" ] || [ -z "$LIMIT_KB" ] || [ -z "$USED_INODES" ] || [ -z "$LIMIT_INODES" ]; then
+    echo "JOB ABORTED: could not read the Lustre quota ('$QUOTA_INFO')."
+    exit 1
+fi
 
 # --- Thresholds ---
 # A limit of 0 means no quota: skip that check.
