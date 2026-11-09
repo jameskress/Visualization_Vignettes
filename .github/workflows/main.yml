@@ -196,6 +196,55 @@ jobs:
           echo "Pruning Docker images/containers to free space..."
           docker system prune -f
 
+  gray-scott-test:
+    name: Gray-Scott Miniapp Tests
+    # Independent of the image build: it needs only the source tree. Capped at
+    # 4 CPUs (docker --cpus) because the self-hosted runner has no CPU limit
+    # of its own yet; the work is a 64^3 problem on at most 4 ranks.
+    runs-on: self-hosted
+    timeout-minutes: 60
+    steps:
+      - name: Clean workspace
+        run: |
+          rm -rf "${{ github.workspace }}"
+          mkdir -p "${{ github.workspace }}"
+      - uses: actions/checkout@v7
+        with:
+          # The container runs PR code; leave no token in .git/config for it.
+          persist-credentials: false
+      - name: Build the host-cpu preset and run ctest
+        run: |
+          # The job body is a file; see the header of
+          # .github/scripts/ci_gray_scott.sh for how to run it locally.
+          docker build \
+            --build-arg USER_ID="$(id -u)" \
+            --build-arg GROUP_ID="$(id -g)" \
+            -t gray-scott-test-env -f .github/docker/Dockerfile.gray-scott.test .github/docker
+          docker run --rm --cpus=4 -v "$(pwd)":/workdir gray-scott-test-env \
+            bash /workdir/.github/scripts/ci_gray_scott.sh
+      # The build tree is written by PR code in the container, which could
+      # replace the log with a symlink to a file on the runner. Upload a copy,
+      # made only if the log and every directory above it in the build tree
+      # are real files and directories.
+      - name: Stage the test log
+        if: always()
+        run: |
+          STAGE="$RUNNER_TEMP/gray-scott-log"
+          rm -rf "$STAGE" && mkdir -p "$STAGE"
+          p=Miniapps/gray-scott/build/host-cpu/Testing/Temporary/LastTest.log
+          d=$p
+          while [ "$d" != "." ] && [ "$d" != "/" ]; do
+            if [ -L "$d" ]; then echo "::warning::$d is a symlink; not uploading the log"; exit 0; fi
+            d=$(dirname "$d")
+          done
+          if [ -f "$p" ]; then cp -- "$p" "$STAGE/LastTest.log"; fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: gray-scott-test-results
+          path: ${{ runner.temp }}/gray-scott-log/LastTest.log
+          if-no-files-found: warn
+
   paraview-test:
     name: ParaView Tests
     needs: [changes, build]

@@ -1,0 +1,15 @@
+# Test environment for the Gray-Scott miniapp CI job
+# (.github/scripts/ci_gray_scott.sh). Debian 12: CMake 3.25, GCC 12,
+# VTK 9.1 with MPI, Open MPI 4.1.
+FROM debian:12
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake libvtk9-dev libopenmpi-dev openmpi-bin \
+ && rm -rf /var/lib/apt/lists/*
+# Open MPI refuses to run as root, and files written to the mounted checkout
+# should belong to the runner's user, so run as a user with the host's IDs.
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+RUN addgroup --gid $GROUP_ID user && \
+    adduser --disabled-password --gecos '' --uid $USER_ID --gid $GROUP_ID user
+USER user
+WORKDIR /workdir
