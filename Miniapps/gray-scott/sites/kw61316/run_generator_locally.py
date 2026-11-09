@@ -192,20 +192,23 @@ def compare_images(dirs):
         for tag, other in dirs[1:]:
             mine, theirs = images(job), images(pathlib.Path(other) / name)
             imgs = sorted(mine | theirs)
-            worst = 0.0
+            worst, missing = 0.0, False
             for n in imgs:
                 f, g = job / "data" / n, pathlib.Path(other) / name / "data" / n
                 if n not in mine or n not in theirs:
-                    worst = 1.0  # an image one rank count wrote and the other did not
+                    missing = True  # an image one rank count wrote and the other did not
                     continue
                 a = np.asarray(Image.open(f).convert("RGB"), dtype=int)
                 b = np.asarray(Image.open(g).convert("RGB"), dtype=int)
-                worst = 1.0 if a.shape != b.shape else max(worst, float((np.abs(a - b).max(axis=2) > PIXEL_TOL).mean()))
+                missing |= a.shape != b.shape
+                worst = worst if a.shape != b.shape else max(worst, float((np.abs(a - b).max(axis=2) > PIXEL_TOL).mean()))
             if imgs:
                 over = worst > PIXEL_BUDGET
                 known = next((v for k, v in KNOWN_OVER.items() if re.search(k, job.name)), None)
-                ok &= not over or known is not None
-                label = "ok  " if not over else (f"KNOWN ({known})" if known else "OVER")
+                # A known exception excuses pixel differences, never a missing image.
+                ok &= not missing and (not over or known is not None)
+                label = ("MISSING" if missing else "ok  " if not over else
+                         f"KNOWN ({known})" if known else "OVER")
                 print(f"{label} {job.name:52s} vs {tag}: {worst:.3%}")
     return ok
 
