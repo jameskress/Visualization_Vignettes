@@ -122,6 +122,13 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
+        id: buildx
+      # z2n-fe is also the SAGE server (kvl/kvl-windows-management#243): the builder
+      # gets at most 48 of the 64 threads, and a tenth of SAGE's share when both are busy.
+      # (buildx on z2n-fe is v0.10.5, older than the driver's CPU options, hence
+      # docker update on the builder container.)
+      - name: Cap the builder's CPU
+        run: docker update --cpus 48 --cpu-shares 256 "buildx_buildkit_${{ steps.buildx.outputs.name }}0"
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -304,7 +311,8 @@ jobs:
           # The job body is a file, not an inline payload. See the header
           # of .github/scripts/ci_paraview.sh for why, and for how to run
           # exactly this locally.
-          docker run --rm -v "$(pwd)":/workdir -v "$CACHE_DIR":/data-cache:ro \
+          # --cpus/--cpu-shares: z2n-fe is shared with SAGE (#73).
+          docker run --rm --cpus 48 --cpu-shares 256 -v "$(pwd)":/workdir -v "$CACHE_DIR":/data-cache:ro \
             -e PARAVIEW_TARBALL="$PV_TARBALL" paraview-test-env \
             bash /workdir/.github/scripts/ci_paraview.sh
       - uses: actions/upload-artifact@v7
@@ -377,8 +385,9 @@ jobs:
 
           FILENAME="visit-${{ env.VISIT_VER }}.tar.gz"
 
-          # Run docker mounting the $HOME cache
-          docker run --rm \
+          # Run docker mounting the $HOME cache. --cpus/--cpu-shares: z2n-fe is
+          # shared with SAGE (#73).
+          docker run --rm --cpus 48 --cpu-shares 256 \
             -v "$(pwd)":/workdir \
             -v ${{ env.CACHE_DIR }}:/data-cache:ro \
             -e VISIT_VERSION=${{ env.VISIT_VER }} \
