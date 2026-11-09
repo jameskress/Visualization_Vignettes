@@ -213,10 +213,20 @@ endif()
 #------------------------------------------------------------------------------#
 # Executable and Sources
 #------------------------------------------------------------------------------#
-set(SRC_FILES
-  simulation/main.cpp
+# The simulation core (solver, halo exchange, settings) is a library so the
+# numerical regression test in tests/ links the same code the miniapp runs.
+# It depends on MPI only; the writers and their SDKs stay in the executable.
+add_library(gray-scott-core STATIC
   simulation/gray-scott.cpp
   simulation/settings.cpp
+)
+target_include_directories(gray-scott-core PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/simulation
+)
+target_link_libraries(gray-scott-core PUBLIC MPI::MPI_C)
+
+set(SRC_FILES
+  simulation/main.cpp
   simulation/writerPVTI.cpp
 )
 
@@ -243,6 +253,7 @@ add_executable(gray-scott ${SRC_FILES})
 # Linking
 #------------------------------------------------------------------------------#
 target_link_libraries(gray-scott PRIVATE
+  gray-scott-core
   common
   MPI::MPI_C
   ${VTK_LIBRARIES}
@@ -287,6 +298,16 @@ if(BUILD_ANALYSIS_READER)
     message(FATAL_ERROR "BUILD_ANALYSIS_READER requires both ENABLE_ADIOS2 and ENABLE_ASCENT to be ON.")
   endif()
   add_subdirectory(analysis)
+endif()
+
+
+#------------------------------------------------------------------------------#
+# Tests (CTest)
+#------------------------------------------------------------------------------#
+option(GS_BUILD_TESTS "Build the numerical regression tests (run with ctest)" ON)
+if(GS_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
 endif()
 
 
