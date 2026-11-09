@@ -50,6 +50,8 @@ def load_jsonl(file_path):
                              "total_step": t["total_step"]})
             except (ValueError, KeyError) as e:
                 raise RuntimeError(f"{file_path}:{n}: bad step record ({e!r})") from e
+    if not rows:
+        raise RuntimeError(f"{file_path}: no step records")
     return pd.DataFrame(rows, columns=COLS)
 
 def reduce_run_data(run_dir, output_csv):
