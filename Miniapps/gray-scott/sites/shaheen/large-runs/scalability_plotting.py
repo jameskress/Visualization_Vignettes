@@ -207,7 +207,7 @@ for t in TYPES:
             w = df['write_step_mean'].sum()
             total = df['total_step_mean'].sum()
             
-            ref_df = get_run_data(f"summary_strong_N{STRONG_NODES[0]:04d}_baseline.csv")
+            ref_df = get_run_data(f"summary_strong_N{n:04d}_baseline.csv")  # same node count
             base_mpi = (ref_df['total_step_mean'].sum() - ref_df['compute_step_mean'].sum()) if ref_df is not None else 0
             
             comp_stack.append(c)
@@ -243,7 +243,9 @@ situ_adios, transit_adios = [], []
 for scale_name, n, prefix in TRANSIT_STANDARD:
     group_labels.append(f"{scale_name}\n(N={n})")
     
-    prefix_situ = f"summary_strong_N{n:04d}" if n in STRONG_NODES else f"summary_weak_N{n:04d}"
+    # The transit sizes (64 nodes 2048^3, 512 nodes 4096^3, 4096 nodes 8192^3)
+    # are the weak scaling runs' sizes; strong scaling at 4096 nodes is 4096^3.
+    prefix_situ = f"summary_weak_N{n:04d}"
     
     def get_tot(fname):
         df = get_run_data(fname)
