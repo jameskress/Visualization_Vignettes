@@ -1,4 +1,6 @@
 #include "restart.h"
+
+#include <cstdint>
 #include <stdexcept>
 #include <vector>
 #include <vtkLogger.h>
@@ -72,6 +74,9 @@ void WriteCkpt(MPI_Comm comm, const int step, const Settings &settings,
             io.DefineAttribute<double>("Du", settings.Du);
             io.DefineAttribute<double>("Dv", settings.Dv);
             io.DefineAttribute<double>("noise", settings.noise);
+            // The noise at each step depends on the seed; a restart with a
+            // different seed diverges from the uninterrupted run.
+            io.DefineAttribute<std::uint64_t>("seed", settings.seed);
         }
 
         // Copy data to strip out ghost cells safely
@@ -148,6 +153,18 @@ int ReadRestart(MPI_Comm comm, const Settings &settings, GrayScott &sim,
             }
             if (attr_dt && attr_dt.Data()[0] != settings.dt) {
                 vtkLog(WARNING, "Physics mismatch: File dt=" << attr_dt.Data()[0] << ", Settings dt=" << settings.dt);
+            }
+            // Allowed (a deliberate change), but the run will no longer match
+            // an uninterrupted one, so say so.
+            auto attr_seed = io.InquireAttribute<std::uint64_t>("seed");
+            // With noise off the seed is unused, so a different one changes nothing.
+            if (settings.noise != 0.0 && attr_seed && attr_seed.Data()[0] != settings.seed) {
+                vtkLog(WARNING, "Noise seed mismatch: File seed=" << attr_seed.Data()[0] << ", Settings seed=" << settings.seed
+                                << "; the restarted run will not match an uninterrupted one");
+            }
+            else if (!attr_seed && settings.noise != 0.0) {
+                vtkLog(WARNING, "Checkpoint records no noise seed (written before seeds were stored); "
+                                "cannot check that seed " << settings.seed << " matches");
             }
         }
         // --- END METADATA VALIDATION ---

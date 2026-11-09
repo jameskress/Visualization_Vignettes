@@ -214,6 +214,14 @@ int main(int argc, char **argv)
     //--
 
     Settings settings = Settings::from_json(fileName);
+    // The checkpoint test is completed % checkpoint_freq; zero would divide by zero.
+    if (settings.checkpoint && settings.checkpoint_freq <= 0)
+    {
+        if (rank == 0)
+            std::cerr << "Error: checkpoint is on but checkpoint_freq is " << settings.checkpoint_freq
+                      << "; it must be positive." << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
     GrayScott sim(settings, app_comm);
     sim.init();
 
@@ -225,7 +233,14 @@ int main(int argc, char **argv)
 
     if (settings.restart)
     {
-        restart_step = ReadRestart(app_comm, settings, sim, io_ckpt);
+        // Read through a separate IO with the same engine settings: the
+        // attributes a read brings into an IO would otherwise suppress the
+        // current run's (seed included) in every later checkpoint.
+        adios2::IO io_restart = adios.DeclareIO("SimulationRestart");
+        io_restart.SetEngine(io_ckpt.EngineType());
+        io_restart.SetParameters(io_ckpt.Parameters());
+        restart_step = ReadRestart(app_comm, settings, sim, io_restart);
+        sim.set_step(static_cast<std::uint64_t>(restart_step));
         vtkLog(INFO, "Restarting simulation from step " << restart_step);
     }
 #endif
@@ -333,11 +348,15 @@ int main(int argc, char **argv)
         }
 
 #ifdef USE_ADIOS2
-        if (settings.checkpoint && (it > 0) && (it % settings.checkpoint_freq) == 0)
+        // A checkpoint records the number of completed iterations: after
+        // iterate() in loop pass `it`, that is it + 1. A restart resumes the
+        // loop and the noise step from that number, so no iteration runs twice.
+        const int completed = it + 1;
+        if (settings.checkpoint && (completed % settings.checkpoint_freq) == 0)
         {
             perf.start("create_checkpoint");
-            vtkLog(INFO, "Writing checkpoint at step " << it);
-            WriteCkpt(app_comm, it, settings, sim, io_ckpt);
+            vtkLog(INFO, "Writing checkpoint after " << completed << " iterations");
+            WriteCkpt(app_comm, completed, settings, sim, io_ckpt);
             perf.stop("create_checkpoint");
         }
 #endif
@@ -354,18 +373,6 @@ int main(int argc, char **argv)
         perf.logStep(it);
     }
 
-    // FInal checkpoint check
-    #ifdef USE_ADIOS2
-    // Check if the final step (which happens after the loop ends) matches the frequency
-    // e.g. steps=100, freq=100. Loop 0-99. End is 100. 100%100==0. Write.
-    if (settings.checkpoint && (settings.steps % settings.checkpoint_freq) == 0)
-    {
-        perf.start("create_checkpoint");
-        vtkLog(INFO, "Writing final checkpoint at step " << settings.steps);
-        WriteCkpt(app_comm, settings.steps, settings, sim, io_ckpt);
-        perf.stop("create_checkpoint");
-    }
-#endif
 
     writer_main->close(rank);
     perf.finalize();

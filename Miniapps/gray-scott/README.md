@@ -11,7 +11,7 @@ It solves the [Gray-Scott model](https://doi.org/10.1126/science.261.5118.189)
 for two chemicals, U (consumed) and V (produced):
 
 ```text
-du/dt = Du * lap(u) - u * v^2 + F * (1 - u) + noise * r      r uniform in [-1, 1]
+du/dt = Du * lap(u) - u * v^2 + F * (1 - u) + noise * r      r in [-1, 1), from (seed, step, x, y, z)
 dv/dt = Dv * lap(v) + u * v^2 - (F + k) * v
 ```
 
@@ -66,10 +66,11 @@ layer of halo points on every face, filled from its neighbours each step.
 
 The goal for every backend is the same: hand the solver's arrays over
 without copying, tag ghost cells, and give the same result across backends
-and across rank counts. The code does not meet it yet: PVTI copies and
-converts to float, Catalyst tags no ghosts, and the noise is seeded per
-rank, so runs with noise differ between rank counts. The phase 3 and seeded
-noise work (#14, #20 to #25) closes these gaps. The
+and across rank counts. Results already match across rank counts, noise
+included: the noise depends only on the seed, the step and the global
+position. The backends do not meet the rest yet: PVTI copies and converts
+to float, and Catalyst tags no ghosts. Phase 3 (#20 to #25) closes these
+gaps. The
 [build and run guide](docs/build-and-run-guide.md) covers each backend in
 detail.
 
@@ -159,7 +160,7 @@ The step count, grid and output are all in the settings file; the
 
 ## Parameters
 
-From `simulation/settings.cpp`. Every key is required except the two marked
+From `simulation/settings.cpp`. Every key is required except those marked
 optional; a settings file that leaves out a required key stops the run with
 an error. The last column is the value in the code's constructor, for
 reference only, except for the optional keys, where it is the value used
@@ -182,7 +183,8 @@ distances by 0.1, and multiply output gradients by 0.1, to get solver units.
 | `Du` | diffusion coefficient of U | 0.05 |
 | `Dv` | diffusion coefficient of V | 0.1 |
 | `dt` | forward Euler time step | 0.2 |
-| `noise` | amplitude of uniform noise added to U each step | 0.0 |
+| `noise` | amplitude of uniform noise in [-1, 1) added to U each step | 0.0 |
+| `seed` | optional: seed for the noise; the value at each point and step depends only on the seed, the step and the global position, so reruns and any rank count give identical fields | 20261107 |
 | `output_type` | `none`, `pvti`, `catalyst_io`, `catalyst_insitu`, `ascent`, `adios`, `kombyne` | `file` (set it explicitly) |
 | `output_file_name` | output file or prefix for file-writing backends | `foo.bp` |
 | `catalyst_script_path` | Catalyst Python script for `catalyst_*` | empty |
@@ -191,7 +193,7 @@ distances by 0.1, and multiply output gradients by 0.1, to get solver units.
 | `adios_span`, `adios_memory_selection` | ADIOS2 write paths (span or memory selection) | false |
 | `mesh_type` | mesh description for backends that use it | `image` |
 | `kombynelite_script_path` | Kombyne-lite script | empty |
-| `checkpoint`, `checkpoint_freq`, `checkpoint_output` | ADIOS2 checkpoints every N steps; needs an `ENABLE_ADIOS2=ON` build (see below) | false, 2000, `ckpt.bp` |
+| `checkpoint`, `checkpoint_freq`, `checkpoint_output` | ADIOS2 checkpoint after every N completed steps (a restart resumes from exactly that state); needs an `ENABLE_ADIOS2=ON` build (see below) | false, 2000, `ckpt.bp` |
 | `restart`, `restart_input` | restart from a checkpoint; same requirement | false, `ckpt.bp` |
 | `burn_in_steps` | optional: steps to run before output starts | 0 |
 | `overwrite_last_step` | optional: keep only the latest output step. Every backend honours it except `catalyst_insitu`, whose script names its own files and keeps every step unless the script overwrites them | false |

@@ -1130,7 +1130,7 @@ These parameters control the reaction-diffusion model itself. Small changes here
 | `F`     | The **feed rate** of chemical **U**.                                                                   |
 | `k`     | The **kill rate** of chemical **V**.                                                                   |
 | `dt`    | The duration of each **timestep**.                                                                     |
-| `noise` | The magnitude of the initial random **noise** injected into the system to kickstart pattern formation. |
+| `noise` | Amplitude of the random **noise** added to U at every step (not only at the start). The value at each point and step depends only on `seed`, the step and the global position. |
 
 > **Note:** The decomposition of the grid across processes is determined automatically by `MPI_Dims_create`.
 
