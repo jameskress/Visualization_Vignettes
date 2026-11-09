@@ -84,7 +84,7 @@ done
 
 # --- TRANSIT RUNS (Carte Blanche Sweeps) ---
 echo -e "\nProcessing Transit Sweep Runs..."
-for SWEEP in "sweep_64_N4096_S064" "sweep_128_N4096_S128" "sweep_256_N4096_S256" "sweep_384_N4096_S384"; do
+for SWEEP in "sweep_64_N4096_S064" "sweep_128_N4096_S128" "sweep_384_N4096_S384"; do
     for TYPE in "${WORKLOADS[@]}"; do
         if [ "$TYPE" == "baseline" ]; then continue; fi
 

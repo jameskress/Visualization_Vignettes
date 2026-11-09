@@ -59,7 +59,7 @@ TRANSIT_CONFIGS = [
 TRANSIT_SWEEP_CONFIGS = [
     ("sweep_64",  4096, 8192, 64),   # 64:1
     ("sweep_128", 4096, 8192, 128),  # 32:1
-    ("sweep_256", 4096, 8192, 256),  # 16:1
+    # 256 staging nodes is the "hero" run above; the sweep reuses it.
     ("sweep_384", 4096, 8192, 384)   # ~10:1
 ]
 

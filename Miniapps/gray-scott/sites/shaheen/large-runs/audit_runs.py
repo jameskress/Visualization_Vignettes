@@ -1,4 +1,5 @@
 import os
+import re
 import glob
 import argparse
 
@@ -35,31 +36,39 @@ def audit_runs(results_dir):
         has_writer = os.path.exists(writer_csv)
         has_reader = os.path.exists(reader_csv) if is_transit else True
         
-        if has_writer and has_reader:
+        slurm_outs = glob.glob(os.path.join(exp_path, "slurm-*.out"))
+        content = ""
+        if slurm_outs:
+            # The most recent attempt (in case of requeues), .out and .err.
+            latest_out = max(slurm_outs, key=os.path.getmtime)
+            for log in (latest_out, latest_out[:-4] + ".err"):
+                if os.path.exists(log):
+                    with open(log, 'r', encoding='utf-8', errors='ignore') as f:
+                        content += f.read()
+        # The job prints its run's exit status (generate_experiments.py).
+        m = re.search(r"Run exit status: (\d+)", content)
+        run_failed = m is not None and m.group(1) != "0"
+
+        if has_writer and has_reader and not run_failed:
             success_count += 1
             continue  # Data is there, move on!
-            
-        # --- FIX 2: If data is missing, figure out why ---
-        slurm_outs = glob.glob(os.path.join(exp_path, "slurm-*.out"))
-        
+
+        # --- If data is missing or the run failed, figure out why ---
         if not slurm_outs:
             unsubmitted.append(exp_id)
             continue
-            
-        # Get the most recent slurm out file (in case of requeues)
-        latest_out = max(slurm_outs, key=os.path.getmtime)
-        with open(latest_out, 'r', encoding='utf-8', errors='ignore') as f:
-            content = f.read()
-            
-            if "CANCELLED" in content or "DUE TO TIME LIMIT" in content:
-                slurm_failed.append(f"{exp_id} (TIMEOUT)")
-            elif "OOM" in content or "Out Of Memory" in content or "oom-kill" in content.lower():
-                slurm_failed.append(f"{exp_id} (OUT OF MEMORY)")
-            elif "SIGSEGV" in content or "Fatal error" in content or "segmentation fault" in content.lower():
-                slurm_failed.append(f"{exp_id} (CRASHED - See Log)")
-            else:
-                # If there are no explicit errors but data is missing, it's either currently running/reducing or died silently
-                running_or_dead.append(f"{exp_id} (Running / Post-Processing / Silently Failed)")
+
+        if run_failed and not any(k in content for k in ("CANCELLED", "DUE TO TIME LIMIT", "OOM", "Out Of Memory", "SIGSEGV", "Fatal error")):
+            slurm_failed.append(f"{exp_id} (RUN EXIT STATUS {m.group(1)})")
+        elif "CANCELLED" in content or "DUE TO TIME LIMIT" in content:
+            slurm_failed.append(f"{exp_id} (TIMEOUT)")
+        elif "OOM" in content or "Out Of Memory" in content or "oom-kill" in content.lower():
+            slurm_failed.append(f"{exp_id} (OUT OF MEMORY)")
+        elif "SIGSEGV" in content or "Fatal error" in content or "segmentation fault" in content.lower():
+            slurm_failed.append(f"{exp_id} (CRASHED - See Log)")
+        else:
+            # If there are no explicit errors but data is missing, it's either currently running/reducing or died silently
+            running_or_dead.append(f"{exp_id} (Running / Post-Processing / Silently Failed)")
 
     # --- Print Summary ---
     if not unsubmitted and not slurm_failed and not running_or_dead:

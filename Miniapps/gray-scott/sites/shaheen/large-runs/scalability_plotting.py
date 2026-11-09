@@ -22,12 +22,12 @@ TRANSIT_STANDARD = [
 TRANSIT_SWEEPS = [
     (64, "sweep_64_N4096_S064"),
     (128, "sweep_128_N4096_S128"),
-    (256, "sweep_256_N4096_S256"),
+    (256, "hero_N4096"),  # the hero run is the 256-staging-node point
     (384, "sweep_384_N4096_S384")
 ]
 
 # Visual Settings
-STEADY_STATE_START = 65021
+STEADY_STATE_SKIP_STEPS = 21  # skip the first output interval after restart
 NORMALIZE_X_AXIS = True
 
 colors = {
@@ -107,8 +107,10 @@ for t in TYPES:
             nodes.append(n)
     if times:
         ax_time.plot(nodes, times, 'o-', label=labels[t], color=colors[t], linewidth=2)
-        speedup = [times[0] / t_n for t_n in times]
-        ax_speed.plot(nodes, speedup, 'o-', label=labels[t], color=colors[t], linewidth=2)
+        # Speedup is relative to the smallest node count, as the ideal line is.
+        if nodes[0] == STRONG_NODES[0]:
+            speedup = [times[0] / t_n for t_n in times]
+            ax_speed.plot(nodes, speedup, 'o-', label=labels[t], color=colors[t], linewidth=2)
 
 ax_speed.plot(STRONG_NODES, [n/STRONG_NODES[0] for n in STRONG_NODES], '--', color='black', label='Ideal Speedup', alpha=0.5)
 
@@ -176,10 +178,12 @@ if loaded_heartbeats:
     
     for i, (t, df) in enumerate(loaded_heartbeats):
         ax = axes_hb[i]
-        df_plot = df[df.index >= STEADY_STATE_START]
-        if df_plot.empty: df_plot = df
-        
-        idx = df_plot.index - df.index.min() if NORMALIZE_X_AXIS else df_plot.index
+        # Steps are in the 'step' column; restarts begin at 65000, 130000 or 200000.
+        df_plot = df[df['step'] >= df['step'].min() + STEADY_STATE_SKIP_STEPS]
+        if df_plot.empty:
+            df_plot = df
+
+        idx = df_plot['step'] - df['step'].min() if NORMALIZE_X_AXIS else df_plot['step']
         
         ax.fill_between(idx, df_plot['total_step_p25'], df_plot['total_step_p75'], alpha=0.3, color=colors[t])
         ax.plot(idx, df_plot['total_step_mean'], color=colors[t], label=labels[t])
