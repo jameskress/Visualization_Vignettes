@@ -600,7 +600,10 @@ def generate_scripts(args):
     for backend in ["ascent", "catalyst", "kombyne"]:
         EXPERIMENTS.append({ "id": f"paper1_func_N{p1_nodes:04d}_inline_{backend}_data", "paper": "paper1", "type": "inline", "backend": backend, "workload": "data_save", "sim_nodes": p1_nodes, "grid_size": p1_grid, "parent_id": pid, "total_steps": p1_target })
         EXPERIMENTS.append({ "id": f"paper1_func_N{p1_nodes:04d}_inline_{backend}_render", "paper": "paper1", "type": "inline", "backend": backend, "workload": "rendering", "sim_nodes": p1_nodes, "grid_size": p1_grid, "parent_id": pid, "total_steps": p1_target })
-        EXPERIMENTS.append({ "id": f"paper1_func_N{p1_nodes:04d}_transit_{backend}_render", "paper": "paper1", "type": "intransit", "backend": "adios", "workload": "rendering", "sim_nodes": p1_nodes, "stage_nodes": p1_stage, "grid_size": p1_grid, "stage_pipeline": f"{backend}_render", "parent_id": pid, "total_steps": p1_target })
+        # The analysis reader has no Kombyne backend (only Ascent and Catalyst),
+        # so there is no Kombyne in transit run; Paper 1 never had one (#71).
+        if backend != "kombyne":
+            EXPERIMENTS.append({ "id": f"paper1_func_N{p1_nodes:04d}_transit_{backend}_render", "paper": "paper1", "type": "intransit", "backend": "adios", "workload": "rendering", "sim_nodes": p1_nodes, "stage_nodes": p1_stage, "grid_size": p1_grid, "stage_pipeline": f"{backend}_render", "parent_id": pid, "total_steps": p1_target })
 
     # --- Paper 2 Generation ---
     # Strong Scaling Inline

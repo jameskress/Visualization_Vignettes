@@ -3,7 +3,18 @@ import numpy as np
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 import argparse
+import json
 import sys
+
+# Two input formats, one output (#71):
+#  * runs made before #26 (the 2026 WOIV runs): writer_timers/rank_<r>.csv,
+#    one row per step, timers in seconds;
+#  * newer runs: a run directory under perf/ (or its steps/ folder) with
+#    steps/rank_<r>.jsonl, one JSON object per step: timers in "t" (seconds),
+#    rss_MB at top level. The new log calls init_writer create_writer.
+# Either way the summary CSV has the same columns, so plot_performance.py
+# reads both.
+COLS = ['step', 'rss_MB', 'init_writer', 'writer_open', 'compute_step', 'write_step', 'total_step']
 
 # Define the percentiles for the heartbeat plot
 def p25(x): return np.percentile(x, 25)
@@ -11,27 +22,51 @@ def p75(x): return np.percentile(x, 75)
 
 def load_csv(file_path):
     """Loads only the necessary columns from a single rank's CSV to save memory."""
-    cols = ['step', 'rss_MB', 'init_writer', 'writer_open', 'compute_step', 'write_step', 'total_step']
     try:
-        return pd.read_csv(file_path, usecols=cols)
+        return pd.read_csv(file_path, usecols=COLS)
     except Exception as e:
         print(f"Error reading {file_path}: {e}")
         return pd.DataFrame()
 
+def load_jsonl(file_path):
+    """One rank's step records from the structured performance log."""
+    rows = []
+    try:
+        with open(file_path, encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                r = json.loads(line)
+                t = r.get("t", {})
+                rows.append({"step": r["step"], "rss_MB": r.get("rss_MB", 0.0),
+                             "init_writer": t.get("create_writer", t.get("init_writer", 0.0)),
+                             "writer_open": t.get("writer_open", 0.0),
+                             "compute_step": t.get("compute_step", 0.0),
+                             "write_step": t.get("write_step", 0.0),
+                             "total_step": t.get("total_step", 0.0)})
+    except Exception as e:
+        print(f"Error reading {file_path}: {e}")
+        return pd.DataFrame()
+    return pd.DataFrame(rows, columns=COLS)
+
 def reduce_run_data(run_dir, output_csv):
     print(f"Processing directory: {run_dir}...")
     
-    # Find all CSV files in the directory (searches recursively)
-    files = list(Path(run_dir).rglob("*.csv"))
+    # New-format step files first; fall back to the old per-rank CSVs.
+    files = sorted(Path(run_dir).rglob("rank_*.jsonl"))
+    loader = load_jsonl
     if not files:
-        print(f"No CSV files found in {run_dir}")
+        files = list(Path(run_dir).rglob("*.csv"))
+        loader = load_csv
+    if not files:
+        print(f"No rank_*.jsonl or CSV files found in {run_dir}")
         sys.exit(1)
 
-    print(f"Found {len(files)} rank files. Reducing in parallel...")
-    
+    print(f"Found {len(files)} rank files ({'JSONL' if loader is load_jsonl else 'CSV'}). Reducing in parallel...")
+
     # 1. Read all files in parallel (Max out the node's CPU/Disk IO)
     with ProcessPoolExecutor() as executor:
-        dfs = list(executor.map(load_csv, files))
+        dfs = list(executor.map(loader, files))
         
     # Filter out any empty dataframes caused by read errors
     dfs = [df for df in dfs if not df.empty]
@@ -61,7 +96,7 @@ def reduce_run_data(run_dir, output_csv):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Reduce thousands of Gray-Scott rank CSVs into one summary file.")
-    parser.add_argument("input_dir", help="Directory containing the rank CSVs (e.g., path/to/writer_timers/)")
+    parser.add_argument("input_dir", help="A run's perf/<run> directory (new log) or its writer_timers/ directory (runs before #26)")
     parser.add_argument("output_file", help="Name of the output summary CSV (e.g., summary_catalyst.csv)")
     args = parser.parse_args()
     
