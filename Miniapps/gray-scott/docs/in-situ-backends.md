@@ -401,7 +401,9 @@ Rules each backend needs for clean images:
   check's 0.1% budget and hard to see at publication size. Removing them
   would take a ghost layer on both sides of every block for Kombyne alone,
   that is more memory and a second exchange for one backend, which is not
-  worth it. Revisit if a figure shows the lines.
+  worth it. Revisit if a figure shows the lines. Kombyne slices show the
+  same thing at scale: faint dark lines along block faces (seen on Ibex at
+  1024^3 on 64 ranks, #71). Same cause, same exception.
 * **Slices** exactly on a grid plane two ranks share are drawn by both.
   Place them between grid planes (the shipped scripts use 3.25, not 3.2).
 

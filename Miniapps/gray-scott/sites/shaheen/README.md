@@ -75,3 +75,5 @@ python3 reduce_timers.py paper1_func_N0064_transit_ascent_render/writer_timers s
 python3 reduce_timers.py paper1_func_N0064_inline_kombyne_data/writer_timers summary_kombyne_data.csv
 python3 reduce_timers.py paper1_func_N0064_inline_kombyne_render/writer_timers summary_kombyne_render.csv
 python3 plot_performance.py
+# A run from a current build: pass its perf/<run> directory instead.
+python3 reduce_timers.py paper1_func_N0064_baseline/perf/<run> summary_baseline.csv
