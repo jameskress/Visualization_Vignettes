@@ -165,7 +165,8 @@ python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py \
 ```
 
 In `steps` jobs each step's exit status is printed (`Simulation exit status:
-N, reader exit status: M`), and the job's status is the first non-zero one.
+N, reader exit status: M`), and the job's status is the first non-zero one. If the first step to end
+failed, the other is stopped (as `--kill-on-bad-exit` does for MPMD).
 
 ## After the runs
 Each job reduces its own timings when it ends:

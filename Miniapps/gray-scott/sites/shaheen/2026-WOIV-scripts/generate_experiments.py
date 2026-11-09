@@ -961,6 +961,13 @@ srun --network=job_vni --exclusive --propagate=NOFILE --hint=nomultithread \\
     --mpi-split-color=1 \\
     --adios-verbose 0 &
 STAGE_PID=$!
+# Like --kill-on-bad-exit for MPMD: if the first step to end failed, stop the
+# other, which would otherwise wait for its peer until the time limit.
+wait -n; FIRST_RC=$?
+if [ $FIRST_RC -ne 0 ]; then
+    echo "A step failed with status $FIRST_RC; stopping the other step."
+    kill $SIM_PID $STAGE_PID 2>/dev/null
+fi
 wait $SIM_PID; SIM_RC=$?
 wait $STAGE_PID; STAGE_RC=$?
 echo "Simulation exit status: $SIM_RC, reader exit status: $STAGE_RC"
