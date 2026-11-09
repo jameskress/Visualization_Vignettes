@@ -2,6 +2,9 @@
 #define __WRITERKOMBYNE_H__
 
 #include "writer.h"
+#include "mesh_blueprint.h"
+
+#include <vector>
 #include <vtkLogger.h>
 
 // Include the C-style API headers for Kombyne Lite
@@ -26,6 +29,9 @@ public:
 private:
     // Kombyne C-style handle for the pipeline collection
     kb_pipeline_collection_handle m_pipeline_collection = KB_HANDLE_NULL;
+    // Borrowed by Kombyne every step (#23), so built once and kept here.
+    gs_mesh::Ghosts m_ghosts;
+    std::vector<double> m_x, m_y, m_z;
 };
 
 #endif // __WRITERKOMBYNE_H__
