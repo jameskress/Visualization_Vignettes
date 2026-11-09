@@ -67,6 +67,14 @@ TRANSIT_SWEEP_CONFIGS = [
 # --volume-samples-per-cell overrides it).
 VOLUME_SAMPLES_PER_CELL = 9.0
 
+# #72 step 1: SST transport x reader x launch x fan-in, small and short.
+# Fan-in is in tasks (64 simulation and 8 reader ranks per node):
+# 8 + 4 nodes is 512:32 = 16:1, 64 + 4 nodes is 4096:32 = 128:1.
+XPORT_CONFIGS = [("f016", 8, 1024, 4), ("f128", 64, 2048, 4)]
+XPORT_TRANSPORTS = ["RDMA", "MPI"]
+XPORT_LAUNCHES = ["mpmd", "steps"]   # one MPMD srun, or two srun steps sharing a job VNI
+XPORT_RUN_STEPS = 101                # 6 outputs at plotgap 20
+
 CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
 
 PIPELINE_FILES = {
@@ -739,6 +747,7 @@ SBATCH_TEMPLATE = """#!/bin/bash
 #SBATCH --nodes={total_nodes}
 #SBATCH --ntasks={total_ranks}
 {cpus_per_task_line}
+{network_line}
 #SBATCH --time={time_limit}
 #SBATCH --hint=nomultithread
 #SBATCH --exclusive
@@ -932,6 +941,32 @@ CMD_INTRANSIT = """srun --exclusive --propagate=NOFILE --hint=nomultithread --ki
     --adios-verbose 0
 """
 
+# Two srun steps, one per program, sharing the job's VNI so SST can connect
+# across steps (--network=job_vni; #72). Each step gets its own nodes. The
+# run's status is the first non-zero of the two.
+CMD_INTRANSIT_STEPS = """srun --network=job_vni --exclusive --propagate=NOFILE --hint=nomultithread \\
+    --nodes={sim_nodes} --ntasks={sim_ranks} --ntasks-per-node={mpi_per_node} --cpus-per-task={omp_threads} --mem-bind=v,local --cpu-bind=threads \\
+    $EXE_SIM \\
+    --logging-level={logging_level} \\
+    --settings-file=$OUTPUT_DIR/settings.json &
+SIM_PID=$!
+srun --network=job_vni --exclusive --propagate=NOFILE --hint=nomultithread \\
+    --nodes={stage_nodes} --ntasks={stage_ranks} --ntasks-per-node=8 --cpus-per-task=24 --mem-bind=v,local --cpu-bind=threads \\
+    env OMP_NUM_THREADS=24 OMP_PLACES=cores OMP_PROC_BIND=close \\
+    $EXE_STAGE \\
+    --settings $OUTPUT_DIR/settings-stage.json \\
+    --file $OUTPUT_DIR/data/grayScott \\
+    --block-mode repartition \\
+    --engine SST \\
+    --mpi-split-color=1 \\
+    --adios-verbose 0 &
+STAGE_PID=$!
+wait $SIM_PID; SIM_RC=$?
+wait $STAGE_PID; STAGE_RC=$?
+echo "Simulation exit status: $SIM_RC, reader exit status: $STAGE_RC"
+( exit $(( SIM_RC != 0 ? SIM_RC : STAGE_RC )) )
+"""
+
 def generate_settings_json(exp, output_dir, copied_files, args):
     is_init = (exp['workload'] == 'initialization')
     init_noise_level = 0.01
@@ -1025,7 +1060,7 @@ def generate_adios_xml(exp, output_dir):
     rendezvous = 1 if exp['type'] == 'intransit' else 0
     
     # Automatically use RDMA for in-transit to bypass OFI socket limits, MPI for inline
-    data_transport = "RDMA" if exp['type'] == 'intransit' else "MPI"
+    data_transport = exp.get('transport', "RDMA") if exp['type'] == 'intransit' else "MPI"
     
     # Simulation aggregators (1 per simulation node)
     sim_aggregators = exp['sim_nodes']
@@ -1275,6 +1310,19 @@ def generate_scripts(args):
                 EXPERIMENTS.append({ "id": f"{base_id}_{backend}_{wl_suffix}", "paper": "paper2", "type": "intransit", "backend": "adios", "workload": wl_type, "sim_nodes": nodes, "stage_nodes": stage_nodes, "grid_size": grid, "stage_pipeline": f"{backend}_{wl_suffix}", "parent_id": pid, "total_steps": target_steps })
 
 
+    # 5. #72 step 1: transport matrix (Catalyst and Ascent slices).
+    for name, nodes, grid, stage_nodes in XPORT_CONFIGS:
+        pid, p_init_steps = ensure_init(grid)
+        for transport in XPORT_TRANSPORTS:
+            for launch in XPORT_LAUNCHES:
+                for backend in ["ascent", "catalyst"]:
+                    EXPERIMENTS.append({ "id": f"xport_transit_{transport.lower()}_{launch}_{name}_N{nodes:04d}_S{stage_nodes:03d}_{backend}_render",
+                                         "paper": "xport", "type": "intransit", "backend": "adios", "workload": "rendering",
+                                         "sim_nodes": nodes, "stage_nodes": stage_nodes, "grid_size": grid,
+                                         "stage_pipeline": f"{backend}_render", "parent_id": pid,
+                                         "total_steps": p_init_steps + XPORT_RUN_STEPS,
+                                         "transport": transport, "launch": launch })
+
     for exp in EXPERIMENTS:
         sim_ranks = exp['sim_nodes'] * SYSTEM_CONFIG['mpi_per_node']
         total_stage_ranks = exp.get('stage_nodes', 0) * 8 # HARDCODED MPMD 8 ranks for staging nodes
@@ -1289,7 +1337,11 @@ def generate_scripts(args):
         # Conditionally inject the global cpus-per-task header ONLY for inline runs
         cpus_line = f"#SBATCH --cpus-per-task={SYSTEM_CONFIG['omp_threads']}" if exp['type'] == 'inline' else ""
         
-        command = (CMD_INTRANSIT if exp['type'] == 'intransit' else CMD_INLINE).format(
+        if exp['type'] != 'intransit':
+            cmd_template = CMD_INLINE
+        else:
+            cmd_template = CMD_INTRANSIT_STEPS if exp.get('launch') == 'steps' else CMD_INTRANSIT
+        command = cmd_template.format(
             sim_nodes=exp['sim_nodes'], 
             sim_ranks=sim_ranks, 
             stage_nodes=exp.get('stage_nodes', 0), 
@@ -1307,7 +1359,8 @@ def generate_scripts(args):
             partition=SYSTEM_CONFIG['partition'], 
             total_nodes=total_nodes,
             total_ranks=combined_total_ranks if exp['type'] == 'intransit' else sim_ranks, 
-            cpus_per_task_line=cpus_line, 
+            cpus_per_task_line=cpus_line,
+            network_line="#SBATCH --network=job_vni" if exp.get('launch') == 'steps' else "",
             mpi_per_node=SYSTEM_CONFIG['mpi_per_node'], 
             omp_threads=SYSTEM_CONFIG['omp_threads'], 
             time_limit=SYSTEM_CONFIG['time_limit'], 

@@ -12,7 +12,7 @@ def main():
     parser.add_argument("--script-dir", default="generated_scripts", help="Directory containing .sbat files")
     parser.add_argument("--results-dir", required=True, help="Root directory for results (Lustre)")
     
-    parser.add_argument("--paper", choices=["paper1", "paper2", "init", "all"], default="all", help="Target specific paper (use 'init' for initialization runs)")
+    parser.add_argument("--paper", choices=["paper1", "paper2", "xport", "init", "all"], default="all", help="Target specific paper ('xport' is the #72 step 1 transport matrix; 'init' the initialization runs)")
     parser.add_argument("--nodes", type=str, help="Target specific SIMULATION node count (e.g. 64, 256, 4096)")
     parser.add_argument("--grid", type=str, help="Target specific grid size (L) (e.g., 1024, 2048)") # NEW
     parser.add_argument("--backend", choices=["adios", "ascent", "catalyst", "kombyne", "baseline", "all"], default="all", help="Target backend")

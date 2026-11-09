@@ -148,6 +148,25 @@ Knobs to turn during scale testing:
   keeps the image free of banding that changes with the rank count, which
   is 63,851 samples at 4096^3. Fewer is cheaper.
 
+## Transport matrix (#72 step 1)
+`--paper xport` selects 16 short in transit jobs (101 steps, 6 outputs):
+
+* SST data plane: RDMA or MPI;
+* reader: Ascent or Catalyst slices;
+* launch: one MPMD `srun` (`mpmd`), or two `srun` steps, one per program,
+  sharing the job's VNI (`steps`: `#SBATCH --network=job_vni` and
+  `srun --network=job_vni`, so SST can connect across steps);
+* fan-in in tasks: 16:1 (8 + 4 nodes, 1024^3) or 128:1 (64 + 4 nodes, 2048^3).
+
+```bash
+python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py \
+    --results-dir /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs/ \
+    --paper xport --submit
+```
+
+In `steps` jobs each step's exit status is printed (`Simulation exit status:
+N, reader exit status: M`), and the job's status is the first non-zero one.
+
 ## After the runs
 Each job reduces its own timings when it ends:
 
