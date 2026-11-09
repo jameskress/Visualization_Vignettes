@@ -134,6 +134,17 @@ scaling, in transit for three sizes and a staging-node sweep at 4096 nodes.
 In transit ADIOS2 data uses the reader's `adios_writer` backend, so the
 staging nodes write the data. Paper 1's jobs are unchanged (501 steps).
 
+The volume workloads are comparable between the backends: both render `v`
+over the full grid with the same colours, opacity ramp and range (0 to 1).
+
+Knobs to turn during scale testing:
+* **Fan-in:** the staging node counts in `TRANSIT_CONFIGS` and
+  `TRANSIT_SWEEP_CONFIGS` (see Fan-in below).
+* **Ascent volume samples:** `--volume-samples-per-cell` (default 9). Ascent
+  takes `samples` per ray across the whole grid; about 9 per cell crossed
+  keeps the image free of banding that changes with the rank count, which
+  is 63,851 samples at 4096^3. Fewer is cheaper.
+
 ## After the runs
 Each job reduces its own timings when it ends:
 

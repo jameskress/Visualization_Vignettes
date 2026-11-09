@@ -63,6 +63,10 @@ TRANSIT_SWEEP_CONFIGS = [
     ("sweep_384", 4096, 8192, 384)   # ~10:1
 ]
 
+# Ascent volume samples per cell crossed by a ray (a cost/quality knob;
+# --volume-samples-per-cell overrides it).
+VOLUME_SAMPLES_PER_CELL = 9.0
+
 CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
 
 PIPELINE_FILES = {
@@ -183,6 +187,16 @@ ASCENT_VOLUME_TEMPLATE = """
           type: "volume"
           field: "v"
           samples: {volume_samples}
+          # Same colours, opacity ramp and range as CATALYST_VOLUME_TEMPLATE.
+          min_value: 0.0
+          max_value: 1.0
+          color_table:
+            control_points:
+              - {{type: "rgb", position: 0.0, color: [0.231, 0.298, 0.753]}}
+              - {{type: "rgb", position: 0.5, color: [0.865, 0.865, 0.865]}}
+              - {{type: "rgb", position: 1.0, color: [0.706, 0.016, 0.150]}}
+              - {{type: "alpha", position: 0.0, alpha: 0.0}}
+              - {{type: "alpha", position: 1.0, alpha: 1.0}}
       renders:
         render1:
           image_width: 2048
@@ -307,18 +321,25 @@ if __name__ == "__main__":
 """
 
 CATALYST_VOLUME_TEMPLATE = """
+# Volume of v over the full grid, comparable with ASCENT_VOLUME_TEMPLATE: the
+# same data (no resampling), image size and colour range (pinned to 0..1).
+# ParaView's standard volume renderer, as in the shipped
+# catalyst-extract-jpg.py, whose images are rank independent. The producer is
+# rendered directly: a GhostCells layer under a volume shows as cracks
+# (docs/in-situ-backends.md, Catalyst).
 from paraview import catalyst
 from paraview.simple import *
 
-# Removed _DisableFirstRenderCameraReset() so it auto-frames!
+_DisableFirstRenderCameraReset()
 
 renderView1 = CreateView("RenderView")
 renderView1.Set(
     ViewSize=[2048, 2048],
-    AxesGrid="GridAxes3DActor",
-    StereoType="Crystal Eyes",
-    EnableRayTracing=1,           # Ensure OSPRay is ON
-    BackEnd="OSPRay raycaster"    # Ensure OSPRay is ON
+    CenterOfRotation=[{center}, {center}, {center}],
+    CameraPosition=[{cam_x}, {cam_y}, {cam_z}],
+    CameraFocalPoint=[{center}, {center}, {center}],
+    CameraViewUp=[{cam_up_x}, {cam_up_y}, {cam_up_z}],
+    CameraParallelScale={parallel_scale},
 )
 SetActiveView(None)
 layout1 = CreateLayout(name="Layout #1")
@@ -327,42 +348,18 @@ layout1.SetSize(2048, 2048)
 SetActiveView(renderView1)
 
 producer = TrivialProducer(registrationName="grid")
-
-# =====================================================================
-# RESAMPLE HACK: Clamp massive distributed grids into a safe 512^3 box
-# to bypass OSPRay's MPI partition compositing bugs.
-# =====================================================================
-resample = ResampleToImage(registrationName="resample", Input=producer)
-resample.SamplingDimensions = [512, 512, 512] 
-
-# Point the display to the resampled data
-volDisplay = Show(resample, renderView1)
-
+volDisplay = Show(producer, renderView1)
 volDisplay.SetRepresentationType('Volume')
-
 ColorBy(volDisplay, ('POINTS', 'v'))
 
-# 1. Setup Color
 vLUT = GetColorTransferFunction("v")
-vLUT.Set(
-    RGBPoints=[0.0, 0.23, 0.29, 0.75, 0.5, 0.86, 0.86, 0.86, 1.0, 0.7, 0.01, 0.14],
-    ScalarRangeInitialized=1
-)
-
-# 2. Setup Opacity (Raised floor to 0.01)
+vLUT.ApplyPreset("Cool to Warm", True)
+vLUT.AutomaticRescaleRangeMode = "Never"
+vLUT.RescaleTransferFunction(0.0, 1.0)
 vPWF = GetOpacityTransferFunction("v")
-vPWF.Set(
-    Points=[0.0, 0.01, 0.5, 0.0, 1.0, 1.0, 0.5, 0.0], 
-    ScalarRangeInitialized=1
-)
-
-# Explicitly bind all transfer functions to the display
-volDisplay.Set(
-    ColorArrayName=['POINTS', 'v'], 
-    LookupTable=vLUT, 
-    ScalarOpacityFunction=vPWF
-)
-
+vPWF.Points = [0.0, 0.0, 0.5, 0.0, 1.0, 1.0, 0.5, 0.0]
+vPWF.RescaleTransferFunction(0.0, 1.0)
+volDisplay.Set(ColorArrayName=['POINTS', 'v'], LookupTable=vLUT, ScalarOpacityFunction=vPWF)
 volDisplay.SetScalarBarVisibility(renderView1, True)
 
 pNG1 = CreateExtractor("PNG", renderView1, registrationName="PNG1")
@@ -375,26 +372,7 @@ options.EnableCatalystLive = 0
 options.ExtractsOutputDirectory = 'data'
 
 def catalyst_execute(info):
-    # Update the resample filter!
-    data_source = FindSource("resample")
-    data_source.UpdatePipeline()
-    
-    # Force camera to wrap the data bounds on every step to prevent clipping
-    renderView1.ResetCamera()
-    
-    data_info = data_source.GetDataInformation()
-    v_array_info = data_info.GetPointDataInformation().GetArrayInformation("v")
-    if v_array_info:
-        v_min, v_max = v_array_info.GetComponentRange(0)
-        
-        # Prevent colormap squashing
-        if (v_max - v_min) < 1e-5:
-            v_max = v_min + 0.1
-            
-        vLUT = GetColorTransferFunction("v")
-        vLUT.RescaleTransferFunction(v_min, v_max)
-        vPWF = GetOpacityTransferFunction("v")
-        vPWF.RescaleTransferFunction(v_min, v_max)
+    pass
 
 if __name__ == "__main__":
     from paraview.simple import SaveExtractsUsingCatalystOptions
@@ -1108,10 +1086,11 @@ def copy_pipeline_files(exp, output_dir, repo_root):
         'center': center_val, 'cam_up_x': cam_up_x, 'cam_up_y': cam_up_y, 'cam_up_z': cam_up_z, 
         'slice_offset': slice_offset_val, 'parallel_scale': parallel_scale,
         'ray_step': ray_step,
-        # Ascent volume plots: about 9 samples per cell along the diagonal, or
-        # they band and streak at block faces differently per rank count
-        # (docs/in-situ-backends.md, Ascent).
-        'volume_samples': int(math.ceil(9 * math.sqrt(3) * exp['grid_size'])),
+        # Ascent volume plots take `samples` per ray across the whole grid.
+        # About 9 per cell crossed keeps the image free of banding that
+        # changes with the rank count (docs/in-situ-backends.md, Ascent);
+        # fewer is cheaper. --volume-samples-per-cell sets it.
+        'volume_samples': int(math.ceil(VOLUME_SAMPLES_PER_CELL * math.sqrt(3) * exp['grid_size'])),
     }
 
     if exp['paper'] == 'paper1':
@@ -1353,7 +1332,10 @@ if __name__ == "__main__":
     parser.add_argument("--results-dir", required=True)
     parser.add_argument("--output-dir", default="generated_scripts")
     parser.add_argument("--account", default=SYSTEM_CONFIG['account'])
+    parser.add_argument("--volume-samples-per-cell", type=float, default=VOLUME_SAMPLES_PER_CELL,
+                        help="Ascent volume samples per cell along the ray (9 avoids rank-dependent banding; fewer is cheaper)")
     parser.add_argument("--perf-env", default=f"/scratch/{os.environ.get('USER', 'user')}/perf_env",
                         help="Python venv with pandas, activated after each run to reduce its timings")
     args = parser.parse_args()
+    VOLUME_SAMPLES_PER_CELL = args.volume_samples_per_cell
     generate_scripts(args)
