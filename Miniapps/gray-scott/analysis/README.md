@@ -42,6 +42,17 @@ Integrates with the ParaView Catalyst library, allowing you to leverage ParaView
 
 - **Configuration**: Requires a Catalyst Python script to define the analysis pipeline. The path to this script must be specified in the settings JSON file.
 
+### ADIOS2 writer (`"output_type": "adios_writer"`)
+
+Writes every staged step back to disk with ADIOS2, so an in transit run saves data from the staging nodes and the simulation only pays for the hand-off.
+
+- **Data Modes**: Repartition only. Each rank writes the slab it owns; the overlap plane the reader adds is not written, so the file holds the global `u` and `v` arrays once, as the simulation's own BP5 output does.
+- **Output**: `<output_file_name>.bp` from the settings file, or `staged_output.bp`.
+- **Configuration**: the `AnalysisOutput` IO of `adios2.xml` in the working directory, if that file exists; otherwise BP5 with ADIOS2's defaults. At scale, one aggregator per staging node (`NumAggregators`) is a good start.
+- **Timers**: `ADIOS_Write_Time` as well as the read timers and `total_step`.
+
+All backends end the ADIOS2 step as soon as the step's data is read, before rendering or writing. The reads are synchronous and the buffers belong to the reader, so the simulation can carry on with its next steps while the reader works.
+
 <br>
 
 ## Command-Line Arguments
@@ -52,7 +63,7 @@ The reader's behavior is controlled by several command-line arguments:
 |---|---|
 | `-f`, `--file` | **Required.** The name of the ADIOS2 file or stream (e.g., `gs.bp`). |
 | `-s`, `--settings` | **Required.** Path to the simulation's JSON settings file. |
-| `-o`, `--output-type` | Analysis backend to use (`ascent` or `catalyst`). Overrides the value in the settings file. |
+| `-o`, `--output-type` | Analysis backend: `ascent`, `catalyst_insitu`, `catalyst_io` or `adios_writer`. Overrides the value in the settings file. |
 | `-c`, `--mpi-split-color` | Color for `MPI_Comm_split` in MPMD mode. Crucial for in-transit runs. |
 | `-e`, `--engine` | Override the ADIOS2 engine (e.g., `SST`, `BP4`, `BP5`). |
 | `-b`, `--block-mode` | Data handling: `preserve` (default) or `repartition`. Note: Catalyst only supports `repartition`. |
@@ -168,7 +179,7 @@ To enable timers, set the `ENABLE_TIMERS` CMake option to `ON`:
 cmake -DENABLE_TIMERS=ON ..
 ```
 
-When the reader is built with timers enabled, it writes `reader_timers/steps/rank_NNNNN.jsonl`: one JSON object per step per rank, with the reader's timers (`total_step`, `Blueprint_Time`, `Vis_Time` and the ADIOS2 read timers), memory high-water mark and CPU time. This is the same logger and record format as the simulation; see the [Performance section of the miniapp README](../README.md#performance).
+When the reader is built with timers enabled, it writes `reader_timers/steps/rank_NNNNN.jsonl`: one JSON object per step per rank, with the reader's timers (`total_step`, `Blueprint_Time`, `Vis_Time` or `ADIOS_Write_Time`, and the ADIOS2 read timers), memory high-water mark and CPU time. This is the same logger and record format as the simulation; see the [Performance section of the miniapp README](../README.md#performance).
 
 The reader does not yet write `metadata.json` or `summary.json`, so `scripts/perf_report.py` does not read its directories. To look at a reader run, load the JSON lines directly, for example with pandas:
 

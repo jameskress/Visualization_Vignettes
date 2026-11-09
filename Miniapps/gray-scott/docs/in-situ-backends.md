@@ -298,6 +298,13 @@ ADIOS2's default of 60 s: at 1024 nodes the simulation was still reading a
 that throws it; in an MPMD job world rank 0 is a simulation rank, so a
 rank-0-only message used to hide every reader error.
 
+**Overlap (#76).** The reader ends each SST step as soon as it has read
+the step's fields, then renders or writes. With `QueueLimit` reached, the
+simulation used to wait for the reader's whole render before it could hand
+over the next step; now it waits only for the read. The `adios_writer`
+backend writes the staged data back to BP5 from the staging nodes (see the
+analysis reader's README).
+
 **Shutdown (#75).** An in transit run can finish every step and write every
 output, then never exit. On Shaheen III with ADIOS2 2.12, SST's RDMA data
 plane sometimes hangs in writer teardown (libfabric `fi_close` spinning in

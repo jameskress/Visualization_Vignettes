@@ -26,6 +26,16 @@
     </io>
 
     <!--===========================================
+           In transit reader writing to disk (adios_writer)
+        ===========================================-->
+    <io name="AnalysisOutput">
+        <engine type="BP5">
+            <!-- One aggregator per staging node is a good start at scale. -->
+            <!-- <parameter key="NumAggregators" value="4"/> -->
+        </engine>
+    </io>
+
+    <!--===========================================
            Configuration for PDF calc and PDF Plot
         ===========================================-->
 

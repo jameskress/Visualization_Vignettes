@@ -90,6 +90,9 @@ void AscentBackend::Run()
         m_perf_logger.start("Blueprint_Time");
         m_reader.ReadRepartition(m_reader.GetOptions().u_var, u_buf, read_info);
         m_reader.ReadRepartition(m_reader.GetOptions().v_var, v_buf, read_info);
+        // The reads are synchronous and the buffers are ours: end the step
+        // now so the simulation goes on while we render (#76).
+        m_reader.EndStep();
         mesh_blueprint = BuildRepartitionedBlueprint(read_info, u_buf, &v_buf, step, m_reader.GetOptions());
         m_perf_logger.stop("Blueprint_Time");
 
@@ -97,7 +100,6 @@ void AscentBackend::Run()
         m_ascent.publish(mesh_blueprint);
         m_ascent.execute(conduit::Node());
         m_perf_logger.stop("Vis_Time");
-        m_reader.EndStep();
         m_perf_logger.stop("total_step");
         m_perf_logger.logStep(step);
     }

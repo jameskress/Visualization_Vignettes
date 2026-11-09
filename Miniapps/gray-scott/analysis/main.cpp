@@ -22,7 +22,7 @@ static void usage(std::ostream &os)
        << "Optional:\n"
        << "  -c, --mpi-split-color <N>  Color for MPI_Comm_split in MPMD mode\n"
        << "  -e, --engine <engine>      ADIOS2 engine name override\n"
-       << "  -o, --output-type <type>   Analysis backend to use\n"
+       << "  -o, --output-type <type>   Analysis backend: ascent | catalyst_insitu | catalyst_io | adios_writer\n"
        << "  -b, --block-mode <mode>    Data handling: preserve | repartition\n"
        << "  -w, --sst-wait-mode <m>    SST wait mode: block | timeout\n"
        << "  -t, --sst-timeout <secs>   SST timeout seconds\n"
@@ -201,6 +201,12 @@ int main(int argc, char **argv)
                     std::cout << std::setw(24) << "  Mode" << ": In-Situ Script\n";
                     std::cout << std::setw(24) << "  Script Path" << ": " << opts.catalyst_script_path << "\n";
                 }
+            }
+            if (opts.output_type == "adios_writer")
+            {
+                std::cout << "\n"
+                          << std::setw(22) << "--- ADIOS2 Writer" << "---\n"
+                          << std::setw(24) << "  Output File" << ": " << opts.adios_output_file << "\n";
             }
             std::cout << "\n"
                       << std::setw(22) << "--- Debugging" << "---\n"

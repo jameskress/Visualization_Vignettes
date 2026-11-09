@@ -43,6 +43,7 @@ struct BackendOptions
     std::string catalyst_lib_path;
     std::string catalyst_output_file;
     std::string output_type;
+    std::string adios_output_file = "staged_output.bp"; // adios_writer: output_file_name + ".bp"
     MPI_Comm comm = MPI_COMM_WORLD;
     // Seconds allowed for teardown once the reader has finished (#75).
     double teardown_timeout_s = 300.0;
@@ -76,7 +77,10 @@ struct BackendOptions
         if (js.contains("catalyst_lib_path"))
             opts.catalyst_lib_path = js["catalyst_lib_path"];
         if (js.contains("output_file_name"))
+        {
             opts.catalyst_output_file = js["output_file_name"];
+            opts.adios_output_file = opts.catalyst_output_file + ".bp";
+        }
         if (js.contains("teardown_timeout_s"))
             opts.teardown_timeout_s = js["teardown_timeout_s"];
         if (js.contains("sst_open_timeout_s"))
