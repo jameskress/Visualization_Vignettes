@@ -46,6 +46,9 @@ struct BackendOptions
     MPI_Comm comm = MPI_COMM_WORLD;
     // Seconds allowed for teardown once the reader has finished (#75).
     double teardown_timeout_s = 300.0;
+    // How long the SST reader waits for the writer to appear. The simulation
+    // may spend minutes reading a checkpoint first; ADIOS2's default is 60 s (#78).
+    double sst_open_timeout_s = 600.0;
 
     static BackendOptions FromSettingsFile(const std::string &settings_path)
     {
@@ -76,6 +79,8 @@ struct BackendOptions
             opts.catalyst_output_file = js["output_file_name"];
         if (js.contains("teardown_timeout_s"))
             opts.teardown_timeout_s = js["teardown_timeout_s"];
+        if (js.contains("sst_open_timeout_s"))
+            opts.sst_open_timeout_s = js["sst_open_timeout_s"];
 
         return opts;
     }

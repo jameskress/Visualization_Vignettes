@@ -231,6 +231,7 @@ int main(int argc, char **argv)
     sim.init();
 
     int restart_step = 0;
+    double restart_read_s = 0.0; // slowest rank's checkpoint read (#78)
 #ifdef USE_ADIOS2
     vtkLog(TRACE, "Setting up ADIOS2 for checkpointing");
     adios2::ADIOS adios(settings.adios_config, app_comm);
@@ -244,9 +245,16 @@ int main(int argc, char **argv)
         adios2::IO io_restart = adios.DeclareIO("SimulationRestart");
         io_restart.SetEngine(io_ckpt.EngineType());
         io_restart.SetParameters(io_ckpt.Parameters());
+        // Time the checkpoint read: at scale it can take minutes, and the
+        // in transit reader must be willing to wait that long (#78).
+        const double t_read0 = MPI_Wtime();
         restart_step = ReadRestart(app_comm, settings, sim, io_restart);
+        double t_read = MPI_Wtime() - t_read0;
+        MPI_Allreduce(&t_read, &restart_read_s, 1, MPI_DOUBLE, MPI_MAX, app_comm);
         sim.set_step(static_cast<std::uint64_t>(restart_step));
         vtkLog(INFO, "Restarting simulation from step " << restart_step);
+        if (rank == 0)
+            std::cout << "restart read:     " << restart_read_s << " s (slowest rank)" << std::endl;
     }
 #endif
 
@@ -360,6 +368,7 @@ int main(int argc, char **argv)
             meta["mpi"]["local_size_rank0"] = {sim.size_x, sim.size_y, sim.size_z};
             meta["problem"] = {{"L", settings.L},          {"steps", settings.steps},
                                {"restart_step", restart_step},
+                               {"restart_read_s", restart_read_s},
                                {"burn_in_steps", settings.burn_in_steps},
                                {"plotgap", settings.plotgap}, {"F", settings.F},
                                {"k", settings.k},          {"Du", settings.Du},

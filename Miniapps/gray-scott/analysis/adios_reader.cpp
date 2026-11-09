@@ -2,6 +2,8 @@
 #include "analysis_backend_interface.h"
 #include <numeric>
 #include <algorithm>
+#include <cctype>
+#include <cmath>
 #include <iostream>
 
 AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
@@ -17,10 +19,21 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
 
     // Automatically set a short OpenTimeout for non-streaming engines.
     // This prevents the application from hanging indefinitely on corrupt/inaccessible files.
-    // For SST, we let it use its default blocking behavior.
-    if (m_opts.adios_engine != "SST")
+    // For SST, wait long enough for the simulation to start, which at scale
+    // includes reading its checkpoint (ADIOS2's default of 60 s is too short, #78).
+    // ADIOS2 matches engine names case-insensitively ("sst" is SST too).
+    std::string engine = m_opts.adios_engine;
+    std::transform(engine.begin(), engine.end(), engine.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    if (engine != "SST")
     {
         m_io->SetParameter("OpenTimeoutSecs", "5.0");
+    }
+    else
+    {
+        // SST takes whole seconds: round up, at least 1, within int range.
+        const double t = std::min(std::max(std::ceil(m_opts.sst_open_timeout_s), 1.0), 2147483647.0);
+        m_io->SetParameter("OpenTimeoutSecs", std::to_string(static_cast<int>(t)));
     }
 
     m_engine = std::make_unique<adios2::Engine>(m_io->Open(m_opts.adios_file, adios2::Mode::Read));
