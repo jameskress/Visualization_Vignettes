@@ -1,6 +1,9 @@
 #include "writerAscent.h"
+
+#include <fstream>
 #include <vtkLogger.h>
 #include <iostream>
+#include <chrono>
 #include <exception>
 #include <conduit_relay_io.hpp>
 #include <conduit_relay_mpi_io_blueprint.hpp>
@@ -18,7 +21,86 @@ void WriterAscent::CreateWriter(const Settings &_settings, const GrayScott &sim,
     // This opens Ascent and automatically loads 'ascent_options.yaml'
     ascent.open(ascent_opts);
 
+    ghosts.build(sim);
+    load_actions();
+
     vtkLogEndScope("Create Ascent Writer");
+}
+
+// Read the actions once (they used to be re-read from disk every step). With
+// overwrite_last_step, relay extracts are taken out and done by
+// ManualOverwrite so each save replaces the last one.
+void WriterAscent::load_actions()
+{
+    int rank = 0;
+    MPI_Comm_rank(comm, &rank);
+    conduit::Node loaded;
+    std::string actions_file = "ascent_actions.yaml"; // Ascent's default
+    // A missing options file is normal (Ascent's defaults apply); one that
+    // exists but does not parse is an error worth reporting.
+    if (std::ifstream("ascent_options.yaml").good())
+    {
+        try
+        {
+            conduit::Node options;
+            conduit::relay::io::load("ascent_options.yaml", "yaml", options);
+            if (options.has_path("actions_file"))
+                actions_file = options["actions_file"].as_string();
+        }
+        catch (const conduit::Error &e)
+        {
+            if (rank == 0)
+                vtkLog(ERROR, "Ascent: cannot read ascent_options.yaml: " << e.message());
+        }
+    }
+    try
+    {
+        conduit::relay::io::load(actions_file, "yaml", loaded);
+    }
+    catch (const conduit::Error &e)
+    {
+        if (rank == 0)
+            vtkLog(ERROR, "Ascent: cannot read actions file '" << actions_file << "': " << e.message()
+                          << "; no Ascent actions will run");
+    }
+
+    actions.set(conduit::DataType::list());
+    conduit::NodeIterator itr = loaded.children();
+    while (itr.has_next())
+    {
+        conduit::Node &action = itr.next();
+        if (!action.has_path("action"))
+            continue;
+        const std::string action_type = action["action"].as_string();
+        if (action_type == "add_extracts" && settings.overwrite_last_step)
+        {
+            conduit::Node kept;
+            conduit::NodeIterator ext_itr = action["extracts"].children();
+            while (ext_itr.has_next())
+            {
+                conduit::Node &extract = ext_itr.next();
+                const std::string name = ext_itr.name();
+                const std::string type = extract.has_path("type") ? extract["type"].as_string() : "";
+                if (type == "relay")
+                {
+                    relay_extracts.emplace_back(
+                        extract.has_path("params/path") ? extract["params/path"].as_string() : "ascent_data",
+                        extract.has_path("params/protocol") ? extract["params/protocol"].as_string()
+                                                            : "blueprint/mesh/hdf5");
+                }
+                else
+                    kept[name].set(extract);
+            }
+            if (kept.number_of_children() > 0)
+            {
+                conduit::Node &a = actions.append();
+                a["action"] = "add_extracts";
+                a["extracts"] = kept;
+            }
+        }
+        else
+            actions.append().set(action);
+    }
 }
 
 void WriterAscent::open(const std::string &fname, bool append, int rank)
@@ -40,144 +122,47 @@ void WriterAscent::printSelf()
 void WriterAscent::write(int step, const GrayScott &sim, int rank, int numRanks)
 {
     vtkLogStartScope(TRACE, "Writing: Ascent");
+    using clock = std::chrono::steady_clock;
 
-    // --- Build Mesh ---
-    conduit::Node mesh;
-    mesh["coordsets/coords/type"] = "uniform";
+    // Wrap: the shared Blueprint description, zero-copy (#20). The caller
+    // has refreshed the halo.
+    const auto t0 = clock::now();
+    gs_mesh::GhostFields which;
+    which.ascent = true;
+    gs_mesh::describe(data["mesh"], sim, ghosts, which, step, step * settings.dt, rank);
+    const auto t1 = clock::now();
 
-    int nx = sim.size_x, ny = sim.size_y, nz = sim.size_z;
-    int dx = sim.offset_x, dy = sim.offset_y, dz = sim.offset_z;
-    float spacing[3] = {0.1f, 0.1f, 0.1f};
-
-    mesh["coordsets/coords/dims/i"] = nx;
-    mesh["coordsets/coords/dims/j"] = ny;
-    mesh["coordsets/coords/dims/k"] = nz;
-    mesh["coordsets/coords/spacing/dx"] = spacing[0];
-    mesh["coordsets/coords/spacing/dy"] = spacing[1];
-    mesh["coordsets/coords/spacing/dz"] = spacing[2];
-    mesh["coordsets/coords/origin/x"] = (dx * spacing[0] - (dx / nx) * spacing[0]);
-    mesh["coordsets/coords/origin/y"] = (dy * spacing[1] - (dy / ny) * spacing[1]);
-    mesh["coordsets/coords/origin/z"] = (dz * spacing[2] - (dz / nz) * spacing[2]);
-
-    mesh["topologies/mesh/type"] = "uniform";
-    mesh["topologies/mesh/coordset"] = "coords";
-
-    mesh["fields/u/association"] = "vertex";
-    mesh["fields/u/topology"] = "mesh";
-    mesh["fields/u/values"].set(sim.u_noghost().data(), sim.u_noghost().size());
-
-    mesh["fields/v/association"] = "vertex";
-    mesh["fields/v/topology"] = "mesh";
-    mesh["fields/v/values"].set(sim.v_noghost().data(), sim.v_noghost().size());
-
-    mesh["state/cycle"] = step;
-    mesh["state/time"] = step * settings.dt;
-
-    conduit::Node verify_info;
-    if (!conduit::blueprint::mesh::verify(mesh, verify_info))
+    // The tree's shape never changes, so verify once (not timed).
+    if (!verified)
     {
-        std::cerr << "Mesh verification failed!" << std::endl;
-        verify_info.print();
-        return;
+        conduit::Node info;
+        if (!conduit::blueprint::mesh::verify(data["mesh"], info))
+        {
+            std::cerr << "Blueprint verify failed on rank " << rank << std::endl;
+            info.print();
+            MPI_Abort(comm, 1);
+        }
+        verified = true;
+        vtkLog(INFO, "Blueprint mesh verified on rank " << rank);
     }
 
-    conduit::Node data;
-    data["mesh"] = mesh;
-
-    // --- Publish ---
+    // Execute: publish (Ascent keeps a reference, no copy) and run actions.
+    // An empty list would make Ascent reload its default actions file.
+    const auto t2 = clock::now();
     ascent.publish(data);
+    if (actions.number_of_children() > 0)
+        ascent.execute(actions);
+    const auto t3 = clock::now();
 
-    // --- Hijack Actions Logic ---
-    conduit::Node loaded_actions;
-    std::string actions_file = "ascent_actions.yaml"; // Default
+    // I/O: the manual relay save used with overwrite_last_step.
+    for (const auto &rx : relay_extracts)
+        ManualOverwrite(data["mesh"], rx.first, rx.second, this->comm);
+    const auto t4 = clock::now();
 
-    // Try to find the real actions file from options
-    try
-    {
-        conduit::Node options;
-        conduit::relay::io::load("ascent_options.yaml", "yaml", options);
-        if (options.has_path("actions_file"))
-        {
-            actions_file = options["actions_file"].as_string();
-        }
-    }
-    catch (...)
-    {
-    }
-
-    // Load the actions
-    try
-    {
-        conduit::relay::io::load(actions_file, "yaml", loaded_actions);
-    }
-    catch (...)
-    {
-    }
-
-    // Filter Loop
-    conduit::Node actions_to_execute(conduit::DataType::list());
-    conduit::NodeIterator itr = loaded_actions.children();
-
-    while (itr.has_next())
-    {
-        conduit::Node &action = itr.next();
-        if (!action.has_path("action"))
-            continue;
-
-        std::string action_type = action["action"].as_string();
-
-        if (action_type == "add_extracts" && settings.overwrite_last_step)
-        {
-            conduit::Node extracts = action["extracts"];
-            conduit::Node kept_extracts;
-            conduit::NodeIterator ext_itr = extracts.children();
-
-            while (ext_itr.has_next())
-            {
-                conduit::Node &extract = ext_itr.next();
-                std::string extract_name = ext_itr.name();
-                std::string type = "";
-                if (extract.has_path("type"))
-                    type = extract["type"].as_string();
-
-                if (type == "relay")
-                {
-                    // Found a save action -> Overwrite manually
-                    std::string path = "ascent_data";
-                    std::string protocol = "blueprint/mesh/hdf5";
-
-                    if (extract.has_path("params/path"))
-                        path = extract["params/path"].as_string();
-                    if (extract.has_path("params/protocol"))
-                        protocol = extract["params/protocol"].as_string();
-
-                    ManualOverwrite(data["mesh"], path, protocol, this->comm);
-                }
-                else
-                {
-                    kept_extracts[extract_name].set(extract);
-                }
-            }
-
-            if (kept_extracts.number_of_children() > 0)
-            {
-                conduit::Node &new_action = actions_to_execute.append();
-                new_action["action"] = "add_extracts";
-                new_action["extracts"] = kept_extracts;
-            }
-        }
-        else
-        {
-            actions_to_execute.append().set(action);
-        }
-    }
-
-    // If we filtered out the only action (the save), this list is empty.
-    // Passing an empty list makes Ascent load the default file again (undoing our work).
-    if (actions_to_execute.number_of_children() > 0)
-    {
-        ascent.execute(actions_to_execute);
-    }
+    phases.wrap_s = std::chrono::duration<double>(t1 - t0).count();
+    phases.execute_s = std::chrono::duration<double>(t3 - t2).count();
+    phases.io_s = std::chrono::duration<double>(t4 - t3).count();
+    phases.split = true;
 
     vtkLogEndScope("Writing: Ascent");
 }

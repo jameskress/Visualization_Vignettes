@@ -406,6 +406,11 @@ int main(int argc, char **argv)
             if (rank == 0)
                 vtkLog(INFO, "\t Processing sim data using Writer interface @ output step " << it / settings.plotgap);
 
+            // Backends read the ghosted arrays; bring the halo to this step
+            // first (it is one step behind after iterate). Same for every
+            // backend, timed as halo work. See mesh_blueprint.h (#20).
+            perf.add("halo", sim.refresh_halos());
+
             perf.start("write_step");
             writer_main->write(it, sim, rank, procs);
             perf.stop("write_step");

@@ -85,6 +85,19 @@ void GrayScott::iterate()
     ++step_;
 }
 
+double GrayScott::refresh_halos()
+{
+#ifdef ENABLE_TIMERS
+    const auto t0 = std::chrono::steady_clock::now();
+#endif
+    exchange(u, v);
+#ifdef ENABLE_TIMERS
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+#else
+    return 0.0;
+#endif
+}
+
 #ifdef USE_ADIOS2
 void GrayScott::restart(std::vector<double> &u_in, std::vector<double> &v_in)
 {

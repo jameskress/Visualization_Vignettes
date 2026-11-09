@@ -28,6 +28,12 @@ public:
     // before MPI_Finalize (the destructor runs too late in main()).
     void free_mpi_resources();
     void iterate();
+    // Fill the halo layer with the neighbours' current values. iterate()
+    // exchanges before it updates, so after it the halo is one step behind
+    // the interior; backends that read the ghosted array (#20) call this on
+    // output steps first. It does not change the solution. Returns seconds
+    // spent (0 unless ENABLE_TIMERS).
+    double refresh_halos();
     // Step counter used by the noise term; restart sets it from the checkpoint.
     void set_step(std::uint64_t step) { step_ = step; }
     std::uint64_t step() const { return step_; }

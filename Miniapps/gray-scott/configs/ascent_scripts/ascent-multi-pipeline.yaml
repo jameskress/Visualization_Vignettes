@@ -25,6 +25,12 @@
         full_volume_plot:
           type: "volume"
           field: "u"
+          # Samples per ray. The default (100) is under one sample per cell across
+          # a 64^3 grid: it bands, and at rank boundaries it streaks differently
+          # for each rank count. About 9 per cell along the diagonal (1000 for
+          # L = 64; scale with L) makes 8 ranks match 1 rank. Costs about 3 s per
+          # frame on one rank at 64^3.
+          samples: 1000
           color_table:
             control_points:
               - { type: "rgb", position: 0.145, color: [0.231, 0.298, 0.753] }
