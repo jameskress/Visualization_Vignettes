@@ -118,6 +118,7 @@ The binary is `build/my-host-cpu/gray-scott`.
 | `host-cpu` | Release, MPI and VTK only |
 | `host-cpu-debug` | Debug |
 | `host-cpu-timers` | Release with `ENABLE_TIMERS` (per-step timers) |
+| `host-cpu-asan` | AddressSanitizer and UndefinedBehaviorSanitizer, for `tests/sanitizers/run_sanitized.sh` |
 | `my-host-cpu` | your copy of `host-cpu` with local paths, from the example file |
 
 To turn a backend on, add it to your user preset with its path, for example:
@@ -259,6 +260,10 @@ covers Docker, checkpoint and restart, and the in transit reader.
 * Catalyst finds ParaView through `CATALYST_IMPLEMENTATION_PATHS` (the
   directory holding `libcatalyst-paraview.so`) and
   `CATALYST_IMPLEMENTATION_NAME=paraview`.
+
+**Memory and undefined behaviour checks**
+
+* Build the `my-host-asan` preset from `CMakeUserPresets.json.example` (it inherits `host-cpu-asan` and adds your `VTK_DIR`) and run `tests/sanitizers/run_sanitized.sh build/my-host-asan <ranks>`; a clean run prints nothing from the sanitizers. Details and the suppression file are in `tests/sanitizers/README.md`.
 
 **Build**
 

@@ -1,0 +1,25 @@
+# LeakSanitizer suppressions for the Gray-Scott sanitizer preset (host-cpu-asan, #13).
+#
+# A rule matches if its text appears in any frame of a leak's allocation
+# stack (function, module or file name). Library-wide rules such as
+# "leak:libmpi.so" would therefore also hide a communicator, datatype or
+# buffer that miniapp code creates through MPI and never frees. So every
+# rule here names the one start-up function the leak comes from.
+#
+# Checked 2026-11-08 on the workstation (Open MPI 4.1): with no suppressions,
+# 1, 2 and 4 ranks give 149 leak reports. 142 have ompi_mpi_init (inside
+# MPI_Init_thread) on their stack, 7 have vtkloguru::set_thread_name; none
+# has any other miniapp frame. check_suppressions.sh confirms that MPI
+# resources leaked by our own code are still reported. If a report names
+# one of our files, that is a real leak: fix it, do not add an entry here.
+#
+# Use: LSAN_OPTIONS=suppressions=<this file>:print_suppressions=0
+
+# Open MPI, PMIx, hwloc and libevent state set up in MPI_Init and kept until
+# exit (operator tables, component state, PMIx buffers). dlclose_noop.so keeps
+# the components mapped so this frame is named, not "<unknown module>".
+leak:ompi_mpi_init
+
+# VTK's logger (loguru) stores thread names in a static map for the process
+# lifetime; the miniapp names its threads once at start-up.
+leak:vtkloguru::set_thread_name
