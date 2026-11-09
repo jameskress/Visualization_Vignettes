@@ -136,7 +136,10 @@ void CatalystBackend::Run()
         m_perf_logger.start("Blueprint_Time");
         m_reader.ReadRepartition(current_opts.u_var, u_buf, read_info);
         m_reader.ReadRepartition(current_opts.v_var, v_buf, read_info);
-        
+        // The reads are synchronous and the buffers are ours: end the step
+        // now so the simulation goes on while we render (#76).
+        m_reader.EndStep();
+
         auto data_node = exec_params["catalyst/channels/grid/data"];
         BuildRepartitionedCatalystMesh(data_node, read_info, u_buf, &v_buf, current_opts);
         m_perf_logger.stop("Blueprint_Time");
@@ -144,8 +147,6 @@ void CatalystBackend::Run()
         m_perf_logger.start("Vis_Time");
         catalyst_execute(conduit_cpp::c_node(&exec_params));
         m_perf_logger.stop("Vis_Time");
-        
-        m_reader.EndStep();
         m_perf_logger.stop("total_step");
         m_perf_logger.logStep(step);
     }
