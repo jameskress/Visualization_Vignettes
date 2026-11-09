@@ -202,3 +202,69 @@ Checked in ParaView 6.2 on 1, 2 and 4 ranks:
 * The volume is 262.144 on every rank count.
 * The contour v = 0.2 area is 17.2025866257 on every rank count, the same
   value as Catalyst.
+
+## ADIOS2 (BP5 files and SST staging)
+
+`simulation/writerADIOS.cpp` (#22) writes `U` and `V` as global L^3
+arrays.
+
+**What is stored.** Each rank's block holds its owned points only, so every
+global point is stored exactly once and no halo is written. There is
+nothing for a reader to deduplicate. The geometry matches the shared
+description: point i sits at i * 0.1 (the `Fides_Origin` and
+`Fides_Spacing` attributes).
+
+**Attributes for readers.**
+
+| Attribute | Value |
+| :--- | :--- |
+| `gs_point_ownership` | "each global point stored once" |
+| `gs_halo_layers_written` | 0 |
+| `gs_periodic` | {1, 1, 1} |
+| `gs_ghost_policy` | "readers add their own overlap layer and flag it ghost" |
+
+A reader that builds one mesh per block, such as the in transit analysis
+reader, must read one extra layer of points past the high side of its
+block itself, wrapping around because the domain is periodic. Otherwise
+there is a one-cell gap between blocks. Those added points are ghost
+points (`DUPLICATEPOINT`), but the cells they close are owned by the
+block: only cells whose low corner belongs to another block are ghosts.
+Flagging every cell that touches an added point would remove owned
+boundary cells and open the gap again. The analysis reader does not do
+this yet; the fix is planned for phase 5 (#42).
+
+**The three write modes.**
+
+| Mode (setting) | Copies made by the miniapp | `wrap` | `execute` | `io` |
+| :--- | :--- | :--- | :--- | :--- |
+| default | one: `u_noghost()` into a local vector (ADIOS2 may copy again into its own buffer; that depends on the engine) | the copy | `BeginStep` and the `Put` calls | `EndStep` |
+| `adios_span` | one, straight into ADIOS2's buffer | the copy | `BeginStep` and the `Put` calls | `EndStep` |
+| `adios_memory_selection` | none: ADIOS2 reads the interior of the ghosted arrays | 0 | `BeginStep` and the `Put` calls | `EndStep` |
+
+In every mode, `io` also includes the close and reopen that
+`overwrite_last_step` does before each write.
+
+Span and memory selection are checked with BP5 only. With the SST engine
+the writer ignores both settings, logs a warning and uses the default
+mode: SST does not implement span `Put()`, and its FFS marshalling is
+reported to ignore memory selections. Revisit when the in transit path is
+tested in phase 5 (#42).
+
+**Pointer lifetime.** `Put()` is deferred: ADIOS2 may read the memory at
+`Put()` or at any point up to `EndStep()`, depending on the engine. Each
+pointer handed to `Put()`, and the data it points to, must therefore stay
+valid and unchanged until `EndStep()` returns:
+
+* The solver's arrays in memory-selection mode. Nothing writes them
+  during `write()`; the writer also checks after `EndStep()` that they
+  have not moved, and aborts if they have.
+* The local vectors in the default mode. They are const and live until
+  the end of the block that contains `EndStep()`.
+* ADIOS2's own span buffer in span mode, filled before `EndStep()`.
+
+**Checked.** BP5 files on 1 and 4 ranks in all three modes: the stored
+`U` at step 100 is identical at full precision across modes and rank
+counts. That holds because the solver is bitwise identical across rank
+counts (#15) and each point is stored once. The SST in transit path was
+not run, because the reader build does not link on the workstation (see
+#26).
