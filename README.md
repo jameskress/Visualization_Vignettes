@@ -97,7 +97,7 @@ The in situ portion of this repo is centered around a "miniapp" that generates d
 
 4. From within the container, you can test the different in situ tools. Any produced images and data will be accessible in your local `data` directory.
 
-5. For full details see: [**Running with Docker**](./Miniapps/gray-scott/README.md)
+5. For full details see: [**Running with Docker**](./Miniapps/gray-scott/docs/build-and-run-guide.md#running-with-docker)
 
 ## How to Cite
 
