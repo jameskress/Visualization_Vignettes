@@ -90,6 +90,8 @@ def generate(results, ranks):
     ns["WEAK_SCALING_CONFIGS"] = [(1, 64)]
     ns["TRANSIT_CONFIGS"] = [("small", 1, 64, 1)]
     ns["TRANSIT_SWEEP_CONFIGS"] = []
+    ns["XPORT_CONFIGS"] = [("f016", 1, 64, 1)]  # #72 step 1 matrix, one small size
+    ns["XPORT_RUN_STEPS"] = 61
     ns["CATALYST_LIB_PATH"] = args.catalyst_lib
     gargs = argparse.Namespace(repo_path=str(GSDIR.parent.parent), bin_path=args.aac,
                                results_dir=str(results), output_dir=str(results.parent / "scripts"),
@@ -150,7 +152,7 @@ def run_all(ranks):
         add_adios_matrix(results)
     ids = sorted(p.name for p in results.iterdir() if p.is_dir())
     jobs = [i for i in ids if i.startswith("init_")]
-    jobs += [i for i in ids if i.startswith(("paper1_", "paper2_strong", "paper2_transit")) and args.only in i]
+    jobs += [i for i in ids if i.startswith(("paper1_", "paper2_strong", "paper2_transit", "xport_")) and args.only in i]
     ok = True
     print(f"== {ranks} ranks", flush=True)
     for i in jobs:

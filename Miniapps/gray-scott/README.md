@@ -202,7 +202,7 @@ distances by 0.1, and multiply output gradients by 0.1, to get solver units.
 | `checkpoint`, `checkpoint_freq`, `checkpoint_output` | ADIOS2 checkpoint after every N completed steps (a restart resumes from exactly that state); needs an `ENABLE_ADIOS2=ON` build (see below) | false, 2000, `ckpt.bp` |
 | `restart`, `restart_input` | restart from a checkpoint; same requirement | false, `ckpt.bp` |
 | `burn_in_steps` | optional: steps to run before output starts | 0 |
-| `overwrite_last_step` | optional: keep only the latest output step. Every backend honours it except `catalyst_insitu`, whose script names its own files and keeps every step unless the script overwrites them | false |
+| `overwrite_last_step` | optional: keep only the latest output step. Every backend honours it except `catalyst_insitu`, whose script names its own files and keeps every step unless the script overwrites them, and ADIOS2 with SST, which ignores it (reopening would drop the reader's connection) | false |
 | `perf_dir` | optional: parent directory of each run's performance log directory ([performance](#performance)) | `perf` |
 | `sst_open_timeout_s` | analysis reader only (its settings file): whole seconds (rounded up, at least 1) the in transit reader waits for the simulation's SST stream to appear. The simulation may spend minutes reading a checkpoint first; ADIOS2's own default is 60 s | 600 |
 | `teardown_timeout_s` | optional: seconds allowed for closing the output and `MPI_Finalize` once every output and the performance log are written; after that the process logs why and exits with status 0. 0 disables it. The analysis reader reads the same key from its settings file ([in situ backends](docs/in-situ-backends.md), Shutdown) | 300 |

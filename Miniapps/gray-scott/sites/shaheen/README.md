@@ -237,16 +237,25 @@ other and the job hangs.
 because only world rank 0 printed and in an MPMD job that is a simulation
 rank. Both programs now print fatal errors from every rank (#78).
 
-**Slurm job end.** `--wait=0` ends the whole step the moment the first
-program exits, which killed readers that were still writing. The generator
-uses `--wait=60` with `--kill-on-bad-exit=1`.
+**Slurm job end.** `--wait=N` ends the whole step N seconds after the first
+program exits; `--wait=0` killed readers that were still writing. The
+generator sets no `--wait`, so a reader can finish its last steps; a stuck
+shutdown is bounded by `teardown_timeout_s` (#75) instead. It keeps
+`--kill-on-bad-exit=1`, which acts only when a program exits non-zero: if
+the reader crashes, the simulation would otherwise block on its next SST
+step until the time limit. In #72 step 1 it ended jobs whose readers
+crashed in about 1.5 minutes. The two-step launch does the same for its
+steps.
 
 **Lustre.**
 * One write larger than 2 GiB fails (`MAX_RW_COUNT`); an ADIOS2 aggregator
   with a 17 GB payload deadlocked or crashed. Keep the payload per
   aggregator under 2 GiB, or use one aggregator per node.
 * Thousands of tasks creating files at once (`EveryoneWrites`) lock up the
-  metadata server. `MaxOpenFilesAtOnce` (for example 64) throttles creation.
+  metadata server. BP5's default aggregation (`TwoLevelShm`, one aggregator
+  per node) avoids that. `MaxOpenFilesAtOnce` does not help here: ADIOS2
+  documents it as a reader-side limit on how many subfiles one process
+  keeps open, for datasets with more subfiles than `ulimit -n` allows.
 * Many small files: keep the stripe count low (`lfs setstripe -c 1`). The
   generator stripes each run's `data/` across all OSTs (`-c -1`) because
   BP5 aggregation writes a few large files.
@@ -255,10 +264,20 @@ uses `--wait=60` with `--kill-on-bad-exit=1`.
 `/dev/shm`. Several aggregators on one node each take their buffer (4 GB by
 default), exhaust the node's memory, and get killed mid-write, leaving
 truncated (about 3 MB) files. Use exactly one aggregator per node
-(`NumAggregators` = staging nodes) and a buffer that holds the node's whole
-payload (`MaxShmSize`, 40 GB). The generator's `AnalysisOutput` IO does both.
+(`NumAggregators` = staging nodes; that is also BP5's default), as the
+generator's `AnalysisOutput` IO does. Leave `MaxShmSize` at its default:
+ADIOS2 documents it as needing at least twice the largest per-process write
+and says there is no point in more than 4 GB.
 
 **Headless Catalyst.** On compute nodes without a display, Catalyst must
 render through OSMesa (`VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow`,
-see the top of this file). If ParaView's `lib` directory is not on
-`LD_LIBRARY_PATH`, Catalyst falls back to X11 and every rank crashes.
+see the top of this file). ParaView's `lib` directory must also be on
+`LD_LIBRARY_PATH`: OSPRay loads its modules (Embree, OpenVKL) from there at
+run time. Without it every reader rank segfaults in OpenGL setup
+(`glad_gl_get_extensions`) before the first image (#72 step 1). The
+generator's jobs set both.
+
+**Catalyst renders with OSPRay.** The Paper 2 Catalyst templates (slices,
+isosurface, volume) use OSPRay, the CPU ray tracer: it is faster than
+OSMesa's software rasteriser and is the like-for-like comparison with
+Ascent's VTK-m ray tracer. Paper 1's template is unchanged.

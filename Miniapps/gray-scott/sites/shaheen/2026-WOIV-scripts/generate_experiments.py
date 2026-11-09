@@ -115,7 +115,6 @@ ADIOS_XML_TEMPLATE = """<?xml version="1.0"?>
         <engine type="BP5">
             <parameter key="verbose" value="0"/>
             <parameter key="NumAggregators" value="{stage_aggregators}"/>
-            <parameter key="MaxShmSize" value="42949672960"/>
             <parameter key="AsyncWrite" value="false"/>
         </engine>
     </io>
@@ -331,10 +330,10 @@ if __name__ == "__main__":
 CATALYST_VOLUME_TEMPLATE = """
 # Volume of v over the full grid, comparable with ASCENT_VOLUME_TEMPLATE: the
 # same data (no resampling), image size and colour range (pinned to 0..1).
-# ParaView's standard volume renderer, as in the shipped
-# catalyst-extract-jpg.py, whose images are rank independent. The producer is
-# rendered directly: a GhostCells layer under a volume shows as cracks
-# (docs/in-situ-backends.md, Catalyst).
+# Rendered with OSPRay, the CPU ray tracer, as the slice and isosurface
+# templates are: like Ascent's VTK-m ray tracer, so the comparison is fair.
+# The producer is rendered directly: a GhostCells layer under a volume shows
+# as cracks (docs/in-situ-backends.md, Catalyst).
 from paraview import catalyst
 from paraview.simple import *
 
@@ -348,6 +347,8 @@ renderView1.Set(
     CameraFocalPoint=[{center}, {center}, {center}],
     CameraViewUp=[{cam_up_x}, {cam_up_y}, {cam_up_z}],
     CameraParallelScale={parallel_scale},
+    EnableRayTracing=1,
+    BackEnd="OSPRay raycaster",
 )
 SetActiveView(None)
 layout1 = CreateLayout(name="Layout #1")
@@ -819,6 +820,10 @@ fi
 
 # --- Rendering: offscreen OSMesa (sites/shaheen/README.md, top) ---
 export CATALYST_LIB_DIR="{catalyst_lib_path}"
+# ParaView's lib must be on the library path: OSPRay loads its modules
+# (Embree, OpenVKL) from there at run time, and without them every reader
+# rank segfaults in OpenGL setup (#72).
+export LD_LIBRARY_PATH="{paraview_lib_path}:$LD_LIBRARY_PATH"
 
 unset DISPLAY
 export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
@@ -924,7 +929,7 @@ CMD_INLINE = """srun --exclusive --propagate=NOFILE --hint=nomultithread \\
     --settings-file=$OUTPUT_DIR/settings.json
 """
 
-CMD_INTRANSIT = """srun --exclusive --propagate=NOFILE --hint=nomultithread --kill-on-bad-exit=1 --wait=60 \\
+CMD_INTRANSIT = """srun --exclusive --propagate=NOFILE --hint=nomultithread --kill-on-bad-exit=1 \\
     --nodes={sim_nodes} --ntasks={sim_ranks} --ntasks-per-node={mpi_per_node} --cpus-per-task={omp_threads} --mem-bind=v,local --cpu-bind=threads \\
     $EXE_SIM \\
     --logging-level={logging_level} \\
@@ -1382,7 +1387,8 @@ def generate_scripts(args):
             repo_path=args.repo_path, 
             bin_path=args.bin_path, 
             command=command, 
-            catalyst_lib_path=CATALYST_LIB_PATH
+            catalyst_lib_path=CATALYST_LIB_PATH,
+            paraview_lib_path=os.path.dirname(CATALYST_LIB_PATH.rstrip("/")),
         )
 
         with open(f"{args.output_dir}/{exp['id']}.sbat", "w") as f: 

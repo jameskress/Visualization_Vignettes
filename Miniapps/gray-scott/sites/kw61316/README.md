@@ -47,7 +47,8 @@ The miniapp builds against VTK and Catalyst from a ParaView 6.2 source build, be
 before they go to Shaheen III. It loads the generator itself and changes
 only the sizes: 64^3, one "node" of `--ranks` ranks, a short initialisation
 and short runs. Then it runs every Paper 1 job and the smallest Paper 2
-strong, weak and in transit set: inline as one `mpirun`, in transit as an
+strong, weak and in transit set and the #72 transport matrix at one small
+size: inline as one `mpirun`, in transit as an
 MPMD `mpirun` of the simulation and the analysis reader over SST. The
 settings, `adios2.xml` and pipeline files are the generator's own.
 

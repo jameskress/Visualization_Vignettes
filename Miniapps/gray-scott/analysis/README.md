@@ -163,6 +163,9 @@ For in-transit runs, the simulation code needs an `adios2.xml` configuration fil
 > Ensure that `"adios_span": false` is set in your simulation's JSON settings file when running in-transit. 
 > Enabling it will cause the simulation to crash with an `Engine SstWriter does not support DoPut` exception.
 
+> [!NOTE]
+> `"overwrite_last_step": true` is ignored with SST (the simulation warns and writes every step). Overwriting closes and reopens the engine at every step, which drops the reader's connection and leaves the reader waiting forever.
+
 > [!CAUTION]
 > If there is a leftover `*.sst` file in your run directory your runs may fail immediately. If your runs are failing unexpectedly, check for this file. 
 

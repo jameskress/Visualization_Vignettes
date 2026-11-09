@@ -26,6 +26,16 @@ void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, 
         settings.adios_span = false;
         settings.adios_memory_selection = false;
     }
+    // overwrite_last_step closes and reopens the engine at every write. For
+    // SST that drops the reader's connection and the reader then waits forever
+    // (found in the Paper 2 runs, sites/shaheen/README.md).
+    if (engine == "sst" && settings.overwrite_last_step)
+    {
+        if (rank == 0)
+            vtkLog(WARNING, "ADIOS2: overwrite_last_step is not supported with SST (it would drop the "
+                            "reader's connection at every step); writing every step instead");
+        settings.overwrite_last_step = false;
+    }
 
     // --- DEFINE THE SIMULATION VARIABLES ---
     const adios2::Dims shape = {settings.L, settings.L, settings.L};
