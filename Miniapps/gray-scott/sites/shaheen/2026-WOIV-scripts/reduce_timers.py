@@ -29,24 +29,27 @@ def load_csv(file_path):
         return pd.DataFrame()
 
 def load_jsonl(file_path):
-    """One rank's step records from the structured performance log."""
+    """One rank's step records from the structured performance log.
+
+    A bad line or a record without rss_MB or total_step stops the reduction:
+    dropping a rank would report a summary of the other ranks as complete.
+    """
     rows = []
-    try:
-        with open(file_path, encoding="utf-8") as f:
-            for line in f:
-                if not line.strip():
-                    continue
+    with open(file_path, encoding="utf-8") as f:
+        for n, line in enumerate(f, 1):
+            if not line.strip():
+                continue
+            try:
                 r = json.loads(line)
-                t = r.get("t", {})
-                rows.append({"step": r["step"], "rss_MB": r.get("rss_MB", 0.0),
+                t = r["t"]
+                rows.append({"step": r["step"], "rss_MB": r["rss_MB"],
                              "init_writer": t.get("create_writer", t.get("init_writer", 0.0)),
                              "writer_open": t.get("writer_open", 0.0),
                              "compute_step": t.get("compute_step", 0.0),
                              "write_step": t.get("write_step", 0.0),
-                             "total_step": t.get("total_step", 0.0)})
-    except Exception as e:
-        print(f"Error reading {file_path}: {e}")
-        return pd.DataFrame()
+                             "total_step": t["total_step"]})
+            except (ValueError, KeyError) as e:
+                raise RuntimeError(f"{file_path}:{n}: bad step record ({e!r})") from e
     return pd.DataFrame(rows, columns=COLS)
 
 def reduce_run_data(run_dir, output_csv):
