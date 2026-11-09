@@ -149,4 +149,6 @@ void CatalystBackend::Run()
         m_perf_logger.stop("total_step");
         m_perf_logger.logStep(step);
     }
+    // Write the timings now, before teardown can get stuck (#75).
+    m_perf_logger.finalize();
 }

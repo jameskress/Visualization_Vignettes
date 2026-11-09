@@ -35,6 +35,9 @@ struct Settings
     // Parent directory for each run's performance log directory (#26).
     std::string perf_dir;
     int burn_in_steps;
+    // Seconds allowed for closing the output and MPI_Finalize once every
+    // output and the performance log are written; then exit 0. 0 disables (#75).
+    double teardown_timeout_s;
     bool overwrite_last_step;
 
     Settings();

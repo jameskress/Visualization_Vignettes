@@ -33,7 +33,8 @@ void to_json(nlohmann::json &j, const Settings &s)
                        {"kombynelite_script_path", s.kombynelite_script_path},
                        {"perf_dir", s.perf_dir},
                        {"burn_in_steps", s.burn_in_steps},
-                       {"overwrite_last_step", s.overwrite_last_step}};
+                       {"overwrite_last_step", s.overwrite_last_step},
+                       {"teardown_timeout_s", s.teardown_timeout_s}};
 }
 
 void from_json(const nlohmann::json &j, Settings &s)
@@ -65,6 +66,7 @@ void from_json(const nlohmann::json &j, Settings &s)
     s.perf_dir = j.value("perf_dir", std::string("perf"));
     s.burn_in_steps = j.value("burn_in_steps", 0);
     s.overwrite_last_step = j.value("overwrite_last_step", false);
+    s.teardown_timeout_s = j.value("teardown_timeout_s", 300.0);
 }
 
 Settings::Settings()
@@ -96,6 +98,7 @@ Settings::Settings()
     perf_dir = "perf";
     burn_in_steps = 0;
     overwrite_last_step = false;
+    teardown_timeout_s = 300.0;
 }
 
 Settings Settings::from_json(const std::string &fname)

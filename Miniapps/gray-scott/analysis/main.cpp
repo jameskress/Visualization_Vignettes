@@ -9,6 +9,8 @@
 #include <stdexcept>
 #include <iomanip>
 
+#include "../common/teardown_guard.hpp"
+
 static constexpr const char *PROG = "analysis-reader";
 
 static void usage(std::ostream &os)
@@ -35,6 +37,7 @@ int main(int argc, char **argv)
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
 
     int global_rank;
+    std::unique_ptr<TeardownGuard> guard; // armed once the reader has finished (#75)
     MPI_Comm_rank(MPI_COMM_WORLD, &global_rank);
 
     try
@@ -208,6 +211,10 @@ int main(int argc, char **argv)
 
         auto backend = CreateBackend(opts.output_type, opts);
         backend->Run();
+        // Run() has written every output and the timings. Bound the rest:
+        // destroying the backend (SST close, catalyst_finalize) and
+        // MPI_Finalize (#75).
+        guard = std::make_unique<TeardownGuard>(opts.teardown_timeout_s, global_rank, "analysis-reader");
     }
     catch (const std::exception &e)
     {
@@ -216,5 +223,7 @@ int main(int argc, char **argv)
         MPI_Abort(MPI_COMM_WORLD, -1);
     }
     MPI_Finalize();
+    if (guard)
+        guard->disarm();
     return 0;
 }

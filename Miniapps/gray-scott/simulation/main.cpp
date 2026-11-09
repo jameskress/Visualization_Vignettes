@@ -22,6 +22,7 @@
 #include "../../gray-scott/common/perf_logger.hpp"
 #include "../../gray-scott/common/run_metadata.hpp"
 #include "../../gray-scott/common/alloc_count.hpp"
+#include "../../gray-scott/common/teardown_guard.hpp"
 #include "json.hpp"
 
 int unknownArg = 0;
@@ -468,9 +469,17 @@ int main(int argc, char **argv)
     perf.setRunTotals(MPI_Wtime() - loop_t0, settings.steps - restart_step);
 
 
-    writer_main->close(rank);
+    // The performance log first: it is collective, and a writer close that
+    // never returns (ADIOS2 SST over RDMA) must not cost the run its timings.
     perf.finalize();
 
+    // Everything that matters is written; bound what is left (#75).
+    TeardownGuard guard(settings.teardown_timeout_s, rank, "gray-scott");
+    if (std::getenv("GS_TEST_STUCK_TEARDOWN")) // test hook: a close that never returns
+        for (;;)
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+    writer_main->close(rank);
     sim.free_mpi_resources();
     MPI_Finalize();
+    guard.disarm();
 }
