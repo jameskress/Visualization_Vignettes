@@ -1335,6 +1335,11 @@ def generate_scripts(args):
         total_stage_ranks = exp.get('stage_nodes', 0) * 8 # HARDCODED MPMD 8 ranks for staging nodes
         
         run_output_dir = f"{args.results_dir}/{exp['id']}"
+        # Never rewrite a finished initialisation: its settings and adios2.xml
+        # belong to the checkpoint they made, and its sbatch would overwrite it.
+        if exp['workload'] == 'initialization' and os.path.exists(f"{run_output_dir}/data/checkpoint.bp"):
+            print(f"Keeping {exp['id']}: it already holds a checkpoint")
+            continue
         os.makedirs(run_output_dir, exist_ok=True)
         copied_files = copy_pipeline_files(exp, run_output_dir, args.repo_path)
         generate_settings_json(exp, run_output_dir, copied_files, args)

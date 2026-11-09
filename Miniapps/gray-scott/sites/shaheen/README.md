@@ -128,6 +128,10 @@ the run, to reduce its timings.
 Before submitting, run the same jobs at small scale on the workstation with
 `sites/kw61316/run_generator_locally.py` (see that site's README).
 
+The generator leaves an initialisation run directory that already holds
+`data/checkpoint.bp` alone (its settings belong to that checkpoint), so
+results directories can link to existing checkpoints.
+
 `--grid` exists to submit one grid size at a time, for example to stage only
 that size's restart files on fast storage.
 
