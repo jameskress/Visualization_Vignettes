@@ -125,6 +125,9 @@ analysis scripts: inside a run that environment breaks Catalyst. Each job
 activates it (`--perf-env`, default `/scratch/$USER/perf_env`) only after
 the run, to reduce its timings.
 
+Before submitting, run the same jobs at small scale on the workstation with
+`sites/kw61316/run_generator_locally.py` (see that site's README).
+
 `--grid` exists to submit one grid size at a time, for example to stage only
 that size's restart files on fast storage.
 

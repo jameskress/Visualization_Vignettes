@@ -40,6 +40,38 @@ The miniapp builds against VTK and Catalyst from a ParaView 6.2 source build, be
 * Checked: `pvbatch` and `pvpython` 6.2.0 run (including 2-rank `pvbatch`); the miniapp builds with and without Catalyst; `settings-catalyst-insitu.json` runs on 1 and 2 ranks and writes its images; the binary links only 6.2 libraries.
 * Rendering uses the system OpenGL with X, as the 6.0.0 build did. EGL (GPU, no display) and OSMesa (software, no display) are not switched on in this build; add them when headless rendering is needed.
 
+## Running the Shaheen jobs locally (#76)
+
+`run_generator_locally.py` runs the jobs of
+`sites/shaheen/2026-WOIV-scripts/generate_experiments.py` on this machine
+before they go to Shaheen III. It loads the generator itself and changes
+only the sizes: 64^3, one "node" of `--ranks` ranks, a short initialisation
+and short runs. Then it runs every Paper 1 job and the smallest Paper 2
+strong, weak and in transit set: inline as one `mpirun`, in transit as an
+MPMD `mpirun` of the simulation and the analysis reader over SST. The
+settings, `adios2.xml` and pipeline files are the generator's own.
+
+```bash
+python3 sites/kw61316/run_generator_locally.py \
+    --aac build/aac --akc build/akc --work /tmp/gs-local \
+    --catalyst-lib ~/packages/paraview-src/build_6.2.0/install/lib/catalyst \
+    --ranks 2 4 --adios-matrix
+```
+
+* `--aac`: a build with ADIOS2, Ascent, Catalyst and the analysis reader.
+  `--akc`: a build with Kombyne. Without it the Kombyne jobs are skipped.
+* `--ranks 2 4` runs everything at both rank counts, then compares each
+  job's images: at most 0.1% of pixels may differ by more than 24/255.
+  In transit Catalyst slices are a known exception (#42) and are reported,
+  not failed.
+* `--adios-matrix` adds inline ADIOS2 data runs with every
+  `adios_span` / `adios_memory_selection` combination.
+* `--only <text>` runs only the jobs whose id contains the text.
+
+It exits 1 if a job fails or an image comparison is over budget. A full
+run at 2 and 4 ranks with `--adios-matrix` is 68 jobs and takes about
+5 minutes on KW61316.
+
 ## Settings file
 
 ''output_file_name'': The format of this string is extrememly important, as catalyst requires specific things to work correctly. Specifically, the time step information must explicilty list ''ts''
