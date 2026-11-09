@@ -377,5 +377,6 @@ int main(int argc, char **argv)
     writer_main->close(rank);
     perf.finalize();
 
+    sim.free_mpi_resources();
     MPI_Finalize();
 }

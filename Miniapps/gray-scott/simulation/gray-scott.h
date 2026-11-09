@@ -24,6 +24,9 @@ public:
     ~GrayScott();
 
     void init();
+    // Free the Cartesian communicator and face datatypes. Idempotent; call it
+    // before MPI_Finalize (the destructor runs too late in main()).
+    void free_mpi_resources();
     void iterate();
     // Step counter used by the noise term; restart sets it from the checkpoint.
     void set_step(std::uint64_t step) { step_ = step; }
@@ -52,12 +55,13 @@ protected:
     int rank, procs;
     int west, east, up, down, north, south;
     MPI_Comm comm;
-    MPI_Comm cart_comm;
+    // Null until init(), so cleanup is safe on an object never initialized.
+    MPI_Comm cart_comm = MPI_COMM_NULL;
 
     // MPI datatypes for halo exchange
-    MPI_Datatype xy_face_type;
-    MPI_Datatype xz_face_type;
-    MPI_Datatype yz_face_type;
+    MPI_Datatype xy_face_type = MPI_DATATYPE_NULL;
+    MPI_Datatype xz_face_type = MPI_DATATYPE_NULL;
+    MPI_Datatype yz_face_type = MPI_DATATYPE_NULL;
 
     // Number of completed iterations; the noise term depends on it.
     std::uint64_t step_ = 0;

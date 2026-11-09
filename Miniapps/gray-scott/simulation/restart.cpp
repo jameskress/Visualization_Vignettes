@@ -6,28 +6,6 @@
 #include <vtkLogger.h>
 
 // --- Accurate Topology Matcher ---
-void GetOffsets(MPI_Comm comm, int nproc, int rank, size_t L,
-                size_t &ox, size_t &oy, size_t &oz)
-{
-    // 1. Let MPI calculate the exact 3D division the simulation is using
-    int dims[3] = {0, 0, 0};
-    MPI_Dims_create(nproc, 3, dims); 
-
-    // 2. Create a temporary grid to get our exact X, Y, Z coordinates
-    MPI_Comm cart_comm;
-    int periods[3] = {1, 1, 1};
-    MPI_Cart_create(comm, 3, dims, periods, 0, &cart_comm);
-    
-    int coords[3] = {0, 0, 0};
-    MPI_Cart_coords(cart_comm, rank, 3, coords);
-    MPI_Comm_free(&cart_comm); // Clean up
-
-    // 3. Calculate spatial offsets based on the global size (L)
-    ox = coords[0] * (L / dims[0]);
-    oy = coords[1] * (L / dims[1]);
-    oz = coords[2] * (L / dims[2]);
-}
-
 void WriteCkpt(MPI_Comm comm, const int step, const Settings &settings,
                const GrayScott &sim, adios2::IO &io)
 {
@@ -47,9 +25,9 @@ void WriteCkpt(MPI_Comm comm, const int step, const Settings &settings,
         const size_t GY = settings.L;
         const size_t GZ = settings.L;
         
-        // Get our exact starting coordinates
-        size_t OX, OY, OZ;
-        GetOffsets(comm, nproc, rank, settings.L, OX, OY, OZ);
+        // This rank's block starts at the simulation's own offsets, which include
+        // the remainder when L does not divide by the rank count (#12).
+        const size_t OX = sim.offset_x, OY = sim.offset_y, OZ = sim.offset_z;
 
         // Local dimensions (how much this specific rank owns)
         const size_t LX = sim.size_x;
@@ -169,9 +147,9 @@ int ReadRestart(MPI_Comm comm, const Settings &settings, GrayScott &sim,
         }
         // --- END METADATA VALIDATION ---
 
-        // Get our new coordinates based on the current number of nodes
-        size_t OX, OY, OZ;
-        GetOffsets(comm, nproc, rank, settings.L, OX, OY, OZ);
+        // This rank's block starts at the simulation's own offsets, which include
+        // the remainder when L does not divide by the rank count (#12).
+        const size_t OX = sim.offset_x, OY = sim.offset_y, OZ = sim.offset_z;
 
         const size_t LX = sim.size_x;
         const size_t LY = sim.size_y;
