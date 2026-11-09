@@ -168,24 +168,13 @@ To enable timers, set the `ENABLE_TIMERS` CMake option to `ON`:
 cmake -DENABLE_TIMERS=ON ..
 ```
 
-When an application built with timers enabled is run, a `reader_timers/` directory will be created, containing per-rank `.csv` files with detailed timing information.
+When the reader is built with timers enabled, it writes `reader_timers/steps/rank_NNNNN.jsonl`: one JSON object per step per rank, with the reader's timers (`total_step`, `Blueprint_Time`, `Vis_Time` and the ADIOS2 read timers), memory high-water mark and CPU time. This is the same logger and record format as the simulation; see the [Performance section of the miniapp README](../README.md#performance).
 
-### Visualizing the Timers
+The reader does not yet write `metadata.json` or `summary.json`, so `scripts/perf_report.py` does not read its directories. To look at a reader run, load the JSON lines directly, for example with pandas:
 
-A Python script is provided to parse the timer files and create a summary plot.
-
-**Prerequisites:**
+```python
+import glob, json, pandas as pd
+rows = [json.loads(l) for f in glob.glob("reader_timers/steps/*.jsonl") for l in open(f)]
+df = pd.json_normalize(rows)          # columns t.total_step, t.Vis_Time, rss_MB, ...
+print(df.groupby("step")["t.total_step"].max().describe())
 ```
-pip install pandas matplotlib numpy
-```
-
-**Running the Script:**
-```
-# General Usage
-python3 visualize-performance-metrics.py -i <directory_with_csvs> -o <output_image_name.png>
-
-# Example: Visualizing Reader Performance
-python3 visualize-gray-scott-timers.py -i timers_reader/ -o reader_performance.png
-```
-
-The summary image contains four plots providing a comprehensive overview of the run's performance: Timers per Step, Timers (stacked), System Stats per Step, and Total Step Time by Rank.

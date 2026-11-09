@@ -48,19 +48,6 @@ endif()
 set(CMAKE_CXX_FLAGS_DEBUG "-g -rdynamic")
 
 #------------------------------------------------------------------------------#
-# Common Library (for shared code like PerfLogger)
-#------------------------------------------------------------------------------#
-add_library(common common/perf_logger.cpp)
-target_include_directories(common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-if(ENABLE_TIMERS)
-  # Apply the compile definition to the common library.
-  # Any target that links to it will inherit this definition.
-  target_compile_definitions(common PUBLIC ENABLE_TIMERS)
-  message(STATUS "Performance Timers are ENABLED")
-endif()
-
-#------------------------------------------------------------------------------#
 # Writer Options
 #------------------------------------------------------------------------------#
 option(ENABLE_CATALYST "Enable Catalyst writer" OFF)
@@ -211,6 +198,50 @@ if(ENABLE_KOMBYNELITE)
 endif()
 
 #------------------------------------------------------------------------------#
+# Common Library: PerfLogger and run metadata (README.md, Performance)
+#------------------------------------------------------------------------------#
+# gs_build_info.h records the git commit, dirty state, compiler and flags in
+# every run's metadata.json. It is regenerated on every build so it never
+# describes an older tree; it is rewritten only when its contents change.
+set(GS_GENERATED_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
+string(TOUPPER "${CMAKE_BUILD_TYPE}" _gs_bt)
+string(STRIP "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${_gs_bt}}" _gs_flags)
+set(_gs_backends "pvti")
+foreach(_b CATALYST ASCENT ADIOS2 KOMBYNELITE)
+  if(ENABLE_${_b})
+    string(TOLOWER "${_b}" _bl)
+    string(APPEND _gs_backends ",${_bl}")
+  endif()
+endforeach()
+add_custom_target(gs_build_info
+  COMMAND ${CMAKE_COMMAND}
+          -DSRC_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+          -DOUT_FILE=${GS_GENERATED_DIR}/gs_build_info.h
+          -DTEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/gs_build_info.h.in
+          -DGS_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+          -DGS_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
+          -DGS_CXX_COMPILER_VERSION=${CMAKE_CXX_COMPILER_VERSION}
+          "-DGS_CXX_FLAGS=${_gs_flags}"
+          -DGS_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+          -DGS_ENABLED_BACKENDS=${_gs_backends}
+          -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/gs_build_info.cmake
+  BYPRODUCTS ${GS_GENERATED_DIR}/gs_build_info.h
+  VERBATIM
+  COMMENT "Recording git state and compiler settings for run metadata")
+
+add_library(common common/perf_logger.cpp common/run_metadata.cpp)
+add_dependencies(common gs_build_info)
+target_include_directories(common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+                                  PRIVATE ${GS_GENERATED_DIR})
+target_link_libraries(common PUBLIC MPI::MPI_C)
+
+if(ENABLE_TIMERS)
+  # Any target that links common inherits this definition.
+  target_compile_definitions(common PUBLIC ENABLE_TIMERS)
+  message(STATUS "Performance Timers are ENABLED")
+endif()
+
+#------------------------------------------------------------------------------#
 # Executable and Sources
 #------------------------------------------------------------------------------#
 # The simulation core (solver, halo exchange, settings) is a library so the
@@ -286,6 +317,11 @@ if(ENABLE_KOMBYNELITE)
   )
 
   target_link_options(gray-scott PRIVATE "-Wl,--allow-shlib-undefined")
+  # For the run metadata; the package config may not set a version.
+  if(NOT kombynelite_VERSION)
+    set(kombynelite_VERSION "unknown")
+  endif()
+  target_compile_definitions(gray-scott PRIVATE GS_KOMBYNE_VERSION="${kombynelite_VERSION}")
 endif()
 
 

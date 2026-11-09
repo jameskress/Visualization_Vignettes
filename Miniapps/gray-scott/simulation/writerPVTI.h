@@ -22,6 +22,10 @@ class WriterPVTI : public Writer
     void write(int step, const GrayScott &sim, int rank, int numRanks) override;
     void close(int rank) override;
     void printSelf() override;
+    std::string backendVersion() const override
+    {
+        return std::string("VTK ") + vtkVersion::GetVTKVersion() + " vtkXMLPImageDataWriter";
+    }
 };
 
 #endif

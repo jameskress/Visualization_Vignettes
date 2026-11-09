@@ -19,6 +19,8 @@
 #endif
 
 #include "../../gray-scott/common/perf_logger.hpp"
+#include "../../gray-scott/common/run_metadata.hpp"
+#include "json.hpp"
 
 int unknownArg = 0;
 std::string fileName = "";
@@ -246,12 +248,27 @@ int main(int argc, char **argv)
 #endif
 
     // ------------------- PerfLogger -------------------
-    std::string timer_dir = "writer_timers";
-    std::filesystem::create_directories(timer_dir);
-
-    // Initialize PerfLogger with output directory and timers
-    PerfLogger perf(timer_dir, rank, my_hostname,
-                    {"init_writer", "writer_open", "printSelf", "compute_step", "write_step", "create_checkpoint", "total_step"});
+    // One directory per run under settings.perf_dir; see README.md,
+    // Performance, for the files and the schema.
+    const std::string run_dir = PerfLogger::makeRunDir(
+        settings.perf_dir, settings.output_type + "_np" + std::to_string(procs), app_comm);
+    PerfLogger perf(run_dir, rank, my_hostname,
+                    {"create_writer", "writer_open", "printSelf", "halo", "stencil",
+                     "compute_step", "wrap", "execute", "io", "write_step",
+                     "create_checkpoint", "total_step"},
+                    {"halo_bytes", "backend_bytes"}, app_comm);
+    perf.setStepPrint({{"stencil", "Stencil"}, {"halo", "Halo"}, {"wrap", "Wrap"},
+                       {"execute", "Execute"}});
+    // Field data handed to the backend per write (u and v, doubles): none
+    // for "none"; ADIOS2 writes each rank's interior block; the mesh-based
+    // backends take the full block with its halo layer.
+    const double interior_points = static_cast<double>(sim.size_x) * sim.size_y * sim.size_z;
+    const double halo_points = static_cast<double>(sim.size_x + 2) * (sim.size_y + 2) * (sim.size_z + 2);
+    double backend_bytes = 2.0 * sizeof(double) * halo_points;
+    if (settings.output_type == "none")
+        backend_bytes = 0.0;
+    else if (settings.output_type == "adios")
+        backend_bytes = 2.0 * sizeof(double) * interior_points;
 
     // ------------------- Writer creation -------------------
     perf.start("create_writer");
@@ -313,6 +330,47 @@ int main(int argc, char **argv)
     writer_main->printSelf();
     perf.stop("printSelf");
 
+    // ------------------- Run metadata -------------------
+    {
+        nlohmann::json meta = collect_run_metadata(app_comm);
+        if (rank == 0)
+        {
+            std::ifstream sf(fileName);
+            std::stringstream raw;
+            raw << sf.rdbuf();
+            // Rank 0 only: nothing here may throw, or the other ranks would
+            // wait in the next collective.
+            std::error_code ec;
+            const std::filesystem::path abs_path = std::filesystem::absolute(fileName, ec);
+            meta["settings_file"] = {{"path", fileName},
+                                     {"absolute_path", ec ? std::string() : abs_path.string()}};
+            nlohmann::json parsed = nlohmann::json::parse(raw.str(), nullptr, false);
+            // The settings were parsed for the run already; keep the text if
+            // this strict parse fails rather than recording null.
+            if (parsed.is_discarded())
+                meta["settings_text"] = raw.str();
+            else
+                meta["settings"] = parsed;
+            meta["mpi"]["decomposition"] = {sim.npx, sim.npy, sim.npz};
+            meta["mpi"]["local_size_rank0"] = {sim.size_x, sim.size_y, sim.size_z};
+            meta["problem"] = {{"L", settings.L},          {"steps", settings.steps},
+                               {"restart_step", restart_step},
+                               {"burn_in_steps", settings.burn_in_steps},
+                               {"plotgap", settings.plotgap}, {"F", settings.F},
+                               {"k", settings.k},          {"Du", settings.Du},
+                               {"Dv", settings.Dv},        {"dt", settings.dt},
+                               {"noise", settings.noise},  {"seed", settings.seed}};
+            meta["backend"] = {{"output_type", settings.output_type},
+                               {"version", writer_main->backendVersion()},
+                               {"script", writer_main->backendScript()}};
+            meta["vtk_version"] = vtkVersion::GetVTKVersion();
+            meta["halo_bytes_per_step_rank0"] = sim.halo_bytes_per_step();
+            meta["command_line"] = std::vector<std::string>(argv, argv + argc);
+        }
+        // replace: a non-UTF-8 path must not make rank 0 throw here.
+        perf.writeMetadata(meta.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+    }
+
     if (rank == 0)
     {
         std::cout << "========================================" << std::endl;
@@ -322,6 +380,8 @@ int main(int argc, char **argv)
     }
 
     // ------------------- Main simulation loop -------------------
+    MPI_Barrier(app_comm);
+    const double loop_t0 = MPI_Wtime();
     for (int it = restart_step; it < settings.steps; it++)
     {
         MPI_Barrier(app_comm);
@@ -330,12 +390,16 @@ int main(int argc, char **argv)
         perf.start("compute_step");
         sim.iterate();
         perf.stop("compute_step");
+        perf.add("halo", sim.last_halo_seconds());
+        perf.add("stencil", sim.last_stencil_seconds());
+        perf.setCounter("halo_bytes", static_cast<double>(sim.halo_bytes_per_step()));
 
         MPI_Barrier(app_comm);
 
-	if (rank == 0)
-	    std::cout << "\tSimulation at step " << it << std::endl;
-            vtkLog(INFO, "Simulation at step " << it);
+        // With timers on, the PerfLogger prints a "[Step N] ..." line instead.
+        if (rank == 0 && !PerfLogger::timersEnabled())
+            std::cout << "\tSimulation at step " << it << std::endl;
+        vtkLog(INFO, "Simulation at step " << it);
 
         if (it >= settings.burn_in_steps && it % settings.plotgap == 0)
         {
@@ -345,6 +409,18 @@ int main(int argc, char **argv)
             perf.start("write_step");
             writer_main->write(it, sim, rank, procs);
             perf.stop("write_step");
+            const Writer::Phases &ph = writer_main->lastPhases();
+            if (ph.split)
+            {
+                perf.add("wrap", ph.wrap_s);
+                perf.add("execute", ph.execute_s);
+                perf.add("io", ph.io_s);
+            }
+            else
+            {
+                perf.add("execute", perf.elapsed("write_step"));
+            }
+            perf.setCounter("backend_bytes", backend_bytes);
         }
 
 #ifdef USE_ADIOS2
@@ -362,16 +438,12 @@ int main(int argc, char **argv)
 #endif
 
         perf.stop("total_step");
-
-        // For consistent CSV length:
-        // init_writer is only meaningful once, zero afterwards
-        if (it > restart_step)
-        {
-            perf.resetTimer("init_writer");
-        }
-
+        // The setup timers (create_writer, writer_open, printSelf) land in
+        // the first step's record only: logStep zeroes every timer.
         perf.logStep(it);
     }
+    MPI_Barrier(app_comm);
+    perf.setRunTotals(MPI_Wtime() - loop_t0, settings.steps - restart_step);
 
 
     writer_main->close(rank);

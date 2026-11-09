@@ -1,87 +1,378 @@
 #include "perf_logger.hpp"
+
 #include <sys/resource.h>
-#include <iostream>
+
+#include <algorithm>
+#include <cstdio>
+#include <ctime>
+#include <filesystem>
+#include <fstream>
 #include <stdexcept>
 
-PerfLogger::PerfLogger(const std::string &output_dir, int rank, const std::string &hostname,
-                       const std::vector<std::string> &timers)
+#include "simulation/json.hpp"
+
+namespace fs = std::filesystem;
+
+namespace
 {
-    rank_ = rank;
-    hostname_ = hostname;
-    header_names_ = timers;
-    output_dir_ = output_dir;
+struct Usage
+{
+    double rss_MB, user_s, sys_s;
+};
 
-#ifdef ENABLE_TIMERS
-    for (auto &t : timers)
-        accumulated_[t] = 0.0;
-#endif
-
-    // Build file path: output_dir/rank_<rank>.csv
-    std::string file_path = output_dir_ + "/rank_" + std::to_string(rank_) + ".csv";
-
-    // Optional: create directory if it doesn't exist (POSIX)
-    system(("mkdir -p " + output_dir_).c_str());
-
-    log_.open(file_path);
-    if (!log_.is_open())
-        throw std::runtime_error("Failed to open log file: " + file_path);
-
-    // Write CSV header
-    log_ << "step,rank,hostname,rss_MB,user_s,sys_s";
-    for (auto &name : header_names_)
-        log_ << "," << name;
-    log_ << std::endl;
+Usage usage_now()
+{
+    struct rusage u;
+    getrusage(RUSAGE_SELF, &u);
+    return {u.ru_maxrss / 1024.0, // ru_maxrss is the high-water mark, in KiB on Linux
+            u.ru_utime.tv_sec + u.ru_utime.tv_usec / 1e6,
+            u.ru_stime.tv_sec + u.ru_stime.tv_usec / 1e6};
 }
 
-PerfLogger::~PerfLogger() { finalize(); }
+bool mpi_usable()
+{
+    int init = 0, fin = 0;
+    MPI_Initialized(&init);
+    MPI_Finalized(&fin);
+    return init && !fin;
+}
+} // namespace
+
+PerfLogger::PerfLogger(const std::string &run_dir, int rank, const std::string &hostname,
+                       const std::vector<std::string> &timers,
+                       const std::vector<std::string> &counters, MPI_Comm comm)
+    : rank_(rank), hostname_(hostname), run_dir_(run_dir), comm_(comm), timer_names_(timers),
+      counter_names_(counters)
+{
+    for (size_t i = 0; i < timer_names_.size(); i++)
+        timer_index_[timer_names_[i]] = static_cast<int>(i);
+    for (size_t i = 0; i < counter_names_.size(); i++)
+        counter_index_[counter_names_[i]] = static_cast<int>(i);
+    acc_.assign(timer_names_.size(), 0.0);
+    cur_counters_.assign(counter_names_.size(), 0.0);
+    started_.resize(timer_names_.size());
+
+    std::error_code ec;
+    fs::create_directories(run_dir_, ec);
+    // Every rank must reach the run directory (it may be rank-local on a
+    // non-shared file system). Agree on the outcome so all ranks stop
+    // together instead of some waiting in the next collective.
+    int ok = ec ? 0 : 1;
+    if (comm_ != MPI_COMM_NULL)
+        MPI_Allreduce(MPI_IN_PLACE, &ok, 1, MPI_INT, MPI_MIN, comm_);
+    if (!ok)
+        throw std::runtime_error("PerfLogger: cannot create " + run_dir_ +
+                                 (ec ? ": " + ec.message() : std::string(" on another rank")));
+}
+
+// Logging must not stop a run, but a missing or partial record must not go
+// unnoticed either: report and carry on.
+static void report_write(const std::ofstream &out, const std::string &path)
+{
+    if (!out)
+        std::fprintf(stderr, "PerfLogger: could not write %s; this run's performance record is incomplete\n",
+                     path.c_str());
+}
+
+PerfLogger::~PerfLogger()
+{
+    // A logger that was never finalized still keeps its step records, but
+    // only finalize() may use MPI (the destructor may run after MPI_Finalize).
+    if (!finalized_)
+        writeStepFile();
+}
+
+std::string PerfLogger::makeRunDir(const std::string &base, const std::string &label,
+                                   MPI_Comm comm)
+{
+    int rank = 0;
+    MPI_Comm_rank(comm, &rank);
+    std::string dir;
+    std::string error;
+    if (rank == 0)
+    {
+        char stamp[32];
+        std::time_t now = std::time(nullptr);
+        std::strftime(stamp, sizeof stamp, "%Y%m%d-%H%M%S", std::gmtime(&now));
+        const std::string stem = base + "/" + stamp + "_" + label;
+        try
+        {
+            fs::create_directories(base);
+            // create_directory is atomic and returns false if the directory
+            // already exists, so two jobs starting in the same second (a job
+            // array sharing one perf_dir) never get the same directory.
+            dir = stem;
+            for (int n = 2; !fs::create_directory(dir); n++)
+                dir = stem + "_" + std::to_string(n);
+        }
+        catch (const std::exception &e)
+        {
+            error = e.what();
+            dir.clear();
+        }
+    }
+    // len < 0 tells every rank that rank 0 failed, so all of them stop
+    // together instead of the others waiting in the next broadcast.
+    int len = error.empty() ? static_cast<int>(dir.size()) : -1;
+    MPI_Bcast(&len, 1, MPI_INT, 0, comm);
+    if (len < 0)
+        throw std::runtime_error("performance log: cannot create a run directory under '" + base +
+                                 "'" + (error.empty() ? std::string() : ": " + error));
+    dir.resize(len);
+    MPI_Bcast(&dir[0], len, MPI_CHAR, 0, comm);
+    return dir;
+}
+
+int PerfLogger::timerIndex(const std::string &name) const
+{
+    auto it = timer_index_.find(name);
+    return it == timer_index_.end() ? -1 : it->second;
+}
 
 void PerfLogger::start(const std::string &name)
 {
 #ifdef ENABLE_TIMERS
-    start_times_[name] = std::chrono::high_resolution_clock::now();
+    const int i = timerIndex(name);
+    if (i >= 0)
+        started_[i] = std::chrono::steady_clock::now();
+#else
+    (void)name;
 #endif
 }
 
 void PerfLogger::stop(const std::string &name)
 {
 #ifdef ENABLE_TIMERS
-    auto end = std::chrono::high_resolution_clock::now();
-    double duration = std::chrono::duration<double>(end - start_times_[name]).count();
-    accumulated_[name] += duration;
+    const auto end = std::chrono::steady_clock::now();
+    const int i = timerIndex(name);
+    if (i >= 0)
+        acc_[i] += std::chrono::duration<double>(end - started_[i]).count();
+#else
+    (void)name;
 #endif
 }
 
-void PerfLogger::logStep(int step)
+void PerfLogger::add(const std::string &name, double seconds)
 {
-    struct rusage usage;
-    getrusage(RUSAGE_SELF, &usage);
-    double rss_MB = usage.ru_maxrss / 1024.0;
-    double user_s = usage.ru_utime.tv_sec + usage.ru_utime.tv_usec / 1e6;
-    double sys_s = usage.ru_stime.tv_sec + usage.ru_stime.tv_usec / 1e6;
-
-    log_ << step << "," << rank_ << "," << hostname_ << "," << rss_MB << "," << user_s << "," << sys_s;
-
-    for (auto &name : header_names_)
-    {
 #ifdef ENABLE_TIMERS
-        log_ << "," << accumulated_[name];
-        accumulated_[name] = 0.0;
+    const int i = timerIndex(name);
+    if (i >= 0)
+        acc_[i] += seconds;
 #else
-        log_ << ",0.0"; // timers disabled
+    (void)name;
+    (void)seconds;
 #endif
-    }
-    log_ << std::endl;
+}
+
+double PerfLogger::elapsed(const std::string &name) const
+{
+    const int i = timerIndex(name);
+    return i >= 0 ? acc_[i] : 0.0;
 }
 
 void PerfLogger::resetTimer(const std::string &name)
 {
+    const int i = timerIndex(name);
+    if (i >= 0)
+        acc_[i] = 0.0;
+}
+
+void PerfLogger::setCounter(const std::string &name, double value)
+{
+    auto it = counter_index_.find(name);
+    if (it != counter_index_.end())
+        cur_counters_[it->second] = value;
+}
+
+void PerfLogger::setStepPrint(const std::vector<std::pair<std::string, std::string>> &timer_labels)
+{
+    step_print_.clear();
+    for (const auto &tl : timer_labels)
+    {
+        const int i = timerIndex(tl.first);
+        if (i >= 0)
+            step_print_.emplace_back(i, tl.second);
+    }
+}
+
+void PerfLogger::logStep(int step)
+{
 #ifdef ENABLE_TIMERS
-    accumulated_[name] = 0.0;
+    const Usage u = usage_now();
+    records_.push_back({step, u.rss_MB, u.user_s, u.sys_s, acc_, cur_counters_});
+
+    if (!step_print_.empty() && comm_ != MPI_COMM_NULL)
+    {
+        std::vector<double> local(step_print_.size()), mx(step_print_.size());
+        for (size_t k = 0; k < step_print_.size(); k++)
+            local[k] = acc_[step_print_[k].first];
+        MPI_Reduce(local.data(), mx.data(), static_cast<int>(local.size()), MPI_DOUBLE, MPI_MAX,
+                   0, comm_);
+        if (rank_ == 0)
+        {
+            std::string line = "[Step " + std::to_string(step) + "]";
+            char buf[96];
+            for (size_t k = 0; k < step_print_.size(); k++)
+            {
+                std::snprintf(buf, sizeof buf, "%s %s %.3f ms", k ? " |" : "",
+                              step_print_[k].second.c_str(), mx[k] * 1e3);
+                line += buf;
+            }
+            std::printf("%s\n", line.c_str());
+        }
+    }
+#else
+    (void)step;
 #endif
+    std::fill(acc_.begin(), acc_.end(), 0.0);
+    std::fill(cur_counters_.begin(), cur_counters_.end(), 0.0);
+}
+
+void PerfLogger::writeMetadata(const std::string &meta_json)
+{
+    if (rank_ != 0)
+        return;
+    nlohmann::json meta = nlohmann::json::parse(meta_json, nullptr, false);
+    if (meta.is_discarded() || !meta.is_object())
+        meta = nlohmann::json::object();
+    meta["schema_version"] = kSchemaVersion;
+    meta["run_dir"] = run_dir_;
+    meta["timers_enabled"] = timersEnabled();
+    meta["timer_names"] = timer_names_;
+    meta["counter_names"] = counter_names_;
+    const std::string path = run_dir_ + "/metadata.json";
+    std::ofstream out(path);
+    out << meta.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+    out.close();
+    report_write(out, path);
+}
+
+void PerfLogger::setRunTotals(double loop_wall_s, int steps_run)
+{
+    loop_wall_s_ = loop_wall_s;
+    steps_run_ = steps_run;
+}
+
+void PerfLogger::writeStepFile() const
+{
+    if (records_.empty())
+        return;
+    std::error_code ec;
+    fs::create_directories(run_dir_ + "/steps", ec);
+    char name[40];
+    std::snprintf(name, sizeof name, "/steps/rank_%05d.jsonl", rank_);
+    const std::string path = run_dir_ + name;
+    std::ofstream out(path);
+    for (const Record &r : records_)
+    {
+        nlohmann::json t = nlohmann::json::object(), c = nlohmann::json::object();
+        for (size_t i = 0; i < timer_names_.size(); i++)
+            t[timer_names_[i]] = r.t[i];
+        for (size_t i = 0; i < counter_names_.size(); i++)
+            c[counter_names_[i]] = r.c[i];
+        nlohmann::json j = {{"step", r.step},     {"rank", rank_},     {"host", hostname_},
+                            {"rss_MB", r.rss_MB}, {"user_s", r.user_s}, {"sys_s", r.sys_s},
+                            {"t", t},             {"c", c}};
+        out << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+    }
+    out.close();
+    report_write(out, path);
 }
 
 void PerfLogger::finalize()
 {
-    if (log_.is_open())
-        log_.close();
+    if (finalized_)
+        return;
+    finalized_ = true;
+    writeStepFile();
+
+    if (comm_ == MPI_COMM_NULL || !mpi_usable())
+        return;
+
+    int procs = 1;
+    MPI_Comm_size(comm_, &procs);
+
+    // Per-rank totals over all steps, then min/sum/max across ranks.
+    const size_t nt = timer_names_.size(), nc = counter_names_.size();
+    std::vector<double> local(nt + nc + 1, 0.0);
+    for (const Record &r : records_)
+    {
+        for (size_t i = 0; i < nt; i++)
+            local[i] += r.t[i];
+        for (size_t i = 0; i < nc; i++)
+            local[nt + i] += r.c[i];
+    }
+    local[nt + nc] = usage_now().rss_MB;
+    const int n = static_cast<int>(local.size());
+    std::vector<double> mn(n), mx(n), sum(n);
+    MPI_Reduce(local.data(), mn.data(), n, MPI_DOUBLE, MPI_MIN, 0, comm_);
+    MPI_Reduce(local.data(), mx.data(), n, MPI_DOUBLE, MPI_MAX, 0, comm_);
+    MPI_Reduce(local.data(), sum.data(), n, MPI_DOUBLE, MPI_SUM, 0, comm_);
+
+    if (rank_ != 0)
+        return;
+
+    const int steps = static_cast<int>(records_.size());
+    const int total_i = timerIndex("total_step");
+    const double total_mean = total_i >= 0 ? sum[total_i] / procs : 0.0;
+    const double per_step_ms = steps_run_ > 0 ? 1e3 * loop_wall_s_ / steps_run_ : 0.0;
+
+    nlohmann::json s;
+    s["schema_version"] = kSchemaVersion;
+    s["ranks"] = procs;
+    s["timers_enabled"] = timersEnabled();
+    s["steps_run"] = steps_run_;
+    s["loop_wall_s"] = loop_wall_s_;
+    s["loop_wall_per_step_ms"] = per_step_ms;
+    s["rss_high_water_MB"] = {{"min", mn[n - 1]}, {"mean", sum[n - 1] / procs}, {"max", mx[n - 1]}};
+
+    if (timersEnabled())
+    {
+        // Imbalance: max/mean - 1 across ranks of the per-rank total.
+        // Fraction: mean total over the mean total_step.
+        nlohmann::json timers = nlohmann::json::object();
+        for (size_t i = 0; i < nt; i++)
+        {
+            const double mean = sum[i] / procs;
+            timers[timer_names_[i]] = {
+                {"total_s", {{"min", mn[i]}, {"mean", mean}, {"max", mx[i]}}},
+                {"per_step_ms_mean", steps > 0 ? 1e3 * mean / steps : 0.0},
+                {"imbalance", mean > 0 ? mx[i] / mean - 1.0 : 0.0},
+                {"fraction_of_step", total_mean > 0 ? mean / total_mean : 0.0}};
+        }
+        s["timers"] = timers;
+        nlohmann::json counters = nlohmann::json::object();
+        for (size_t i = 0; i < nc; i++)
+            counters[counter_names_[i]] = {{"total_all_ranks", sum[nt + i]},
+                                           {"per_rank_min", mn[nt + i]},
+                                           {"per_rank_max", mx[nt + i]}};
+        s["counters"] = counters;
+    }
+
+    {
+        const std::string path = run_dir_ + "/summary.json";
+        std::ofstream out(path);
+        out << s.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+        out.close();
+        report_write(out, path);
+    }
+
+    if (timersEnabled())
+    {
+        std::printf("\n==== Performance summary: %d ranks, %d steps, loop %.3f s (%.3f ms/step)\n",
+                    procs, steps, loop_wall_s_, per_step_ms);
+        std::printf("%-18s %12s %12s %12s %10s %9s\n", "timer", "min s", "mean s", "max s",
+                    "imbalance", "of step");
+        for (size_t i = 0; i < nt; i++)
+        {
+            if (mx[i] == 0.0)
+                continue;
+            const double mean = sum[i] / procs;
+            std::printf("%-18s %12.6f %12.6f %12.6f %9.1f%% %8.1f%%\n", timer_names_[i].c_str(),
+                        mn[i], mean, mx[i], mean > 0 ? 100.0 * (mx[i] / mean - 1.0) : 0.0,
+                        total_mean > 0 ? 100.0 * mean / total_mean : 0.0);
+        }
+        std::printf("rss high water: max %.1f MB per rank\n", mx[n - 1]);
+        std::printf("run directory: %s\n\n", run_dir_.c_str());
+    }
 }

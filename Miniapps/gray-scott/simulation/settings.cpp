@@ -31,6 +31,7 @@ void to_json(nlohmann::json &j, const Settings &s)
                        {"adios_memory_selection", s.adios_memory_selection},
                        {"mesh_type", s.mesh_type},
                        {"kombynelite_script_path", s.kombynelite_script_path},
+                       {"perf_dir", s.perf_dir},
                        {"burn_in_steps", s.burn_in_steps},
                        {"overwrite_last_step", s.overwrite_last_step}};
 }
@@ -61,6 +62,7 @@ void from_json(const nlohmann::json &j, Settings &s)
     j.at("adios_memory_selection").get_to(s.adios_memory_selection);
     j.at("mesh_type").get_to(s.mesh_type);
     j.at("kombynelite_script_path").get_to(s.kombynelite_script_path);
+    s.perf_dir = j.value("perf_dir", std::string("perf"));
     s.burn_in_steps = j.value("burn_in_steps", 0);
     s.overwrite_last_step = j.value("overwrite_last_step", false);
 }
@@ -91,6 +93,7 @@ Settings::Settings()
     adios_memory_selection = false;
     mesh_type = "image";
     kombynelite_script_path = "";
+    perf_dir = "perf";
     burn_in_steps = 0;
     overwrite_last_step = false;
 }

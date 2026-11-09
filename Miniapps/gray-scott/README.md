@@ -20,7 +20,8 @@ by 6) and a forward Euler step of size `dt`.
 
 Contents: [how it works](#how-it-works) ·
 [prerequisites](#prerequisites) · [build](#build) · [run](#run) ·
-[parameters](#parameters) · [outputs](#outputs) · [testing](#testing) ·
+[parameters](#parameters) · [outputs](#outputs) · [performance](#performance) ·
+[testing](#testing) ·
 [troubleshooting](#troubleshooting) · [more documentation](#more-documentation)
 
 ---
@@ -198,6 +199,7 @@ distances by 0.1, and multiply output gradients by 0.1, to get solver units.
 | `restart`, `restart_input` | restart from a checkpoint; same requirement | false, `ckpt.bp` |
 | `burn_in_steps` | optional: steps to run before output starts | 0 |
 | `overwrite_last_step` | optional: keep only the latest output step. Every backend honours it except `catalyst_insitu`, whose script names its own files and keeps every step unless the script overwrites them | false |
+| `perf_dir` | optional: parent directory of each run's performance log directory ([performance](#performance)) | `perf` |
 
 Checkpointing and restart use ADIOS2 and are compiled only when
 `ENABLE_ADIOS2=ON` (the presets turn it off). In any other build the
@@ -227,6 +229,89 @@ ranges (the shipped values sit inside them).
 How to run each one, with example settings, scripts and expected results, is
 in the [build and run guide](docs/build-and-run-guide.md). That guide also
 covers Docker, checkpoint and restart, and the in transit reader.
+
+---
+
+## Performance
+
+Every run writes a performance record to its own directory,
+`<perf_dir>/<UTC date-time>_<output_type>_np<ranks>/`. The format is
+versioned (`schema_version`, now 1) because the analysis script and papers
+depend on it. Change it only by bumping the version and updating this
+section.
+
+| File | Written | Contents |
+| :--- | :--- | :--- |
+| `metadata.json` | always, rank 0 | what ran, where and how it was built (below) |
+| `summary.json` | always, rank 0 | loop wall time and ms/step; with timers on, per-timer totals across ranks |
+| `steps/rank_NNNNN.jsonl` | timers on, every rank | one JSON object per step |
+
+`metadata.json` records:
+
+* **Build:** git commit, `git describe` and dirty state (tracked files only), compiler and version, flags, build type, enabled backends.
+* **Host:** hostnames and node count, CPU model, CPU count, NVIDIA GPU models.
+* **MPI:** library version, rank count, 3D decomposition, rank 0's local block size.
+* **Problem:** `L`, steps, plotgap, F, k, Du, Dv, dt, noise and seed.
+* **Inputs:** the settings file path and its full contents, the command line.
+* **Backend:** output type, backend version and its script or configuration file.
+
+The timers are compiled in only with `ENABLE_TIMERS`, in the
+`host-cpu-timers` preset or with `-DENABLE_TIMERS=ON` in your user preset.
+Without them, the performance log holds only the metadata and the wall
+time, and the console shows one progress line per step.
+With them, each step record holds these timers, in seconds per rank:
+
+| Timer | Measures |
+| :--- | :--- |
+| `halo` | halo exchange (`MPI_Sendrecv` of all faces); includes waiting for neighbours |
+| `stencil` | the 7-point update and the copy back |
+| `compute_step` | `halo` + `stencil` as seen from `main` |
+| `wrap` | building the backend's description of the data |
+| `execute` | the backend's own work (pipeline, actions, engine) |
+| `io` | files written or data sent |
+| `write_step` | the whole backend call on output steps |
+| `total_step` | one step, from barrier to barrier |
+| `create_writer`, `writer_open`, `printSelf` | setup, in the first record only |
+| `create_checkpoint` | ADIOS2 checkpoint writes |
+
+Each record also holds two counters, the memory high-water mark (`rss_MB`)
+and the cumulative CPU time (`user_s`, `sys_s`):
+
+* `halo_bytes`: bytes this rank sent in the exchange, from the MPI datatype sizes.
+* `backend_bytes`: bytes of field data handed to the backend on output steps: u and v with their halo layer for the mesh-based backends, the interior block for ADIOS2, 0 for `none`.
+
+How each backend reports `wrap`, `execute` and `io`:
+
+* PVTI reports `wrap` (building the image) and `io` (the rest of `Write()`).
+* Backends that do not split their work yet count the whole call as `execute`. Catalyst, Ascent, ADIOS2 and Kombyne get their split in the phase 3 backend issues.
+
+With timers on, rank 0 prints the maximum over ranks each step:
+
+```text
+[Step 12] Stencil 2.439 ms | Halo 0.238 ms | Wrap 0.000 ms | Execute 0.000 ms
+```
+
+At the end it prints a summary: each timer's min, mean and max of the
+per-rank totals, the imbalance across ranks (max/mean - 1) and its share of
+the step. `summary.json` holds the same numbers.
+
+Overhead: timers on against off on 64^3 for 1000 steps, median of 7 runs
+on the workstation, cost +0.09% on 1 rank and +0.07% on 4 ranks. Step
+records are kept in memory and written at the end, so the step loop does no
+file I/O.
+
+To turn a set of runs into tables and plots:
+
+```bash
+python3 scripts/perf_report.py perf/ --out perf_report
+```
+
+This writes `summary.md` and `summary.csv` (one row per run). When the
+runs allow, it also writes `phases.png` (per-phase stacked bars; needs at
+least one run built with timers) and `scaling.png` (ms/step against ranks
+with ideal scaling; needs comparable runs, same backend, L, plotgap and
+steps, at two or more rank counts). Each is captioned with the host, CPU,
+compiler, MPI and commit of the runs. The plots need matplotlib.
 
 ---
 

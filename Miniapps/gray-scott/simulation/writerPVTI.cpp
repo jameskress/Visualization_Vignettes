@@ -4,6 +4,8 @@
 #include <vtkInformationVector.h>
 #include <vtkStreamingDemandDrivenPipeline.h>
 
+#include <chrono>
+
 //--------------------------------------------------------------
 //  image source
 //--------------------------------------------------------------
@@ -12,6 +14,8 @@ class ImageSource : public vtkImageAlgorithm
 {
 public:
     ImageSource(int L, const GrayScott &sim, int rank);
+    // Time spent building the vtkImageData in the last pipeline update (s).
+    double wrap_seconds() const { return wrap_s_; }
 
 private:
     double origin_[3], spacing_[3];
@@ -19,6 +23,7 @@ private:
     int L_;
     int rank_;
     const GrayScott &sim_;
+    double wrap_s_ = 0.0;
 
     vtkSmartPointer<vtkFloatArray> var_u;
     vtkSmartPointer<vtkFloatArray> var_v;
@@ -138,6 +143,7 @@ int ImageSource::RequestInformation(vtkInformation *, vtkInformationVector **, v
  */
 void ImageSource::ExecuteDataWithInformation(vtkDataObject *, vtkInformation *outInfo)
 {
+    const auto t0 = std::chrono::steady_clock::now();
     vtkImageData *imageData = vtkImageData::GetData(outInfo);
     imageData->SetExtent(localExtent_);
     imageData->SetSpacing(spacing_);
@@ -164,6 +170,7 @@ void ImageSource::ExecuteDataWithInformation(vtkDataObject *, vtkInformation *ou
 
     imageData->GetPointData()->AddArray(var_u);
     imageData->GetPointData()->AddArray(var_v);
+    wrap_s_ = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
 }
 
 int ImageSource::FillOutputPortInformation(int port, vtkInformation *info)
@@ -254,7 +261,15 @@ void WriterPVTI::write(int step, const GrayScott &sim, int rank, int numRanks)
     writer->SetUseSubdirectory(true);
 
     writer->SetCompressorTypeToNone();
+    // Wrap is the image build inside the pipeline update; the rest of
+    // Write() is file I/O (and the rank 0 .pvti header).
+    const auto t0 = std::chrono::steady_clock::now();
     writer->Write();
+    const double total = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    phases.wrap_s = source->wrap_seconds();
+    phases.execute_s = 0.0;
+    phases.io_s = total - phases.wrap_s;
+    phases.split = true;
 
     vtkLogEndScope("Writing: VTK");
 

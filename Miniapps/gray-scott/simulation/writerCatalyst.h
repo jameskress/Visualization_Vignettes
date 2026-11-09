@@ -18,6 +18,7 @@
 #include <vtkUnstructuredGrid.h>
 
 #include <catalyst.hpp>
+#include <catalyst_version.h>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -31,6 +32,12 @@ public:
     void write(int step, const GrayScott &sim, int rank, int numRanks) override;
     void close(int rank) override;
     void printSelf() override;
+    std::string backendVersion() const override
+    {
+        return std::string("Catalyst API ") + CATALYST_VERSION + ", VTK " +
+               vtkVersion::GetVTKVersion();
+    }
+    std::string backendScript() const override { return settings.catalyst_script_path; }
 };
 
 #endif

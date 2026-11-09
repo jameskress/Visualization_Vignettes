@@ -16,6 +16,8 @@ public:
     
     void close(int rank) override {}
     
+    std::string backendVersion() const override { return "none"; }
+
     void printSelf() override 
     {
         std::cout << "Writer: None (No output will be generated)" << std::endl;
