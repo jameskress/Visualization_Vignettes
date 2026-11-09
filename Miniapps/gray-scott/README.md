@@ -353,6 +353,57 @@ What each check means:
   The three hashes must be equal. This catches decomposition errors that the
   norms are too coarse to see.
 
+**Backend ghost volume test** (#24, label `backends`). This test runs only
+in builds with backends enabled, so CI skips it. Every enabled backend runs
+the same seeded 64^3 problem to step 100 on 1, 2, 4 and 8 ranks. Each one
+counts, in its own pipeline or with the reader of its output, the cells
+where every corner has u <= 0.3, and integrates their volume:
+
+* Catalyst runs a threshold and integration in situ.
+* PVTI and Kombyne output is read back with pvpython.
+* ADIOS2 output is read with `bpls` and counted directly on the global
+  array.
+* Ascent runs a threshold in situ and saves it with a relay extract,
+  counted with h5py. Its threshold keeps a cell if any corner is in range,
+  so it is checked against the ADIOS2 count under that rule.
+
+A cell counted twice at a rank boundary, or a gap between ranks, changes
+the integer count.
+
+* **Across rank counts:** the count must be identical and the volume must
+  agree within 1e-12.
+* **Across backends:** `gs_ghost_volume_compare` requires equal counts.
+  Ascent is checked only against the ADIOS2 any-corner count, so that check
+  needs the ADIOS2 test (and `bpls`) too.
+
+On the workstation Catalyst, PVTI, Kombyne and ADIOS2 count 356 cells on
+every rank count; Ascent counts 2460 (any corner), equal to the ADIOS2
+count under the same rule.
+
+```bash
+ctest --test-dir build/my-host-cpu -R '^gs_ghost_volume_' --output-on-failure   # use your build directory
+```
+
+(The `backends` label also selects the render checks below.)
+
+**Backend render check** (#24, labels `backends` and `render`). Catalyst,
+Ascent, PVTI and Kombyne have one; ADIOS2 does not, so a passing render
+suite says nothing about it. Each enabled backend of those four renders the same views on 1 and 4 ranks, headless, and the
+images must match: at most 0.1% of pixels may differ by more than 24/255.
+The images are kept under `<build dir>/tests/render/<backend>/`. Needs
+numpy and Pillow. See docs/in-situ-backends.md, Rendering.
+
+```bash
+ctest --test-dir build/my-host-cpu -L render --output-on-failure   # use your build directory
+```
+
+Set `GS_PVPYTHON` to a pvpython (any ParaView 6.2) for the PVTI and Kombyne
+readers. `bpls` is found next to the ADIOS2 install. The Ascent test needs
+h5py for the Python that runs CTest. A backend whose requirement is missing
+gets no test, while the others still run and pass; check the configure
+output ("Ghost volume test backends: ...") or `ctest -N` for what is
+registered.
+
 If you change the numerics on purpose, regenerate the golden file and say
 why in the PR:
 
