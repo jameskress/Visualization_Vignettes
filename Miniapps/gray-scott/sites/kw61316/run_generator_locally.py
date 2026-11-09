@@ -56,9 +56,14 @@ if not args.catalyst_lib:
     sys.exit("Set --catalyst-lib or CATALYST_IMPLEMENTATION_PATHS to ParaView's lib/catalyst.")
 
 work = pathlib.Path(args.work).resolve()
-if work.exists():
+MARKER = ".run_generator_locally"
+if work.exists() and any(work.iterdir()):
+    # Only ever empty a directory this script made.
+    if not (work / MARKER).exists():
+        sys.exit(f"{work} is not empty and was not made by this script; pick another --work.")
     shutil.rmtree(work)
-work.mkdir(parents=True)
+work.mkdir(parents=True, exist_ok=True)
+(work / MARKER).touch()
 
 env = dict(os.environ)
 env.pop("DISPLAY", None)
@@ -158,9 +163,12 @@ def run_all(ranks):
         imgs = [p for p in outs if p.suffix in (".png", ".jpg")]
         perf = sorted(d.glob("perf/*/summary.json"))
         ms = f"{json.loads(perf[-1].read_text()).get('loop_wall_per_step_ms', 0):.1f}" if perf else "-"
-        ok &= rc == 0
-        print(f"{'OK  ' if rc == 0 else 'FAIL'} {i:52s} {otype:16s} rc={rc:<3d} {dt:5.0f}s "
-              f"files={len(outs):3d} images={len(imgs):2d} ms/step={ms}", flush=True)
+        # A render job that exits 0 without images has still failed.
+        no_images = rc == 0 and re.search(r"render|volume|isosurface", i) and not imgs
+        passed = rc == 0 and not no_images
+        ok &= passed
+        print(f"{'OK  ' if passed else 'FAIL'} {i:52s} {otype:16s} rc={rc:<3d} {dt:5.0f}s "
+              f"files={len(outs):3d} images={len(imgs):2d} ms/step={ms}{'  (no images)' if no_images else ''}", flush=True)
     return results, ok
 
 
@@ -170,19 +178,25 @@ def compare_images(dirs):
         import numpy as np
         from PIL import Image
     except ImportError:
-        print("Image comparison skipped: needs numpy and Pillow.")
-        return True
+        print("Image comparison needs numpy and Pillow; run with one --ranks value to skip it.")
+        return False
     ok = True
     ref_tag, ref = dirs[0]
     print(f"== images against {ref_tag} (budget {PIXEL_BUDGET:.1%} of pixels above {PIXEL_TOL}/255)")
-    for job in sorted(p for p in ref.iterdir() if p.is_dir()):
-        imgs = sorted(glob.glob(str(job / "data" / "*.png")) + glob.glob(str(job / "data" / "*.jpg")))
+    def images(d):
+        return {pathlib.Path(f).name for f in glob.glob(str(d / "data" / "*.png")) + glob.glob(str(d / "data" / "*.jpg"))}
+
+    names = sorted({p.name for _, d in dirs for p in d.iterdir() if p.is_dir()})
+    for name in names:
+        job = ref / name
         for tag, other in dirs[1:]:
+            mine, theirs = images(job), images(pathlib.Path(other) / name)
+            imgs = sorted(mine | theirs)
             worst = 0.0
-            for f in imgs:
-                g = pathlib.Path(other) / job.name / "data" / pathlib.Path(f).name
-                if not g.exists():
-                    worst = 1.0
+            for n in imgs:
+                f, g = job / "data" / n, pathlib.Path(other) / name / "data" / n
+                if n not in mine or n not in theirs:
+                    worst = 1.0  # an image one rank count wrote and the other did not
                     continue
                 a = np.asarray(Image.open(f).convert("RGB"), dtype=int)
                 b = np.asarray(Image.open(g).convert("RGB"), dtype=int)
