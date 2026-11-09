@@ -101,6 +101,7 @@ void WriterCatalyst::write(int step, const GrayScott &sim, int rank, int numRank
     }
     using clock = std::chrono::steady_clock;
     const auto t0 = clock::now();
+    const AllocSnapshot wrap_alloc;
 
     conduit_cpp::Node exec_params;
     auto state = exec_params["catalyst/state"];
@@ -135,6 +136,9 @@ void WriterCatalyst::write(int step, const GrayScott &sim, int rank, int numRank
 
     // The tree's shape never changes, so verify once (not timed).
     const auto t1 = clock::now();
+    phases.wrap_allocs = wrap_alloc.delta_calls();
+    phases.wrap_alloc_bytes = wrap_alloc.delta_bytes();
+    check_zero_copy(mesh["fields/u/values"].data_ptr(), sim.u_ghost().data(), "Catalyst u");
     if (!verified)
     {
         conduit_cpp::Node info;

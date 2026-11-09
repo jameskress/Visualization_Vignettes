@@ -229,7 +229,7 @@ add_custom_target(gs_build_info
   VERBATIM
   COMMENT "Recording git state and compiler settings for run metadata")
 
-add_library(common common/perf_logger.cpp common/run_metadata.cpp)
+add_library(common common/perf_logger.cpp common/run_metadata.cpp common/alloc_count_weak.cpp)
 add_dependencies(common gs_build_info)
 target_include_directories(common PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
                                   PRIVATE ${GS_GENERATED_DIR})
@@ -276,6 +276,23 @@ endif()
 
 if(ENABLE_KOMBYNELITE)
   list(APPEND SRC_FILES simulation/writerKombyne.cpp)
+endif()
+
+# Test-only allocation counter (#25): replaces the global allocation
+# functions in the executable so the performance log can report heap
+# allocations per step. Off by default; never use it for timing runs.
+option(GS_COUNT_ALLOCATIONS "Count heap allocations per step (test builds only)" OFF)
+# The counter wraps malloc through glibc's __libc_* entry points.
+# The counts reach the performance log only through the timer build.
+if(GS_COUNT_ALLOCATIONS AND NOT ENABLE_TIMERS)
+  message(FATAL_ERROR "GS_COUNT_ALLOCATIONS needs ENABLE_TIMERS=ON; without timers the counts are not logged")
+endif()
+if(GS_COUNT_ALLOCATIONS AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  message(FATAL_ERROR "GS_COUNT_ALLOCATIONS needs Linux with glibc (it wraps __libc_malloc and friends)")
+endif()
+if(GS_COUNT_ALLOCATIONS)
+  list(APPEND SRC_FILES common/alloc_counter.cpp)
+  message(STATUS "Allocation counter is ENABLED (test build, not for timing)")
 endif()
 
 add_executable(gray-scott ${SRC_FILES})

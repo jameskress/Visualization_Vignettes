@@ -127,10 +127,14 @@ void WriterAscent::write(int step, const GrayScott &sim, int rank, int numRanks)
     // Wrap: the shared Blueprint description, zero-copy (#20). The caller
     // has refreshed the halo.
     const auto t0 = clock::now();
+    const AllocSnapshot wrap_alloc;
     gs_mesh::GhostFields which;
     which.ascent = true;
     gs_mesh::describe(data["mesh"], sim, ghosts, which, step, step * settings.dt, rank);
     const auto t1 = clock::now();
+    phases.wrap_allocs = wrap_alloc.delta_calls();
+    phases.wrap_alloc_bytes = wrap_alloc.delta_bytes();
+    check_zero_copy(data["mesh/fields/u/values"].data_ptr(), sim.u_ghost().data(), "Ascent u");
 
     // The tree's shape never changes, so verify once (not timed).
     if (!verified)

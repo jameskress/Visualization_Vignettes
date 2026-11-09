@@ -82,6 +82,7 @@ void WriterKombyne::write(int step, const GrayScott &sim, int rank, int numRanks
     // left a one-cell gap between ranks.
     using clock = std::chrono::steady_clock;
     const auto t0 = clock::now();
+    const AllocSnapshot wrap_alloc;
 
     auto pipeline_data = kb_pipeline_data_alloc();
     kb_pipeline_data_set_promises(pipeline_data, KB_PROMISE_STATIC_FIELDS);
@@ -121,6 +122,10 @@ void WriterKombyne::write(int step, const GrayScott &sim, int rank, int numRanks
     const double time = static_cast<double>(input_step) * settings.dt;
     kb_pipeline_data_add(pipeline_data, rank, numRanks, output_step, time, (kb_mesh_handle)rgrid);
     const auto t1 = clock::now();
+    // Kombyne has no getter for a variable's pointer; KB_MEM_BORROW is the
+    // API's zero-copy guarantee, so there is nothing further to compare.
+    phases.wrap_allocs = wrap_alloc.delta_calls();
+    phases.wrap_alloc_bytes = wrap_alloc.delta_bytes();
 
     // Execute (Kombyne's own output happens inside).
     kb_simulation_execute(m_pipeline_collection, pipeline_data, KB_HANDLE_NULL);

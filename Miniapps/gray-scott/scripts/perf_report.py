@@ -27,7 +27,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-SCHEMA_VERSIONS = {1}
+SCHEMA_VERSIONS = {1, 2}  # 2 adds the allocation counters (#25); 1 still reads fine
 
 # Phases stacked in the bar chart, bottom to top. "other" is total_step minus
 # their sum: barriers, logging and anything not yet timed.
