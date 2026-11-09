@@ -127,19 +127,32 @@ def run(d, ranks):
     (d / "data").mkdir(exist_ok=True)
     for f in (d / "data").glob("*.sst"):
         f.unlink()
-    cmd = MPI + ["-np", str(ranks), str(pathlib.Path(build) / "gray-scott"), "--logging-level=WARNING",
-                 f"--settings-file={d}/settings.json"]
-    if stage.exists():
-        cmd += [":", "-np", str(ranks), str(pathlib.Path(args.aac) / "analysis" / "analysis-reader"),
-                "--settings", str(stage), "--file", f"{d}/data/grayScott",
-                "--block-mode", "repartition", "--engine", "SST", "--mpi-split-color=1", "--adios-verbose", "0"]
+    sim = ["-np", str(ranks), str(pathlib.Path(build) / "gray-scott"), "--logging-level=WARNING",
+           f"--settings-file={d}/settings.json"]
+    reader = ["-np", str(ranks), str(pathlib.Path(args.aac) / "analysis" / "analysis-reader"),
+              "--settings", str(stage), "--file", f"{d}/data/grayScott",
+              "--block-mode", "repartition", "--engine", "SST", "--mpi-split-color=1", "--adios-verbose", "0"]
+    if not stage.exists():
+        cmds = [MPI + sim]
+    elif "_steps_" in d.name:
+        # The "steps" launch: two separate MPI jobs, as the two srun steps are.
+        cmds = [MPI + sim, MPI + reader]
+    else:
+        cmds = [MPI + sim + [":"] + reader]
     t0 = time.time()
-    try:
-        p = subprocess.run(cmd, cwd=d, env=env, capture_output=True, text=True, timeout=1800)
-        rc, out = p.returncode, p.stdout + p.stderr
-    except subprocess.TimeoutExpired as e:
-        rc, out = 124, f"timed out after 1800 s\n{e.stdout or ''}{e.stderr or ''}"
-    (d / "run.log").write_text(" ".join(cmd) + "\n\n" + out)
+    procs = [subprocess.Popen(c, cwd=d, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+             for c in cmds]
+    rc, out = 0, ""
+    for p in procs:
+        try:
+            o, _ = p.communicate(timeout=max(1, 1800 - (time.time() - t0)))
+            rc = rc or p.returncode
+        except subprocess.TimeoutExpired:
+            for q in procs:
+                q.kill()
+            o, rc = p.communicate()[0], 124
+        out += o or ""
+    (d / "run.log").write_text("\n".join(" ".join(c) for c in cmds) + "\n\n" + out)
     return rc, time.time() - t0, s["output_type"]
 
 

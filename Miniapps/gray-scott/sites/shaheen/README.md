@@ -9,6 +9,8 @@ its own offscreen window and EGL is never touched:
 
 ```bash
 export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
+# OSPRay (used by the Paper 2 Catalyst scripts) loads its modules from here:
+export LD_LIBRARY_PATH=/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib:$LD_LIBRARY_PATH
 srun ... ./gray-scott --settings-file=settings.json
 ```
 
