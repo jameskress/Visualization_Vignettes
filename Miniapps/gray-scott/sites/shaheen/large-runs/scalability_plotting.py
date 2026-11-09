@@ -56,7 +56,7 @@ def get_run_data(filename):
     """Loads a summary CSV and returns the dataframe if successful."""
     try:
         return pd.read_csv(filename)
-    except:
+    except FileNotFoundError:
         return None
 
 def print_publication_stats(name, df):
@@ -207,7 +207,7 @@ for t in TYPES:
             w = df['write_step_mean'].sum()
             total = df['total_step_mean'].sum()
             
-            ref_df = get_run_data(f"summary_strong_N256_baseline.csv")
+            ref_df = get_run_data(f"summary_strong_N{STRONG_NODES[0]:04d}_baseline.csv")
             base_mpi = (ref_df['total_step_mean'].sum() - ref_df['compute_step_mean'].sum()) if ref_df is not None else 0
             
             comp_stack.append(c)
@@ -247,7 +247,7 @@ for scale_name, n, prefix in TRANSIT_STANDARD:
     
     def get_tot(fname):
         df = get_run_data(fname)
-        return df['total_step_mean'].sum() if df is not None else 0
+        return df['total_step_mean'].sum() if df is not None else np.nan  # missing, not zero
         
     situ_ascent.append(get_tot(f"{prefix_situ}_ascent_render.csv"))
     transit_ascent.append(get_tot(f"summary_transit_{prefix}_ascent_render.csv"))
@@ -258,7 +258,7 @@ for scale_name, n, prefix in TRANSIT_STANDARD:
     situ_adios.append(get_tot(f"{prefix_situ}_adios_data.csv"))
     transit_adios.append(get_tot(f"summary_transit_{prefix}_adios_data.csv"))
 
-if any(transit_ascent) or any(transit_catalyst) or any(transit_adios):
+if any(np.isfinite(v) and v > 0 for v in transit_ascent + transit_catalyst + transit_adios):
     x = np.arange(len(group_labels))
     width = 0.12  
 

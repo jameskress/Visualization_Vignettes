@@ -172,8 +172,11 @@ shows up as `PERM_VIOLATION` or `PTLTE_NOT_FOUND` errors on many ranks.
 
 **Fan-in.** With 32,768 simulation tasks sending to 256 staging tasks
 (128:1), the staging side dropped connections and segfaulted in
-`CP_sendToPeer`. Keep the ratio at 16:1 to 32:1 (1,024 to 2,048 staging
-tasks for that case).
+`CP_sendToPeer`. Keep the ratio of tasks at 16:1 to 32:1 (1,024 to 2,048
+staging tasks for that case). The ratios in the generator's transit
+configurations are node ratios: with 64 simulation ranks and 8 reader
+ranks per node, 16:1 in nodes is 128:1 in tasks. #72 measures which ratio
+holds up.
 
 **SST data plane.** At about 32,768 tasks, SST over the MPI data plane
 overwhelmed the control plane with connection requests, so the generator

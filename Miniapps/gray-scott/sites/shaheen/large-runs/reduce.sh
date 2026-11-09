@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Run from the results directory. Reduces each run's newest perf/ run
+# directory again (for a run whose in-job reduction failed).
+REDUCE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../2026-WOIV-scripts/reduce_timers.py"
+
 # Array to keep track of failures
 FAILED_RUNS=()
 
@@ -15,9 +19,17 @@ run_reduction() {
         FAILED_RUNS+=("$DIR (Directory not found)")
         return
     fi
+    # One attempt only: the newest run directory under perf/.
+    local RUN
+    RUN=$(ls -dt "$DIR"/*/ 2>/dev/null | head -1)
+    if [ -z "$RUN" ]; then
+        echo "Skipping: no run directory in $DIR"
+        FAILED_RUNS+=("$DIR (No run directory)")
+        return
+    fi
 
     # Run the script. If it fails (returns non-zero), the 'else' block triggers.
-    if python reduce_timers.py "$DIR" "$OUT"; then
+    if python "$REDUCE" "$RUN" "$OUT"; then
         echo "Success: $DIR"
     else
         echo "FAILED: Error processing -> $DIR"

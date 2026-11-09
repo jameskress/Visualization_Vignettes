@@ -130,9 +130,13 @@ def main():
                         if not args.dry_run:
                             shutil.rmtree(d_path)
 
-                # Logs to remove
+                # Logs, compressed timings, and the reduced results beside
+                # the run directory: left behind, a failed rerun would look complete.
                 logs = glob.glob(os.path.join(result_path, "slurm-*.out")) + \
-                       glob.glob(os.path.join(result_path, "slurm-*.err"))
+                       glob.glob(os.path.join(result_path, "slurm-*.err")) + \
+                       glob.glob(os.path.join(result_path, "*.tar.gz")) + \
+                       glob.glob(os.path.join(args.results_dir, f"{basename}_*.csv")) + \
+                       glob.glob(os.path.join(args.results_dir, f"{basename}_*.json"))
                 
                 for log in logs:
                     print(f"    Removing log: {os.path.basename(log)}")

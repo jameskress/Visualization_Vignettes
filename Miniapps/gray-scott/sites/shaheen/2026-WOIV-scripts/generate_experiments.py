@@ -444,6 +444,10 @@ ColorBy(isoDisplay, ('POINTS', 'v'))
 
 uLUT = GetColorTransferFunction("v")
 uLUT.Set(RGBPoints=[0.0, 0.23, 0.29, 0.75, 0.5, 0.86, 0.86, 0.86, 1.0, 0.7, 0.01, 0.14])
+# Pinned: rescaling to each run's range draws the same data differently per
+# rank count (docs/in-situ-backends.md, Catalyst).
+uLUT.AutomaticRescaleRangeMode = "Never"
+uLUT.RescaleTransferFunction(0.0, 1.0)
 
 isoDisplay.SetScalarBarVisibility(renderView1, True)
 
@@ -457,19 +461,7 @@ options.EnableCatalystLive = 0
 options.ExtractsOutputDirectory = 'data'
 
 def catalyst_execute(info):
-    grid = FindSource("grid")
-    grid.UpdatePipeline()
-    
-    # Scale the colors based on the Contour range, NOT the global grid
-    contour = FindSource("Contour")
-    contour.UpdatePipeline()
-    data_info = contour.GetDataInformation()
-    
-    u_array_info = data_info.GetPointDataInformation().GetArrayInformation("v")
-    if u_array_info:
-        u_min, u_max = u_array_info.GetComponentRange(0)
-        uLUT = GetColorTransferFunction("v")
-        uLUT.RescaleTransferFunction(u_min, u_max)
+    pass
 
 if __name__ == "__main__":
     from paraview.simple import SaveExtractsUsingCatalystOptions
@@ -499,6 +491,258 @@ pipelines:
   - type: "null"
     enabled: "true"
     frequency: 1
+    outputs:
+      - type: "export"
+        file_pattern: "data/full_grid.%ts"
+        file_format: "vtk"
+        attributes:
+          binary: "true"
+"""
+
+# =============================================================================
+# PAPER 1 TEMPLATES: exactly as verified for WOIV 2026 on current master (#71).
+# Paper 1 jobs use these, so changes for Paper 2 do not alter its images.
+# =============================================================================
+PAPER1_ASCENT_OPTIONS_TEMPLATE = """runtime:
+  type: "ascent" 
+  vtkm:
+    backend: "openmp"
+actions_file: "{actions_file}"
+messages: "verbose" 
+timings: "true"      
+"""
+
+PAPER1_ASCENT_RENDER_TEMPLATE = """
+- action: "add_pipelines"
+  pipelines:
+    pl_x:
+      f1:
+        type: "slice"
+        params:
+          point: {{ x: {slice_offset}, y: {slice_offset}, z: {slice_offset} }}
+          normal: {{ x: 1.0, y: 0.0, z: 0.0 }}
+    pl_y:
+      f1:
+        type: "slice"
+        params:
+          point: {{ x: {slice_offset}, y: {slice_offset}, z: {slice_offset} }}
+          normal: {{ x: 0.0, y: 1.0, z: 0.0 }}
+    pl_z:
+      f1:
+        type: "slice"
+        params:
+          point: {{ x: {slice_offset}, y: {slice_offset}, z: {slice_offset} }}
+          normal: {{ x: 0.0, y: 0.0, z: 1.0 }}
+
+- action: "add_scenes"
+  scenes:
+    main_scene:
+      plots:
+        p1:
+          type: "pseudocolor"
+          field: "v"
+          pipeline: "pl_x"
+        p2:
+          type: "pseudocolor"
+          field: "v"
+          pipeline: "pl_y"
+          color_table:
+            annotation: "false"
+        p3:
+          type: "pseudocolor"
+          field: "v"
+          pipeline: "pl_z"
+          color_table:
+            annotation: "false"
+      renders:
+        render1:
+          image_width: 2048
+          image_height: 2048
+          annotations: "on"
+          world_annotations: "false"
+          image_prefix: "data/ascent_render_slices"
+          camera:
+            position: [{cam_x}, {cam_y}, {cam_z}]
+            look_at: [{center}, {center}, {center}]
+            up: [{cam_up_x}, {cam_up_y}, {cam_up_z}]
+            zoom: 2.0
+"""
+
+PAPER1_CATALYST_RENDER_TEMPLATE = """
+from paraview import catalyst
+from paraview.simple import *
+
+_DisableFirstRenderCameraReset()
+
+renderView1 = CreateView("RenderView")
+renderView1.Set(
+    ViewSize=[2048, 2048],
+    AxesGrid="GridAxes3DActor",
+    CenterOfRotation=[{center}, {center}, {center}],
+    CameraPosition=[{cam_x}, {cam_y}, {cam_z}],
+    CameraFocalPoint=[{center}, {center}, {center}],
+    CameraViewUp=[{cam_up_x}, {cam_up_y}, {cam_up_z}],
+    CameraFocalDisk=1.0,
+    CameraParallelScale={parallel_scale},
+    StereoType="Crystal Eyes"
+)
+SetActiveView(None)
+layout1 = CreateLayout(name="Layout #1")
+layout1.AssignView(0, renderView1)
+layout1.SetSize(2048, 2048)
+SetActiveView(renderView1)
+
+producer = TrivialProducer(registrationName="grid")
+
+sliceX = Slice(registrationName='SliceX', Input=producer)
+sliceX.SliceType.Origin = [{slice_offset}, {slice_offset}, {slice_offset}]
+sliceX.SliceType.Normal = [1.0, 0.0, 0.0]
+sliceX.SliceOffsetValues = [0.0]
+
+sliceY = Slice(registrationName='SliceY', Input=producer)
+sliceY.SliceType.Origin = [{slice_offset}, {slice_offset}, {slice_offset}]
+sliceY.SliceType.Normal = [0.0, 1.0, 0.0]
+sliceY.SliceOffsetValues = [0.0]
+
+sliceZ = Slice(registrationName='SliceZ', Input=producer)
+sliceZ.SliceType.Origin = [{slice_offset}, {slice_offset}, {slice_offset}]
+sliceZ.SliceType.Normal = [0.0, 0.0, 1.0]
+sliceZ.SliceOffsetValues = [0.0]
+
+vLUT = GetColorTransferFunction("v")
+vLUT.Set(RGBPoints=[0.0, 0.23, 0.29, 0.75, 0.5, 0.86, 0.86, 0.86, 1.0, 0.7, 0.01, 0.14])
+
+vPWF = GetOpacityTransferFunction("v")
+vPWF.Set(Points=[0.0, 0.0, 0.5, 0.0, 1.0, 1.0, 0.5, 0.0])
+
+Show(sliceX, renderView1, 'GeometryRepresentation').Set(Representation='Surface', ColorArrayName=['POINTS', 'v'], LookupTable=vLUT)
+Show(sliceY, renderView1, 'GeometryRepresentation').Set(Representation='Surface', ColorArrayName=['POINTS', 'v'], LookupTable=vLUT)
+sliceZDisplay = Show(sliceZ, renderView1, 'GeometryRepresentation')
+sliceZDisplay.Set(Representation='Surface', ColorArrayName=['POINTS', 'v'], LookupTable=vLUT)
+sliceZDisplay.SetScalarBarVisibility(renderView1, True)
+
+# Note the double braces for {{timestep}} to escape .format() call in generator script
+pNG1 = CreateExtractor("PNG", renderView1, registrationName="PNG1")
+pNG1.Trigger = "TimeStep"
+pNG1.Writer.Set(FileName="catalyst_render_{{timestep:06d}}.png", ImageResolution=[2048, 2048], Format="PNG")
+
+options = catalyst.Options()
+options.GlobalTrigger = "TimeStep"
+options.EnableCatalystLive = 0
+options.ExtractsOutputDirectory = 'data'
+
+def catalyst_execute(info):
+    grid = FindSource("grid")
+    grid.UpdatePipeline()
+    data_info = grid.GetDataInformation()
+    v_array_info = data_info.GetPointDataInformation().GetArrayInformation("v")
+    if v_array_info:
+        v_min, v_max = v_array_info.GetComponentRange(0)
+        vLUT = GetColorTransferFunction("v")
+        vLUT.RescaleTransferFunction(v_min, v_max)
+        vPWF = GetOpacityTransferFunction("v")
+        vPWF.RescaleTransferFunction(v_min, v_max)
+
+if __name__ == "__main__":
+    from paraview.simple import SaveExtractsUsingCatalystOptions
+    SaveExtractsUsingCatalystOptions(options)
+"""
+
+PAPER1_KOMBYNE_RENDER_TEMPLATE = """
+pipelines:
+  # -------------------------------------------------------------------------
+  # Pipeline 1: X-Normal Slice (YZ Plane)
+  # -------------------------------------------------------------------------
+  - type: "slice"
+    enabled: true
+    attributes:
+      origin: [{slice_offset}, {slice_offset}, {slice_offset}]
+      normal: [1.0, 0.0, 0.0]
+    outputs:
+      - type: "render"
+        enabled: true
+        file_pattern: "data/kombyne_slice_x_ts_%ts.png"
+        file_format: "png"
+        attributes:
+          width: 2048
+          height: 2048
+          scene:
+            colors:
+              background: [0.0, 0.0, 0.0]
+            camera:
+              # Looking straight down the X axis
+              position: [{cam_dist}, {center}, {center}]
+              focus: [{slice_offset}, {center}, {center}]
+              up: [0.0, 0.0, 1.0]
+              fov: 30.0
+            pseudocolor:
+              variable: "V"
+              color_table: "hot_desaturated"
+
+  # -------------------------------------------------------------------------
+  # Pipeline 2: Y-Normal Slice (XZ Plane)
+  # -------------------------------------------------------------------------
+  - type: "slice"
+    enabled: true
+    attributes:
+      origin: [{slice_offset}, {slice_offset}, {slice_offset}]
+      normal: [0.0, 1.0, 0.0]
+    outputs:
+      - type: "render"
+        enabled: true
+        file_pattern: "data/kombyne_slice_y_ts_%ts.png"
+        file_format: "png"
+        attributes:
+          width: 2048
+          height: 2048
+          scene:
+            colors:
+              background: [0.0, 0.0, 0.0]
+            camera:
+              # Looking straight down the Y axis
+              position: [{center}, {cam_dist}, {center}]
+              focus: [{center}, {slice_offset}, {center}]
+              up: [0.0, 0.0, 1.0]
+              fov: 30.0
+            pseudocolor:
+              variable: "V"
+              color_table: "hot_desaturated"
+
+  # -------------------------------------------------------------------------
+  # Pipeline 3: Z-Normal Slice (XY Plane)
+  # -------------------------------------------------------------------------
+  - type: "slice"
+    enabled: true
+    attributes:
+      origin: [{slice_offset}, {slice_offset}, {slice_offset}]
+      normal: [0.0, 0.0, 1.0]
+    outputs:
+      - type: "render"
+        enabled: true
+        file_pattern: "data/kombyne_slice_z_ts_%ts.png"
+        file_format: "png"
+        attributes:
+          width: 2048
+          height: 2048
+          scene:
+            colors:
+              background: [0.0, 0.0, 0.0]
+            camera:
+              # Looking straight down the Z axis
+              position: [{center}, {center}, {cam_dist}]
+              focus: [{center}, {center}, {slice_offset}]
+              up: [0.0, 1.0, 0.0]
+              fov: 30.0
+            pseudocolor:
+              variable: "V"
+              color_table: "hot_desaturated"
+"""
+
+PAPER1_KOMBYNE_DATA_TEMPLATE = """
+pipelines:
+  - type: "null"
+    enabled: "true"
+    frequency: 1 # Process every step the simulation sends
     outputs:
       - type: "export"
         file_pattern: "data/full_grid.%ts"
@@ -541,6 +785,7 @@ USED_INODES=$(echo $QUOTA_INFO | awk '{{print $3}}')
 LIMIT_INODES=$(echo $QUOTA_INFO | awk '{{print $4}}')
 
 # --- Thresholds ---
+# A limit of 0 means no quota: skip that check.
 REQUIRED_INODES=150000
 
 # Require at least 500 GB of free space (500 * 1024 * 1024 KB)
@@ -555,12 +800,12 @@ REQUIRED_GB=$((REQUIRED_KB / 1024 / 1024))
 
 FAIL=0
 
-if [ "$AVAILABLE_INODES" -lt "$REQUIRED_INODES" ]; then
+if [ "$LIMIT_INODES" -gt 0 ] && [ "$AVAILABLE_INODES" -lt "$REQUIRED_INODES" ]; then
     echo " -> CRITICAL: Insufficient inodes! Available: $AVAILABLE_INODES (Requires $REQUIRED_INODES)"
     FAIL=1
 fi
 
-if [ "$AVAILABLE_KB" -lt "$REQUIRED_KB" ]; then
+if [ "$LIMIT_KB" -gt 0 ] && [ "$AVAILABLE_KB" -lt "$REQUIRED_KB" ]; then
     echo " -> CRITICAL: Insufficient disk space! Available: ${{AVAILABLE_GB}}GB (Requires ${{REQUIRED_GB}}GB)"
     FAIL=1
 fi
@@ -580,10 +825,8 @@ fi
 # =============================================================================
 
 
-# --- Environment Protection ---
-# Strip virtual environments so Catalyst loads OSMesa correctly
+# --- Rendering: offscreen OSMesa (sites/shaheen/README.md, top) ---
 export CATALYST_LIB_DIR="{catalyst_lib_path}"
-# ------------------------------
 
 unset DISPLAY
 export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
@@ -634,6 +877,8 @@ cd $OUTPUT_DIR
 echo "Starting Run: {id}"
 
 {command}
+RUN_RC=$?
+echo "Run exit status: $RUN_RC"
 
 # =============================================================================
 # POST-PROCESSING & INODE CLEANUP
@@ -653,22 +898,31 @@ REDUCE={repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/reduce_ti
 SIM_PERF=$(ls -dt $OUTPUT_DIR/perf/*/ 2>/dev/null | head -1)
 if [ -n "$SIM_PERF" ]; then
     echo "Reducing $SIM_PERF..."
-    python $REDUCE $SIM_PERF {results_dir}/{id}_writer.csv
     cp $SIM_PERF/metadata.json {results_dir}/{id}_metadata.json 2>/dev/null
     cp $SIM_PERF/summary.json {results_dir}/{id}_summary.json 2>/dev/null
-    echo "Compressing perf/..."
-    tar -czf $OUTPUT_DIR/perf.tar.gz -C $OUTPUT_DIR perf/ && rm -rf $OUTPUT_DIR/perf/
+    # Compress only after a successful reduction, so a failure keeps the raw logs.
+    if python $REDUCE $SIM_PERF {results_dir}/{id}_writer.csv; then
+        echo "Compressing perf/..."
+        tar -czf $OUTPUT_DIR/perf.tar.gz -C $OUTPUT_DIR perf/ && rm -rf $OUTPUT_DIR/perf/
+    else
+        echo "Reduction of $SIM_PERF failed; perf/ kept."
+    fi
 fi
 
 # 3. Reader timings (in transit runs).
 if [ -d "$OUTPUT_DIR/reader_timers" ]; then
     echo "Reducing reader_timers..."
-    python $REDUCE $OUTPUT_DIR/reader_timers {results_dir}/{id}_reader.csv
-    echo "Compressing reader_timers..."
-    tar -czf $OUTPUT_DIR/reader_timers.tar.gz -C $OUTPUT_DIR reader_timers/ && rm -rf $OUTPUT_DIR/reader_timers/
+    if python $REDUCE $OUTPUT_DIR/reader_timers {results_dir}/{id}_reader.csv; then
+        echo "Compressing reader_timers..."
+        tar -czf $OUTPUT_DIR/reader_timers.tar.gz -C $OUTPUT_DIR reader_timers/ && rm -rf $OUTPUT_DIR/reader_timers/
+    else
+        echo "Reduction of reader_timers failed; reader_timers/ kept."
+    fi
 fi
 
 echo "Cleanup finished. Job complete."
+# The job's status is the run's, not the post-processing's.
+exit $RUN_RC
 """
 
 CMD_INLINE = """srun --exclusive --propagate=NOFILE --hint=nomultithread \\
@@ -701,7 +955,10 @@ def generate_settings_json(exp, output_dir, copied_files, args):
     run_noise_level = 0.00001
     steps = exp['total_steps']
     
-    uses_adios = (exp['backend'] == 'adios' or exp['type'] == 'intransit')
+    # SST must not reopen per step, so in transit never overwrites. Paper 2 also
+    # writes every inline ADIOS2 step; Paper 1 keeps its overwrite (#71).
+    uses_adios = (exp['type'] == 'intransit' or
+                  (exp['backend'] == 'adios' and exp.get('paper') != 'paper1'))
     overwrite = False if uses_adios else (True if exp.get('workload') == 'data_save' else False)
 
     config = {
@@ -852,6 +1109,10 @@ def copy_pipeline_files(exp, output_dir, repo_root):
         'volume_samples': int(math.ceil(9 * math.sqrt(3) * exp['grid_size'])),
     }
 
+    if exp['paper'] == 'paper1':
+        return write_paper1_pipeline(exp, effective_backend, output_dir, repo_root, files_to_copy,
+                                     physical_L, center_val, slice_offset_val, cam_up_x, cam_up_y, cam_up_z)
+
     if effective_backend == 'ascent':
         if 'rendering' in exp['workload']:
             with open(dst_action, "w") as f: f.write(ASCENT_RENDER_TEMPLATE.format(**fmt_args))
@@ -884,6 +1145,46 @@ def copy_pipeline_files(exp, output_dir, repo_root):
             with open(dst_action, "w") as f: f.write(KOMBYNE_DATA_TEMPLATE)
         files_to_copy['pipeline'] = dst_action
         
+    return files_to_copy
+
+def write_paper1_pipeline(exp, backend, output_dir, repo_root, files_to_copy,
+                          physical_L, center_val, slice_offset_val, cam_up_x, cam_up_y, cam_up_z):
+    """Paper 1's pipeline files, written as on master when Paper 1 was verified (#71)."""
+    cam_x, cam_y, cam_z = center_val - (physical_L * 1.85), center_val + (physical_L * 1.10), center_val + (physical_L * 1.85)
+    parallel_scale = physical_L * 1.60
+    cam_dist_val = center_val * 4.88
+    if backend not in ('ascent', 'catalyst', 'kombyne'):
+        return files_to_copy  # ADIOS2 data: nothing beyond adios2.xml
+    render = exp['workload'] == 'rendering'
+    names = {'ascent': ("ascent-extract-png.yaml", PIPELINE_FILES['ascent_data']),
+             'catalyst': ("catalyst-extract-jpg.py", PIPELINE_FILES['catalyst_data']),
+             'kombyne': ("kombyne-extract-png.yaml", PIPELINE_FILES['kombyne_data'])}
+    actions_filename = names[backend][0] if render else os.path.basename(names[backend][1])
+    dst_action = os.path.join(output_dir, actions_filename)
+    if backend == 'ascent':
+        if render:
+            with open(dst_action, "w") as f:
+                f.write(PAPER1_ASCENT_RENDER_TEMPLATE.format(cam_x=cam_x, cam_y=cam_y, cam_z=cam_z, center=center_val, cam_up_x=cam_up_x, cam_up_y=cam_up_y, cam_up_z=cam_up_z, slice_offset=slice_offset_val))
+        else:
+            shutil.copy2(os.path.join(repo_root, "Miniapps/gray-scott", PIPELINE_FILES['ascent_data']), dst_action)
+        opts_path = os.path.join(output_dir, "ascent_options.yaml")
+        with open(opts_path, "w") as f:
+            f.write(PAPER1_ASCENT_OPTIONS_TEMPLATE.format(actions_file=actions_filename))
+        files_to_copy['ascent_opts'] = opts_path
+    elif backend == 'catalyst':
+        if render:
+            with open(dst_action, "w") as f:
+                f.write(PAPER1_CATALYST_RENDER_TEMPLATE.format(cam_x=cam_x, cam_y=cam_y, cam_z=cam_z, center=center_val, parallel_scale=parallel_scale, cam_up_x=cam_up_x, cam_up_y=cam_up_y, cam_up_z=cam_up_z, slice_offset=slice_offset_val))
+        else:
+            shutil.copy2(os.path.join(repo_root, "Miniapps/gray-scott", PIPELINE_FILES['catalyst_data']), dst_action)
+        files_to_copy['pipeline'] = dst_action
+    elif backend == 'kombyne':
+        with open(dst_action, "w") as f:
+            if render:
+                f.write(PAPER1_KOMBYNE_RENDER_TEMPLATE.format(cam_dist=cam_dist_val, center=center_val, slice_offset=slice_offset_val))
+            else:
+                f.write(PAPER1_KOMBYNE_DATA_TEMPLATE)
+        files_to_copy['pipeline'] = dst_action
     return files_to_copy
 
 def generate_scripts(args):
