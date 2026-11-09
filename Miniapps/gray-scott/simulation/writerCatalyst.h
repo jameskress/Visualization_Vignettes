@@ -2,6 +2,7 @@
 #define __WRITERCATALYST_H__
 
 #include "writer.h"
+#include "mesh_blueprint.h"
 #include "gray-scott.h"
 #include "settings.h"
 #include <mpi.h>
@@ -38,6 +39,10 @@ public:
                vtkVersion::GetVTKVersion();
     }
     std::string backendScript() const override { return settings.catalyst_script_path; }
+
+private:
+    gs_mesh::Ghosts ghosts; // attached by reference; must outlive each execute
+    bool verified = false;
 };
 
 #endif

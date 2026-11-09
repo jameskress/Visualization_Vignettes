@@ -57,18 +57,17 @@ SetActiveView(renderView1)
 # 'CatalystAdaptor'.
 producer = TrivialProducer(registrationName="grid")
 
-# create a new 'Ghost Cells' filter
-ghostCells1 = GhostCells(registrationName='GhostCells1', Input=producer)
-
-# create a new 'Cell Data to Point Data' filter
-cellDatatoPointData1 = CellDatatoPointData(registrationName='CellDatatoPointData1', Input=ghostCells1)
-cellDatatoPointData1.ProcessAllArrays = 1
+# The adaptor marks ghost cells (vtkGhostType), so the volume is rendered
+# straight from the producer. Do not add a GhostCells filter here: the extra
+# layer it generates shows up as cracks in the volume at rank boundaries.
+# (Surface filters such as Contour and Clip do want it; see
+# catalyst-multi-pipeline.py and docs/in-situ-backends.md.)
 
 # ----------------------------------------------------------------
 # setup the visualization in view 'renderView1'
 # ----------------------------------------------------------------
 
-gridDisplay = Show(cellDatatoPointData1, renderView1, "UniformGridRepresentation")
+gridDisplay = Show(producer, renderView1, "UniformGridRepresentation")
 
 # get 2D transfer function for 'v'
 vTF2D = GetTransferFunction2D("v")
@@ -93,6 +92,9 @@ vLUT.RGBPoints = [
     0.14902,
 ]
 vLUT.ScalarRangeInitialized = 1.0
+# Keep the range fixed: rescaling to each run's data range makes images
+# differ between rank counts and between steps.
+vLUT.AutomaticRescaleRangeMode = "Never"
 
 # get opacity transfer function/opacity map for 'v'
 vPWF = GetOpacityTransferFunction("v")
@@ -213,11 +215,9 @@ options.CatalystLiveURL = str(clienthost) + ":" + str(clientport)
 
 
 def catalyst_execute(info):
-    global producer, cellDatatoPointData1
+    global producer
 
     producer.UpdatePipeline()
-    # Ensure the filter pipeline updates so we can query the ranges below
-    cellDatatoPointData1.UpdatePipeline()
 
     # get params as example of a parameter changing during the simulation
     params = get_execute_params()
@@ -228,10 +228,9 @@ def catalyst_execute(info):
     print("pipeline parameters:")
     print("\n".join(params))
     print("-----")
-    # Updated to query the converted filter data
-    print("bounds:", cellDatatoPointData1.GetDataInformation().GetBounds())
-    print("v-range:", cellDatatoPointData1.PointData["v"].GetRange(-1))
-    print("u-range:", cellDatatoPointData1.PointData["u"].GetRange(-1))
+    print("bounds:", producer.GetDataInformation().GetBounds())
+    print("v-range:", producer.PointData["v"].GetRange(-1))
+    print("u-range:", producer.PointData["u"].GetRange(-1))
     print("===================================\n")
     # slow things down for live view
     time.sleep(1)
