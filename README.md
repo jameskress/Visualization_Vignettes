@@ -91,10 +91,10 @@ A step-by-step [**quick start with Docker**](./Miniapps/gray-scott/README.md#qui
 1. **Pull the image** (about 4.5 GB):
    `docker pull ghcr.io/jameskress/visualization_vignettes:latest`
 
-2. **Make a new, empty folder for results**, outside this repository (whose own `data/` folder would be overwritten), and start the container with it shared as `/app/data`. On Linux or macOS, pass your user and group IDs so the files the container writes belong to you:
-   `mkdir ~/gray-scott-run && cd ~/gray-scott-run` (`mkdir` stops if the folder exists, so an earlier run is not overwritten)
-   `docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$(pwd):/app/data" ghcr.io/jameskress/visualization_vignettes:latest`
-   On Windows (PowerShell), from the new folder: `docker run -it --rm -v "${PWD}:/app/data" ghcr.io/jameskress/visualization_vignettes:latest`
+2. **Make a folder for results and start the container** with it shared as `/app/data`. The container starts only if the folder was created, so an earlier run (or a git clone) is never overwritten; if `~/gray-scott-run` exists, pick another name. On Linux or macOS, the user and group IDs make the files the container writes belong to you:
+   `mkdir "$HOME/gray-scott-run" && docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$HOME/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest`
+   On Windows (PowerShell): `if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction SilentlyContinue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest }`
+   On Linux with SELinux (Fedora, RHEL), if the container cannot write to the folder, add `:z` to the mount (`...:/app/data:z`); it relabels the folder, so use it only for results.
 
 3. **Inside the container**, copy the miniapp into your folder with `setup_rundir.sh` (once per folder), then run it, for example `mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json`. Images appear in the folder's `datasets/` on your computer.
 

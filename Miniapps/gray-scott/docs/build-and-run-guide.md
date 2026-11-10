@@ -65,41 +65,29 @@ docker pull ghcr.io/jameskress/visualization_vignettes:latest
 
 To run the container, you will create a "shared folder" that links a directory on your computer to a directory inside the container. This makes it easy to access your output files and resolves file permission issues.
 
-1. **Create a Local Data Directory:** On your computer, create a new, empty folder where you want your simulation outputs to be saved, outside any git clone (the repository has its own `data/` folder, which setup would overwrite).
+1. **Create a results folder and start the container.** The folder is shared with the container as `/app/data`, so what the miniapp writes there appears on your computer. Each command creates a new folder, `gray-scott-run`, in your home folder (outside any git clone, so cleaning a clone cannot delete your results) and starts the container only if the folder was created. If the folder already exists, nothing starts: pick another name, or remove the old folder first, so an earlier run is never overwritten. Docker Desktop on Windows maps file ownership itself.
+
+   **On Linux or macOS:**
 
    ```bash
-   mkdir gray-scott-run
+   mkdir "$HOME/gray-scott-run" && docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$HOME/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
    ```
 
-2. **Run the Container:** Use the command for your operating system to start the container. This command links your new `gray-scott-run` folder to `/app/data` inside the container and ensures you have the correct file permissions.
-
-   **On Linux or macOS (in any terminal):**
-
-   ```bash
-   docker run -it --rm \
-     -e HOST_UID=$(id -u) \
-     -e HOST_GID=$(id -g) \
-     -v "$(pwd)/gray-scott-run:/app/data" \
-     ghcr.io/jameskress/visualization_vignettes:latest
-   ```
-
-   **On Windows (in a PowerShell terminal):**
+   **On Windows (PowerShell):**
 
    ```powershell
-   # Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
-   docker run -it --rm -v "${PWD}/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
+   if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction SilentlyContinue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest }
    ```
 
-   **On Windows (in a Command Prompt `cmd.exe`):**
+   **On Windows (Command Prompt `cmd.exe`):**
 
    ```cmd
-   :: Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
-   docker run -it --rm -v "%cd%/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
+   mkdir "%USERPROFILE%\gray-scott-run" && docker run -it --rm -v "%USERPROFILE%\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
    ```
 
    You are now inside the container with a clean command prompt: `vizuser@<container_id>:/app/data$`.
 
-3. **Set Up Your Run Directory:** The container includes a script to easily copy the application and its default settings into your shared folder. Run it once per folder: it overwrites files of the same name.
+2. **Set Up Your Run Directory:** The container includes a script to easily copy the application and its default settings into your shared folder. Run it once per folder: it overwrites files of the same name.
 
    ```bash
    # Inside the container, set up your run directory
@@ -108,7 +96,7 @@ To run the container, you will create a "shared folder" that links a directory o
 
    You will now see the `gray-scott` executable and all the `settings-*.json` files in your shared directory.
 
-4. **Run a Simulation:** Now you can run the simulation using the local executable and settings files.
+3. **Run a Simulation:** Now you can run the simulation using the local executable and settings files.
 
    ```bash
    # Navigate to the shared data directory
@@ -118,7 +106,7 @@ To run the container, you will create a "shared folder" that links a directory o
    mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json
    ```
 
-5. **Exit and Access Your Files:** When the simulation is done, exit the container.
+4. **Exit and Access Your Files:** When the simulation is done, exit the container.
 
    ```bash
    exit
@@ -151,36 +139,27 @@ Follow these instructions if you need to modify the environment or build the ima
 
 This workflow is an identical to the user workflow, but you will use your locally-built image name (`visualization-vignettes-app`) instead of the full registry path.
 
-1. **Create a Local Data Directory** outside the clone, so cleaning the clone (for example `git clean -fdx`) cannot delete your results:
+1. **Create a results folder and start the container**, as in the quick start but with your image name. Each command creates a new folder, `gray-scott-run`, in your home folder (outside any git clone, so cleaning a clone cannot delete your results) and starts the container only if the folder was created. If the folder already exists, nothing starts: pick another name, or remove the old folder first, so an earlier run is never overwritten. Docker Desktop on Windows maps file ownership itself.
+
+   **On Linux or macOS:**
 
    ```bash
-   mkdir ~/gray-scott-run && cd ~/gray-scott-run
+   mkdir "$HOME/gray-scott-run" && docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$HOME/gray-scott-run:/app/data" visualization-vignettes-app
    ```
 
-   On Windows, make a new folder (for example in your home folder) and open the terminal in it; the Windows commands below mount the current folder.
-
-2. **Run the Container:**
-   **On Linux or macOS (in any terminal):**
-
-   ```bash
-   docker run -it --rm \
-     -e HOST_UID=$(id -u) \
-     -e HOST_GID=$(id -g) \
-     -v "$(pwd):/app/data" \
-     visualization-vignettes-app
-   ```
-
-   **On Windows (in PowerShell or Command Prompt):**
+   **On Windows (PowerShell):**
 
    ```powershell
-   # PowerShell
-   docker run -it --rm -v "${PWD}:/app/data" visualization-vignettes-app
-
-   # Command Prompt
-   docker run -it --rm -v "%cd%:/app/data" visualization-vignettes-app
+   if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction SilentlyContinue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" visualization-vignettes-app }
    ```
 
-3. **Set Up and Run a Simulation:**
+   **On Windows (Command Prompt `cmd.exe`):**
+
+   ```cmd
+   mkdir "%USERPROFILE%\gray-scott-run" && docker run -it --rm -v "%USERPROFILE%\gray-scott-run:/app/data" visualization-vignettes-app
+   ```
+
+2. **Set Up and Run a Simulation:**
 
    ```bash
    # Inside the container, set up your run directory
@@ -190,7 +169,7 @@ This workflow is an identical to the user workflow, but you will use your locall
    mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json
    ```
 
-4. **Exit and Access Your Files:**
+3. **Exit and Access Your Files:**
 
    ```bash
    exit
