@@ -190,7 +190,11 @@ N, reader exit status: M`), and the job's status is the first non-zero one. If t
 failed, the other is stopped (as `--kill-on-bad-exit` does for MPMD).
 
 ## After the runs
-Each job reduces its own timings when it ends:
+When a run ends, its job submits a one-node job, `reduce.sbat` in the run
+directory, and exits, so the run's nodes are released at once (reducing
+tens of thousands of per-rank files on a 1088-node allocation used to keep
+it idle for minutes, once for over half an hour, #72). The reduction job
+writes `reduce-<jobid>.out` and produces:
 
 * `<results>/<id>_writer.csv`, from the newest run directory under `perf/`,
   with that run's `metadata.json` and `summary.json` copied beside it as
@@ -201,7 +205,8 @@ Each job reduces its own timings when it ends:
 `large-runs/audit_runs.py --results-dir <results>` lists runs that are missing, failed
 (time limit, out of memory, crash) or still running. `large-runs/reduce.sh`
 reduces every run's `perf/` again into `summary_<scale>_<workload>.csv`
-(for a run whose in-job reduction failed), and
+(for a run whose reduction job failed; `sbatch <run>/reduce.sbat` also
+redoes one run), and
 `large-runs/scalability_plotting.py` plots those.
 
 ## Lessons from Shaheen III at scale

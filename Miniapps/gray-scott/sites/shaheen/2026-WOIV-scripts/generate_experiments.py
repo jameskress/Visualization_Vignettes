@@ -884,9 +884,33 @@ echo "PHASE run_end $(date +%s.%N)"
 echo "Run exit status: $RUN_RC"
 
 # =============================================================================
-# POST-PROCESSING & INODE CLEANUP
+# POST-PROCESSING in its own one-node job (#72)
 # =============================================================================
-echo "Run complete. Executing reduction and compressing timer folders..."
+# Reducing tens of thousands of per-rank timing files took minutes (once over
+# half an hour) while every node of this job sat idle. Submit the reduction
+# as a one-node job and end this one, so its nodes are released now.
+echo "Run complete. Submitting the reduction job ({output_dir}/reduce.sbat)..."
+if ! sbatch {output_dir}/reduce.sbat; then
+    echo "Could not submit the reduction job; run it later with: sbatch {output_dir}/reduce.sbat"
+fi
+echo "PHASE post_end $(date +%s.%N)"
+# The job's status is the run's.
+exit $RUN_RC
+"""
+
+# One-node job that reduces a run's per-rank timings (#72). Written next to
+# each run as reduce.sbat and submitted by the run's job when it ends.
+REDUCE_TEMPLATE = """#!/bin/bash
+#SBATCH --job-name=reduce_{id}
+#SBATCH --account={account}
+#SBATCH --partition={partition}
+#SBATCH --nodes=1
+#SBATCH --time=1:00:00
+#SBATCH --output={output_dir}/reduce-%j.out
+#SBATCH --error={output_dir}/reduce-%j.err
+
+OUTPUT_DIR="{output_dir}"
+echo "PHASE reduce_start $(date +%s.%N)"
 
 # 1. Activate the Python environment only now: inside the run it breaks
 #    Catalyst (sites/shaheen/README.md).
@@ -923,10 +947,7 @@ if [ -d "$OUTPUT_DIR/reader_timers" ]; then
     fi
 fi
 
-echo "PHASE post_end $(date +%s.%N)"
-echo "Cleanup finished. Job complete."
-# The job's status is the run's, not the post-processing's.
-exit $RUN_RC
+echo "PHASE reduce_end $(date +%s.%N)"
 """
 
 CMD_INLINE = """srun --exclusive --propagate=NOFILE --hint=nomultithread \\
@@ -1789,6 +1810,17 @@ def generate_scripts(args):
             paraview_lib_path=os.path.dirname(CATALYST_LIB_PATH.rstrip("/")),
         )
 
+        reduce_content = REDUCE_TEMPLATE.format(
+            id=exp["id"],
+            account=args.account,
+            partition=SYSTEM_CONFIG["partition"],
+            output_dir=run_output_dir,
+            results_dir=args.results_dir,
+            perf_env=args.perf_env,
+            repo_path=args.repo_path,
+        )
+        with open(f"{run_output_dir}/reduce.sbat", "w") as f:
+            f.write(reduce_content)
         with open(f"{args.output_dir}/{exp['id']}.sbat", "w") as f:
             f.write(script_content)
 

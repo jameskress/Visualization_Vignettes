@@ -208,6 +208,8 @@ def main():
                 logs = (
                     glob.glob(os.path.join(result_path, "slurm-*.out"))
                     + glob.glob(os.path.join(result_path, "slurm-*.err"))
+                    + glob.glob(os.path.join(result_path, "reduce-*.out"))
+                    + glob.glob(os.path.join(result_path, "reduce-*.err"))
                     + glob.glob(os.path.join(result_path, "*.tar.gz"))
                     + glob.glob(os.path.join(args.results_dir, f"{basename}_*.csv"))
                     + glob.glob(os.path.join(args.results_dir, f"{basename}_*.json"))
