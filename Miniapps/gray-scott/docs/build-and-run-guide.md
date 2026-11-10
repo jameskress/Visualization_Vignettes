@@ -641,9 +641,9 @@ noise:                1e-07
 output_file_name:     grayScott-%04ts.vtpd
 output_type:          catalyst_io
 overwrite_last_step:  no
-catalyst_script_path: 
+catalyst_script_path:
 catalyst_lib_path:    /path/to/paraview/install/lib/catalyst
-adios_config:         
+adios_config:
 adios_span:           no
 adios_memory_selection: no
 process layout:       2x2x1
@@ -720,12 +720,12 @@ dt:                   2
 Du:                   0.2
 Dv:                   0.1
 noise:                1e-07
-output_file_name:     
+output_file_name:
 output_type:          catalyst_insitu
 overwrite_last_step:  no
 catalyst_script_path: catalyst-extract-jpg.py
 catalyst_lib_path:    /path/to/paraview/install/lib/catalyst
-adios_config:         
+adios_config:
 adios_span:           no
 adios_memory_selection: no
 process layout:       2x2x1
@@ -812,12 +812,12 @@ dt:                   2
 Du:                   0.2
 Dv:                   0.1
 noise:                1e-07
-output_file_name:     
+output_file_name:
 output_type:          catalyst_insitu
 overwrite_last_step:  no
 catalyst_script_path: catalyst-extract-jpg.py
 catalyst_lib_path:    /path/to/paraview/install/lib/catalyst
-adios_config:         
+adios_config:
 adios_span:           no
 adios_memory_selection: no
 process layout:       2x2x1
