@@ -64,6 +64,17 @@ XPORT_CONFIGS = [("f016", 8, 1024, 4), ("f128", 64, 2048, 4)]
 XPORT_TRANSPORTS = ["RDMA", "MPI"]
 XPORT_LAUNCHES = ["mpmd", "steps"]  # one MPMD srun, or two srun steps sharing a job VNI
 XPORT_RUN_STEPS = 101  # 6 outputs at plotgap 20
+XPORT_TIME_LIMIT = "0:30:00"  # a hang must not hold the nodes for hours
+
+# #72 step 2: scale the step 1 survivor (RDMA) at 4096^3 from the existing
+# checkpoint. Fan-in 128:1 in tasks (16 simulation nodes per staging node),
+# which ran cleanly in step 1. 1024 + 64 is the largest power-of-two
+# simulation that fits the per-user node cap (about 2048) with its readers.
+SCALE_CONFIGS = [(256, 16), (512, 32), (1024, 64)]  # (simulation, staging) nodes
+SCALE_GRID = 4096
+SCALE_LAUNCHES = ["mpmd", "steps"]
+SCALE_RUN_STEPS = 101
+SCALE_TIME_LIMIT = "0:45:00"
 
 CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
 
@@ -862,9 +873,14 @@ cd $OUTPUT_DIR
 # (default 300) before exiting with status 0 (#75).
 
 echo "Starting Run: {id}"
+# Phase timestamps (seconds since the epoch) for #72: job start to run start
+# is setup, run start to run end is launch, startup, steps and shutdown.
+echo "PHASE job_start $SLURM_JOB_START_TIME"
+echo "PHASE run_start $(date +%s.%N)"
 
 {command}
 RUN_RC=$?
+echo "PHASE run_end $(date +%s.%N)"
 echo "Run exit status: $RUN_RC"
 
 # =============================================================================
@@ -907,6 +923,7 @@ if [ -d "$OUTPUT_DIR/reader_timers" ]; then
     fi
 fi
 
+echo "PHASE post_end $(date +%s.%N)"
 echo "Cleanup finished. Job complete."
 # The job's status is the run's, not the post-processing's.
 exit $RUN_RC
@@ -1672,8 +1689,33 @@ def generate_scripts(args):
                             "total_steps": p_init_steps + XPORT_RUN_STEPS,
                             "transport": transport,
                             "launch": launch,
+                            "time_limit": XPORT_TIME_LIMIT,
                         }
                     )
+
+    # 6. #72 step 2: RDMA scaling at 4096^3 (Ascent and Catalyst slices).
+    pid, p_init_steps = ensure_init(SCALE_GRID)
+    for nodes, stage_nodes in SCALE_CONFIGS:
+        for launch in SCALE_LAUNCHES:
+            for backend in ["ascent", "catalyst"]:
+                EXPERIMENTS.append(
+                    {
+                        "id": f"scale_transit_rdma_{launch}_N{nodes:04d}_S{stage_nodes:03d}_{backend}_render",
+                        "paper": "scale",
+                        "type": "intransit",
+                        "backend": "adios",
+                        "workload": "rendering",
+                        "sim_nodes": nodes,
+                        "stage_nodes": stage_nodes,
+                        "grid_size": SCALE_GRID,
+                        "stage_pipeline": f"{backend}_render",
+                        "parent_id": pid,
+                        "total_steps": p_init_steps + SCALE_RUN_STEPS,
+                        "transport": "RDMA",
+                        "launch": launch,
+                        "time_limit": SCALE_TIME_LIMIT,
+                    }
+                )
 
     for exp in EXPERIMENTS:
         sim_ranks = exp["sim_nodes"] * SYSTEM_CONFIG["mpi_per_node"]
@@ -1736,7 +1778,7 @@ def generate_scripts(args):
             else "",
             mpi_per_node=SYSTEM_CONFIG["mpi_per_node"],
             omp_threads=SYSTEM_CONFIG["omp_threads"],
-            time_limit=SYSTEM_CONFIG["time_limit"],
+            time_limit=exp.get("time_limit", SYSTEM_CONFIG["time_limit"]),
             output_dir=run_output_dir,
             results_dir=args.results_dir,
             perf_env=args.perf_env,

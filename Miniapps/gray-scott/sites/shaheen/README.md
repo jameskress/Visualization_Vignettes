@@ -170,6 +170,21 @@ python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py \
     --paper xport --submit
 ```
 
+## Scaling runs (#72 step 2)
+`--paper scale` selects 12 jobs: RDMA, Ascent and Catalyst slices, MPMD and
+two-step launch, at 256 + 16, 512 + 32 and 1024 + 64 nodes (4096^3 from the
+existing checkpoint, 128:1 fan-in in tasks, 101 steps, 45 minute limit).
+
+Node limits: the `workq` QOS caps each user at 2048 nodes across all running
+jobs (`sacctmgr show qos workq`), so 1024 simulation nodes plus readers is
+the largest power-of-two simulation that fits. The `ex` partition allows up
+to 4608 nodes but needs permission to use; these jobs stay on `workq`.
+
+Each job prints `PHASE` lines (seconds since the epoch): `job_start`,
+`run_start`, `run_end` and `post_end`. With the performance log's
+`restart_read_s` and the `writer_open` timer (the SST rendezvous wait) they
+give setup, startup, steps and shutdown separately.
+
 In `steps` jobs each step's exit status is printed (`Simulation exit status:
 N, reader exit status: M`), and the job's status is the first non-zero one. If the first step to end
 failed, the other is stopped (as `--kill-on-bad-exit` does for MPMD).
