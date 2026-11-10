@@ -33,7 +33,7 @@ void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, 
     {
         if (rank == 0)
             vtkLog(WARNING, "ADIOS2: overwrite_last_step is not supported with SST (it would drop the "
-                            "reader's connection at every step); writing every step instead");
+                            "reader's connection at every step); writing every output step instead");
         settings.overwrite_last_step = false;
     }
 

@@ -47,6 +47,9 @@ public:
     virtual std::string backendVersion() const { return "unknown"; }
     // Script or configuration file that drives the backend, if any.
     virtual std::string backendScript() const { return ""; }
+    // Whether the writer really overwrites the last step: a backend may
+    // turn the requested setting off (ADIOS2 does for SST).
+    virtual bool overwritesLastStep(const Settings &requested) const { return requested.overwrite_last_step; }
 
 
 protected:

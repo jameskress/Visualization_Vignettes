@@ -140,18 +140,28 @@ def run(d, ranks):
     else:
         cmds = [MPI + sim + [":"] + reader]
     t0 = time.time()
-    procs = [subprocess.Popen(c, cwd=d, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-             for c in cmds]
-    rc, out = 0, ""
+    # Output to files, not pipes: a full pipe would block a chatty run.
+    logs = [open(d / f"run.{i}.out", "w") for i in range(len(cmds))]
+    procs = [subprocess.Popen(c, cwd=d, env=env, stdout=f, stderr=subprocess.STDOUT)
+             for c, f in zip(cmds, logs)]
+    # Poll all of them: if one fails, stop the others (as the Shaheen "steps"
+    # script does), so a reader crash does not leave the simulation waiting.
+    rc = 0
+    while any(p.poll() is None for p in procs):
+        failed = [p.returncode for p in procs if p.poll() not in (None, 0)]
+        if failed or time.time() - t0 > 1800:
+            rc = failed[0] if failed else 124
+            for p in procs:
+                if p.poll() is None:
+                    p.kill()
+            break
+        time.sleep(0.5)
     for p in procs:
-        try:
-            o, _ = p.communicate(timeout=max(1, 1800 - (time.time() - t0)))
-            rc = rc or p.returncode
-        except subprocess.TimeoutExpired:
-            for q in procs:
-                q.kill()
-            o, rc = p.communicate()[0], 124
-        out += o or ""
+        p.wait()
+    for f in logs:
+        f.close()
+    rc = rc or next((p.returncode for p in procs if p.returncode), 0)
+    out = "".join((d / f"run.{i}.out").read_text(errors="replace") for i in range(len(cmds)))
     (d / "run.log").write_text("\n".join(" ".join(c) for c in cmds) + "\n\n" + out)
     return rc, time.time() - t0, s["output_type"]
 
