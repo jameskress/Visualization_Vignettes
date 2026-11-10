@@ -1,8 +1,28 @@
 # Gray-Scott miniapp: build and run guide
 
-The detailed recipes moved here from the miniapp's README, which is now the short
-overview ([../README.md](../README.md)). Paths below are as they were written; the
-CMake presets in the README are the recommended way to configure.
+The detailed, step-by-step recipes for running and building the miniapp. The
+[miniapp README](../README.md) is the short overview and has a
+[getting started](../README.md#getting-started-pick-your-path) guide; start
+there if you are new. Paths below are as they were written; the CMake presets
+in the README are the recommended way to configure.
+
+## In this guide
+
+| Section | Read it when you want to... |
+| :--- | :--- |
+| [Running with Docker](#running-with-docker) | run everything from the prebuilt image, on Linux, macOS or Windows, without building (start here) |
+| [Building the image from source](#3-for-developers-building-the-image-from-source) | change the image or build it yourself (hours) |
+| [How to build locally](#how-to-build-locally) | build Catalyst, Ascent, ADIOS2, Kombyne and the miniapp on your own machine |
+| [Running with ADIOS2](#running-with-adios2-io-andor-checkpointing) | write BP5 files, stream in transit with SST, or checkpoint and restart |
+| [Running with VTK](#running-with-vtk) | write `.pvti` files to open in ParaView afterwards |
+| [Running with Catalyst](#running-with-catalyst) | save data or render images with ParaView Catalyst, or connect ParaView live |
+| [Running with Ascent](#running-with-ascent) | render images or save data with Ascent |
+| [Running with Kombyne](#running-with-kombyne) | use Kombyne-lite (not in the Docker image) |
+| [Performance timers](#performance-timers-and-visualization) | time each backend and plot the timings |
+| [Configuring the simulation](#configuring-the-gray-scott-simulation) | change the grid size, steps, physics parameters, or try example patterns |
+
+Every "Running with ..." section follows the same pattern: configure a
+settings file, run the simulation, check the output.
 
 
 This is a 3D 7-point stencil code to simulate the following [Gray-Scott
@@ -104,7 +124,7 @@ To run the container, you will create a "shared folder" that links a directory o
    exit
    ```
 
-   Your output files (images, VTK files, etc.) are now in the `data` folder on your computer.
+   Your output files (images, VTK files, etc.) are now in the `data` folder on your computer; the Catalyst in situ example writes its images to `data/datasets/`. Every example settings file runs in the image except `settings-kombyne.json`: Kombyne is not in the image (it needs its own licence).
 
 ### 3. For Developers: Building the Image from Source
 
@@ -599,6 +619,8 @@ mpirun -np 4 ../gray-scott --settings-file=../settings-catalyst-file-io.json --l
 
 If successful, the console will display the run parameters and confirm that the simulation is writing output at each `plotgap` step. You will find the generated `.vtpd` files inside your `run-catalyst-io` directory.
 
+ParaView 6.2 prints `Legacy formatting pattern detected` for an output name such as `grayScott-%04ts.vtpd` and suggests `grayScott-{timestep:04d}.vtpd`. The warning is harmless: the old pattern still works, and the shipped settings keep it so they also run with older ParaView builds.
+
 <details>
 <summary>Click to see sample output</summary>
 
@@ -606,7 +628,9 @@ If successful, the console will display the run parameters and confirm that the 
 ========================================
 grid:                 64x64x64
 restart:              no
+checkpoint:           no
 steps:                100
+burn_in_steps:        0
 plotgap:              10
 F:                    0.01
 k:                    0.05
@@ -616,15 +640,20 @@ Dv:                   0.1
 noise:                1e-07
 output_file_name:     grayScott-%04ts.vtpd
 output_type:          catalyst_io
-catalyst_script_path: test-catalyst.py
-catalyst_script:      catalyst_pipeline.py
-catalyst_lib_path:    /home/kressjm/packages/paraview-src/build_5.11.1/install/lib/catalyst
+overwrite_last_step:  no
+catalyst_script_path: 
+catalyst_lib_path:    /path/to/paraview/install/lib/catalyst
+adios_config:         
+adios_span:           no
+adios_memory_selection: no
 process layout:       2x2x1
 local grid size:      32x32x64
 ========================================
-(   0.439s) [pvbatch.0       ]               main.cpp:245   INFO| Simulation at step 10 writing output step     1
-(   0.474s) [pvbatch.0       ]               main.cpp:245   INFO| Simulation at step 20 writing output step     2
-(   0.493s) [pvbatch.0       ]               main.cpp:245   INFO| Simulation at step 30 writing output step     3
+(   0.537s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 0
+(   0.555s) [pvbatch.0       ]vtkInSituPipelineIO.cxx:158   WARN| Legacy formatting pattern detected. Please replace 'grayScott-%04ts.vtpd' with 'grayScott-{timestep:04d}.vtpd'.
+(   0.573s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 1
+(   0.573s) [pvbatch.0       ]vtkInSituPipelineIO.cxx:158   WARN| Legacy formatting pattern detected. Please replace 'grayScott-%04ts.vtpd' with 'grayScott-{timestep:04d}.vtpd'.
+...
 ```
 
 </details>
@@ -681,7 +710,9 @@ If the simulation starts correctly, your console will display the run parameters
 ========================================
 grid:                 64x64x64
 restart:              no
+checkpoint:           no
 steps:                100
+burn_in_steps:        0
 plotgap:              10
 F:                    0.01
 k:                    0.05
@@ -689,14 +720,21 @@ dt:                   2
 Du:                   0.2
 Dv:                   0.1
 noise:                1e-07
-output_file_name:     grayScott-%04ts.vtpd
-output_type:          catalyst
-catalyst_script_path: /home/kressjm/packages/gray-scott/Visualization_Vignettes/Miniapps/gray-scott/configs/catalyst_scripts/catalyst-extract-contour_v.py
-catalyst_script:      catalyst-extract-contour_v.py
-catalyst_lib_path:    /home/kressjm/packages/paraview-src/build_5.11.1/install/lib/catalyst
+output_file_name:     
+output_type:          catalyst_insitu
+overwrite_last_step:  no
+catalyst_script_path: catalyst-extract-jpg.py
+catalyst_lib_path:    /path/to/paraview/install/lib/catalyst
+adios_config:         
+adios_span:           no
+adios_memory_selection: no
 process layout:       2x2x1
 local grid size:      32x32x64
 ========================================
+(   0.508s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 0
+(   3.311s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 1
+(   4.418s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 2
+...
 ```
 
 </details>
@@ -764,7 +802,9 @@ mpirun -np 4 ../gray-scott --settings-file=../settings-catalyst-insitu.json --lo
 ========================================
 grid:                 64x64x64
 restart:              no
+checkpoint:           no
 steps:                100
+burn_in_steps:        0
 plotgap:              10
 F:                    0.01
 k:                    0.05
@@ -772,14 +812,21 @@ dt:                   2
 Du:                   0.2
 Dv:                   0.1
 noise:                1e-07
-output_file_name:     grayScott-%04ts.vtpd
-output_type:          catalyst
-catalyst_script_path: /home/kressjm/packages/gray-scott/Visualization_Vignettes/Miniapps/gray-scott/configs/catalyst_scripts/catalyst-extract-contour_v.py
-catalyst_script:      catalyst-extract-contour_v.py
-catalyst_lib_path:    /home/kressjm/packages/paraview-src/build_5.11.1/install/lib/catalyst
+output_file_name:     
+output_type:          catalyst_insitu
+overwrite_last_step:  no
+catalyst_script_path: catalyst-extract-jpg.py
+catalyst_lib_path:    /path/to/paraview/install/lib/catalyst
+adios_config:         
+adios_span:           no
+adios_memory_selection: no
 process layout:       2x2x1
 local grid size:      32x32x64
 ========================================
+(   0.508s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 0
+(   3.311s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 1
+(   4.418s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 2
+...
 ```
 
 </details>
@@ -962,7 +1009,7 @@ local grid size:      64x64x64
 
 ---
 
-## ⏱️ Performance Timers and Visualization
+## Performance Timers and Visualization
 
 The miniapp's own performance record (run directory, metadata, per-step timers, summary, the
 `ENABLE_TIMERS` switch and `scripts/perf_report.py` for tables and plots) is described in the
@@ -1072,7 +1119,7 @@ python3 kombyne_timings_plotter.py   # from the miniapp's scripts/ directory
 
 This will process all timing files and save a PDF file named `kombyne_sunburst_performance.pdf`. This plot provides an intuitive, hierarchical view of the total time distribution.
 
-## 🧪 Configuring the Gray-Scott Simulation
+## Configuring the Gray-Scott Simulation
 
 All simulation behavior, from the chemical reaction-diffusion model to data I/O and checkpointing, is controlled via a JSON settings file (e.g., `settings-vtk-pvti.json`).
 
