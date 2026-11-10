@@ -71,7 +71,7 @@ AscentBackend::AscentBackend(const BackendOptions &opts)
       m_perf_logger("reader_timers",
                     [&]() { int rank; MPI_Comm_rank(opts.comm, &rank); return rank; }(),
                     [&]() { char hostname[256]; gethostname(hostname, sizeof(hostname)); return std::string(hostname); }(),
-                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "Blueprint_Time", "Vis_Time", "total_step"}),
+                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "Blueprint_Time", "Vis_Time", "total_step"}),
       m_reader(opts, m_perf_logger)
 {
     conduit::Node open_opts;
@@ -82,7 +82,7 @@ AscentBackend::AscentBackend(const BackendOptions &opts)
 void AscentBackend::Run()
 {
     int rank; MPI_Comm_rank(m_reader.GetComm(), &rank);
-    while (m_reader.BeginStep() == adios2::StepStatus::OK)
+    while (m_reader.NextStep())
     {
         m_perf_logger.start("total_step");
         size_t step = m_reader.CurrentStep();
@@ -90,8 +90,9 @@ void AscentBackend::Run()
         m_perf_logger.start("Blueprint_Time");
         m_reader.ReadRepartition(m_reader.GetOptions().u_var, u_buf, read_info);
         m_reader.ReadRepartition(m_reader.GetOptions().v_var, v_buf, read_info);
-        // The reads are synchronous and the buffers are ours: end the step
-        // now so the simulation goes on while we render (#76).
+        // The reads are deferred and complete at EndStep(), into buffers the
+        // reader owns: end the step now, then use them, so the simulation
+        // goes on while we render (#76, #42).
         m_reader.EndStep();
         mesh_blueprint = BuildRepartitionedBlueprint(read_info, u_buf, &v_buf, step, m_reader.GetOptions());
         m_perf_logger.stop("Blueprint_Time");

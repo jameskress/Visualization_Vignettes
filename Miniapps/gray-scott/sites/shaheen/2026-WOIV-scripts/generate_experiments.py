@@ -285,6 +285,14 @@ vLUT.Set(RGBPoints=[0.0, 0.23, 0.29, 0.75, 0.5, 0.86, 0.86, 0.86, 1.0, 0.7, 0.01
 vPWF = GetOpacityTransferFunction("v")
 vPWF.Set(Points=[0.0, 0.0, 0.5, 0.0, 1.0, 1.0, 0.5, 0.0])
 
+# Pinned colour range (v runs from 0 to about 0.5). Rescaling to the data
+# range each step made each rank colour its own piece with its own range:
+# in transit the reader's ranks hold different slabs, so the colours, and
+# the image, changed with the rank count (#42; docs/in-situ-backends.md).
+vLUT.AutomaticRescaleRangeMode = "Never"
+vLUT.RescaleTransferFunction(0.0, 0.5)
+vPWF.RescaleTransferFunction(0.0, 0.5)
+
 Show(sliceX, renderView1, 'GeometryRepresentation').Set(Representation='Surface', ColorArrayName=['POINTS', 'v'], LookupTable=vLUT)
 Show(sliceY, renderView1, 'GeometryRepresentation').Set(Representation='Surface', ColorArrayName=['POINTS', 'v'], LookupTable=vLUT)
 sliceZDisplay = Show(sliceZ, renderView1, 'GeometryRepresentation')
@@ -301,16 +309,7 @@ options.EnableCatalystLive = 0
 options.ExtractsOutputDirectory = 'data'
 
 def catalyst_execute(info):
-    grid = FindSource("grid")
-    grid.UpdatePipeline()
-    data_info = grid.GetDataInformation()
-    v_array_info = data_info.GetPointDataInformation().GetArrayInformation("v")
-    if v_array_info:
-        v_min, v_max = v_array_info.GetComponentRange(0)
-        vLUT = GetColorTransferFunction("v")
-        vLUT.RescaleTransferFunction(v_min, v_max)
-        vPWF = GetOpacityTransferFunction("v")
-        vPWF.RescaleTransferFunction(v_min, v_max)
+    pass
 
 if __name__ == "__main__":
     from paraview.simple import SaveExtractsUsingCatalystOptions

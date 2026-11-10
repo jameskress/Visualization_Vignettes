@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cmath>
 #include <iostream>
+#include <stdexcept>
 
 AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
     : m_opts(opts), m_logger(logger), m_comm(opts.comm)
@@ -56,9 +57,38 @@ adios2::StepStatus AdiosReader::BeginStep()
     return status;
 }
 
+bool AdiosReader::NextStep()
+{
+    for (;;)
+    {
+        switch (BeginStep())
+        {
+        case adios2::StepStatus::OK:
+            // Over SST, attributes arrive with the first step, after Open();
+            // read the Fides origin and spacing again now (#42).
+            if (!m_attributes_after_first_step)
+            {
+                ReadFidesAttributes();
+                m_attributes_after_first_step = true;
+            }
+            return true;
+        case adios2::StepStatus::EndOfStream:
+            return false;
+        case adios2::StepStatus::NotReady:
+            // The timeout wait mode: the simulation is slower than the
+            // timeout. Wait again; only EndOfStream ends the stream.
+            continue;
+        default:
+            throw std::runtime_error("ADIOS2 BeginStep failed (StepStatus::OtherError)");
+        }
+    }
+}
+
 void AdiosReader::EndStep()
 {
+    m_logger.start("ADIOS_EndStep");
     m_engine->EndStep();
+    m_logger.stop("ADIOS_EndStep");
 }
 
 size_t AdiosReader::CurrentStep() const
@@ -173,8 +203,10 @@ void AdiosReader::ReadRepartition(const std::string &var_name, std::vector<T> &b
     auto var = m_io->InquireVariable<T>(var_name);
     if (!var)
     {
-        buffer.clear();
-        return;
+        // A named variable that is not in the stream is a settings or
+        // writer mismatch: say so, rather than render empty data (#42).
+        // (An empty name skips the field, above.)
+        throw std::runtime_error("variable '" + var_name + "' is not in the ADIOS2 stream " + m_opts.adios_file);
     }
 
     int rank, size;
@@ -208,9 +240,13 @@ void AdiosReader::ReadRepartition(const std::string &var_name, std::vector<T> &b
         if (buffer.size() != local_count)
             buffer.resize(local_count);
 
+        // Deferred: the reads of a step complete together at EndStep(), one
+        // round of communication with the writers instead of one per field
+        // (ADIOS2 recommends this for SST). The buffer must not be touched
+        // until then; every backend ends the step before using it (#42).
         std::string timer_name = "ADIOS_Read_" + var_name;
         m_logger.start(timer_name);
-        m_engine->Get(var, buffer.data(), adios2::Mode::Sync);
+        m_engine->Get(var, buffer.data(), adios2::Mode::Deferred);
         m_logger.stop(timer_name);
     }
     else

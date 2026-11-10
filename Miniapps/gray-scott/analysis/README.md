@@ -12,11 +12,7 @@ This project provides a flexible and extensible **in-transit reader** for simula
 
 - **Multiple Visualization Backends**: Out-of-the-box support for both Ascent and ParaView Catalyst.
 
-- **Flexible Data Handling**: Can process data in two modes:
-
-  - `preserve`: Each analysis rank receives a subset of the original data blocks.
-
-  - `repartition`: The entire dataset is decomposed and redistributed evenly among the analysis ranks.
+- **Data Handling**: The dataset is decomposed and redistributed evenly among the analysis ranks (`repartition`): each rank reads one slab along the slowest dimension, plus the next slab's first plane so the pieces meet. A `preserve` mode (each rank keeps whole writer blocks) is not implemented; the reader stops with an error if it is requested.
 
 - **MxN Parallelism**: Designed to run in an MxN configuration where M simulation ranks write data and N analysis ranks read and process it. The reader handles the parallel data redistribution.
 
@@ -30,7 +26,7 @@ The reader supports multiple backends for analysis. The desired backend is typic
 
 The default backend, providing a rich feature set for direct visualization and analysis.
 
-- **Data Modes**: Supports both `preserve` and `repartition` block modes.
+- **Data Modes**: `repartition`.
 
 - **Configuration**: Controlled by Ascent action files (e.g., `ascent_actions.yaml`).
 
@@ -38,7 +34,7 @@ The default backend, providing a rich feature set for direct visualization and a
 
 Integrates with the ParaView Catalyst library, allowing you to leverage ParaView's extensive visualization capabilities and Python scripting for analysis pipelines.
 
-- **Data Modes**: **Only supports `repartition` block mode.** Attempting to use `preserve` mode will result in a warning, and the timestep will be skipped.
+- **Data Modes**: `repartition`. The shared plane between neighbouring pieces is flagged `DUPLICATEPOINT` in `vtkGhostType`, so point-based analysis does not count it twice. Pin colour ranges in Catalyst scripts: each rank sees only its own slab, so a range taken from the data differs per rank and the image changes with the rank count.
 
 - **Configuration**: Requires a Catalyst Python script to define the analysis pipeline. The path to this script must be specified in the settings JSON file.
 
@@ -51,7 +47,9 @@ Writes every staged step back to disk with ADIOS2, so an in transit run saves da
 - **Configuration**: the `AnalysisOutput` IO of `adios2.xml` in the working directory, if that file exists; otherwise BP5 with ADIOS2's defaults. At scale, one aggregator per staging node (`NumAggregators`) is a good start.
 - **Timers**: `ADIOS_Write_Time` as well as the read timers and `total_step`.
 
-All backends end the ADIOS2 step as soon as the step's data is read, before rendering or writing. The reads are synchronous and the buffers belong to the reader, so the simulation can carry on with its next steps while the reader works.
+All backends end the ADIOS2 step as soon as the step's data is read, before rendering or writing, so the simulation can carry on with its next steps while the reader works. The reads are deferred: both fields of a step arrive together at `EndStep()`, one round of communication with the writers instead of one per field, as ADIOS2 recommends for SST. `ADIOS_EndStep` times that transfer; `ADIOS_Read_U` and `ADIOS_Read_V` now time only the scheduling of the reads.
+
+Stepping: a step that is not ready yet (the `timeout` wait mode, when the simulation is slower than the timeout) is waited for again; only the end of the stream ends the reader, and an ADIOS2 error (`OtherError`) stops it with an error (#42).
 
 <br>
 
@@ -66,7 +64,7 @@ The reader's behavior is controlled by several command-line arguments:
 | `-o`, `--output-type` | Analysis backend: `ascent`, `catalyst_insitu`, `catalyst_io` or `adios_writer`. Overrides the value in the settings file. |
 | `-c`, `--mpi-split-color` | Color for `MPI_Comm_split` in MPMD mode. Crucial for in-transit runs. |
 | `-e`, `--engine` | Override the ADIOS2 engine (e.g., `SST`, `BP4`, `BP5`). |
-| `-b`, `--block-mode` | Data handling: `preserve` (default) or `repartition`. Note: Catalyst only supports `repartition`. |
+| `-b`, `--block-mode` | Data handling: `repartition` (the default and the only mode implemented). |
 | `-w`, `--sst-wait-mode` | SST wait mode: `block` (default) or `timeout`. |
 | `-t`, `--sst-timeout` | Timeout in seconds when `sst-wait-mode` is `timeout`. |
 | `-V`, `--adios-verbose` | Set ADIOS2 engine verbose level (`0-5`). |

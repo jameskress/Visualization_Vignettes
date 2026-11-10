@@ -153,6 +153,9 @@ int main(int argc, char **argv)
             opts.output_type = output_type_arg;
         if (!block_mode_arg.empty())
             opts.block_mode = block_mode_arg;
+        if (opts.block_mode != "repartition")
+            throw std::runtime_error("block mode '" + opts.block_mode +
+                                     "' is not implemented; every backend uses 'repartition' (#42)");
         if (!sst_wait_mode_arg.empty())
             opts.sst_wait_mode = sst_wait_mode_arg;
         if (sst_timeout_arg > 0.0)
