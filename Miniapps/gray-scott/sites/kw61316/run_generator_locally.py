@@ -142,8 +142,18 @@ def run(d, ranks):
     t0 = time.time()
     # Output to files, not pipes: a full pipe would block a chatty run.
     logs = [open(d / f"run.{i}.out", "w") for i in range(len(cmds))]
-    procs = [subprocess.Popen(c, cwd=d, env=env, stdout=f, stderr=subprocess.STDOUT)
-             for c, f in zip(cmds, logs)]
+    procs = []
+    try:
+        for c, f in zip(cmds, logs):
+            procs.append(subprocess.Popen(c, cwd=d, env=env, stdout=f, stderr=subprocess.STDOUT))
+    except OSError:
+        # A later launch failed: do not leave the earlier one running.
+        for p in procs:
+            p.kill()
+            p.wait()
+        for f in logs:
+            f.close()
+        raise
     # Poll all of them: if one fails, stop the others (as the Shaheen "steps"
     # script does), so a reader crash does not leave the simulation waiting.
     rc = 0

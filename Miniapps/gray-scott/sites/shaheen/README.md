@@ -239,11 +239,13 @@ other and the job hangs.
 because only world rank 0 printed and in an MPMD job that is a simulation
 rank. Both programs now print fatal errors from every rank (#78).
 
-**Slurm job end.** `--wait=N` ends the whole step N seconds after the first
-program exits, which can kill readers still writing. `--wait=0` means no
-limit, and without `--wait` Slurm uses the site's `WaitTime`, which is 0 on
-Shaheen III (`scontrol show config`). The generator sets no `--wait`, so a
-reader can finish its last steps; check `WaitTime` on another site. A stuck
+**Slurm job end.** `--wait=N` ends the whole step N seconds after its first
+task exits, which can kill readers still writing. `--wait=0` means no
+limit. Without `--wait`, Slurm uses `SLURM_WAIT` from the environment if
+set, else the site's `WaitTime`, which is 0 on Shaheen III
+(`scontrol show config`). The generator sets no `--wait`, so a reader can
+finish its last steps; on another site, check `WaitTime` and that
+`SLURM_WAIT` is unset. A stuck
 shutdown is bounded by `teardown_timeout_s` (#75) instead. It keeps
 `--kill-on-bad-exit=1`, which acts only when a program exits non-zero: if
 the reader crashes, the simulation would otherwise block on its next SST
