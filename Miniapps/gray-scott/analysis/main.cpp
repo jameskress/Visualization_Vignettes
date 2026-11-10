@@ -23,7 +23,7 @@ static void usage(std::ostream &os)
        << "  -c, --mpi-split-color <N>  Color for MPI_Comm_split in MPMD mode\n"
        << "  -e, --engine <engine>      ADIOS2 engine name override\n"
        << "  -o, --output-type <type>   Analysis backend: ascent | catalyst_insitu | catalyst_io | adios_writer\n"
-       << "  -b, --block-mode <mode>    Data handling: preserve | repartition\n"
+       << "  -b, --block-mode <mode>    Data handling: repartition (the only mode)\n"
        << "  -w, --sst-wait-mode <m>    SST wait mode: block | timeout\n"
        << "  -t, --sst-timeout <secs>   SST timeout seconds\n"
        << "  -V, --adios-verbose <lvl>  Set ADIOS2 engine verbose level (0-5)\n"

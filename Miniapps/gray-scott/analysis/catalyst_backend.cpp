@@ -19,7 +19,9 @@ namespace
         const std::vector<double> &buf_u,
         const std::vector<double> *buf_v,
         const BackendOptions &opts,
-        std::vector<std::uint8_t> &point_ghosts)
+        std::vector<std::uint8_t> &point_ghosts,
+        int reader_rank,
+        int reader_size)
     {
         mesh_node["type"] = "uniform";
         std::array<double, 3> global_origin = opts.origin.value_or(std::array<double, 3>{0.0, 0.0, 0.0});
@@ -76,9 +78,9 @@ namespace
         // (vtkDataSetAttributes) so point-based analysis in a Catalyst
         // script does not count the plane twice (#42).
         point_ghosts.assign(nx * ny * nz, 0);
-        const bool has_shared_plane =
-            read_info.local_dims.size() == 3 &&
-            read_info.local_start[0] + read_info.local_dims[0] < read_info.global_dims[0];
+        // The same test as ReadRepartition: every rank but the last reads
+        // the next slab's first plane.
+        const bool has_shared_plane = reader_rank != reader_size - 1;
         if (has_shared_plane && nz > 0)
             std::fill(point_ghosts.begin() + static_cast<std::ptrdiff_t>((nz - 1) * nx * ny), point_ghosts.end(),
                       std::uint8_t{1});
@@ -134,8 +136,9 @@ CatalystBackend::~CatalystBackend()
 
 void CatalystBackend::Run()
 {
-    int rank;
+    int rank, size;
     MPI_Comm_rank(m_reader.GetComm(), &rank);
+    MPI_Comm_size(m_reader.GetComm(), &size);
 
     while (m_reader.NextStep())
     {
@@ -161,7 +164,7 @@ void CatalystBackend::Run()
         m_reader.EndStep();
 
         auto data_node = exec_params["catalyst/channels/grid/data"];
-        BuildRepartitionedCatalystMesh(data_node, read_info, u_buf, &v_buf, current_opts, point_ghosts);
+        BuildRepartitionedCatalystMesh(data_node, read_info, u_buf, &v_buf, current_opts, point_ghosts, rank, size);
         m_perf_logger.stop("Blueprint_Time");
 
         m_perf_logger.start("Vis_Time");

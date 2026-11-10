@@ -6,6 +6,8 @@
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
+#include <chrono>
+#include <thread>
 
 AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
     : m_opts(opts), m_logger(logger), m_comm(opts.comm)
@@ -76,7 +78,9 @@ bool AdiosReader::NextStep()
             return false;
         case adios2::StepStatus::NotReady:
             // The timeout wait mode: the simulation is slower than the
-            // timeout. Wait again; only EndOfStream ends the stream.
+            // timeout. Wait again; only EndOfStream ends the stream. A short
+            // pause keeps a zero timeout from spinning a core.
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
             continue;
         default:
             throw std::runtime_error("ADIOS2 BeginStep failed (StepStatus::OtherError)");
