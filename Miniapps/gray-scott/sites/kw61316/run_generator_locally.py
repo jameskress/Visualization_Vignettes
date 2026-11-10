@@ -34,44 +34,85 @@ import time
 HERE = pathlib.Path(__file__).resolve().parent
 GSDIR = HERE.parent.parent
 GENERATOR = GSDIR / "sites/shaheen/2026-WOIV-scripts/generate_experiments.py"
-PIXEL_TOL = 24        # out of 255
+PIXEL_TOL = 24  # out of 255
 PIXEL_BUDGET = 0.001  # fraction of pixels allowed above PIXEL_TOL
 # Over budget for a known reason: reported, not failed. In transit Catalyst
 # slices change with the reader's rank count (the reader's overlap plane is
 # not marked as ghost, #42).
 KNOWN_OVER = {r"transit.*catalyst_render": "#42"}
 
-ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-ap.add_argument("--aac", required=True, help="build dir with ADIOS2 + Ascent + Catalyst + analysis reader")
-ap.add_argument("--akc", default="", help="build dir with Kombyne (Kombyne jobs are skipped without it)")
+ap = argparse.ArgumentParser(
+    description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+)
+ap.add_argument(
+    "--aac",
+    required=True,
+    help="build dir with ADIOS2 + Ascent + Catalyst + analysis reader",
+)
+ap.add_argument(
+    "--akc",
+    default="",
+    help="build dir with Kombyne (Kombyne jobs are skipped without it)",
+)
 ap.add_argument("--work", required=True, help="scratch directory (emptied first)")
-ap.add_argument("--ranks", type=int, nargs="+", default=[2, 4], help="rank counts to run (default 2 4)")
+ap.add_argument(
+    "--ranks",
+    type=int,
+    nargs="+",
+    default=[2, 4],
+    help="rank counts to run (default 2 4)",
+)
 ap.add_argument("--only", default="", help="run only jobs whose id contains this")
-ap.add_argument("--adios-matrix", action="store_true",
-                help="also run inline ADIOS2 data with every adios_span / adios_memory_selection combination")
-ap.add_argument("--catalyst-lib", default=os.environ.get("CATALYST_IMPLEMENTATION_PATHS", ""),
-                help="ParaView's lib/catalyst (default: $CATALYST_IMPLEMENTATION_PATHS)")
+ap.add_argument(
+    "--adios-matrix",
+    action="store_true",
+    help="also run inline ADIOS2 data with every adios_span / adios_memory_selection combination",
+)
+ap.add_argument(
+    "--catalyst-lib",
+    default=os.environ.get("CATALYST_IMPLEMENTATION_PATHS", ""),
+    help="ParaView's lib/catalyst (default: $CATALYST_IMPLEMENTATION_PATHS)",
+)
 args = ap.parse_args()
 if not args.catalyst_lib:
-    sys.exit("Set --catalyst-lib or CATALYST_IMPLEMENTATION_PATHS to ParaView's lib/catalyst.")
+    sys.exit(
+        "Set --catalyst-lib or CATALYST_IMPLEMENTATION_PATHS to ParaView's lib/catalyst."
+    )
 
 work = pathlib.Path(args.work).resolve()
 MARKER = ".run_generator_locally"
 if work.exists() and any(work.iterdir()):
     # Only ever empty a directory this script made.
     if not (work / MARKER).exists():
-        sys.exit(f"{work} is not empty and was not made by this script; pick another --work.")
+        sys.exit(
+            f"{work} is not empty and was not made by this script; pick another --work."
+        )
     shutil.rmtree(work)
 work.mkdir(parents=True, exist_ok=True)
 (work / MARKER).touch()
 
 env = dict(os.environ)
 env.pop("DISPLAY", None)
-env.update(VTK_DEFAULT_OPENGL_WINDOW="vtkEGLRenderWindow", OMP_NUM_THREADS="2",
-           CATALYST_IMPLEMENTATION_PATHS=args.catalyst_lib, CATALYST_IMPLEMENTATION_NAME="paraview",
-           SST_VERBOSE="0", ADIOS2_LOG_LEVEL="1")
-MPI = ["mpirun", "--oversubscribe", "-x", "VTK_DEFAULT_OPENGL_WINDOW", "-x", "OMP_NUM_THREADS",
-       "-x", "CATALYST_IMPLEMENTATION_PATHS", "-x", "CATALYST_IMPLEMENTATION_NAME"]
+env.update(
+    VTK_DEFAULT_OPENGL_WINDOW="vtkEGLRenderWindow",
+    OMP_NUM_THREADS="2",
+    CATALYST_IMPLEMENTATION_PATHS=args.catalyst_lib,
+    CATALYST_IMPLEMENTATION_NAME="paraview",
+    SST_VERBOSE="0",
+    ADIOS2_LOG_LEVEL="1",
+)
+MPI = [
+    "mpirun",
+    "--oversubscribe",
+    "-x",
+    "VTK_DEFAULT_OPENGL_WINDOW",
+    "-x",
+    "OMP_NUM_THREADS",
+    "-x",
+    "CATALYST_IMPLEMENTATION_PATHS",
+    "-x",
+    "CATALYST_IMPLEMENTATION_NAME",
+]
 
 
 def generate(results, ranks):
@@ -84,16 +125,25 @@ def generate(results, ranks):
     ns = {"__name__": "generate_experiments"}
     exec(compile(src, str(GENERATOR), "exec"), ns)
     ns["SYSTEM_CONFIG"]["mpi_per_node"] = ranks
-    ns["GLOBAL_SETTINGS"].update(init_steps=300, run_steps=61, paper1_run_steps=61, plotgap=20)
+    ns["GLOBAL_SETTINGS"].update(
+        init_steps=300, run_steps=61, paper1_run_steps=61, plotgap=20
+    )
     ns["INIT_NODE_MAP"][64] = 1
     ns["STRONG_SCALING_NODES"], ns["STRONG_GRID"] = [1], 64
     ns["WEAK_SCALING_CONFIGS"] = [(1, 64)]
     ns["TRANSIT_CONFIGS"] = [("small", 1, 64, 1)]
     ns["TRANSIT_SWEEP_CONFIGS"] = []
+    ns["XPORT_CONFIGS"] = [("f016", 1, 64, 1)]  # #72 step 1 matrix, one small size
+    ns["XPORT_RUN_STEPS"] = 61
     ns["CATALYST_LIB_PATH"] = args.catalyst_lib
-    gargs = argparse.Namespace(repo_path=str(GSDIR.parent.parent), bin_path=args.aac,
-                               results_dir=str(results), output_dir=str(results.parent / "scripts"),
-                               account="local", perf_env="/nonexistent")
+    gargs = argparse.Namespace(
+        repo_path=str(GSDIR.parent.parent),
+        bin_path=args.aac,
+        results_dir=str(results),
+        output_dir=str(results.parent / "scripts"),
+        account="local",
+        perf_env="/nonexistent",
+    )
     cwd = os.getcwd()
     os.chdir(results.parent)
     try:
@@ -112,8 +162,12 @@ def add_adios_matrix(results):
             d = results / f"{base.name}_span{int(span)}_mem{int(mem)}"
             shutil.copytree(base, d)
             s = json.loads((d / "settings.json").read_text())
-            s.update(adios_span=span, adios_memory_selection=mem,
-                     output_file_name=str(d / "data/grayScott"), adios_config=str(d / "adios2.xml"))
+            s.update(
+                adios_span=span,
+                adios_memory_selection=mem,
+                output_file_name=str(d / "data/grayScott"),
+                adios_config=str(d / "adios2.xml"),
+            )
             (d / "settings.json").write_text(json.dumps(s, indent=4))
 
 
@@ -125,19 +179,74 @@ def run(d, ranks):
     (d / "data").mkdir(exist_ok=True)
     for f in (d / "data").glob("*.sst"):
         f.unlink()
-    cmd = MPI + ["-np", str(ranks), str(pathlib.Path(build) / "gray-scott"), "--logging-level=WARNING",
-                 f"--settings-file={d}/settings.json"]
-    if stage.exists():
-        cmd += [":", "-np", str(ranks), str(pathlib.Path(args.aac) / "analysis" / "analysis-reader"),
-                "--settings", str(stage), "--file", f"{d}/data/grayScott",
-                "--block-mode", "repartition", "--engine", "SST", "--mpi-split-color=1", "--adios-verbose", "0"]
+    sim = [
+        "-np",
+        str(ranks),
+        str(pathlib.Path(build) / "gray-scott"),
+        "--logging-level=WARNING",
+        f"--settings-file={d}/settings.json",
+    ]
+    reader = [
+        "-np",
+        str(ranks),
+        str(pathlib.Path(args.aac) / "analysis" / "analysis-reader"),
+        "--settings",
+        str(stage),
+        "--file",
+        f"{d}/data/grayScott",
+        "--block-mode",
+        "repartition",
+        "--engine",
+        "SST",
+        "--mpi-split-color=1",
+        "--adios-verbose",
+        "0",
+    ]
+    if not stage.exists():
+        cmds = [MPI + sim]
+    elif "_steps_" in d.name:
+        # The "steps" launch: two separate MPI jobs, as the two srun steps are.
+        cmds = [MPI + sim, MPI + reader]
+    else:
+        cmds = [MPI + sim + [":"] + reader]
     t0 = time.time()
+    # Output to files, not pipes: a full pipe would block a chatty run.
+    logs = [open(d / f"run.{i}.out", "w") for i in range(len(cmds))]
+    procs = []
     try:
-        p = subprocess.run(cmd, cwd=d, env=env, capture_output=True, text=True, timeout=1800)
-        rc, out = p.returncode, p.stdout + p.stderr
-    except subprocess.TimeoutExpired as e:
-        rc, out = 124, f"timed out after 1800 s\n{e.stdout or ''}{e.stderr or ''}"
-    (d / "run.log").write_text(" ".join(cmd) + "\n\n" + out)
+        for c, f in zip(cmds, logs):
+            procs.append(
+                subprocess.Popen(c, cwd=d, env=env, stdout=f, stderr=subprocess.STDOUT)
+            )
+    except OSError:
+        # A later launch failed: do not leave the earlier one running.
+        for p in procs:
+            p.kill()
+            p.wait()
+        for f in logs:
+            f.close()
+        raise
+    # Poll all of them: if one fails, stop the others (as the Shaheen "steps"
+    # script does), so a reader crash does not leave the simulation waiting.
+    rc = 0
+    while any(p.poll() is None for p in procs):
+        failed = [p.returncode for p in procs if p.poll() not in (None, 0)]
+        if failed or time.time() - t0 > 1800:
+            rc = failed[0] if failed else 124
+            for p in procs:
+                if p.poll() is None:
+                    p.kill()
+            break
+        time.sleep(0.5)
+    for p in procs:
+        p.wait()
+    for f in logs:
+        f.close()
+    rc = rc or next((p.returncode for p in procs if p.returncode), 0)
+    out = "".join(
+        (d / f"run.{i}.out").read_text(errors="replace") for i in range(len(cmds))
+    )
+    (d / "run.log").write_text("\n".join(" ".join(c) for c in cmds) + "\n\n" + out)
     return rc, time.time() - t0, s["output_type"]
 
 
@@ -150,7 +259,12 @@ def run_all(ranks):
         add_adios_matrix(results)
     ids = sorted(p.name for p in results.iterdir() if p.is_dir())
     jobs = [i for i in ids if i.startswith("init_")]
-    jobs += [i for i in ids if i.startswith(("paper1_", "paper2_strong", "paper2_transit")) and args.only in i]
+    jobs += [
+        i
+        for i in ids
+        if i.startswith(("paper1_", "paper2_strong", "paper2_transit", "xport_"))
+        and args.only in i
+    ]
     ok = True
     print(f"== {ranks} ranks", flush=True)
     for i in jobs:
@@ -159,16 +273,27 @@ def run_all(ranks):
             print(f"SKIP {i:52s} (no --akc build)")
             continue
         rc, dt, otype = run(d, ranks)
-        outs = [p for p in (d / "data").rglob("*") if p.is_file() and not p.name.endswith(".sst")]
+        outs = [
+            p
+            for p in (d / "data").rglob("*")
+            if p.is_file() and not p.name.endswith(".sst")
+        ]
         imgs = [p for p in outs if p.suffix in (".png", ".jpg")]
         perf = sorted(d.glob("perf/*/summary.json"))
-        ms = f"{json.loads(perf[-1].read_text()).get('loop_wall_per_step_ms', 0):.1f}" if perf else "-"
+        ms = (
+            f"{json.loads(perf[-1].read_text()).get('loop_wall_per_step_ms', 0):.1f}"
+            if perf
+            else "-"
+        )
         # A render job that exits 0 without images has still failed.
         no_images = rc == 0 and re.search(r"render|volume|isosurface", i) and not imgs
         passed = rc == 0 and not no_images
         ok &= passed
-        print(f"{'OK  ' if passed else 'FAIL'} {i:52s} {otype:16s} rc={rc:<3d} {dt:5.0f}s "
-              f"files={len(outs):3d} images={len(imgs):2d} ms/step={ms}{'  (no images)' if no_images else ''}", flush=True)
+        print(
+            f"{'OK  ' if passed else 'FAIL'} {i:52s} {otype:16s} rc={rc:<3d} {dt:5.0f}s "
+            f"files={len(outs):3d} images={len(imgs):2d} ms/step={ms}{'  (no images)' if no_images else ''}",
+            flush=True,
+        )
     return results, ok
 
 
@@ -178,13 +303,22 @@ def compare_images(dirs):
         import numpy as np
         from PIL import Image
     except ImportError:
-        print("Image comparison needs numpy and Pillow; run with one --ranks value to skip it.")
+        print(
+            "Image comparison needs numpy and Pillow; run with one --ranks value to skip it."
+        )
         return False
     ok = True
     ref_tag, ref = dirs[0]
-    print(f"== images against {ref_tag} (budget {PIXEL_BUDGET:.1%} of pixels above {PIXEL_TOL}/255)")
+    print(
+        f"== images against {ref_tag} (budget {PIXEL_BUDGET:.1%} of pixels above {PIXEL_TOL}/255)"
+    )
+
     def images(d):
-        return {pathlib.Path(f).name for f in glob.glob(str(d / "data" / "*.png")) + glob.glob(str(d / "data" / "*.jpg"))}
+        return {
+            pathlib.Path(f).name
+            for f in glob.glob(str(d / "data" / "*.png"))
+            + glob.glob(str(d / "data" / "*.jpg"))
+        }
 
     names = sorted({p.name for _, d in dirs for p in d.iterdir() if p.is_dir()})
     for name in names:
@@ -196,19 +330,36 @@ def compare_images(dirs):
             for n in imgs:
                 f, g = job / "data" / n, pathlib.Path(other) / name / "data" / n
                 if n not in mine or n not in theirs:
-                    missing = True  # an image one rank count wrote and the other did not
+                    missing = (
+                        True  # an image one rank count wrote and the other did not
+                    )
                     continue
                 a = np.asarray(Image.open(f).convert("RGB"), dtype=int)
                 b = np.asarray(Image.open(g).convert("RGB"), dtype=int)
                 missing |= a.shape != b.shape
-                worst = worst if a.shape != b.shape else max(worst, float((np.abs(a - b).max(axis=2) > PIXEL_TOL).mean()))
+                worst = (
+                    worst
+                    if a.shape != b.shape
+                    else max(
+                        worst, float((np.abs(a - b).max(axis=2) > PIXEL_TOL).mean())
+                    )
+                )
             if imgs:
                 over = worst > PIXEL_BUDGET
-                known = next((v for k, v in KNOWN_OVER.items() if re.search(k, job.name)), None)
+                known = next(
+                    (v for k, v in KNOWN_OVER.items() if re.search(k, job.name)), None
+                )
                 # A known exception excuses pixel differences, never a missing image.
                 ok &= not missing and (not over or known is not None)
-                label = ("MISSING" if missing else "ok  " if not over else
-                         f"KNOWN ({known})" if known else "OVER")
+                label = (
+                    "MISSING"
+                    if missing
+                    else "ok  "
+                    if not over
+                    else f"KNOWN ({known})"
+                    if known
+                    else "OVER"
+                )
                 print(f"{label} {job.name:52s} vs {tag}: {worst:.3%}")
     return ok
 

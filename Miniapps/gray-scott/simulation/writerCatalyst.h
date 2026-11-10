@@ -39,6 +39,11 @@ public:
                vtkVersion::GetVTKVersion();
     }
     std::string backendScript() const override { return settings.catalyst_script_path; }
+    // catalyst_insitu scripts name their own files; the setting does not apply.
+    bool overwritesLastStep(const Settings &) const override
+    {
+        return settings.output_type != "catalyst_insitu" && settings.overwrite_last_step;
+    }
 
 private:
     gs_mesh::Ghosts ghosts; // attached by reference; must outlive each execute

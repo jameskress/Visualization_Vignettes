@@ -31,7 +31,9 @@ class PerfLogger
 {
 public:
     // 2: allocation counters (#25) added to step and summary records.
-    static constexpr int kSchemaVersion = 2;
+    // 2: allocation counters (#25). 3: metadata problem.restart_read_s (#78)
+    // and backend.overwrite_last_step, the setting in effect (#85).
+    static constexpr int kSchemaVersion = 3;
 
     // run_dir: directory for this run's files (created if missing).
     // timers: per-step timer names, in record order.

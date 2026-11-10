@@ -376,7 +376,9 @@ int main(int argc, char **argv)
                                {"noise", settings.noise},  {"seed", settings.seed}};
             meta["backend"] = {{"output_type", settings.output_type},
                                {"version", writer_main->backendVersion()},
-                               {"script", writer_main->backendScript()}};
+                               {"script", writer_main->backendScript()},
+                               // the setting in effect, which can differ from the settings file's
+                               {"overwrite_last_step", writer_main->overwritesLastStep(settings)}};
             meta["vtk_version"] = vtkVersion::GetVTKVersion();
             meta["halo_bytes_per_step_rank0"] = sim.halo_bytes_per_step();
             meta["command_line"] = std::vector<std::string>(argv, argv + argc);

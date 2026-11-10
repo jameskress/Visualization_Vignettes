@@ -47,8 +47,11 @@ The miniapp builds against VTK and Catalyst from a ParaView 6.2 source build, be
 before they go to Shaheen III. It loads the generator itself and changes
 only the sizes: 64^3, one "node" of `--ranks` ranks, a short initialisation
 and short runs. Then it runs every Paper 1 job and the smallest Paper 2
-strong, weak and in transit set: inline as one `mpirun`, in transit as an
-MPMD `mpirun` of the simulation and the analysis reader over SST. The
+strong, weak and in transit set and the #72 transport matrix at one small
+size: inline as one `mpirun`, in transit as an
+MPMD `mpirun` of the simulation and the analysis reader over SST (the
+transport matrix's `steps` jobs as two separate `mpirun`s, as their two
+`srun` steps are). The
 settings, `adios2.xml` and pipeline files are the generator's own.
 
 ```bash
@@ -264,7 +267,7 @@ mpirun -np 8 ./kvvm-gray-scott --settings-file=settings-adios-localcopy.json --m
 
 
 # Docker
-Working on getting a docker image of this repo built so that the CI/CD pipeline will generate one on each commit allowing it to be downloaded and the code run with no building required. 
+Working on getting a docker image of this repo built so that the CI/CD pipeline will generate one on each commit allowing it to be downloaded and the code run with no building required.
 
 **locally**
 From main dir run this to build the docker image locally for testing
