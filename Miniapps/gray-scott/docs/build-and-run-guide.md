@@ -1,8 +1,28 @@
 # Gray-Scott miniapp: build and run guide
 
-The detailed recipes moved here from the miniapp's README, which is now the short
-overview ([../README.md](../README.md)). Paths below are as they were written; the
-CMake presets in the README are the recommended way to configure.
+The detailed, step-by-step recipes for running and building the miniapp. The
+[miniapp README](../README.md) is the short overview and has a
+[getting started](../README.md#getting-started-pick-your-path) guide; start
+there if you are new. Paths below are as they were written; the CMake presets
+in the README are the recommended way to configure.
+
+## In this guide
+
+| Section | Read it when you want to... |
+| :--- | :--- |
+| [Running with Docker](#running-with-docker) | run everything from the prebuilt image, on Linux, macOS or Windows, without building (start here) |
+| [Building the image from source](#3-for-developers-building-the-image-from-source) | change the image or build it yourself (hours) |
+| [How to build locally](#how-to-build-locally) | build Catalyst, Ascent, ADIOS2, Kombyne and the miniapp on your own machine |
+| [Running with ADIOS2](#running-with-adios2-io-andor-checkpointing) | write BP5 files, stream in transit with SST, or checkpoint and restart |
+| [Running with VTK](#running-with-vtk) | write `.pvti` files to open in ParaView afterwards |
+| [Running with Catalyst](#running-with-catalyst) | save data or render images with ParaView Catalyst, or connect ParaView live |
+| [Running with Ascent](#running-with-ascent) | render images or save data with Ascent |
+| [Running with Kombyne](#running-with-kombyne) | use Kombyne-lite (not in the Docker image) |
+| [Performance timers](#performance-timers-and-visualization) | time each backend and plot the timings |
+| [Configuring the simulation](#configuring-the-gray-scott-simulation) | change the grid size, steps, physics parameters, or try example patterns |
+
+Every "Running with ..." section follows the same pattern: configure a
+settings file, run the simulation, check the output.
 
 
 This is a 3D 7-point stencil code to simulate the following [Gray-Scott
@@ -45,41 +65,31 @@ docker pull ghcr.io/jameskress/visualization_vignettes:latest
 
 To run the container, you will create a "shared folder" that links a directory on your computer to a directory inside the container. This makes it easy to access your output files and resolves file permission issues.
 
-1. **Create a Local Data Directory:** On your computer, create a folder where you want your simulation outputs to be saved.
+1. **Create a results folder and start the container.** The folder is shared with the container as `/app/data`, so what the miniapp writes there appears on your computer. Each command creates a new folder, `gray-scott-run`, in your home folder (outside any git clone, so cleaning a clone cannot delete your results) and starts the container only if the folder was created. If the folder already exists, nothing starts: pick another name, or remove the old folder first, so an earlier run is never overwritten. Docker Desktop on Windows maps file ownership itself.
+
+   **On Linux or macOS:**
 
    ```bash
-   mkdir data
+   mkdir "$HOME/gray-scott-run" && docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$HOME/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
    ```
 
-2. **Run the Container:** Use the command for your operating system to start the container. This command links your new `data` folder to `/app/data` inside the container and ensures you have the correct file permissions.
-
-   **On Linux or macOS (in any terminal):**
-
-   ```bash
-   docker run -it --rm \
-     -e HOST_UID=$(id -u) \
-     -e HOST_GID=$(id -g) \
-     -v "$(pwd)/data:/app/data" \
-     ghcr.io/jameskress/visualization_vignettes:latest
-   ```
-
-   **On Windows (in a PowerShell terminal):**
+   **On Windows (PowerShell):**
 
    ```powershell
-   # Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
-   docker run -it --rm -v "${PWD}/data:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
+   if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction Continue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest }
    ```
 
-   **On Windows (in a Command Prompt `cmd.exe`):**
+   **On Windows (Command Prompt `cmd.exe`):**
 
    ```cmd
-   :: Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
-   docker run -it --rm -v "%cd%/data:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
+   mkdir "%USERPROFILE%\gray-scott-run" && docker run -it --rm -v "%USERPROFILE%\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
    ```
 
    You are now inside the container with a clean command prompt: `vizuser@<container_id>:/app/data$`.
 
-3. **Set Up Your Run Directory:** The container includes a script to easily copy the application and its default settings into your shared folder. Run this script once.
+   If `docker run` fails after the folder was made (for example, Docker is not running), fix the problem and run only the `docker run ...` part again: the folder now exists, so the whole command would stop at the first step. On Linux with SELinux (Fedora, RHEL), if the container cannot write to the folder, add `:z` to the mount, `-v "$HOME/gray-scott-run:/app/data:z"`; this relabels the folder for container use, so use it only on a folder you keep for results. In PowerShell, a folder that already exists prints an error and the container does not start.
+
+2. **Set Up Your Run Directory:** The container includes a script to easily copy the application and its default settings into your shared folder. Run it once per folder: it overwrites files of the same name.
 
    ```bash
    # Inside the container, set up your run directory
@@ -88,7 +98,7 @@ To run the container, you will create a "shared folder" that links a directory o
 
    You will now see the `gray-scott` executable and all the `settings-*.json` files in your shared directory.
 
-4. **Run a Simulation:** Now you can run the simulation using the local executable and settings files.
+3. **Run a Simulation:** Now you can run the simulation using the local executable and settings files.
 
    ```bash
    # Navigate to the shared data directory
@@ -98,13 +108,13 @@ To run the container, you will create a "shared folder" that links a directory o
    mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json
    ```
 
-5. **Exit and Access Your Files:** When the simulation is done, exit the container.
+4. **Exit and Access Your Files:** When the simulation is done, exit the container.
 
    ```bash
    exit
    ```
 
-   Your output files (images, VTK files, etc.) are now in the `data` folder on your computer.
+   Your output files (images, VTK files, etc.) are now in your results folder on your computer (`gray-scott-run`, or the name you chose); the Catalyst in situ example writes its images to the `datasets/` folder inside it. Every example settings file runs in the image except `settings-kombyne.json`: Kombyne is not in the image (it needs its own licence).
 
 ### 3. For Developers: Building the Image from Source
 
@@ -131,34 +141,29 @@ Follow these instructions if you need to modify the environment or build the ima
 
 This workflow is an identical to the user workflow, but you will use your locally-built image name (`visualization-vignettes-app`) instead of the full registry path.
 
-1. **Create a Local Data Directory:**
+1. **Create a results folder and start the container**, as in the quick start but with your image name. Each command creates a new folder, `gray-scott-run`, in your home folder (outside any git clone, so cleaning a clone cannot delete your results) and starts the container only if the folder was created. If the folder already exists, nothing starts: pick another name, or remove the old folder first, so an earlier run is never overwritten. Docker Desktop on Windows maps file ownership itself.
+
+   **On Linux or macOS:**
 
    ```bash
-   mkdir data
+   mkdir "$HOME/gray-scott-run" && docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$HOME/gray-scott-run:/app/data" visualization-vignettes-app
    ```
 
-2. **Run the Container:**
-   **On Linux or macOS (in any terminal):**
-
-   ```bash
-   docker run -it --rm \
-     -e HOST_UID=$(id -u) \
-     -e HOST_GID=$(id -g) \
-     -v "$(pwd)/data:/app/data" \
-     visualization-vignettes-app
-   ```
-
-   **On Windows (in PowerShell or Command Prompt):**
+   **On Windows (PowerShell):**
 
    ```powershell
-   # PowerShell
-   docker run -it --rm -v "${PWD}/data:/app/data" visualization-vignettes-app
-
-   # Command Prompt
-   docker run -it --rm -v "%cd%/data:/app/data" visualization-vignettes-app
+   if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction Continue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" visualization-vignettes-app }
    ```
 
-3. **Set Up and Run a Simulation:**
+   **On Windows (Command Prompt `cmd.exe`):**
+
+   ```cmd
+   mkdir "%USERPROFILE%\gray-scott-run" && docker run -it --rm -v "%USERPROFILE%\gray-scott-run:/app/data" visualization-vignettes-app
+   ```
+
+   If `docker run` fails after the folder was made (for example, Docker is not running), fix the problem and run only the `docker run ...` part again: the folder now exists, so the whole command would stop at the first step. On Linux with SELinux (Fedora, RHEL), if the container cannot write to the folder, add `:z` to the mount, `-v "$HOME/gray-scott-run:/app/data:z"`; this relabels the folder for container use, so use it only on a folder you keep for results. In PowerShell, a folder that already exists prints an error and the container does not start.
+
+2. **Set Up and Run a Simulation:**
 
    ```bash
    # Inside the container, set up your run directory
@@ -168,7 +173,7 @@ This workflow is an identical to the user workflow, but you will use your locall
    mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json
    ```
 
-4. **Exit and Access Your Files:**
+3. **Exit and Access Your Files:**
 
    ```bash
    exit
@@ -599,6 +604,8 @@ mpirun -np 4 ../gray-scott --settings-file=../settings-catalyst-file-io.json --l
 
 If successful, the console will display the run parameters and confirm that the simulation is writing output at each `plotgap` step. You will find the generated `.vtpd` files inside your `run-catalyst-io` directory.
 
+ParaView 6.2 prints `Legacy formatting pattern detected` for an output name such as `grayScott-%04ts.vtpd` and suggests `grayScott-{timestep:04d}.vtpd`. The warning is harmless: the old pattern still works, and the shipped settings keep it so they also run with older ParaView builds.
+
 <details>
 <summary>Click to see sample output</summary>
 
@@ -606,7 +613,9 @@ If successful, the console will display the run parameters and confirm that the 
 ========================================
 grid:                 64x64x64
 restart:              no
+checkpoint:           no
 steps:                100
+burn_in_steps:        0
 plotgap:              10
 F:                    0.01
 k:                    0.05
@@ -616,15 +625,20 @@ Dv:                   0.1
 noise:                1e-07
 output_file_name:     grayScott-%04ts.vtpd
 output_type:          catalyst_io
-catalyst_script_path: test-catalyst.py
-catalyst_script:      catalyst_pipeline.py
-catalyst_lib_path:    /home/kressjm/packages/paraview-src/build_5.11.1/install/lib/catalyst
+overwrite_last_step:  no
+catalyst_script_path:
+catalyst_lib_path:    /path/to/paraview/install/lib/catalyst
+adios_config:
+adios_span:           no
+adios_memory_selection: no
 process layout:       2x2x1
 local grid size:      32x32x64
 ========================================
-(   0.439s) [pvbatch.0       ]               main.cpp:245   INFO| Simulation at step 10 writing output step     1
-(   0.474s) [pvbatch.0       ]               main.cpp:245   INFO| Simulation at step 20 writing output step     2
-(   0.493s) [pvbatch.0       ]               main.cpp:245   INFO| Simulation at step 30 writing output step     3
+(   0.537s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 0
+(   0.555s) [pvbatch.0       ]vtkInSituPipelineIO.cxx:158   WARN| Legacy formatting pattern detected. Please replace 'grayScott-%04ts.vtpd' with 'grayScott-{timestep:04d}.vtpd'.
+(   0.573s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 1
+(   0.573s) [pvbatch.0       ]vtkInSituPipelineIO.cxx:158   WARN| Legacy formatting pattern detected. Please replace 'grayScott-%04ts.vtpd' with 'grayScott-{timestep:04d}.vtpd'.
+...
 ```
 
 </details>
@@ -681,7 +695,9 @@ If the simulation starts correctly, your console will display the run parameters
 ========================================
 grid:                 64x64x64
 restart:              no
+checkpoint:           no
 steps:                100
+burn_in_steps:        0
 plotgap:              10
 F:                    0.01
 k:                    0.05
@@ -689,14 +705,21 @@ dt:                   2
 Du:                   0.2
 Dv:                   0.1
 noise:                1e-07
-output_file_name:     grayScott-%04ts.vtpd
-output_type:          catalyst
-catalyst_script_path: /home/kressjm/packages/gray-scott/Visualization_Vignettes/Miniapps/gray-scott/configs/catalyst_scripts/catalyst-extract-contour_v.py
-catalyst_script:      catalyst-extract-contour_v.py
-catalyst_lib_path:    /home/kressjm/packages/paraview-src/build_5.11.1/install/lib/catalyst
+output_file_name:
+output_type:          catalyst_insitu
+overwrite_last_step:  no
+catalyst_script_path: catalyst-extract-jpg.py
+catalyst_lib_path:    /path/to/paraview/install/lib/catalyst
+adios_config:
+adios_span:           no
+adios_memory_selection: no
 process layout:       2x2x1
 local grid size:      32x32x64
 ========================================
+(   0.508s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 0
+(   3.311s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 1
+(   4.418s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 2
+...
 ```
 
 </details>
@@ -764,7 +787,9 @@ mpirun -np 4 ../gray-scott --settings-file=../settings-catalyst-insitu.json --lo
 ========================================
 grid:                 64x64x64
 restart:              no
+checkpoint:           no
 steps:                100
+burn_in_steps:        0
 plotgap:              10
 F:                    0.01
 k:                    0.05
@@ -772,14 +797,21 @@ dt:                   2
 Du:                   0.2
 Dv:                   0.1
 noise:                1e-07
-output_file_name:     grayScott-%04ts.vtpd
-output_type:          catalyst
-catalyst_script_path: /home/kressjm/packages/gray-scott/Visualization_Vignettes/Miniapps/gray-scott/configs/catalyst_scripts/catalyst-extract-contour_v.py
-catalyst_script:      catalyst-extract-contour_v.py
-catalyst_lib_path:    /home/kressjm/packages/paraview-src/build_5.11.1/install/lib/catalyst
+output_file_name:
+output_type:          catalyst_insitu
+overwrite_last_step:  no
+catalyst_script_path: catalyst-extract-jpg.py
+catalyst_lib_path:    /path/to/paraview/install/lib/catalyst
+adios_config:
+adios_span:           no
+adios_memory_selection: no
 process layout:       2x2x1
 local grid size:      32x32x64
 ========================================
+(   0.508s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 0
+(   3.311s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 1
+(   4.418s) [pvbatch.0       ]               main.cpp:431   INFO| 	 Processing sim data using Writer interface @ output step 2
+...
 ```
 
 </details>
@@ -962,7 +994,7 @@ local grid size:      64x64x64
 
 ---
 
-## ⏱️ Performance Timers and Visualization
+## Performance Timers and Visualization
 
 The miniapp's own performance record (run directory, metadata, per-step timers, summary, the
 `ENABLE_TIMERS` switch and `scripts/perf_report.py` for tables and plots) is described in the
@@ -1072,7 +1104,7 @@ python3 kombyne_timings_plotter.py   # from the miniapp's scripts/ directory
 
 This will process all timing files and save a PDF file named `kombyne_sunburst_performance.pdf`. This plot provides an intuitive, hierarchical view of the total time distribution.
 
-## 🧪 Configuring the Gray-Scott Simulation
+## Configuring the Gray-Scott Simulation
 
 All simulation behavior, from the chemical reaction-diffusion model to data I/O and checkpointing, is controlled via a JSON settings file (e.g., `settings-vtk-pvti.json`).
 

@@ -18,11 +18,116 @@ dv/dt = Dv * lap(v) + u * v^2 - (F + k) * v
 with a 7-point Laplacian on a unit-spaced grid (the stencil sum is divided
 by 6) and a forward Euler step of size `dt`.
 
-Contents: [how it works](#how-it-works) ·
+Contents: [getting started](#getting-started-pick-your-path) ·
+[quick start with Docker](#quick-start-with-docker) ·
+[how it works](#how-it-works) ·
 [prerequisites](#prerequisites) · [build](#build) · [run](#run) ·
 [parameters](#parameters) · [outputs](#outputs) · [performance](#performance) ·
 [testing](#testing) ·
 [troubleshooting](#troubleshooting) · [more documentation](#more-documentation)
+
+---
+
+## Getting started: pick your path
+
+New to the miniapp? Start with Docker: the image has everything built, so
+you can run your first in situ visualization in a few minutes without
+compiling anything.
+
+```mermaid
+flowchart TD
+    A[What do you want to do?] --> B{Learn or try in situ<br/>visualization?}
+    B -- yes --> D[Quick start with Docker<br/>nothing to build]
+    B -- no --> C{Where will you run?}
+    C -- my Linux workstation --> E[Build natively<br/>with the CMake presets]
+    C -- an HPC system --> F{Shaheen III or Ibex?}
+    F -- yes --> G[Use the site's notes<br/>sites/shaheen, sites/ibex]
+    F -- no --> E
+    E --> H{Changing the miniapp<br/>or its backends?}
+    H -- yes --> I[Testing and<br/>docs/in-situ-backends.md]
+```
+
+| I want to... | Go to |
+| :--- | :--- |
+| try it, or follow a class or tutorial | [Quick start with Docker](#quick-start-with-docker) |
+| build it on my own Linux machine | [Prerequisites](#prerequisites), then [Build](#build) |
+| run on Shaheen III or Ibex | [`sites/shaheen/README.md`](sites/shaheen/README.md), [`sites/ibex/`](sites/ibex/) |
+| change the miniapp or a backend | [Build](#build), [Testing](#testing), [`docs/in-situ-backends.md`](docs/in-situ-backends.md) |
+
+---
+
+## Quick start with Docker
+
+You need [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+(Windows, macOS) or [Docker Engine](https://docs.docker.com/engine/install/)
+(Linux). The image is about 4.5 GB to download.
+
+1. **Download the image** (once):
+
+   ```bash
+   docker pull ghcr.io/jameskress/visualization_vignettes:latest
+   ```
+
+2. **Make a folder for your results and start the container.** The folder,
+   `gray-scott-run` in your home folder, is shared with the container as
+   `/app/data`: files the miniapp writes there appear on your computer. The
+   container starts only if the folder was created, so an earlier run is
+   never overwritten; if the folder exists, pick another name (PowerShell
+   prints an error saying it exists). If `docker run` itself fails after the
+   folder was made, fix the problem and run only the `docker run ...` part
+   again.
+
+   Linux or macOS:
+
+   ```bash
+   mkdir "$HOME/gray-scott-run" && docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$HOME/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
+   ```
+
+   Windows (PowerShell):
+
+   ```powershell
+   if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction Continue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest }
+   ```
+
+   You now have a prompt inside the container, in `/app/data`
+   (`vizuser@...:/app/data$`).
+
+   If the container cannot write to the folder: on Linux with SELinux
+   (Fedora, RHEL), add `:z` to the mount, `-v "$HOME/gray-scott-run:/app/data:z"`;
+   this relabels the folder, so use one only for results. These commands
+   assume the standard Docker setup (Docker Desktop, or Docker Engine run by
+   a user in the `docker` group); rootless Docker maps users differently and
+   is not covered here.
+
+3. **Copy the miniapp and its example settings** into your folder. Run it
+   once per folder: it overwrites files of the same name.
+
+   ```bash
+   setup_rundir.sh
+   ```
+
+4. **Run a simulation** with ParaView Catalyst rendering images as it goes:
+
+   ```bash
+   mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json
+   ```
+
+   It runs 100 steps and renders an image every 10, so expect about a
+   minute. The images, `RenderView1_000000.jpg` to `RenderView1_000090.jpg`,
+   appear in the `datasets/` folder inside your results folder on your
+   computer (`~/gray-scott-run/datasets/` if you kept that name). Try the other
+   `settings-*.json` files next; each uses a different backend (see
+   [Outputs](#outputs)): `settings-vtk-pvti.json`, `settings-ascent.json`,
+   `settings-catalyst-file-io.json`, `settings-adios-*.json` and
+   `settings-none.json` all run in the image. Kombyne is not in the image
+   (it needs its own licence), so `settings-kombyne.json` does not.
+
+5. **Leave the container** with `exit`. Your results stay in
+   `gray-scott-run/`.
+
+The [build and run guide](docs/build-and-run-guide.md#running-with-docker)
+has more: Windows Command Prompt, building the image yourself, and each
+backend's settings.
 
 ---
 

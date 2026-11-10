@@ -86,18 +86,19 @@ These examples are designed to run on HPC or local systems and demonstrate commo
 
 The in situ portion of this repo is centered around a "miniapp" that generates data and performs live visualization. A pre-built Docker image is automatically created by our CI/CD pipeline, providing a consistent and reproducible environment. The pipeline runs on every pull request and on every push to `master`; only `master` publishes the image. A pull request builds the image for amd64 only, and if it changes nothing outside `Miniapps/gray-scott/` it skips the ParaView and VisIt suites, which do not test the miniapp. Other branches can be run by hand from the Actions tab.
 
-1. **Pull the latest Docker image from the registry:**
+A step-by-step [**quick start with Docker**](./Miniapps/gray-scott/README.md#quick-start-with-docker) is in the miniapp README (checked against the published image on 2026-11-10). In short:
+
+1. **Pull the image** (about 4.5 GB):
    `docker pull ghcr.io/jameskress/visualization_vignettes:latest`
 
-2. **Create a local data directory:** The miniapp writes output files. Create a directory to mount into the container to persist this data on your local machine.
-   `mkdir data`
+2. **Make a folder for results and start the container** with it shared as `/app/data`. The container starts only if the folder was created, so an earlier run (or a git clone) is never overwritten; if `~/gray-scott-run` exists, pick another name. On Linux or macOS, the user and group IDs make the files the container writes belong to you:
+   `mkdir "$HOME/gray-scott-run" && docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$HOME/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest`
+   On Windows (PowerShell): `if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction Continue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest }`
+   On Linux with SELinux (Fedora, RHEL), if the container cannot write to the folder, add `:z` to the mount (`...:/app/data:z`); it relabels the folder, so use it only for results. If `docker run` fails after the folder was made, run only the `docker run ...` part again.
 
-3. **Run the container with a volume mount:** This command maps your new `data` directory to the `/app/data` directory inside the container. The `--rm` flag automatically cleans up and removes the container when you exit.
-   `docker run -it --rm -v "${PWD}/data:/app/data" ghcr.io/jameskress/visualization_vignettes:latest`
+3. **Inside the container**, copy the miniapp into your folder with `setup_rundir.sh` (once per folder), then run it, for example `mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json`. Images appear in the folder's `datasets/` on your computer.
 
-4. From within the container, you can test the different in situ tools. Any produced images and data will be accessible in your local `data` directory.
-
-5. For full details see: [**Running with Docker**](./Miniapps/gray-scott/docs/build-and-run-guide.md#running-with-docker)
+4. For every option (Windows Command Prompt, building the image yourself, each backend) see the [**build and run guide**](./Miniapps/gray-scott/docs/build-and-run-guide.md#running-with-docker).
 
 ## How to Cite
 
