@@ -65,13 +65,13 @@ docker pull ghcr.io/jameskress/visualization_vignettes:latest
 
 To run the container, you will create a "shared folder" that links a directory on your computer to a directory inside the container. This makes it easy to access your output files and resolves file permission issues.
 
-1. **Create a Local Data Directory:** On your computer, create a folder where you want your simulation outputs to be saved.
+1. **Create a Local Data Directory:** On your computer, create a new, empty folder where you want your simulation outputs to be saved, outside any git clone (the repository has its own `data/` folder, which setup would overwrite).
 
    ```bash
-   mkdir data
+   mkdir gray-scott-run
    ```
 
-2. **Run the Container:** Use the command for your operating system to start the container. This command links your new `data` folder to `/app/data` inside the container and ensures you have the correct file permissions.
+2. **Run the Container:** Use the command for your operating system to start the container. This command links your new `gray-scott-run` folder to `/app/data` inside the container and ensures you have the correct file permissions.
 
    **On Linux or macOS (in any terminal):**
 
@@ -79,7 +79,7 @@ To run the container, you will create a "shared folder" that links a directory o
    docker run -it --rm \
      -e HOST_UID=$(id -u) \
      -e HOST_GID=$(id -g) \
-     -v "$(pwd)/data:/app/data" \
+     -v "$(pwd)/gray-scott-run:/app/data" \
      ghcr.io/jameskress/visualization_vignettes:latest
    ```
 
@@ -87,19 +87,19 @@ To run the container, you will create a "shared folder" that links a directory o
 
    ```powershell
    # Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
-   docker run -it --rm -v "${PWD}/data:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
+   docker run -it --rm -v "${PWD}/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
    ```
 
    **On Windows (in a Command Prompt `cmd.exe`):**
 
    ```cmd
    :: Note: On Windows, the UID/GID mapping is handled automatically by Docker Desktop.
-   docker run -it --rm -v "%cd%/data:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
+   docker run -it --rm -v "%cd%/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
    ```
 
    You are now inside the container with a clean command prompt: `vizuser@<container_id>:/app/data$`.
 
-3. **Set Up Your Run Directory:** The container includes a script to easily copy the application and its default settings into your shared folder. Run this script once.
+3. **Set Up Your Run Directory:** The container includes a script to easily copy the application and its default settings into your shared folder. Run it once per folder: it overwrites files of the same name.
 
    ```bash
    # Inside the container, set up your run directory
@@ -124,7 +124,7 @@ To run the container, you will create a "shared folder" that links a directory o
    exit
    ```
 
-   Your output files (images, VTK files, etc.) are now in the `data` folder on your computer; the Catalyst in situ example writes its images to `data/datasets/`. Every example settings file runs in the image except `settings-kombyne.json`: Kombyne is not in the image (it needs its own licence).
+   Your output files (images, VTK files, etc.) are now in the `gray-scott-run` folder on your computer; the Catalyst in situ example writes its images to `gray-scott-run/datasets/`. Every example settings file runs in the image except `settings-kombyne.json`: Kombyne is not in the image (it needs its own licence).
 
 ### 3. For Developers: Building the Image from Source
 
@@ -154,7 +154,7 @@ This workflow is an identical to the user workflow, but you will use your locall
 1. **Create a Local Data Directory:**
 
    ```bash
-   mkdir data
+   mkdir gray-scott-run
    ```
 
 2. **Run the Container:**
@@ -164,7 +164,7 @@ This workflow is an identical to the user workflow, but you will use your locall
    docker run -it --rm \
      -e HOST_UID=$(id -u) \
      -e HOST_GID=$(id -g) \
-     -v "$(pwd)/data:/app/data" \
+     -v "$(pwd)/gray-scott-run:/app/data" \
      visualization-vignettes-app
    ```
 
@@ -172,10 +172,10 @@ This workflow is an identical to the user workflow, but you will use your locall
 
    ```powershell
    # PowerShell
-   docker run -it --rm -v "${PWD}/data:/app/data" visualization-vignettes-app
+   docker run -it --rm -v "${PWD}/gray-scott-run:/app/data" visualization-vignettes-app
 
    # Command Prompt
-   docker run -it --rm -v "%cd%/data:/app/data" visualization-vignettes-app
+   docker run -it --rm -v "%cd%/gray-scott-run:/app/data" visualization-vignettes-app
    ```
 
 3. **Set Up and Run a Simulation:**

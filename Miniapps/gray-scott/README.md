@@ -68,29 +68,36 @@ You need [Docker Desktop](https://www.docker.com/products/docker-desktop/)
    docker pull ghcr.io/jameskress/visualization_vignettes:latest
    ```
 
-2. **Make a folder for your results** and start the container with that
-   folder shared as `/app/data`. Files the miniapp writes there appear in
-   the folder on your computer.
+2. **Make a new, empty folder for your results** (outside any git clone)
+   and start the container with that folder shared as `/app/data`. Files
+   the miniapp writes there appear in the folder on your computer.
 
    Linux or macOS:
 
    ```bash
-   mkdir -p data
-   docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$(pwd)/data:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
+   mkdir -p gray-scott-run
+   docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$(pwd)/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
    ```
 
    Windows (PowerShell):
 
    ```powershell
-   mkdir data
-   docker run -it --rm -v "${PWD}/data:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
+   mkdir gray-scott-run
+   docker run -it --rm -v "${PWD}/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
    ```
 
    You now have a prompt inside the container, in `/app/data`
    (`vizuser@...:/app/data$`).
 
-3. **Copy the miniapp and its example settings** into your folder (once per
-   folder):
+   If the container cannot write to the folder: on Linux with SELinux
+   (Fedora, RHEL), add `:z` to the mount, `-v "$(pwd)/gray-scott-run:/app/data:z"`;
+   this relabels the folder, so use one only for results. These commands
+   assume the standard Docker setup (Docker Desktop, or Docker Engine run by
+   a user in the `docker` group); rootless Docker maps users differently and
+   is not covered here.
+
+3. **Copy the miniapp and its example settings** into your folder. Run it
+   once per folder: it overwrites files of the same name.
 
    ```bash
    setup_rundir.sh
@@ -103,7 +110,7 @@ You need [Docker Desktop](https://www.docker.com/products/docker-desktop/)
    ```
 
    It runs 100 steps and renders an image every 10, so expect about a
-   minute. The images appear in `data/datasets/` on your computer
+   minute. The images appear in `gray-scott-run/datasets/` on your computer
    (`RenderView1_000000.jpg` to `RenderView1_000090.jpg`). Try the other
    `settings-*.json` files next; each uses a different backend (see
    [Outputs](#outputs)): `settings-vtk-pvti.json`, `settings-ascent.json`,
@@ -111,7 +118,8 @@ You need [Docker Desktop](https://www.docker.com/products/docker-desktop/)
    `settings-none.json` all run in the image. Kombyne is not in the image
    (it needs its own licence), so `settings-kombyne.json` does not.
 
-5. **Leave the container** with `exit`. Your results stay in `data/`.
+5. **Leave the container** with `exit`. Your results stay in
+   `gray-scott-run/`.
 
 The [build and run guide](docs/build-and-run-guide.md#running-with-docker)
 has more: Windows Command Prompt, building the image yourself, and each
