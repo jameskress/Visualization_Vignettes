@@ -8,7 +8,7 @@ We welcome contributions of all kinds, from fixing typos to adding brand-new vis
 
 To ensure a welcoming and positive environment, we expect all contributors to adhere to a code of conduct.
 
-[*Our Code of Conduct*](https://www.google.com/search?q=CODE_OF_CONDUCT.md)
+[*Our Code of Conduct*](CODE_OF_CONDUCT.md)
 
 ## How Can I Contribute?
 
@@ -22,7 +22,7 @@ There are several ways you can contribute to this project:
 
 ### Using GitHub Issues
 
-For reporting bugs or suggesting enhancements, the best place is the [GitHub Issue Tracker](https://www.google.com/search?q=https://github.com/jameskress/Visualization_Vignettes/issues).
+For reporting bugs or suggesting enhancements, the best place is the [GitHub Issue Tracker](https://github.com/jameskress/Visualization_Vignettes/issues).
 
 * **Check existing issues** first to see if someone has already reported your issue or suggested your idea.
 
@@ -78,7 +78,31 @@ This is where you'll add your new scripts, update documentation, or fix bugs.
 
 * **Use Existing Conventions:** Look at the other vignettes to see the established structure and style.
 
-### 4. Commit and Push Your Changes
+### 4. Set Up the Style Checks (once per clone)
+
+The repository checks code style and common mistakes with
+[pre-commit](https://pre-commit.com): Black and Flake8 for Python, shellcheck
+for shell scripts, YAML and JSON syntax, trailing whitespace, and the CI
+workflow scripts. Install it once in your clone; after that the checks run on
+the files you change every time you commit, and a commit that fails them
+is stopped so you can fix it (many fixes, such as formatting, are applied for
+you; add them and commit again).
+
+```
+pip install pre-commit
+pre-commit install
+```
+
+To check your changes without committing:
+
+```
+pre-commit run --files <files you changed>
+```
+
+Pull requests run the same checks in CI (the "Lint" workflow), on the files
+they change.
+
+### 5. Commit and Push Your Changes
 
 Commit your changes with a clear and descriptive message.
 
@@ -89,9 +113,9 @@ git push origin feature/paraview-ocean-slice
 
 ```
 
-### 5. Open a Pull Request
+### 6. Open a Pull Request
 
-1. Go to the [Visualization Vignettes repository on GitHub](https://www.google.com/search?q=https://github.com/jameskress/Visualization_Vignettes).
+1. Go to the [Visualization Vignettes repository on GitHub](https://github.com/jameskress/Visualization_Vignettes).
 
 2. You will see a prompt to create a Pull Request from your recently pushed branch.
 

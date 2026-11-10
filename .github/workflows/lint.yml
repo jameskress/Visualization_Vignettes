@@ -1,0 +1,62 @@
+name: Lint
+
+# Runs the repository's pre-commit hooks (.pre-commit-config.yaml) on the files
+# a pull request changes, or a push to master changes (#88). Only changed
+# files are checked, so lint already in older files does not block unrelated
+# work. Runs on a GitHub-hosted runner: no load on the shared self-hosted one.
+#
+# The same hooks run locally at commit time after `pre-commit install`
+# (.github/CONTRIBUTING.md). To make this job required for merging, add the
+# check "pre-commit (changed files)" in the master branch protection rule.
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ '**' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pre-commit:
+    name: pre-commit (changed files)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # The hooks pin Black 22.10 and Flake8 3.9.2, which run under 3.10.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.10'
+      - name: Install pre-commit
+        run: python -m pip install pre-commit==4.0.1
+      - name: Run the hooks on the changed files
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            range="$PR_BASE...$PR_HEAD"
+          elif [ -n "$PUSH_BEFORE" ] && ! [[ "$PUSH_BEFORE" =~ ^0+$ ]]; then
+            range="$PUSH_BEFORE..$PUSH_SHA"
+          else
+            range="$PUSH_SHA~1..$PUSH_SHA"
+          fi
+          # Added, copied, modified or renamed files that still exist.
+          mapfile -t files < <(git diff --name-only --diff-filter=ACMR "$range")
+          echo "Checking ${#files[@]} changed file(s) in $range"
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "Nothing to check."
+            exit 0
+          fi
+          pre-commit run --show-diff-on-failure --color always --files "${files[@]}"
