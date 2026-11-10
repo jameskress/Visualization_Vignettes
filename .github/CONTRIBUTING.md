@@ -93,10 +93,10 @@ pip install pre-commit
 pre-commit install
 ```
 
-To check your changes without committing:
+To check your changes without committing (list the files you changed, for example):
 
 ```
-pre-commit run --files <files you changed>
+pre-commit run --files Miniapps/gray-scott/scripts/perf_report.py README.md
 ```
 
 Pull requests run the same checks in CI (the "Lint" workflow), on the files

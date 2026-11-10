@@ -56,12 +56,14 @@ jobs:
           fi
           # Added, copied, modified or renamed files that still exist. A
           # failing diff must fail the job, not pass it with nothing checked.
-          if ! changed=$(git diff --name-only --diff-filter=ACMR "$range"); then
+          # NUL-separated, so unusual file names (spaces, non-ASCII,
+          # newlines) reach pre-commit exactly.
+          list="$RUNNER_TEMP/changed-files"
+          if ! git diff -z --name-only --diff-filter=ACMR "$range" > "$list"; then
             echo "Cannot list the changed files in $range"
             exit 1
           fi
-          mapfile -t files <<< "$changed"
-          [ -z "$changed" ] && files=()
+          mapfile -d '' -t files < "$list"
           echo "Checking ${#files[@]} changed file(s) in $range"
           if [ "${#files[@]}" -eq 0 ]; then
             echo "Nothing to check."
