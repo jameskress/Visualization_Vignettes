@@ -50,7 +50,7 @@ ADIOS2 builds following the README instructions. Use 2.12 or newer for in
 transit runs. With 2.11, SST over RDMA on Shaheen III hung or performed
 inconsistently, and the WAN, MPI and UCX data planes crashed on Slingshot.
 With 2.12.0, SST over the MPI data plane ran consistently in the Paper 2
-tests. SST over RDMA with 2.12.1 completed a 1,024 + 32 node Catalyst run
+tests. SST over RDMA with 2.12.0 completed a 1,024 + 32 node Catalyst run
 (#79), with the shutdown bounded by #75. #72 compares the two at scale.
 
 # ParaView
