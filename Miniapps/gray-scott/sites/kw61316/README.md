@@ -267,7 +267,7 @@ mpirun -np 8 ./kvvm-gray-scott --settings-file=settings-adios-localcopy.json --m
 
 
 # Docker
-Working on getting a docker image of this repo built so that the CI/CD pipeline will generate one on each commit allowing it to be downloaded and the code run with no building required. 
+Working on getting a docker image of this repo built so that the CI/CD pipeline will generate one on each commit allowing it to be downloaded and the code run with no building required.
 
 **locally**
 From main dir run this to build the docker image locally for testing

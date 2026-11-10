@@ -19,7 +19,7 @@ render path needs it. A 256^3 run on one node (64 ranks x 3 threads) with a
 JPG every 10 steps is the HPC Saudi 2026 live demo.
 
 # Building Ascent
-Ascent was not properly passing the `cc` and `CC` compiler wrappers to all of its sub builds. Below is what worked on the last build. 
+Ascent was not properly passing the `cc` and `CC` compiler wrappers to all of its sub builds. Below is what worked on the last build.
 
 ***!! NOTE !!*** Compiler paths will have to be updated as the cray environment changes.
 

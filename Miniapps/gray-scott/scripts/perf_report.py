@@ -22,14 +22,13 @@ Needs matplotlib for the plots; the tables need only the standard library.
 import argparse
 import csv
 import json
-import os
 import sys
 from collections import defaultdict
 from pathlib import Path
 
-SCHEMA_VERSIONS = {1, 2, 3}  # 2 adds the allocation counters (#25); 3 adds
-                             # problem.restart_read_s and backend.overwrite_last_step;
-                             # older versions still read fine
+# Performance log versions this report reads: 2 added the allocation counters
+# (#25); 3 added problem.restart_read_s and backend.overwrite_last_step.
+SCHEMA_VERSIONS = {1, 2, 3}
 
 # Phases stacked in the bar chart, bottom to top. "other" is total_step minus
 # their sum: barriers, logging and anything not yet timed.
@@ -57,12 +56,17 @@ def load_run(d):
         summ_path = d / "summary.json"
         summ = json.loads(summ_path.read_text()) if summ_path.is_file() else {}
     except (OSError, ValueError) as e:
-        print(f"warning: {d}: skipped, cannot read its metadata or summary ({e})", file=sys.stderr)
+        print(
+            f"warning: {d}: skipped, cannot read its metadata or summary ({e})",
+            file=sys.stderr,
+        )
         return None
     v = meta.get("schema_version")
     if v not in SCHEMA_VERSIONS:
-        print(f"warning: {d}: schema_version {v} not understood (knows {sorted(SCHEMA_VERSIONS)})",
-              file=sys.stderr)
+        print(
+            f"warning: {d}: schema_version {v} not understood (knows {sorted(SCHEMA_VERSIONS)})",
+            file=sys.stderr,
+        )
     return {"dir": d, "meta": meta, "summary": summ}
 
 
@@ -109,8 +113,21 @@ def write_tables(rows, out):
         w = csv.DictWriter(f, fieldnames=cols)
         w.writeheader()
         w.writerows(rows)
-    show = ["run", "backend", "ranks", "decomposition", "L", "steps", "ms_per_step",
-            "stencil_ms", "halo_ms", "wrap_ms", "execute_ms", "io_ms", "step_imbalance"]
+    show = [
+        "run",
+        "backend",
+        "ranks",
+        "decomposition",
+        "L",
+        "steps",
+        "ms_per_step",
+        "stencil_ms",
+        "halo_ms",
+        "wrap_ms",
+        "execute_ms",
+        "io_ms",
+        "step_imbalance",
+    ]
     lines = ["| " + " | ".join(show) + " |", "|" + "---|" * len(show)]
     for r in rows:
         lines.append("| " + " | ".join(fmt(r[c]) for c in show) + " |")
@@ -121,46 +138,70 @@ def write_tables(rows, out):
 
 def common_caption(runs):
     """Metadata shared by every run, and what differs, for figure captions."""
+
     def keyset(run):
         m = run["meta"]
         return {
             "host": ", ".join(m.get("host", {}).get("hostnames", [])[:3]),
             "cpu": m.get("host", {}).get("cpu_model", "?"),
             "compiler": f'{m.get("build", {}).get("compiler_id", "?")} '
-                        f'{m.get("build", {}).get("compiler_version", "")} '
-                        f'{m.get("build", {}).get("cxx_flags", "")}',
+            f'{m.get("build", {}).get("compiler_version", "")} '
+            f'{m.get("build", {}).get("cxx_flags", "")}',
             "mpi": m.get("mpi", {}).get("library_version", "?").split(",")[0],
             "commit": m.get("git", {}).get("describe", "?"),
         }
+
     sets = [keyset(r) for r in runs]
     parts = []
     for k in sets[0]:
         vals = sorted({s[k] for s in sets})
-        parts.append(f"{k}: {vals[0]}" if len(vals) == 1 else f"{k}: {len(vals)} values ({'; '.join(vals)})")
+        parts.append(
+            f"{k}: {vals[0]}"
+            if len(vals) == 1
+            else f"{k}: {len(vals)} values ({'; '.join(vals)})"
+        )
     return "; ".join(parts)
 
 
 def plot_phases(runs, rows, out, caption):
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    timed = [(r, row) for r, row in zip(runs, rows) if row["timers"] and row["total_step_ms"] != ""]
+    timed = [
+        (r, row)
+        for r, row in zip(runs, rows)
+        if row["timers"] and row["total_step_ms"] != ""
+    ]
     if not timed:
         return None
-    labels = [f'{row["backend"]}\n{row["ranks"]} ranks\nL={row["L"]}' for _, row in timed]
+    labels = [
+        f'{row["backend"]}\n{row["ranks"]} ranks\nL={row["L"]}' for _, row in timed
+    ]
     fig, ax = plt.subplots(figsize=(max(6, 1.3 * len(timed) + 2), 5))
     bottom = [0.0] * len(timed)
     for i, ph in enumerate(PHASES + ["other"]):
         if ph == "other":
-            vals = [max(0.0, row["total_step_ms"] - sum(row[f"{p}_ms"] or 0 for p in PHASES))
-                    for _, row in timed]
+            vals = [
+                max(
+                    0.0, row["total_step_ms"] - sum(row[f"{p}_ms"] or 0 for p in PHASES)
+                )
+                for _, row in timed
+            ]
         else:
             vals = [row[f"{ph}_ms"] or 0.0 for _, row in timed]
         if not any(vals):
             continue
-        ax.bar(range(len(timed)), vals, bottom=bottom, color=COLORS[i], label=ph,
-               edgecolor="white", linewidth=1)
+        ax.bar(
+            range(len(timed)),
+            vals,
+            bottom=bottom,
+            color=COLORS[i],
+            label=ph,
+            edgecolor="white",
+            linewidth=1,
+        )
         bottom = [b + v for b, v in zip(bottom, vals)]
     ax.set_xticks(range(len(timed)))
     ax.set_xticklabels(labels, fontsize=8)
@@ -179,6 +220,7 @@ def plot_phases(runs, rows, out, caption):
 
 def plot_scaling(rows, out, caption):
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -191,19 +233,37 @@ def plot_scaling(rows, out, caption):
         key = (row["backend"], row["L"], row["plotgap"], row["steps"])
         # Several runs at one rank count: keep the fastest (least noise).
         prev = groups[key].get(row["ranks"])
-        groups[key][row["ranks"]] = min(prev, row["ms_per_step"]) if prev else row["ms_per_step"]
+        groups[key][row["ranks"]] = (
+            min(prev, row["ms_per_step"]) if prev else row["ms_per_step"]
+        )
     groups = {k: v for k, v in groups.items() if len(v) >= 2}
     if not groups:
         return None
     fig, ax = plt.subplots(figsize=(6, 4.5))
-    for i, ((backend, L, plotgap, steps), pts) in enumerate(sorted(groups.items(), key=lambda kv: tuple(map(str, kv[0])))):
+    for i, ((backend, L, plotgap, steps), pts) in enumerate(
+        sorted(groups.items(), key=lambda kv: tuple(map(str, kv[0])))
+    ):
         ranks = sorted(pts)
         ms = [pts[r] for r in ranks]
         color = COLORS[i % len(COLORS)]
-        ax.plot(ranks, ms, marker="o", color=color, linewidth=2, label=f"{backend}, L={L}, plotgap {plotgap}, {steps} steps")
-        ax.plot(ranks, [ms[0] * ranks[0] / r for r in ranks], linestyle="--", color=color,
-                alpha=0.5, linewidth=1)
+        ax.plot(
+            ranks,
+            ms,
+            marker="o",
+            color=color,
+            linewidth=2,
+            label=f"{backend}, L={L}, plotgap {plotgap}, {steps} steps",
+        )
+        ax.plot(
+            ranks,
+            [ms[0] * ranks[0] / r for r in ranks],
+            linestyle="--",
+            color=color,
+            alpha=0.5,
+            linewidth=1,
+        )
     from matplotlib.ticker import LogLocator, NullFormatter, ScalarFormatter
+
     all_ranks = sorted({r for pts in groups.values() for r in pts})
     ax.set_xscale("log", base=2)
     ax.set_xticks(all_ranks)
@@ -228,9 +288,15 @@ def plot_scaling(rows, out, caption):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("paths", nargs="+", help="run directories, or directories containing them")
-    ap.add_argument("--out", default="perf_report", help="output directory (default perf_report)")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "paths", nargs="+", help="run directories, or directories containing them"
+    )
+    ap.add_argument(
+        "--out", default="perf_report", help="output directory (default perf_report)"
+    )
     ap.add_argument("--no-plots", action="store_true", help="tables only")
     args = ap.parse_args()
 
@@ -240,9 +306,14 @@ def main():
     runs = [r for r in (load_run(d) for d in dirs) if r is not None]
     if not runs:
         sys.exit("no readable run directories found")
-    runs.sort(key=lambda r: (r["meta"].get("backend", {}).get("output_type", ""),
-                             r["meta"].get("problem", {}).get("L", 0),
-                             r["meta"].get("mpi", {}).get("ranks", 0), r["dir"].name))
+    runs.sort(
+        key=lambda r: (
+            r["meta"].get("backend", {}).get("output_type", ""),
+            r["meta"].get("problem", {}).get("L", 0),
+            r["meta"].get("mpi", {}).get("ranks", 0),
+            r["dir"].name,
+        )
+    )
     rows = [row_for(r) for r in runs]
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -252,14 +323,24 @@ def main():
         try:
             import matplotlib  # noqa: F401  (only the plots need it)
         except ImportError:
-            print("matplotlib not found: tables written, plots skipped (install it, or pass --no-plots)",
-                  file=sys.stderr)
+            print(
+                "matplotlib not found: tables written, plots skipped (install it, or pass --no-plots)",
+                file=sys.stderr,
+            )
             args.no_plots = True
     if not args.no_plots:
         caption = common_caption(runs)
-        made = [p for p in (plot_phases(runs, rows, out, caption), plot_scaling(rows, out, caption)) if p]
+        made = [
+            p
+            for p in (
+                plot_phases(runs, rows, out, caption),
+                plot_scaling(rows, out, caption),
+            )
+            if p
+        ]
         (out / "captions.md").write_text(
-            "Runs: " + ", ".join(str(r["dir"]) for r in runs) + "\n\n" + caption + "\n")
+            "Runs: " + ", ".join(str(r["dir"]) for r in runs) + "\n\n" + caption + "\n"
+        )
         for p in made:
             print(f"wrote {p}")
     print(f"wrote {out / 'summary.md'}, {out / 'summary.csv'}")
