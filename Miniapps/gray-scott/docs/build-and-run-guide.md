@@ -76,7 +76,7 @@ To run the container, you will create a "shared folder" that links a directory o
    **On Windows (PowerShell):**
 
    ```powershell
-   if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction SilentlyContinue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest }
+   if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction Continue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest }
    ```
 
    **On Windows (Command Prompt `cmd.exe`):**
@@ -86,6 +86,8 @@ To run the container, you will create a "shared folder" that links a directory o
    ```
 
    You are now inside the container with a clean command prompt: `vizuser@<container_id>:/app/data$`.
+
+   If `docker run` fails after the folder was made (for example, Docker is not running), fix the problem and run only the `docker run ...` part again: the folder now exists, so the whole command would stop at the first step. On Linux with SELinux (Fedora, RHEL), if the container cannot write to the folder, add `:z` to the mount, `-v "$HOME/gray-scott-run:/app/data:z"`; this relabels the folder for container use, so use it only on a folder you keep for results. In PowerShell, a folder that already exists prints an error and the container does not start.
 
 2. **Set Up Your Run Directory:** The container includes a script to easily copy the application and its default settings into your shared folder. Run it once per folder: it overwrites files of the same name.
 
@@ -112,7 +114,7 @@ To run the container, you will create a "shared folder" that links a directory o
    exit
    ```
 
-   Your output files (images, VTK files, etc.) are now in the `gray-scott-run` folder on your computer; the Catalyst in situ example writes its images to `gray-scott-run/datasets/`. Every example settings file runs in the image except `settings-kombyne.json`: Kombyne is not in the image (it needs its own licence).
+   Your output files (images, VTK files, etc.) are now in your results folder on your computer (`gray-scott-run`, or the name you chose); the Catalyst in situ example writes its images to the `datasets/` folder inside it. Every example settings file runs in the image except `settings-kombyne.json`: Kombyne is not in the image (it needs its own licence).
 
 ### 3. For Developers: Building the Image from Source
 
@@ -150,7 +152,7 @@ This workflow is an identical to the user workflow, but you will use your locall
    **On Windows (PowerShell):**
 
    ```powershell
-   if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction SilentlyContinue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" visualization-vignettes-app }
+   if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction Continue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" visualization-vignettes-app }
    ```
 
    **On Windows (Command Prompt `cmd.exe`):**
@@ -158,6 +160,8 @@ This workflow is an identical to the user workflow, but you will use your locall
    ```cmd
    mkdir "%USERPROFILE%\gray-scott-run" && docker run -it --rm -v "%USERPROFILE%\gray-scott-run:/app/data" visualization-vignettes-app
    ```
+
+   If `docker run` fails after the folder was made (for example, Docker is not running), fix the problem and run only the `docker run ...` part again: the folder now exists, so the whole command would stop at the first step. On Linux with SELinux (Fedora, RHEL), if the container cannot write to the folder, add `:z` to the mount, `-v "$HOME/gray-scott-run:/app/data:z"`; this relabels the folder for container use, so use it only on a folder you keep for results. In PowerShell, a folder that already exists prints an error and the container does not start.
 
 2. **Set Up and Run a Simulation:**
 

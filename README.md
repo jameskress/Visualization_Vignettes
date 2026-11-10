@@ -93,8 +93,8 @@ A step-by-step [**quick start with Docker**](./Miniapps/gray-scott/README.md#qui
 
 2. **Make a folder for results and start the container** with it shared as `/app/data`. The container starts only if the folder was created, so an earlier run (or a git clone) is never overwritten; if `~/gray-scott-run` exists, pick another name. On Linux or macOS, the user and group IDs make the files the container writes belong to you:
    `mkdir "$HOME/gray-scott-run" && docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$HOME/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest`
-   On Windows (PowerShell): `if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction SilentlyContinue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest }`
-   On Linux with SELinux (Fedora, RHEL), if the container cannot write to the folder, add `:z` to the mount (`...:/app/data:z`); it relabels the folder, so use it only for results.
+   On Windows (PowerShell): `if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction Continue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest }`
+   On Linux with SELinux (Fedora, RHEL), if the container cannot write to the folder, add `:z` to the mount (`...:/app/data:z`); it relabels the folder, so use it only for results. If `docker run` fails after the folder was made, run only the `docker run ...` part again.
 
 3. **Inside the container**, copy the miniapp into your folder with `setup_rundir.sh` (once per folder), then run it, for example `mpirun -np 2 ./gray-scott --settings-file=./settings-catalyst-insitu.json`. Images appear in the folder's `datasets/` on your computer.
 

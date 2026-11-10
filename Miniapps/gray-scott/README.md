@@ -72,7 +72,10 @@ You need [Docker Desktop](https://www.docker.com/products/docker-desktop/)
    `gray-scott-run` in your home folder, is shared with the container as
    `/app/data`: files the miniapp writes there appear on your computer. The
    container starts only if the folder was created, so an earlier run is
-   never overwritten; if the folder exists, pick another name.
+   never overwritten; if the folder exists, pick another name (PowerShell
+   prints an error saying it exists). If `docker run` itself fails after the
+   folder was made, fix the problem and run only the `docker run ...` part
+   again.
 
    Linux or macOS:
 
@@ -83,7 +86,7 @@ You need [Docker Desktop](https://www.docker.com/products/docker-desktop/)
    Windows (PowerShell):
 
    ```powershell
-   if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction SilentlyContinue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest }
+   if (New-Item -ItemType Directory "$HOME\gray-scott-run" -ErrorAction Continue) { docker run -it --rm -v "$HOME\gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest }
    ```
 
    You now have a prompt inside the container, in `/app/data`
@@ -110,8 +113,9 @@ You need [Docker Desktop](https://www.docker.com/products/docker-desktop/)
    ```
 
    It runs 100 steps and renders an image every 10, so expect about a
-   minute. The images appear in `~/gray-scott-run/datasets/` on your computer
-   (`RenderView1_000000.jpg` to `RenderView1_000090.jpg`). Try the other
+   minute. The images, `RenderView1_000000.jpg` to `RenderView1_000090.jpg`,
+   appear in the `datasets/` folder inside your results folder on your
+   computer (`~/gray-scott-run/datasets/` if you kept that name). Try the other
    `settings-*.json` files next; each uses a different backend (see
    [Outputs](#outputs)): `settings-vtk-pvti.json`, `settings-ascent.json`,
    `settings-catalyst-file-io.json`, `settings-adios-*.json` and
