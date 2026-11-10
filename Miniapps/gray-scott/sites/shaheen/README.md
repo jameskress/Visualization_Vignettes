@@ -203,11 +203,15 @@ writes `reduce-<jobid>.out` and produces:
 * `perf/` and `reader_timers/` are then compressed to `.tar.gz`, to save inodes.
 
 `large-runs/audit_runs.py --results-dir <results>` lists runs that are missing, failed
-(time limit, out of memory, crash) or still running. `large-runs/reduce.sh`
-reduces every run's `perf/` again into `summary_<scale>_<workload>.csv`
-(for a run whose reduction job failed; `sbatch <run>/reduce.sbat` also
-redoes one run), and
-`large-runs/scalability_plotting.py` plots those.
+(time limit, out of memory, crash) or still running. If a run's reduction
+job could not be submitted, its Slurm log says `REDUCE_SUBMIT_FAILED`
+(`grep -l REDUCE_SUBMIT_FAILED <results>/*/slurm-*.out`); if it was
+submitted but failed, check `<run>/reduce-*.out`. Either way,
+`sbatch <run>/reduce.sbat` redoes that run's reduction, for any experiment
+(`xport_*`, `scale_*` or `paper2_*`). `large-runs/reduce.sh` covers only the
+`paper2_*` runs: it reduces each one's `perf/` again into
+`summary_<scale>_<workload>.csv`, and `large-runs/scalability_plotting.py`
+plots those.
 
 ## Lessons from Shaheen III at scale
 

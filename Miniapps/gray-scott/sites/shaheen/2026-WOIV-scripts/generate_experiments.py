@@ -890,9 +890,19 @@ echo "Run exit status: $RUN_RC"
 # half an hour) while every node of this job sat idle. Submit the reduction
 # as a one-node job and end this one, so its nodes are released now.
 echo "Run complete. Submitting the reduction job ({output_dir}/reduce.sbat)..."
-if ! sbatch {output_dir}/reduce.sbat; then
-    echo "Could not submit the reduction job; run it later with: sbatch {output_dir}/reduce.sbat"
-fi
+# Retry a transient controller error or submit limit; if it still fails,
+# print a marker that can be grepped for, since the job's state stays the run's.
+for attempt in 1 2 3; do
+    if sbatch {output_dir}/reduce.sbat; then
+        break
+    fi
+    echo "sbatch of the reduction job failed (attempt $attempt of 3)"
+    if [ "$attempt" -eq 3 ]; then
+        echo "REDUCE_SUBMIT_FAILED: run it later with: sbatch {output_dir}/reduce.sbat"
+    else
+        sleep 10
+    fi
+done
 echo "PHASE post_end $(date +%s.%N)"
 # The job's status is the run's.
 exit $RUN_RC
