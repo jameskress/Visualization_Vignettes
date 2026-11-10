@@ -242,9 +242,10 @@ covers Docker, checkpoint and restart, and the in transit reader.
 
 Every run writes a performance record to its own directory,
 `<perf_dir>/<UTC date-time>_<output_type>_np<ranks>/`. The format is
-versioned (`schema_version`, now 2) because the analysis script and papers
+versioned (`schema_version`, now 3) because the analysis script and papers
 depend on it. Change it only by bumping the version and updating this
-section.
+section. Version 2 added the allocation counters (#25); version 3 added
+`problem.restart_read_s` (#78) and `backend.overwrite_last_step` (#85).
 
 The record is written once the last step is done and before the output is
 closed, so a shutdown that hangs (ADIOS2 SST over RDMA can) cannot lose it
@@ -261,9 +262,9 @@ closed, so a shutdown that hangs (ADIOS2 SST over RDMA can) cannot lose it
 * **Build:** git commit, `git describe` and dirty state (tracked files only), compiler and version, flags, build type, enabled backends.
 * **Host:** hostnames and node count, CPU model, CPU count, NVIDIA GPU models.
 * **MPI:** library version, rank count, 3D decomposition, rank 0's local block size.
-* **Problem:** `L`, steps, plotgap, F, k, Du, Dv, dt, noise and seed.
+* **Problem:** `L`, steps, plotgap, F, k, Du, Dv, dt, noise, seed, the restart step, and `restart_read_s` (slowest rank's checkpoint read, seconds).
 * **Inputs:** the settings file path and its full contents, the command line.
-* **Backend:** output type, backend version and its script or configuration file.
+* **Backend:** output type, backend version, its script or configuration file, and `overwrite_last_step` as in effect (a backend can turn the requested setting off: ADIOS2 does for SST, and `catalyst_insitu` scripts name their own files).
 
 The timers are compiled in only with `ENABLE_TIMERS`, in the
 `host-cpu-timers` preset or with `-DENABLE_TIMERS=ON` in your user preset.

@@ -27,7 +27,9 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-SCHEMA_VERSIONS = {1, 2}  # 2 adds the allocation counters (#25); 1 still reads fine
+SCHEMA_VERSIONS = {1, 2, 3}  # 2 adds the allocation counters (#25); 3 adds
+                             # problem.restart_read_s and backend.overwrite_last_step;
+                             # older versions still read fine
 
 # Phases stacked in the bar chart, bottom to top. "other" is total_step minus
 # their sum: barriers, logging and anything not yet timed.
