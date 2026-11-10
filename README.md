@@ -92,7 +92,7 @@ A step-by-step [**quick start with Docker**](./Miniapps/gray-scott/README.md#qui
    `docker pull ghcr.io/jameskress/visualization_vignettes:latest`
 
 2. **Make a new, empty folder for results**, outside this repository (whose own `data/` folder would be overwritten), and start the container with it shared as `/app/data`. On Linux or macOS, pass your user and group IDs so the files the container writes belong to you:
-   `mkdir -p ~/gray-scott-run && cd ~/gray-scott-run`
+   `mkdir ~/gray-scott-run && cd ~/gray-scott-run` (`mkdir` stops if the folder exists, so an earlier run is not overwritten)
    `docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$(pwd):/app/data" ghcr.io/jameskress/visualization_vignettes:latest`
    On Windows (PowerShell), from the new folder: `docker run -it --rm -v "${PWD}:/app/data" ghcr.io/jameskress/visualization_vignettes:latest`
 

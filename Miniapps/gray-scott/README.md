@@ -75,7 +75,7 @@ You need [Docker Desktop](https://www.docker.com/products/docker-desktop/)
    Linux or macOS:
 
    ```bash
-   mkdir -p gray-scott-run
+   mkdir gray-scott-run
    docker run -it --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$(pwd)/gray-scott-run:/app/data" ghcr.io/jameskress/visualization_vignettes:latest
    ```
 

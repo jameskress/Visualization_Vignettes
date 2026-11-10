@@ -151,11 +151,13 @@ Follow these instructions if you need to modify the environment or build the ima
 
 This workflow is an identical to the user workflow, but you will use your locally-built image name (`visualization-vignettes-app`) instead of the full registry path.
 
-1. **Create a Local Data Directory:**
+1. **Create a Local Data Directory** outside the clone, so cleaning the clone (for example `git clean -fdx`) cannot delete your results:
 
    ```bash
-   mkdir gray-scott-run
+   mkdir ~/gray-scott-run && cd ~/gray-scott-run
    ```
+
+   On Windows, make a new folder (for example in your home folder) and open the terminal in it; the Windows commands below mount the current folder.
 
 2. **Run the Container:**
    **On Linux or macOS (in any terminal):**
@@ -164,7 +166,7 @@ This workflow is an identical to the user workflow, but you will use your locall
    docker run -it --rm \
      -e HOST_UID=$(id -u) \
      -e HOST_GID=$(id -g) \
-     -v "$(pwd)/gray-scott-run:/app/data" \
+     -v "$(pwd):/app/data" \
      visualization-vignettes-app
    ```
 
@@ -172,10 +174,10 @@ This workflow is an identical to the user workflow, but you will use your locall
 
    ```powershell
    # PowerShell
-   docker run -it --rm -v "${PWD}/gray-scott-run:/app/data" visualization-vignettes-app
+   docker run -it --rm -v "${PWD}:/app/data" visualization-vignettes-app
 
    # Command Prompt
-   docker run -it --rm -v "%cd%/gray-scott-run:/app/data" visualization-vignettes-app
+   docker run -it --rm -v "%cd%:/app/data" visualization-vignettes-app
    ```
 
 3. **Set Up and Run a Simulation:**
