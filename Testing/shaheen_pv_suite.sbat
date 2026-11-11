@@ -45,7 +45,10 @@ export PATH="$PARAVIEW_PATH:$PATH"
 source "$IOPS/sw/testing_paraview_env/bin/activate"   # after the modules
 echo "python=$(which python) pvbatch=$(which pvbatch) module=$VV_PARAVIEW_MODULE version=$PV_VERSION ($PV_OUT) node=$(hostname) start=$(date)"
 echo "pvbatch wrapper: $(cat $PARAVIEW_PATH/pvbatch | tail -1)"
-cd Testing
+cd Testing || exit 1
+# Build the generated fixtures with this ParaView (a fresh clone has none, and
+# fixtures from another major.minor are stale), as the Ibex suite does.
+python prepare_machine.py --tool ParaView || { echo "prepare_machine failed"; exit 1; }
 python test_suite.py ../ --test_type ParaView --paraview_version "$PV_VERSION" \
   --machine_name shaheen3-cpu --machine shaheen --launcher srun \
   --image-tolerance 0.0075 --non_gpu_machine ${EXTRA:---no-metrics} --ranks ${RANKS:-1} \
