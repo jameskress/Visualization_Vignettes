@@ -50,7 +50,7 @@ ADIOS2 builds following the README instructions. Use 2.12 or newer for in
 transit runs. With 2.11, SST over RDMA on Shaheen III hung or performed
 inconsistently, and the WAN, MPI and UCX data planes crashed on Slingshot.
 With 2.12.0, SST over the MPI data plane ran consistently in the Paper 2
-tests. SST over RDMA with 2.12.1 completed a 1,024 + 32 node Catalyst run
+tests. SST over RDMA with 2.12.0 completed a 1,024 + 32 node Catalyst run
 (#79), with the shutdown bounded by #75. #72 compares the two at scale.
 
 # ParaView
@@ -170,12 +170,31 @@ python3 ../sites/shaheen/2026-WOIV-scripts/orchestrate.py \
     --paper xport --submit
 ```
 
+## Scaling runs (#72 step 2)
+`--paper scale` selects 12 jobs: RDMA, Ascent and Catalyst slices, MPMD and
+two-step launch, at 256 + 16, 512 + 32 and 1024 + 64 nodes (4096^3 from the
+existing checkpoint, 128:1 fan-in in tasks, 101 steps, 45 minute limit).
+
+Node limits: the `workq` QOS caps each user at 2048 nodes across all running
+jobs (`sacctmgr show qos workq`), so 1024 simulation nodes plus readers is
+the largest power-of-two simulation that fits. The `ex` partition allows up
+to 4608 nodes but needs permission to use; these jobs stay on `workq`.
+
+Each job prints `PHASE` lines (seconds since the epoch): `job_start`,
+`run_start`, `run_end` and `post_end`. With the performance log's
+`restart_read_s` and the `writer_open` timer (the SST rendezvous wait) they
+give setup, startup, steps and shutdown separately.
+
 In `steps` jobs each step's exit status is printed (`Simulation exit status:
 N, reader exit status: M`), and the job's status is the first non-zero one. If the first step to end
 failed, the other is stopped (as `--kill-on-bad-exit` does for MPMD).
 
 ## After the runs
-Each job reduces its own timings when it ends:
+When a run ends, its job submits a one-node job, `reduce.sbat` in the run
+directory, and exits, so the run's nodes are released at once (reducing
+tens of thousands of per-rank files on a 1088-node allocation used to keep
+it idle for minutes, once for over half an hour, #72). The reduction job
+writes `reduce-<jobid>.out` and produces:
 
 * `<results>/<id>_writer.csv`, from the newest run directory under `perf/`,
   with that run's `metadata.json` and `summary.json` copied beside it as
@@ -184,10 +203,21 @@ Each job reduces its own timings when it ends:
 * `perf/` and `reader_timers/` are then compressed to `.tar.gz`, to save inodes.
 
 `large-runs/audit_runs.py --results-dir <results>` lists runs that are missing, failed
-(time limit, out of memory, crash) or still running. `large-runs/reduce.sh`
-reduces every run's `perf/` again into `summary_<scale>_<workload>.csv`
-(for a run whose in-job reduction failed), and
-`large-runs/scalability_plotting.py` plots those.
+(time limit, out of memory, crash) or still running. If a run's reduction
+job could not be submitted, its Slurm log says `REDUCE_SUBMIT_FAILED`
+(`grep -l REDUCE_SUBMIT_FAILED <results>/*/slurm-*.out`); if it was
+submitted but failed, check `<run>/reduce-*.out`. Either way,
+`sbatch <run>/reduce.sbat` redoes that run's reduction, for any experiment
+(`xport_*`, `scale_*` or `paper2_*`); it first restores `perf/` and
+`reader_timers/` from their `.tar.gz` if an earlier reduction archived them.
+Only one reduction of a run runs at a time (`<run>/reduce.lock`); a reduction
+killed at its time limit leaves the lock behind, so remove it by hand before
+rerunning.
+`large-runs/reduce.sh` covers only the `paper2_*` runs: it reduces each one's
+`perf/` again into `summary_<scale>_<workload>.csv`, and
+`large-runs/scalability_plotting.py` plots those. It skips a run whose
+`perf/` was archived, so restore that first:
+`tar -xzf <run>/perf.tar.gz -C <run>`.
 
 ## Lessons from Shaheen III at scale
 

@@ -64,6 +64,17 @@ XPORT_CONFIGS = [("f016", 8, 1024, 4), ("f128", 64, 2048, 4)]
 XPORT_TRANSPORTS = ["RDMA", "MPI"]
 XPORT_LAUNCHES = ["mpmd", "steps"]  # one MPMD srun, or two srun steps sharing a job VNI
 XPORT_RUN_STEPS = 101  # 6 outputs at plotgap 20
+XPORT_TIME_LIMIT = "0:30:00"  # a hang must not hold the nodes for hours
+
+# #72 step 2: scale the step 1 survivor (RDMA) at 4096^3 from the existing
+# checkpoint. Fan-in 128:1 in tasks (16 simulation nodes per staging node),
+# which ran cleanly in step 1. 1024 + 64 is the largest power-of-two
+# simulation that fits the per-user node cap (about 2048) with its readers.
+SCALE_CONFIGS = [(256, 16), (512, 32), (1024, 64)]  # (simulation, staging) nodes
+SCALE_GRID = 4096
+SCALE_LAUNCHES = ["mpmd", "steps"]
+SCALE_RUN_STEPS = 101
+SCALE_TIME_LIMIT = "0:45:00"
 
 CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
 
@@ -862,15 +873,54 @@ cd $OUTPUT_DIR
 # (default 300) before exiting with status 0 (#75).
 
 echo "Starting Run: {id}"
+# Phase timestamps (seconds since the epoch) for #72: job start to run start
+# is setup, run start to run end is launch, startup, steps and shutdown.
+echo "PHASE job_start $SLURM_JOB_START_TIME"
+echo "PHASE run_start $(date +%s.%N)"
 
 {command}
 RUN_RC=$?
+echo "PHASE run_end $(date +%s.%N)"
 echo "Run exit status: $RUN_RC"
 
 # =============================================================================
-# POST-PROCESSING & INODE CLEANUP
+# POST-PROCESSING in its own one-node job (#72)
 # =============================================================================
-echo "Run complete. Executing reduction and compressing timer folders..."
+# Reducing tens of thousands of per-rank timing files took minutes (once over
+# half an hour) while every node of this job sat idle. Submit the reduction
+# as a one-node job and end this one, so its nodes are released now.
+echo "Run complete. Submitting the reduction job ({output_dir}/reduce.sbat)..."
+# Retry a transient controller error or submit limit; if it still fails,
+# print a marker that can be grepped for, since the job's state stays the run's.
+for attempt in 1 2 3; do
+    if sbatch {output_dir}/reduce.sbat; then
+        break
+    fi
+    echo "sbatch of the reduction job failed (attempt $attempt of 3)"
+    if [ "$attempt" -eq 3 ]; then
+        echo "REDUCE_SUBMIT_FAILED: run it later with: sbatch {output_dir}/reduce.sbat"
+    else
+        sleep 10
+    fi
+done
+echo "PHASE post_end $(date +%s.%N)"
+# The job's status is the run's.
+exit $RUN_RC
+"""
+
+# One-node job that reduces a run's per-rank timings (#72). Written next to
+# each run as reduce.sbat and submitted by the run's job when it ends.
+REDUCE_TEMPLATE = """#!/bin/bash
+#SBATCH --job-name=reduce_{id}
+#SBATCH --account={account}
+#SBATCH --partition={partition}
+#SBATCH --nodes=1
+#SBATCH --time=1:00:00
+#SBATCH --output={output_dir}/reduce-%j.out
+#SBATCH --error={output_dir}/reduce-%j.err
+
+OUTPUT_DIR="{output_dir}"
+echo "PHASE reduce_start $(date +%s.%N)"
 
 # 1. Activate the Python environment only now: inside the run it breaks
 #    Catalyst (sites/shaheen/README.md).
@@ -879,6 +929,44 @@ module load python
 source {perf_env}/bin/activate
 
 REDUCE={repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/reduce_timers.py
+
+# One reduction per run at a time. mkdir is atomic on Lustre, where flock may
+# not be. A job killed outright (time limit) leaves the lock behind; remove
+# $OUTPUT_DIR/reduce.lock by hand once no reduction of this run is running.
+LOCK=$OUTPUT_DIR/reduce.lock
+if ! mkdir $LOCK 2>/dev/null; then
+    echo "Another reduction holds $LOCK ($(cat $LOCK/job 2>/dev/null)); not reducing."
+    exit 1
+fi
+echo "$SLURM_JOB_ID" > $LOCK/job
+trap 'rm -rf $LOCK' EXIT
+
+# Archive a directory atomically: write the archive under a temporary name,
+# rename it, then remove the directory.
+archive() {{
+    tar -czf $OUTPUT_DIR/$1.tar.gz.tmp -C $OUTPUT_DIR $1/ \
+        && mv $OUTPUT_DIR/$1.tar.gz.tmp $OUTPUT_DIR/$1.tar.gz \
+        && rm -rf $OUTPUT_DIR/$1/
+}}
+
+# A rerun after a successful reduction finds only the archives: restore them.
+# Extract into a temporary directory and move it into place only if tar
+# succeeds, so a failed extraction never looks like a complete one. The
+# archive is kept until the new one replaces it.
+for d in perf reader_timers; do
+    if [ ! -d $OUTPUT_DIR/$d ] && [ -f $OUTPUT_DIR/$d.tar.gz ]; then
+        echo "Restoring $d/ from $d.tar.gz..."
+        rm -rf $OUTPUT_DIR/$d.restore && mkdir $OUTPUT_DIR/$d.restore
+        if tar -xzf $OUTPUT_DIR/$d.tar.gz -C $OUTPUT_DIR/$d.restore \
+            && mv $OUTPUT_DIR/$d.restore/$d $OUTPUT_DIR/$d; then
+            rm -rf $OUTPUT_DIR/$d.restore
+        else
+            echo "Could not restore $d/ from $d.tar.gz; not reducing."
+            rm -rf $OUTPUT_DIR/$d.restore
+            exit 1
+        fi
+    fi
+done
 
 # 2. Simulation timings: the newest run directory under perf/ (README.md,
 #    Performance). Keep its metadata.json and summary.json beside the CSV.
@@ -890,7 +978,7 @@ if [ -n "$SIM_PERF" ]; then
     # Compress only after a successful reduction, so a failure keeps the raw logs.
     if python $REDUCE $SIM_PERF {results_dir}/{id}_writer.csv; then
         echo "Compressing perf/..."
-        tar -czf $OUTPUT_DIR/perf.tar.gz -C $OUTPUT_DIR perf/ && rm -rf $OUTPUT_DIR/perf/
+        archive perf
     else
         echo "Reduction of $SIM_PERF failed; perf/ kept."
     fi
@@ -901,15 +989,13 @@ if [ -d "$OUTPUT_DIR/reader_timers" ]; then
     echo "Reducing reader_timers..."
     if python $REDUCE $OUTPUT_DIR/reader_timers {results_dir}/{id}_reader.csv; then
         echo "Compressing reader_timers..."
-        tar -czf $OUTPUT_DIR/reader_timers.tar.gz -C $OUTPUT_DIR reader_timers/ && rm -rf $OUTPUT_DIR/reader_timers/
+        archive reader_timers
     else
         echo "Reduction of reader_timers failed; reader_timers/ kept."
     fi
 fi
 
-echo "Cleanup finished. Job complete."
-# The job's status is the run's, not the post-processing's.
-exit $RUN_RC
+echo "PHASE reduce_end $(date +%s.%N)"
 """
 
 CMD_INLINE = """srun --exclusive --propagate=NOFILE --hint=nomultithread \\
@@ -1672,8 +1758,33 @@ def generate_scripts(args):
                             "total_steps": p_init_steps + XPORT_RUN_STEPS,
                             "transport": transport,
                             "launch": launch,
+                            "time_limit": XPORT_TIME_LIMIT,
                         }
                     )
+
+    # 6. #72 step 2: RDMA scaling at 4096^3 (Ascent and Catalyst slices).
+    pid, p_init_steps = ensure_init(SCALE_GRID)
+    for nodes, stage_nodes in SCALE_CONFIGS:
+        for launch in SCALE_LAUNCHES:
+            for backend in ["ascent", "catalyst"]:
+                EXPERIMENTS.append(
+                    {
+                        "id": f"scale_transit_rdma_{launch}_N{nodes:04d}_S{stage_nodes:03d}_{backend}_render",
+                        "paper": "scale",
+                        "type": "intransit",
+                        "backend": "adios",
+                        "workload": "rendering",
+                        "sim_nodes": nodes,
+                        "stage_nodes": stage_nodes,
+                        "grid_size": SCALE_GRID,
+                        "stage_pipeline": f"{backend}_render",
+                        "parent_id": pid,
+                        "total_steps": p_init_steps + SCALE_RUN_STEPS,
+                        "transport": "RDMA",
+                        "launch": launch,
+                        "time_limit": SCALE_TIME_LIMIT,
+                    }
+                )
 
     for exp in EXPERIMENTS:
         sim_ranks = exp["sim_nodes"] * SYSTEM_CONFIG["mpi_per_node"]
@@ -1736,7 +1847,7 @@ def generate_scripts(args):
             else "",
             mpi_per_node=SYSTEM_CONFIG["mpi_per_node"],
             omp_threads=SYSTEM_CONFIG["omp_threads"],
-            time_limit=SYSTEM_CONFIG["time_limit"],
+            time_limit=exp.get("time_limit", SYSTEM_CONFIG["time_limit"]),
             output_dir=run_output_dir,
             results_dir=args.results_dir,
             perf_env=args.perf_env,
@@ -1747,6 +1858,17 @@ def generate_scripts(args):
             paraview_lib_path=os.path.dirname(CATALYST_LIB_PATH.rstrip("/")),
         )
 
+        reduce_content = REDUCE_TEMPLATE.format(
+            id=exp["id"],
+            account=args.account,
+            partition=SYSTEM_CONFIG["partition"],
+            output_dir=run_output_dir,
+            results_dir=args.results_dir,
+            perf_env=args.perf_env,
+            repo_path=args.repo_path,
+        )
+        with open(f"{run_output_dir}/reduce.sbat", "w") as f:
+            f.write(reduce_content)
         with open(f"{args.output_dir}/{exp['id']}.sbat", "w") as f:
             f.write(script_content)
 
