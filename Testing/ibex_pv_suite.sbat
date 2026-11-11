@@ -35,17 +35,21 @@ source ParaView_Vignettes/MODULES.sh $VARIANT || { echo "MODULES.sh failed: not 
 # pvbatch/pvpython through a wrapper that sets PYTHONPATH for itself only, then unset it.
 PVSITE=$SW/sw/pv-site
 REAL_PVBATCH=$(command -v pvbatch) || { echo "pvbatch not on PATH after MODULES.sh ($VV_PARAVIEW_MODULE)"; exit 1; }
-mkdir -p "$SW/sw/pvbin"
+# One wrapper directory per job: concurrent jobs testing different builds
+# must not overwrite each other's wrappers. On scratch, which the vignettes' nodes share.
+PVBIN="$SW/sw/pvbin.${SLURM_JOB_ID:-$$}"
+mkdir -p "$PVBIN" || exit 1
+trap 'rm -rf "$PVBIN"' EXIT
 for tool in pvbatch pvpython; do
-    cat > "$SW/sw/pvbin/$tool" <<WRAP
+    cat > "$PVBIN/$tool" <<WRAP
 #!/bin/bash
 export PYTHONPATH=$PVSITE
 exec $(dirname "$REAL_PVBATCH")/$tool "\$@"
 WRAP
-    chmod +x "$SW/sw/pvbin/$tool"
+    chmod +x "$PVBIN/$tool"
 done
 unset PYTHONPATH
-export PARAVIEW_PATH="$SW/sw/pvbin"
+export PARAVIEW_PATH="$PVBIN"
 export PATH="$PARAVIEW_PATH:$PATH"
 source "$SW/venvs/vv/bin/activate"                       # after the modules
 # The version of the ParaView actually loaded, not the module's name.

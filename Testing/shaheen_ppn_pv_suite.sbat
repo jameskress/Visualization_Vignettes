@@ -43,17 +43,21 @@ REAL_PVBATCH=$(command -v pvbatch) || { echo "pvbatch not on PATH after MODULES.
 PV_OUT=$("$REAL_PVBATCH" --version 2>/dev/null) || { echo "ERROR: $REAL_PVBATCH --version failed"; exit 1; }
 PV_VERSION=$(printf '%s\n' "$PV_OUT" | grep -o "paraview version [0-9]\+\.[0-9]\+\.[0-9]\+" | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
 [ -n "$PV_VERSION" ] || { echo "ERROR: no version in '$PV_OUT' from $REAL_PVBATCH --version"; exit 1; }
-mkdir -p "$IOPS/sw/pvbin"
+# One wrapper directory per job: concurrent jobs testing different builds
+# must not overwrite each other's wrappers. On scratch, which the vignettes' nodes share.
+PVBIN="$IOPS/sw/pvbin.${SLURM_JOB_ID:-$$}"
+mkdir -p "$PVBIN" || exit 1
+trap 'rm -rf "$PVBIN"' EXIT
 for tool in pvbatch pvpython; do
-    cat > "$IOPS/sw/pvbin/$tool" <<WRAP
+    cat > "$PVBIN/$tool" <<WRAP
 #!/bin/bash
 export PYTHONPATH=$PVSITE
 exec $(dirname "$REAL_PVBATCH")/$tool "\$@"
 WRAP
-    chmod +x "$IOPS/sw/pvbin/$tool"
+    chmod +x "$PVBIN/$tool"
 done
 unset PYTHONPATH
-export PARAVIEW_PATH="$IOPS/sw/pvbin"
+export PARAVIEW_PATH="$PVBIN"
 export PATH="$PARAVIEW_PATH:$PATH"
 source "$IOPS/sw/testing_paraview_env/bin/activate"   # after the modules
 echo "python=$(which python) pvbatch=$(which pvbatch) module=$VV_PARAVIEW_MODULE version=$PV_VERSION ($PV_OUT) node=$(hostname) start=$(date)"
