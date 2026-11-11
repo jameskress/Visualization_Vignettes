@@ -29,7 +29,7 @@ cd "${SLURM_SUBMIT_DIR:-$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")}/.." || 
 VARIANT=${VARIANT:-mesa}
 SW=${VV_IBEX_SW:-/ibex/scratch/$USER/hpcsaudi}          # venvs/vv and sw/pv-site live here
 module load python/3.11.0
-source ParaView_Vignettes/MODULES.sh $VARIANT
+source ParaView_Vignettes/MODULES.sh $VARIANT || { echo "MODULES.sh failed: not testing"; exit 1; }
 # The paraview module prepends its python3.12 dirs to PYTHONPATH, which breaks every other
 # python ("SRE module mismatch"), and its python ships no numpy. Same fix as Shaheen: reach
 # pvbatch/pvpython through a wrapper that sets PYTHONPATH for itself only, then unset it.
@@ -49,8 +49,10 @@ export PARAVIEW_PATH="$SW/sw/pvbin"
 export PATH="$PARAVIEW_PATH:$PATH"
 source "$SW/venvs/vv/bin/activate"                       # after the modules
 # The version of the ParaView actually loaded, not the module's name.
-PV_VERSION=$("$REAL_PVBATCH" --version 2>&1 | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
-[ -n "$PV_VERSION" ] || { echo "ERROR: could not read a version from $REAL_PVBATCH --version"; exit 1; }
+# pvbatch prints "paraview version X.Y.Z" on stdout; parse only that.
+PV_OUT=$("$REAL_PVBATCH" --version 2>/dev/null) || { echo "ERROR: $REAL_PVBATCH --version failed"; exit 1; }
+PV_VERSION=$(printf '%s\n' "$PV_OUT" | grep -o "paraview version [0-9]\+\.[0-9]\+\.[0-9]\+" | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
+[ -n "$PV_VERSION" ] || { echo "ERROR: no version in '$PV_OUT' from $REAL_PVBATCH --version"; exit 1; }
 echo "python=$(which python) pvbatch=$(which pvbatch) module=$VV_PARAVIEW_MODULE version=$PV_VERSION node=$(hostname) start=$(date)"
 if [ "$VARIANT" = "egl" ]; then
     MACHINE="ibex-egl-${GPU:?set GPU=a100|v100|...}"; TOL=""
