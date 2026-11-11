@@ -829,3 +829,27 @@ often deliberately the older build.
 | `sbatch` refuses the job | `ntasks-per-node x cpus-per-task` exceeds the node | 192 on Shaheen `workq`, 128 on `ppn`, as low as 30 on an Ibex GPU node |
 | Suite refuses to start | preflight failed | read what `--check` said; `--skip-preflight` exists but every way a stale fixture fails looks like a regression |
 | A venv copied from another machine does not work | venvs are not relocatable | rebuild it from the wheelhouse on this machine |
+
+## 11. Testing a new ParaView or VisIt build
+
+To check a build before it becomes a cluster's default (#92), make its module
+visible and name it; the batch scripts load it instead of the default and
+record the version of the `pvbatch` or `visit` they actually found:
+
+```bash
+module use /sw/vis2/<build>/modules
+cd /scratch/$USER/<fresh clone of master>/Testing
+VV_PARAVIEW_MODULE=paraview/6.2.1-mesa sbatch shaheen_pv_suite.sbat
+VV_VISIT_MODULE=visit/3.5.0 sbatch shaheen_visit_suite.sbat
+```
+
+On Ibex the ParaView names carry `-gnu-` (`paraview/6.2.1-gnu-egl`,
+`paraview/6.2.1-gnu-mesa`). `sbatch` passes the `module use` and the
+variable on to the job. A name that does not load stops the job with an
+error, since a module system can report success for a module it did not find.
+
+The baselines belong to each test, not to a version, so a new build is
+compared against the same images. The suite passes when its log ends without
+`Unexpected test failure detected` and `test_suite.py` exits 0 (13 means a
+failure). If a new build differs only in rendering, look at the diffs before
+re-blessing anything (section 10, and "How Baselines Work" in `README.md`).

@@ -20,11 +20,12 @@ source VisIt_Vignettes/MODULES.sh
 unset PYTHONPATH                                 # the python module's own entries; the venv has everything
 IOPS=${VV_SW:-${SCRATCH_IOPS:-/scratch/$USER/iops}}   # VV_SW: software root on a machine without the iops layout (air-gapped kit)
 source "$IOPS/sw/testing_visit_env/bin/activate"   # after the modules
-echo "python=$(which python) visit=$(which visit) node=$(hostname) start=$(date)"
+VISIT_VERSION=$(visit -version 2>&1 | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
+echo "python=$(which python) visit=$(which visit) module=$VV_VISIT_MODULE version=$VISIT_VERSION node=$(hostname) start=$(date)"
 python Testing/prepare_machine.py --tool VisIt || { echo "prepare_machine failed"; exit 1; }
 cd Testing
 RANKS=${RANKS:-8}
-COMMON="../ --test_type VisIt --visit_version 3.4.2 --machine_name shaheen3-ppn --machine shaheen --launcher srun --nodes 1 --ranks $RANKS --image-tolerance 0.0075 ${EXTRA:---no-metrics} --timeout 1800"
+COMMON="../ --test_type VisIt --visit_version $VISIT_VERSION --machine_name shaheen3-ppn --machine shaheen --launcher srun --nodes 1 --ranks $RANKS --image-tolerance 0.0075 ${EXTRA:---no-metrics} --timeout 1800"
 if [ -n "${TESTS:-}" ]; then
     python test_suite.py $COMMON --test_number $TESTS
     echo "suite exit=$? end=$(date)"

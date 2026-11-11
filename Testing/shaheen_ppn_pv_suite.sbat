@@ -37,7 +37,9 @@ fi
 # the user-site numpy (Shaheen's build ships none, so Python Annotation renders "(error)").
 IOPS=${VV_SW:-${SCRATCH_IOPS:-/scratch/$USER/iops}}   # VV_SW: software root on a machine without the iops layout (air-gapped kit)
 PVSITE=$IOPS/sw/pv-site
-REAL_PVBATCH=$(command -v pvbatch)
+REAL_PVBATCH=$(command -v pvbatch) || { echo "pvbatch not on PATH after MODULES.sh ($VV_PARAVIEW_MODULE)"; exit 1; }
+# The version of the ParaView actually loaded, so VV_PARAVIEW_MODULE needs no other change.
+PV_VERSION=$("$REAL_PVBATCH" --version 2>&1 | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
 mkdir -p "$IOPS/sw/pvbin"
 for tool in pvbatch pvpython; do
     cat > "$IOPS/sw/pvbin/$tool" <<WRAP
@@ -51,10 +53,10 @@ unset PYTHONPATH
 export PARAVIEW_PATH="$IOPS/sw/pvbin"
 export PATH="$PARAVIEW_PATH:$PATH"
 source "$IOPS/sw/testing_paraview_env/bin/activate"   # after the modules
-echo "python=$(which python) pvbatch=$(which pvbatch) node=$(hostname) start=$(date)"
+echo "python=$(which python) pvbatch=$(which pvbatch) module=$VV_PARAVIEW_MODULE version=$PV_VERSION node=$(hostname) start=$(date)"
 echo "pvbatch wrapper: $(cat $PARAVIEW_PATH/pvbatch | tail -1)"
 cd Testing
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version "$PV_VERSION" \
   --machine_name "$MACHINE" --machine shaheen --launcher srun \
   $TOL ${EXTRA:---no-metrics} --ranks ${RANKS:-1} \
   --test_number ${TESTS:-0 1 2 3 4 5 6 7 8 9 10 11 12} --timeout 1800

@@ -45,6 +45,18 @@
 #
 # Author: James Kress, <james@jameskress.com>
 #
+# VV_VISIT_MODULE, if set, names the module to load on any cluster (a new
+# build under test, made visible first with `module use`), as
+# VV_PARAVIEW_MODULE does for ParaView.
+if [ -n "${VV_VISIT_MODULE:-}" ]; then
+    echo "VV_VISIT_MODULE=$VV_VISIT_MODULE given: loading it directly"
+    module load ffmpeg 2>/dev/null   # Ibex has one, Shaheen III does not
+    module load "$VV_VISIT_MODULE"
+    # Shaheen's Environment Modules 3.2 returns 0 even for a module it cannot
+    # find, so check the result rather than the exit status.
+    # shellcheck disable=SC2317  # exit is reached when the file is run, not sourced
+    command -v visit >/dev/null || { echo "ERROR: no visit on PATH after module load $VV_VISIT_MODULE" >&2; return 1 2>/dev/null || exit 1; }
+else
 OSVERSION=$( < /etc/os-release awk -F 'NAME=' '{print $2; exit;}')
 echo "Loading modules for OS Version: $OSVERSION"
 case "$OSVERSION" in
@@ -66,6 +78,7 @@ case "$OSVERSION" in
     exit 1 # terminate and indicate error
   ;;
 esac
+fi
 
 # Recorded for the vignettes and for the log. The engine that the
 # customlauncher submits must be this same version.
