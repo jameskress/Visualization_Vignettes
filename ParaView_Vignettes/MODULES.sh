@@ -49,6 +49,11 @@
 # the OpenGL window hint from the module name.
 if [ -n "${VV_PARAVIEW_MODULE:-}" ]; then
     echo "VV_PARAVIEW_MODULE=$VV_PARAVIEW_MODULE given: loading it directly"
+    # Shaheen's ParaView modules refuse to load under PrgEnv-cray (the
+    # default there), as the site branch below knows; swap first.
+    if grep -q '^NAME="SLES' /etc/os-release 2>/dev/null; then
+        module swap PrgEnv-cray PrgEnv-gnu 2>/dev/null
+    fi
     # The load is checked below, with the site branches: a module command can
     # return 0 for a module it did not load.
     module load "$VV_PARAVIEW_MODULE"
