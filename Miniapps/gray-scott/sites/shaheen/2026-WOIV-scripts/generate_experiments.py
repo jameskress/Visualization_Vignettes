@@ -930,6 +930,14 @@ source {perf_env}/bin/activate
 
 REDUCE={repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/reduce_timers.py
 
+# A rerun after a successful reduction finds only the archives: restore them.
+for d in perf reader_timers; do
+    if [ ! -d $OUTPUT_DIR/$d ] && [ -f $OUTPUT_DIR/$d.tar.gz ]; then
+        echo "Restoring $d/ from $d.tar.gz..."
+        tar -xzf $OUTPUT_DIR/$d.tar.gz -C $OUTPUT_DIR && rm -f $OUTPUT_DIR/$d.tar.gz
+    fi
+done
+
 # 2. Simulation timings: the newest run directory under perf/ (README.md,
 #    Performance). Keep its metadata.json and summary.json beside the CSV.
 SIM_PERF=$(ls -dt $OUTPUT_DIR/perf/*/ 2>/dev/null | head -1)
