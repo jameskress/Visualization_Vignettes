@@ -51,6 +51,10 @@
 if [ -n "${VV_VISIT_MODULE:-}" ]; then
     echo "VV_VISIT_MODULE=$VV_VISIT_MODULE given: loading it directly"
     module load ffmpeg 2>/dev/null   # Ibex has one, Shaheen III does not
+    # A VisIt module already loaded (from the login environment, say)
+    # conflicts with the requested one, so unload it first. The module then
+    # prepends its own bin directory, so its visit is the one found below.
+    module unload visit 2>/dev/null
     module load "$VV_VISIT_MODULE"
 else
 OSVERSION=$( < /etc/os-release awk -F 'NAME=' '{print $2; exit;}')

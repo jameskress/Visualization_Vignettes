@@ -853,10 +853,11 @@ VV_PARAVIEW_MODULE=paraview/6.2.1-egl sbatch shaheen_ppn_pv_suite.sbat     # aft
 VV_VISIT_MODULE=visit/3.5.0 sbatch shaheen_ppn_visit_suite.sbat
 ```
 
-On Ibex, the A100 EGL line (section 5):
+On Ibex, the A100 EGL line (section 5: no `--partition` for a GPU job, and
+at most 16 CPUs per A100):
 
 ```bash
-sbatch --partition=gpu --gres=gpu:1 --constraint=a100 \
+sbatch --gres=gpu:1 --constraint=a100 --ntasks=4 --cpus-per-task=4 \
   --export=ALL,VARIANT=egl,GPU=a100,TESTS=8,VV_PARAVIEW_MODULE=paraview/6.2.1-gnu-egl ibex_pv_suite.sbat
 ```
 
