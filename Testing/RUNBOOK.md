@@ -843,6 +843,13 @@ VV_PARAVIEW_MODULE=paraview/6.2.1-mesa sbatch shaheen_pv_suite.sbat
 VV_VISIT_MODULE=visit/3.5.0 sbatch shaheen_visit_suite.sbat
 ```
 
+Use a fresh clone. In a checkout prepared with another VisIt version, the
+generated `ex11_visit.session` is kept because `prepare_machine.py` checks
+it only for presence, and ex11 then fails; regenerate it first, from the
+repository root with the new module loaded:
+`python3 Testing/prepare_machine.py --tool VisIt --force`.
+(ParaView's generated fixtures record their version and are rebuilt.)
+
 On Ibex the ParaView names carry `-gnu-` (`paraview/6.2.1-gnu-egl`,
 `paraview/6.2.1-gnu-mesa`). `sbatch` passes the `module use` and the
 variable on to the job. A name that does not load stops the job with an

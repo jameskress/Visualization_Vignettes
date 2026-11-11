@@ -43,7 +43,7 @@ unset PYTHONPATH
 export PARAVIEW_PATH="$IOPS/sw/pvbin"
 export PATH="$PARAVIEW_PATH:$PATH"
 source "$IOPS/sw/testing_paraview_env/bin/activate"   # after the modules
-echo "python=$(which python) pvbatch=$(which pvbatch) module=$VV_PARAVIEW_MODULE version=$PV_VERSION node=$(hostname) start=$(date)"
+echo "python=$(which python) pvbatch=$(which pvbatch) module=$VV_PARAVIEW_MODULE version=$PV_VERSION ($PV_OUT) node=$(hostname) start=$(date)"
 echo "pvbatch wrapper: $(cat $PARAVIEW_PATH/pvbatch | tail -1)"
 cd Testing
 python test_suite.py ../ --test_type ParaView --paraview_version "$PV_VERSION" \

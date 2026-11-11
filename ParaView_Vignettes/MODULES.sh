@@ -49,7 +49,9 @@
 # the OpenGL window hint from the module name.
 if [ -n "${VV_PARAVIEW_MODULE:-}" ]; then
     echo "VV_PARAVIEW_MODULE=$VV_PARAVIEW_MODULE given: loading it directly"
-    module load "$VV_PARAVIEW_MODULE" || { echo "ERROR: module load $VV_PARAVIEW_MODULE failed" >&2; return 1 2>/dev/null || exit 1; }
+    # The load is checked below, with the site branches: a module command can
+    # return 0 for a module it did not load.
+    module load "$VV_PARAVIEW_MODULE"
     OSVERSION="override"
 else
 # Check OS so we know what machine we are on
@@ -101,6 +103,16 @@ esac
 fi
 
 export VV_PARAVIEW_MODULE
+# A module command can report success for a module it did not load
+# (Shaheen's Environment Modules 3.2), and the site branches discover the
+# version from the default module first, so check that this exact module
+# is now loaded and supplies pvbatch, rather than test whatever is on PATH.
+if ! module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -qxF "$VV_PARAVIEW_MODULE" \
+    || ! command -v pvbatch >/dev/null; then
+    echo "ERROR: $VV_PARAVIEW_MODULE is not loaded, or supplies no pvbatch" >&2
+    # shellcheck disable=SC2317  # exit is reached when the file is run, not sourced
+    return 1 2>/dev/null || exit 1
+fi
 echo "Loaded ParaView module: $VV_PARAVIEW_MODULE"
 
 # -----------------------------------------------------------------------------
