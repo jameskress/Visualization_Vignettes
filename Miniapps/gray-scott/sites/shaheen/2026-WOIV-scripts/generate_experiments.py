@@ -930,11 +930,41 @@ source {perf_env}/bin/activate
 
 REDUCE={repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/reduce_timers.py
 
+# One reduction per run at a time. mkdir is atomic on Lustre, where flock may
+# not be. A job killed outright (time limit) leaves the lock behind; remove
+# $OUTPUT_DIR/reduce.lock by hand once no reduction of this run is running.
+LOCK=$OUTPUT_DIR/reduce.lock
+if ! mkdir $LOCK 2>/dev/null; then
+    echo "Another reduction holds $LOCK ($(cat $LOCK/job 2>/dev/null)); not reducing."
+    exit 1
+fi
+echo "$SLURM_JOB_ID" > $LOCK/job
+trap 'rm -rf $LOCK' EXIT
+
+# Archive a directory atomically: write the archive under a temporary name,
+# rename it, then remove the directory.
+archive() {{
+    tar -czf $OUTPUT_DIR/$1.tar.gz.tmp -C $OUTPUT_DIR $1/ \
+        && mv $OUTPUT_DIR/$1.tar.gz.tmp $OUTPUT_DIR/$1.tar.gz \
+        && rm -rf $OUTPUT_DIR/$1/
+}}
+
 # A rerun after a successful reduction finds only the archives: restore them.
+# Extract into a temporary directory and move it into place only if tar
+# succeeds, so a failed extraction never looks like a complete one. The
+# archive is kept until the new one replaces it.
 for d in perf reader_timers; do
     if [ ! -d $OUTPUT_DIR/$d ] && [ -f $OUTPUT_DIR/$d.tar.gz ]; then
         echo "Restoring $d/ from $d.tar.gz..."
-        tar -xzf $OUTPUT_DIR/$d.tar.gz -C $OUTPUT_DIR && rm -f $OUTPUT_DIR/$d.tar.gz
+        rm -rf $OUTPUT_DIR/$d.restore && mkdir $OUTPUT_DIR/$d.restore
+        if tar -xzf $OUTPUT_DIR/$d.tar.gz -C $OUTPUT_DIR/$d.restore \
+            && mv $OUTPUT_DIR/$d.restore/$d $OUTPUT_DIR/$d; then
+            rm -rf $OUTPUT_DIR/$d.restore
+        else
+            echo "Could not restore $d/ from $d.tar.gz; not reducing."
+            rm -rf $OUTPUT_DIR/$d.restore
+            exit 1
+        fi
     fi
 done
 
@@ -948,7 +978,7 @@ if [ -n "$SIM_PERF" ]; then
     # Compress only after a successful reduction, so a failure keeps the raw logs.
     if python $REDUCE $SIM_PERF {results_dir}/{id}_writer.csv; then
         echo "Compressing perf/..."
-        tar -czf $OUTPUT_DIR/perf.tar.gz -C $OUTPUT_DIR perf/ && rm -rf $OUTPUT_DIR/perf/
+        archive perf
     else
         echo "Reduction of $SIM_PERF failed; perf/ kept."
     fi
@@ -959,7 +989,7 @@ if [ -d "$OUTPUT_DIR/reader_timers" ]; then
     echo "Reducing reader_timers..."
     if python $REDUCE $OUTPUT_DIR/reader_timers {results_dir}/{id}_reader.csv; then
         echo "Compressing reader_timers..."
-        tar -czf $OUTPUT_DIR/reader_timers.tar.gz -C $OUTPUT_DIR reader_timers/ && rm -rf $OUTPUT_DIR/reader_timers/
+        archive reader_timers
     else
         echo "Reduction of reader_timers failed; reader_timers/ kept."
     fi

@@ -210,6 +210,9 @@ submitted but failed, check `<run>/reduce-*.out`. Either way,
 `sbatch <run>/reduce.sbat` redoes that run's reduction, for any experiment
 (`xport_*`, `scale_*` or `paper2_*`); it first restores `perf/` and
 `reader_timers/` from their `.tar.gz` if an earlier reduction archived them.
+Only one reduction of a run runs at a time (`<run>/reduce.lock`); a reduction
+killed at its time limit leaves the lock behind, so remove it by hand before
+rerunning.
 `large-runs/reduce.sh` covers only the `paper2_*` runs: it reduces each one's
 `perf/` again into `summary_<scale>_<workload>.csv`, and
 `large-runs/scalability_plotting.py` plots those. It skips a run whose

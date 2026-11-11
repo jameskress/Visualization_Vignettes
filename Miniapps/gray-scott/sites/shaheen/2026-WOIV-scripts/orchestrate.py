@@ -195,6 +195,10 @@ def main():
                     "perf",
                     "writer_timers",
                     "reader_timers",
+                    # left by an interrupted reduction (#72)
+                    "reduce.lock",
+                    "perf.restore",
+                    "reader_timers.restore",
                 ]
                 for d in dirs_to_remove:
                     d_path = os.path.join(result_path, d)
@@ -211,6 +215,7 @@ def main():
                     + glob.glob(os.path.join(result_path, "reduce-*.out"))
                     + glob.glob(os.path.join(result_path, "reduce-*.err"))
                     + glob.glob(os.path.join(result_path, "*.tar.gz"))
+                    + glob.glob(os.path.join(result_path, "*.tar.gz.tmp"))
                     + glob.glob(os.path.join(args.results_dir, f"{basename}_*.csv"))
                     + glob.glob(os.path.join(args.results_dir, f"{basename}_*.json"))
                 )
