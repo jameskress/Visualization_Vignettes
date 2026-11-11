@@ -32,7 +32,9 @@ struct BackendOptions
     std::string adios_engine = "BP5";
     std::string u_var = "U";
     std::string v_var = "V";
-    std::string block_mode = "preserve";
+    // Only "repartition" is implemented: every backend reads an even slab
+    // per rank (ReadRepartition). "preserve" is rejected at startup (#42).
+    std::string block_mode = "repartition";
     std::optional<std::array<double, 3>> origin;
     std::optional<std::array<double, 3>> spacing;
     std::string sst_wait_mode = "block";

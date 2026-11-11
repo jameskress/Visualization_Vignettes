@@ -19,6 +19,11 @@ public:
 
     // Stream control
     adios2::StepStatus BeginStep();
+    // Begins the next step: true when one is ready, false at the end of the
+    // stream. A step that is not ready yet (the timeout wait mode) is waited
+    // for again, not taken as the end; an ADIOS2 error throws (#42).
+    bool NextStep();
+    // Ends the step; the deferred reads of ReadRepartition complete here.
     void EndStep();
     size_t CurrentStep() const;
 
@@ -34,7 +39,7 @@ public:
 
 private:
     void ReadFidesAttributes();
-    
+
     template <typename Vec> static size_t productDims(const Vec &v);
 
     BackendOptions m_opts; // A mutable copy for internal use
@@ -43,5 +48,5 @@ private:
     std::unique_ptr<adios2::ADIOS> m_adios;
     std::unique_ptr<adios2::IO> m_io;
     std::unique_ptr<adios2::Engine> m_engine;
+    bool m_attributes_after_first_step = false;
 };
-

@@ -36,10 +36,12 @@ GSDIR = HERE.parent.parent
 GENERATOR = GSDIR / "sites/shaheen/2026-WOIV-scripts/generate_experiments.py"
 PIXEL_TOL = 24  # out of 255
 PIXEL_BUDGET = 0.001  # fraction of pixels allowed above PIXEL_TOL
-# Over budget for a known reason: reported, not failed. In transit Catalyst
-# slices change with the reader's rank count (the reader's overlap plane is
-# not marked as ghost, #42).
-KNOWN_OVER = {r"transit.*catalyst_render": "#42"}
+# Over budget for a known reason: reported, not failed. Paper 1's Catalyst
+# slice script (kept as verified for WOIV 2026) rescales its colour map to
+# each rank's data range, so in transit, where the reader's ranks hold
+# different slabs, its colours change with the rank count (#42). The
+# Paper 2 scripts pin the range and pass.
+KNOWN_OVER = {r"paper1_.*transit.*catalyst_render": "#42, Paper 1 colour range"}
 
 ap = argparse.ArgumentParser(
     description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter

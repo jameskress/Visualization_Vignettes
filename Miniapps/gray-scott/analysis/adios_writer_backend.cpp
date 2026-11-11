@@ -18,7 +18,7 @@ AdiosWriterBackend::AdiosWriterBackend(const BackendOptions &opts)
       m_perf_logger("reader_timers",
                     [&]() { int rank; MPI_Comm_rank(opts.comm, &rank); return rank; }(),
                     [&]() { char hostname[256]; gethostname(hostname, sizeof(hostname)); return std::string(hostname); }(),
-                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_Write_Time", "total_step"}),
+                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "ADIOS_Write_Time", "total_step"}),
       m_reader(m_opts, m_perf_logger),
       m_adios(MakeAdios(m_reader.GetComm()))
 {
@@ -44,7 +44,7 @@ void AdiosWriterBackend::Run()
     MPI_Comm_rank(m_reader.GetComm(), &rank);
     MPI_Comm_size(m_reader.GetComm(), &size);
 
-    while (m_reader.BeginStep() == adios2::StepStatus::OK)
+    while (m_reader.NextStep())
     {
         m_perf_logger.start("total_step");
         const size_t step = m_reader.CurrentStep();
@@ -53,7 +53,8 @@ void AdiosWriterBackend::Run()
         RepartitionInfo read_info;
         m_reader.ReadRepartition(opts.u_var, u_buf, read_info);
         m_reader.ReadRepartition(opts.v_var, v_buf, read_info);
-        // The reads are synchronous, so the simulation can go on while we write.
+        // The deferred reads complete at EndStep(); then the simulation can go
+        // on while we write (#42).
         m_reader.EndStep();
 
         // ReadRepartition adds one overlap plane in the slowest dimension on

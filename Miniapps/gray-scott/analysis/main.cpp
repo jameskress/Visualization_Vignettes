@@ -23,7 +23,7 @@ static void usage(std::ostream &os)
        << "  -c, --mpi-split-color <N>  Color for MPI_Comm_split in MPMD mode\n"
        << "  -e, --engine <engine>      ADIOS2 engine name override\n"
        << "  -o, --output-type <type>   Analysis backend: ascent | catalyst_insitu | catalyst_io | adios_writer\n"
-       << "  -b, --block-mode <mode>    Data handling: preserve | repartition\n"
+       << "  -b, --block-mode <mode>    Data handling: repartition (the only mode)\n"
        << "  -w, --sst-wait-mode <m>    SST wait mode: block | timeout\n"
        << "  -t, --sst-timeout <secs>   SST timeout seconds\n"
        << "  -V, --adios-verbose <lvl>  Set ADIOS2 engine verbose level (0-5)\n"
@@ -153,6 +153,9 @@ int main(int argc, char **argv)
             opts.output_type = output_type_arg;
         if (!block_mode_arg.empty())
             opts.block_mode = block_mode_arg;
+        if (opts.block_mode != "repartition")
+            throw std::runtime_error("block mode '" + opts.block_mode +
+                                     "' is not implemented; every backend uses 'repartition' (#42)");
         if (!sst_wait_mode_arg.empty())
             opts.sst_wait_mode = sst_wait_mode_arg;
         if (sst_timeout_arg > 0.0)

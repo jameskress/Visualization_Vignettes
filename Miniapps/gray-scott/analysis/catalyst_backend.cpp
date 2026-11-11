@@ -1,5 +1,6 @@
 #include "catalyst_backend.h"
 #include <catalyst.hpp>
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <unistd.h>
@@ -17,7 +18,10 @@ namespace
         const RepartitionInfo &read_info,
         const std::vector<double> &buf_u,
         const std::vector<double> *buf_v,
-        const BackendOptions &opts)
+        const BackendOptions &opts,
+        std::vector<std::uint8_t> &point_ghosts,
+        int reader_rank,
+        int reader_size)
     {
         mesh_node["type"] = "uniform";
         std::array<double, 3> global_origin = opts.origin.value_or(std::array<double, 3>{0.0, 0.0, 0.0});
@@ -29,7 +33,7 @@ namespace
         {
             size_t dim_idx = read_info.local_start.size() - 1 - i;
             size_t start_offset = read_info.local_start[i];
-            
+
             // PERFECT CUBE: Standard placement without pull-back/squishing logic
             local_origin[dim_idx] += (static_cast<double>(start_offset) * spacing[dim_idx]);
         }
@@ -67,6 +71,22 @@ namespace
             mesh_node["fields/v/topology"].set_string("mesh");
             mesh_node["fields/v/values"].set_external(const_cast<double *>(buf_v->data()), buf_v->size());
         }
+
+        // ReadRepartition adds the next slab's first plane on every rank but
+        // the last, so neighbouring pieces share that plane of points (no
+        // cell is duplicated). Flag those points DUPLICATEPOINT
+        // (vtkDataSetAttributes) so point-based analysis in a Catalyst
+        // script does not count the plane twice (#42).
+        point_ghosts.assign(nx * ny * nz, 0);
+        // The same test as ReadRepartition: every rank but the last reads
+        // the next slab's first plane.
+        const bool has_shared_plane = reader_rank != reader_size - 1;
+        if (has_shared_plane && nz > 0)
+            std::fill(point_ghosts.begin() + static_cast<std::ptrdiff_t>((nz - 1) * nx * ny), point_ghosts.end(),
+                      std::uint8_t{1});
+        mesh_node["fields/vtkGhostType/association"].set_string("vertex");
+        mesh_node["fields/vtkGhostType/topology"].set_string("mesh");
+        mesh_node["fields/vtkGhostType/values"].set_external(point_ghosts.data(), point_ghosts.size());
     }
 } // end anonymous namespace
 
@@ -75,7 +95,7 @@ CatalystBackend::CatalystBackend(const BackendOptions &opts)
       m_perf_logger("reader_timers",
                     [&]() { int rank; MPI_Comm_rank(opts.comm, &rank); return rank; }(),
                     [&]() { char hostname[256]; gethostname(hostname, sizeof(hostname)); return std::string(hostname); }(),
-                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "Blueprint_Time", "Vis_Time", "total_step"}),
+                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "Blueprint_Time", "Vis_Time", "total_step"}),
       m_reader(opts, m_perf_logger)
 {
     conduit_cpp::Node init_params;
@@ -108,18 +128,19 @@ CatalystBackend::CatalystBackend(const BackendOptions &opts)
     catalyst_initialize(conduit_cpp::c_node(&init_params));
 }
 
-CatalystBackend::~CatalystBackend() 
-{ 
+CatalystBackend::~CatalystBackend()
+{
     conduit_cpp::Node final_params;
-    catalyst_finalize(conduit_cpp::c_node(&final_params)); 
+    catalyst_finalize(conduit_cpp::c_node(&final_params));
 }
 
 void CatalystBackend::Run()
 {
-    int rank; 
+    int rank, size;
     MPI_Comm_rank(m_reader.GetComm(), &rank);
-    
-    while (m_reader.BeginStep() == adios2::StepStatus::OK)
+    MPI_Comm_size(m_reader.GetComm(), &size);
+
+    while (m_reader.NextStep())
     {
         m_perf_logger.start("total_step");
         size_t step = m_reader.CurrentStep();
@@ -129,19 +150,21 @@ void CatalystBackend::Run()
         exec_params["catalyst/state/timestep"].set_int64(static_cast<long long>(step));
         exec_params["catalyst/state/time"].set_float64(static_cast<double>(step));
         exec_params["catalyst/channels/grid/type"].set_string("mesh");
-        
-        std::vector<double> u_buf, v_buf; 
+
+        std::vector<double> u_buf, v_buf;
+        std::vector<std::uint8_t> point_ghosts;
         RepartitionInfo read_info;
-        
+
         m_perf_logger.start("Blueprint_Time");
         m_reader.ReadRepartition(current_opts.u_var, u_buf, read_info);
         m_reader.ReadRepartition(current_opts.v_var, v_buf, read_info);
-        // The reads are synchronous and the buffers are ours: end the step
-        // now so the simulation goes on while we render (#76).
+        // The reads are deferred and complete at EndStep(), into buffers the
+        // reader owns: end the step now, then use them, so the simulation
+        // goes on while we render (#76, #42).
         m_reader.EndStep();
 
         auto data_node = exec_params["catalyst/channels/grid/data"];
-        BuildRepartitionedCatalystMesh(data_node, read_info, u_buf, &v_buf, current_opts);
+        BuildRepartitionedCatalystMesh(data_node, read_info, u_buf, &v_buf, current_opts, point_ghosts, rank, size);
         m_perf_logger.stop("Blueprint_Time");
 
         m_perf_logger.start("Vis_Time");
