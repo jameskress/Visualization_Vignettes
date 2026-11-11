@@ -843,6 +843,26 @@ VV_PARAVIEW_MODULE=paraview/6.2.1-mesa sbatch shaheen_pv_suite.sbat
 VV_VISIT_MODULE=visit/3.5.0 sbatch shaheen_visit_suite.sbat
 ```
 
+The GPU suites take the same variables. Run ex08 first on any GPU queue: it
+proves EGL found the GPU, and without it the rest is software rendering
+under a GPU label (section 7). On Shaheen `ppn`:
+
+```bash
+VV_PARAVIEW_MODULE=paraview/6.2.1-egl TESTS="8" sbatch shaheen_ppn_pv_suite.sbat
+VV_PARAVIEW_MODULE=paraview/6.2.1-egl sbatch shaheen_ppn_pv_suite.sbat     # after ex08 passes
+VV_VISIT_MODULE=visit/3.5.0 sbatch shaheen_ppn_visit_suite.sbat
+```
+
+On Ibex, the A100 EGL line (section 5):
+
+```bash
+sbatch --partition=gpu --gres=gpu:1 --constraint=a100 \
+  --export=ALL,VARIANT=egl,GPU=a100,TESTS=8,VV_PARAVIEW_MODULE=paraview/6.2.1-gnu-egl ibex_pv_suite.sbat
+```
+
+Run the suites of one clone one after another (for example with
+`sbatch --dependency=afterany:<job>`), never side by side.
+
 Use a fresh clone for each build under test, and never run two builds in
 one checkout at the same time: the generated fixtures (`data/topologies`,
 the VisIt session) are shared by the checkout, so a job preparing them for
