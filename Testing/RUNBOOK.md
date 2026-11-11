@@ -839,8 +839,9 @@ record the version of the `pvbatch` or `visit` they actually found:
 ```bash
 module use /sw/vis2/<build>/modules
 cd /scratch/$USER/<fresh clone of master>/Testing
-VV_PARAVIEW_MODULE=paraview/6.2.1-mesa sbatch shaheen_pv_suite.sbat
-VV_VISIT_MODULE=visit/3.5.0 sbatch shaheen_visit_suite.sbat
+# One suite at a time per clone: the second waits for the first.
+J=$(VV_PARAVIEW_MODULE=paraview/6.2.1-mesa sbatch --parsable shaheen_pv_suite.sbat)
+VV_VISIT_MODULE=visit/3.5.0 sbatch --dependency=afterany:$J shaheen_visit_suite.sbat
 ```
 
 The GPU suites take the same variables. Run ex08 first on any GPU queue: it
@@ -849,8 +850,9 @@ under a GPU label (section 7). On Shaheen `ppn`:
 
 ```bash
 VV_PARAVIEW_MODULE=paraview/6.2.1-egl TESTS="8" sbatch shaheen_ppn_pv_suite.sbat
-VV_PARAVIEW_MODULE=paraview/6.2.1-egl sbatch shaheen_ppn_pv_suite.sbat     # after ex08 passes
-VV_VISIT_MODULE=visit/3.5.0 sbatch shaheen_ppn_visit_suite.sbat
+# once ex08 has passed, the full suites, one after the other:
+J=$(VV_PARAVIEW_MODULE=paraview/6.2.1-egl sbatch --parsable shaheen_ppn_pv_suite.sbat)
+VV_VISIT_MODULE=visit/3.5.0 sbatch --dependency=afterany:$J shaheen_ppn_visit_suite.sbat
 ```
 
 On Ibex, the A100 EGL line (section 5: no `--partition` for a GPU job, and
