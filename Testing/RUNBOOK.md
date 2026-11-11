@@ -830,7 +830,7 @@ often deliberately the older build.
 | Suite refuses to start | preflight failed | read what `--check` said; `--skip-preflight` exists but every way a stale fixture fails looks like a regression |
 | A venv copied from another machine does not work | venvs are not relocatable | rebuild it from the wheelhouse on this machine |
 
-## 11. Testing a new ParaView or VisIt build
+## 12. Testing a new ParaView or VisIt build
 
 To check a build before it becomes a cluster's default (#92), make its module
 visible and name it; the batch scripts load it instead of the default and
@@ -843,11 +843,14 @@ VV_PARAVIEW_MODULE=paraview/6.2.1-mesa sbatch shaheen_pv_suite.sbat
 VV_VISIT_MODULE=visit/3.5.0 sbatch shaheen_visit_suite.sbat
 ```
 
-Use a fresh clone. In a checkout prepared with another VisIt version, the
-generated `ex11_visit.session` is kept because `prepare_machine.py` checks
-it only for presence, and ex11 then fails; regenerate it first, from the
-repository root with the new module loaded:
-`python3 Testing/prepare_machine.py --tool VisIt --force`.
+Use a fresh clone for each build under test, and never run two builds in
+one checkout at the same time: the generated fixtures (`data/topologies`,
+the VisIt session) are shared by the checkout, so a job preparing them for
+one build can change them under a job testing another. In a checkout
+prepared with another VisIt version, the generated `ex11_visit.session` is
+kept because `prepare_machine.py` checks it only for presence, and ex11 then
+fails; regenerate it first, from the repository root with the new module
+loaded: `python3 Testing/prepare_machine.py --tool VisIt --force`.
 (ParaView's generated fixtures record their version and are rebuilt.)
 
 On Ibex the ParaView names carry `-gnu-` (`paraview/6.2.1-gnu-egl`,
