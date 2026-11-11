@@ -16,6 +16,8 @@
 #   RANKS=4 sbatch ...                                # MPI ranks per vignette (default 1)
 # VARIANT=mesa (default) runs --machine_name ibex-cpu with the software-render tolerance;
 # VARIANT=egl runs --machine_name ibex-egl-$GPU against GPU-blessed baselines at the default tolerance.
+# shellcheck disable=SC1091  # sourced files are site paths that exist only at run time
+# shellcheck disable=SC2086  # $COMMON, $TESTS, $TOL and $EXTRA are split into arguments on purpose
 set -o pipefail
 # Ibex batch shells do not define `module`; a login shell (-l) plus this makes sure it exists.
 source /usr/share/Modules/init/bash                   # the batch shell has `module` as a binary that cannot change this shell's env
@@ -46,14 +48,16 @@ unset PYTHONPATH
 export PARAVIEW_PATH="$SW/sw/pvbin"
 export PATH="$PARAVIEW_PATH:$PATH"
 source "$SW/venvs/vv/bin/activate"                       # after the modules
-PV_VERSION=${VV_PARAVIEW_MODULE#paraview/}; PV_VERSION=${PV_VERSION%%-*}
+# The version of the ParaView actually loaded, not the module's name.
+PV_VERSION=$("$REAL_PVBATCH" --version 2>&1 | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
+[ -n "$PV_VERSION" ] || { echo "ERROR: could not read a version from $REAL_PVBATCH --version"; exit 1; }
 echo "python=$(which python) pvbatch=$(which pvbatch) module=$VV_PARAVIEW_MODULE version=$PV_VERSION node=$(hostname) start=$(date)"
 if [ "$VARIANT" = "egl" ]; then
     MACHINE="ibex-egl-${GPU:?set GPU=a100|v100|...}"; TOL=""
 else
     MACHINE="ibex-cpu"; TOL="--image-tolerance 0.0075 --non_gpu_machine"
 fi
-cd Testing
+cd Testing || exit 1
 python -E prepare_machine.py || { echo "prepare_machine failed"; exit 1; }
 python -E test_suite.py ../ --test_type ParaView --paraview_version "$PV_VERSION" \
   --machine_name "$MACHINE" --machine ibex --launcher mpirun \

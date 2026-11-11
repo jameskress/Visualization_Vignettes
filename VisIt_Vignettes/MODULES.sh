@@ -53,9 +53,10 @@ if [ -n "${VV_VISIT_MODULE:-}" ]; then
     module load ffmpeg 2>/dev/null   # Ibex has one, Shaheen III does not
     module load "$VV_VISIT_MODULE"
     # Shaheen's Environment Modules 3.2 returns 0 even for a module it cannot
-    # find, so check the result rather than the exit status.
+    # find, and a visit already on PATH would hide a failed load, so check
+    # that the module is now listed as loaded.
     # shellcheck disable=SC2317  # exit is reached when the file is run, not sourced
-    command -v visit >/dev/null || { echo "ERROR: no visit on PATH after module load $VV_VISIT_MODULE" >&2; return 1 2>/dev/null || exit 1; }
+    module list 2>&1 | grep -qF "$VV_VISIT_MODULE" || { echo "ERROR: module load $VV_VISIT_MODULE did not load it" >&2; return 1 2>/dev/null || exit 1; }
 else
 OSVERSION=$( < /etc/os-release awk -F 'NAME=' '{print $2; exit;}')
 echo "Loading modules for OS Version: $OSVERSION"
@@ -83,4 +84,14 @@ fi
 # Recorded for the vignettes and for the log. The engine that the
 # customlauncher submits must be this same version.
 export VV_VISIT_MODULE="${VV_VISIT_MODULE:-visit/3.4.2}"
-echo "Loaded VisIt module: $VV_VISIT_MODULE"
+# The test harness looks in $VISIT_PATH before PATH. Point it at the visit
+# this module supplies, so an inherited VISIT_PATH cannot select another build.
+if command -v visit >/dev/null; then
+    VISIT_PATH="$(dirname "$(command -v visit)")"
+    export VISIT_PATH
+else
+    echo "ERROR: no visit on PATH after loading $VV_VISIT_MODULE" >&2
+    # shellcheck disable=SC2317  # exit is reached when the file is run, not sourced
+    return 1 2>/dev/null || exit 1
+fi
+echo "Loaded VisIt module: $VV_VISIT_MODULE ($VISIT_PATH/visit)"
