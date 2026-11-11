@@ -36,7 +36,7 @@ fi
 # Instead pvbatch is reached through a wrapper that sets PYTHONPATH for itself only:
 # the user-site numpy (Shaheen's build ships none, so Python Annotation renders "(error)").
 IOPS=${VV_SW:-${SCRATCH_IOPS:-/scratch/$USER/iops}}   # VV_SW: software root on a machine without the iops layout (air-gapped kit)
-PVSITE=$IOPS/sw/pv-site
+PVSITE=${VV_PV_SITE:-$IOPS/sw/pv-site}   # numpy for ParaView's own Python; VV_PV_SITE for a build with another Python
 REAL_PVBATCH=$(command -v pvbatch) || { echo "pvbatch not on PATH after MODULES.sh ($VV_PARAVIEW_MODULE)"; exit 1; }
 # The version of the ParaView actually loaded, so VV_PARAVIEW_MODULE needs no other change.
 # pvbatch prints "paraview version X.Y.Z" on stdout; parse only that.

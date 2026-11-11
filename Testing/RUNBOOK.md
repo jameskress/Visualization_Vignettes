@@ -853,6 +853,11 @@ fails; regenerate it first, from the repository root with the new module
 loaded: `python3 Testing/prepare_machine.py --tool VisIt --force`.
 (ParaView's generated fixtures record their version and are rebuilt.)
 
+The ParaView jobs add numpy to ParaView's own Python from `sw/pv-site`, built
+for Python 3.12. If the new build's Python is another version, build a
+matching site and pass it as `VV_PV_SITE=<dir>`; otherwise Python Annotation
+renders "(error)" and ex05 fails its image check.
+
 On Ibex the ParaView names carry `-gnu-` (`paraview/6.2.1-gnu-egl`,
 `paraview/6.2.1-gnu-mesa`). `sbatch` passes the `module use` and the
 variable on to the job. A name that does not load stops the job with an

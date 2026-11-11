@@ -33,7 +33,7 @@ source ParaView_Vignettes/MODULES.sh $VARIANT || { echo "MODULES.sh failed: not 
 # The paraview module prepends its python3.12 dirs to PYTHONPATH, which breaks every other
 # python ("SRE module mismatch"), and its python ships no numpy. Same fix as Shaheen: reach
 # pvbatch/pvpython through a wrapper that sets PYTHONPATH for itself only, then unset it.
-PVSITE=$SW/sw/pv-site
+PVSITE=${VV_PV_SITE:-$SW/sw/pv-site}   # numpy for ParaView's own Python; VV_PV_SITE for a build with another Python
 REAL_PVBATCH=$(command -v pvbatch) || { echo "pvbatch not on PATH after MODULES.sh ($VV_PARAVIEW_MODULE)"; exit 1; }
 # One wrapper directory per job: concurrent jobs testing different builds
 # must not overwrite each other's wrappers. On scratch, which the vignettes' nodes share.
