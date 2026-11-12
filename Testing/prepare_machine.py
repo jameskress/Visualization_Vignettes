@@ -455,6 +455,17 @@ def step_time_series(args, pvbatch):
     return run([pvbatch, TIME_SERIES_GENERATOR], cwd=REPO)
 
 
+def checked(step, what):
+    """Run a check; an exception inside it is a failed check, with its reason."""
+    try:
+        return step()
+    except Exception as exc:  # noqa: BLE001 - any failure to check is a FAIL
+        bad(
+            "{0}: could not be checked ({1}: {2})".format(what, type(exc).__name__, exc)
+        )
+        return False
+
+
 def step_time_series_for_visit():
     """The XML time series, as the VisIt suite needs it: present and current.
 
@@ -630,6 +641,9 @@ def session_recorded_version(path):
         with open(path, "r") as handle:
             head = handle.read(4096)
     except (OSError, UnicodeDecodeError):
+        return SESSION_UNREADABLE
+    if not head.strip():
+        # Empty or truncated to nothing: not a session at all.
         return SESSION_UNREADABLE
     match = re.search(r'<Field name="Version" type="string">([^<]+)</Field>', head)
     return match.group(1).strip() if match else None
@@ -812,11 +826,14 @@ def main(argv=None):
             # These run even after the ParaView step: it trusts its manifests
             # (and skips the time series when its source is absent), while
             # these check the files VisIt opens.
+            # A check that raises (an unlistable directory, say) must fail,
+            # not escape: the suite's preflight treats an exception as "could
+            # not check" and starts anyway.
             if wanted is None or 9 in wanted:
-                if not step_topologies_for_visit():
+                if not checked(step_topologies_for_visit, "data/topologies"):
                     outstanding += 1
             if wanted is None or wanted & {5, 12}:
-                if not step_time_series_for_visit():
+                if not checked(step_time_series_for_visit, "XML time series"):
                     outstanding += 1
         print("")
 
