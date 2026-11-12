@@ -133,6 +133,19 @@ def visit_index_files(index):
     return names
 
 
+def visit_index_nblocks(index):
+    """The !NBLOCKS count a .visit index declares, or None."""
+    try:
+        with open(index, "r") as handle:
+            for line in handle:
+                line = line.strip()
+                if line.upper().startswith("!NBLOCKS"):
+                    return int(line.split()[1])
+    except (OSError, UnicodeDecodeError, IndexError, ValueError):
+        return None
+    return None
+
+
 # What the VisIt ex09 opens under data/topologies (it uses the uniform image
 # where ParaView uses the AMR hierarchy); see DATASET_KEYS in
 # vignette_common.py.
@@ -571,9 +584,13 @@ def step_topologies_for_visit():
         for name in VISIT_TOPOLOGY_FILES
         if not os.path.isfile(os.path.join(TOPOLOGY_DIR, name))
     ]
-    # The ragged .visit index names its blocks, which are separate files.
+    # The ragged .visit index names its blocks, which are separate files,
+    # and describes ONE state of all of them: !NBLOCKS must equal the number
+    # of entries, or VisIt reads several states of fewer blocks each.
     index = os.path.join(TOPOLOGY_DIR, "ragged_multidomain.visit")
     blocks = visit_index_files(index)
+    if blocks is not None and visit_index_nblocks(index) != len(blocks):
+        blocks = None
     if blocks is None:
         if "ragged_multidomain.visit" not in missing:
             missing.append("readable ragged_multidomain.visit")
@@ -643,14 +660,16 @@ def session_recorded_version(path):
     that is empty or does not end with the closing </Object> of a whole
     session was cut short, and is SESSION_UNREADABLE.
     """
+    # Binary, then decoded leniently: seeking into a text stream can land
+    # inside a multibyte character. The XML parse below is the strict check.
     try:
-        with open(path, "r") as handle:
-            head = handle.read(4096)
+        with open(path, "rb") as handle:
+            head = handle.read(4096).decode("utf-8", errors="replace")
             handle.seek(0, os.SEEK_END)
             size = handle.tell()
             handle.seek(max(0, size - 256))
-            tail = handle.read()
-    except (OSError, UnicodeDecodeError):
+            tail = handle.read().decode("utf-8", errors="replace")
+    except OSError:
         return SESSION_UNREADABLE
     if not head.strip() or not tail.rstrip().endswith("</Object>"):
         return SESSION_UNREADABLE
