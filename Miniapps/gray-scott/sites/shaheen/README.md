@@ -104,7 +104,10 @@ python3 reduce_timers.py paper1_func_N0064_baseline/perf/<run> summary_baseline.
 ## Generate and submit
 `generate_experiments.py` writes one sbatch script per run into
 `generated_scripts/` and a run directory per run under `--results-dir`.
-`orchestrate.py` selects and submits them.
+`orchestrate.py` selects and submits them. `generate_experiments.py`
+writes the paths it is given into those scripts unquoted, so it accepts
+only letters, digits and `. _ - + /` in them (no spaces or other shell
+characters) and stops otherwise; `orchestrate.py` does not check them.
 
 ```bash
 cd /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs
@@ -190,6 +193,14 @@ N, reader exit status: M`), and the job's status is the first non-zero one. If t
 failed, the other is stopped (as `--kill-on-bad-exit` does for MPMD).
 
 ## After the runs
+Each run's job first saves its own batch script as `<results>/<id>_job.sbat`
+and the job-wide network and allocator settings it exported (`FI_*`,
+`CM_*`, `MALLOC_*`, `MPICH_*`, `Sst_*`, `ADIOS2_*`) as
+`<results>/<id>_env.txt`, so runs made with different settings can be told
+apart. Thread settings are not in that file because each `srun` sets its
+own (the in transit reader runs 24 OpenMP threads, the simulation 3); read
+them from the saved script.
+
 When a run ends, its job submits a one-node job, `reduce.sbat` in the run
 directory, and exits, so the run's nodes are released at once (reducing
 tens of thousands of per-rank files on a 1088-node allocation used to keep
@@ -264,6 +275,41 @@ RDMA teardown is bounded by `teardown_timeout_s` (#75).
 one-sided communication and is fast, but with ADIOS2 created on a split
 communicator (not `MPI_COMM_WORLD`) the writers and readers never see each
 other and the job hangs.
+
+**glibc mmap threshold.** Every generated job exports
+`MALLOC_MMAP_THRESHOLD_=33554432`. That fixes the size at which glibc serves
+an allocation with mmap at its 32 MiB maximum, where by default it moves as
+the program frees large blocks. ADIOS2 2.13.0-rc1 made the reader's SST
+RDMA step slower: 9.0 s instead of 7.2 s for the 64 + 4 node f128 Ascent
+job (12 Nov 2026). Reverting one commit (c76c0ae40) removes the slowdown,
+and so does this setting, with the commit in place. A 64 times larger
+libfabric registration cache (`FI_MR_CACHE_MAX_COUNT`) does not.
+
+| Build | Default | Threshold fixed |
+|---|---|---|
+| 2.13.0-rc1 | 9.02 s | 7.19, 7.09, 7.22 s |
+| rc1 with c76c0ae40 reverted | 7.16 s | 7.12 s |
+| 2.12.0 | 7.07 s | 7.25 s |
+
+None of that commit's code runs for our reads: each reader's slab covers
+whole writer blocks in the two fast dimensions, so no request has gaps
+and the new per-run table is never built. What the commit changes for us
+is the size of ADIOS2's internal read request, from 96 to 120 bytes (one
+added member). The revert with an unused 24 byte member put back is as
+slow as rc1 (9.08 and 9.56 s, against 8.93 s for rc1 and 7.39 s for the
+revert that day). So the slowdown follows the memory layout, not any
+added work, which is why fixing the allocator's threshold cures it.
+
+The extra time is in the reader's calls to the Slingshot driver
+(`/dev/cxi0`): 10.7 s on rc1, 3.4 s with the threshold fixed, 1.7 s with the
+revert. The number of calls stays about 7,000 on rc1 either way (2,700 with
+the revert), so it is the cost of each call that drops. A standalone SST
+reader making the same requests does not slow down, so the miniapp's other
+allocations (meshes, rendering) are probably part of it. With 2.12.0, which
+the runs use now, runs with and without the setting are within run to run
+spread (7.11 and 7.43 s in two earlier default runs). Keep the setting
+until ADIOS2 explains or removes the sensitivity, then measure again
+before removing it.
 
 **Errors from every rank.** A reader rank that threw used to print nothing,
 because only world rank 0 printed and in an MPMD job that is a simulation

@@ -36,6 +36,7 @@
 # Author: James Kress, <james@jameskress.com>
 #
 import os
+import re
 import sys
 
 # import visit_utils, we will use it to help encode our movie
@@ -232,7 +233,9 @@ for timeStep in range(0, nTimeSteps):
     print("3D surface area: ", Query("3D surface area"))
     print("Average Value  : ", Query("Average Value"))
     print("Centroid:        ", Query("Centroid"))
-    print("GridInformation: ", Query("Grid Information"))
+    # VisIt 3.5.0 labels the dimensions (Nx=, Ny=, Nz=); 3.4 did not. Drop
+    # the labels so the shared known_good_value.txt holds for both (as ex00).
+    print("GridInformation: ", re.sub(r"\bN[xyz]=", "", Query("Grid Information")))
     print("MinMax:          ", Query("MinMax", use_actual_data=1))
     print("NumNodes:        ", Query("NumNodes", use_actual_data=1))
     print("NumZones:        ", Query("NumZones", use_actual_data=1))

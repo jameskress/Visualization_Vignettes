@@ -69,6 +69,9 @@ The examples progress from basic operations to more complex visualizations:
     - Handle large-scale datasets
     - Optimize performance
     - Complex multi-stage visualization pipelines
+    - Note: the rain water (QRAIN) plot uses fixed colour limits, because
+      VisIt's automatic range changed in 3.5.0 (Testing/RUNBOOK.md,
+      "ex06's QRAIN limits are fixed")
 
 **Verification vignettes** -- these assert on what they produce and fail the
 test suite when it changes, rather than only demonstrating a technique.

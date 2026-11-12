@@ -157,6 +157,11 @@ for _table in ("plasma", "Blues"):
         ColorControlPoint,
     )
 
+# The QRAIN Pseudocolor (Plot0027) has fixed limits in the session, 0.00045
+# to 0.0172946 (the data's real maximum, as ParaView's ex06 uses). Left to
+# ActualData, VisIt takes the range from the drawn outer surface only, so
+# the legend and colours change between VisIt versions: 0.01066 on 3.5.0,
+# 0.0173 on 3.4.2 (Testing/RUNBOOK.md, "ex06's QRAIN limits are fixed").
 RestoreSessionWithDifferentSources(dataFile, 0, (rainFile, wrfFile))
 # RestoreSessionWithDifferentSources("/home/kressjm/data/cyclone.session", 0, ("localhost:/mnt/5d22bac5-b323-4e21-96a7-929039418079/cyclone-chapala-2015-11-02_00-00-00.vtr","localhost:/mnt/5d22bac5-b323-4e21-96a7-929039418079/currentRainfall.vtp"))
 # RestoreSession(dataFile, 0)
