@@ -878,8 +878,10 @@ loaded: `python3 Testing/prepare_machine.py --tool VisIt --force`.
 
 A fresh clone has no ex06 data, and the suites then skip ex06 and still
 pass. Fetch it in each clone before the first suite (`cd data && bash
-fetchData.sh`, section 5), or check the log for the skip and record that
-the build was tested on twelve vignettes, not thirteen. ex06 renders the
+fetchData.sh`, section 5), or record that the build was tested without
+ex06. Other skips are expected and are listed in the log as well: the Ibex
+batch suites leave ex11 to a separate run (section 5), so record a new
+build's result together with which vignettes ran. ex06 renders the
 largest data and the most plot types, so it is often where a new build
 differs.
 

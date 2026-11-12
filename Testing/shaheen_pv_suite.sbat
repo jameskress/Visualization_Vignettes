@@ -30,8 +30,10 @@ REAL_PVBATCH=$(command -v pvbatch) || { echo "pvbatch not on PATH after MODULES.
 PV_OUT=$("$REAL_PVBATCH" --version 2>/dev/null) || { echo "ERROR: $REAL_PVBATCH --version failed"; exit 1; }
 PV_VERSION=$(printf '%s\n' "$PV_OUT" | grep -o "paraview version [0-9]\+\.[0-9]\+\.[0-9]\+" | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
 [ -n "$PV_VERSION" ] || { echo "ERROR: no version in '$PV_OUT' from $REAL_PVBATCH --version"; exit 1; }
-# One wrapper directory per job: concurrent jobs testing different builds
-# must not overwrite each other's wrappers. On scratch, which the vignettes' nodes share.
+# One wrapper directory per job, so jobs never share or delete each other's
+# wrappers. On scratch, which the vignettes' nodes share. This does not make
+# two builds safe in one clone: the generated fixtures are shared, so test
+# each build in its own clone (Testing/RUNBOOK.md, section 12).
 PVBIN="$IOPS/sw/pvbin.${SLURM_JOB_ID:-$$}"
 mkdir -p "$PVBIN" || exit 1
 trap 'rm -rf "$PVBIN"' EXIT

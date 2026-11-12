@@ -114,7 +114,8 @@ export VV_PARAVIEW_MODULE
 # is now loaded and that the pvbatch on PATH is the one it supplies.
 # True if the executable $1 found on PATH lives in a PATH directory that
 # module $2 itself adds, read from `module show` (Tcl modules print
-# "prepend-path PATH <dir>", Lmod prints prepend_path("PATH","<dir>")). This
+# "prepend-path PATH <dir>", Lmod prints prepend_path("PATH","<dir>"); one
+# entry may hold several directories joined by ":"). This
 # rejects a same-named executable that was already on PATH from elsewhere.
 vv_exe_from_module() {
     local exe dir d
@@ -124,7 +125,7 @@ vv_exe_from_module() {
         [ -n "$d" ] && [ "$(cd "$d" 2>/dev/null && pwd -P)" = "$dir" ] && return 0
     done < <(module show "$2" 2>&1 | sed -nE \
         -e 's/^(prepend|append)-path[[:space:]]+PATH[[:space:]]+([^[:space:]]+).*/\2/p' \
-        -e 's/^(prepend|append)_path\("PATH",[[:space:]]*"([^"]+)".*/\2/p')
+        -e 's/^(prepend|append)_path\("PATH",[[:space:]]*"([^"]+)".*/\2/p' | tr ':' '\n')
     return 1
 }
 # A short name (paraview) loads the site default: record the full name loaded.
