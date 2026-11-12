@@ -1905,5 +1905,8 @@ if __name__ == "__main__":
         help="Python venv with pandas, activated after each run to reduce its timings",
     )
     args = parser.parse_args()
+    # The jobs cd into their run directory before using these paths, so a
+    # relative --results-dir would resolve from there, not from here.
+    args.results_dir = os.path.abspath(args.results_dir)
     VOLUME_SAMPLES_PER_CELL = args.volume_samples_per_cell
     generate_scripts(args)
