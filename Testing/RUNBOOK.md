@@ -903,3 +903,33 @@ compared against the same images. The suite passes when its log ends without
 `Unexpected test failure detected` and `test_suite.py` exits 0 (13 means a
 failure). If a new build differs only in rendering, look at the diffs before
 re-blessing anything (section 10, and "How Baselines Work" in `README.md`).
+
+### Retesting an older build
+
+Re-blessing for a new build overwrites the old images, so afterwards the
+previous build fails wherever the new one draws differently, even when
+nothing is wrong with it. To retest an older build on a machine, after a
+system update for example, or to confirm a rollback, judge it against the
+images it was blessed with. Git keeps them, and a tag names them:
+
+| Tag | Baselines for |
+|---|---|
+| `baselines/visit-3.4.2-paraview-6.1.0` | VisIt 3.4.2 and ParaView 6.1.0, before the 12 Nov 2026 re-bless |
+
+```bash
+git fetch --tags
+VV_VISIT_MODULE=visit/3.4.2 \
+  EXTRA="--no-metrics --baseline-ref baselines/visit-3.4.2-paraview-6.1.0" \
+  sbatch shaheen_visit_suite.sbat
+```
+
+`--baseline-ref` reads every baseline (images, numbers, CSVs, known-good
+text, machine directories and shared) from the tagged commit, into a
+temporary directory, and leaves the working tree alone. The summary report
+records which ref it used. It cannot be combined with `--bless`. Only the
+baselines come from the tag: the vignettes run as they are now, so if a
+vignette changed after the tag, check out the tag itself instead.
+
+Before re-blessing for the next build, tag the commit whose baselines match
+the outgoing one (`git tag -a baselines/<tool>-<version> <commit>`, then
+`git push origin <tag>`) and add it to the table above.

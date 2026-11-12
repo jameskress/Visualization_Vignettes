@@ -48,8 +48,10 @@
 # Author: James Kress, <james@jameskress.com>
 #
 import argparse
+import atexit
 import datetime
 import glob
+import io
 import json
 import os
 import platform
@@ -57,6 +59,8 @@ import re
 import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
 import time
 import uuid
 
@@ -354,6 +358,81 @@ def log_performance(
 # ---------------------------------------------------------------------------
 # Baseline management
 # ---------------------------------------------------------------------------
+# Set by use_baseline_ref(): a directory holding every Testing/Baseline/ tree
+# of the repository as it was at a git ref, at its repository-relative path.
+BASELINE_REF_ROOT = None
+BASELINE_REF_NAME = None
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def use_baseline_ref(ref):
+    """Read every baseline from git ref `ref` instead of the working tree.
+
+    WHY: re-blessing for a new build overwrites the old images, so the
+    previous build can no longer be retested on a machine (after a system
+    change, or to confirm a rollback) against the images it was blessed
+    with. Git still has them. Tag the commit whose baselines match a build
+    (baselines/visit-3.4.2-paraview-6.1.0) and pass it here: the suite
+    extracts each */Testing/Baseline/ tree at that ref into a temporary
+    directory and judges against it, with the usual machine-then-shared
+    lookup. The working tree is not touched. Only the baselines move: a
+    vignette that changed since `ref` runs as it is now.
+    """
+    global BASELINE_REF_ROOT, BASELINE_REF_NAME
+    try:
+        commit = subprocess.check_output(
+            ["git", "-C", REPO_ROOT, "rev-parse", "--verify", ref + "^{commit}"],
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise SystemExit(
+            "--baseline-ref {0}: not a commit or tag in this repository "
+            "(fetch tags with `git fetch --tags`): {1}".format(
+                ref, getattr(exc, "output", exc)
+            )
+        )
+    root = tempfile.mkdtemp(prefix="vv-baselines-")
+    atexit.register(shutil.rmtree, root, True)
+    archive = subprocess.run(
+        [
+            "git",
+            "-C",
+            REPO_ROOT,
+            "archive",
+            "--format=tar",
+            commit,
+            "--",
+            ":(glob)**/Testing/Baseline/**",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if archive.returncode != 0:
+        raise SystemExit(
+            "--baseline-ref {0}: git archive failed: {1}".format(
+                ref, archive.stderr.decode(errors="replace").strip()
+            )
+        )
+    with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
+        members = [m for m in tar.getmembers() if m.isfile() or m.isdir()]
+        tar.extractall(root, members=members)
+    BASELINE_REF_ROOT = root
+    BASELINE_REF_NAME = "{0} ({1})".format(ref, commit[:12])
+    print(
+        "Baselines from {0} ({1}), {2} file(s); the working tree's are "
+        "ignored.".format(ref, commit[:12], sum(1 for m in members if m.isfile()))
+    )
+
+
+def baseline_root(test_dir):
+    """The Testing/Baseline/ directory a test is judged against."""
+    if BASELINE_REF_ROOT is None:
+        return os.path.join(test_dir, "Testing", "Baseline")
+    relative = os.path.relpath(os.path.abspath(test_dir), REPO_ROOT)
+    return os.path.join(BASELINE_REF_ROOT, relative, "Testing", "Baseline")
+
+
 def machine_baseline_dir(test_dir, machine_name):
     """Where this machine's own image baselines live: Testing/Baseline/<machine_name>/.
 
@@ -365,7 +444,7 @@ def machine_baseline_dir(test_dir, machine_name):
     depend on the renderer. The machine directory is used automatically once
     it exists; --machine-baselines creates it (with --bless) and selects it.
     """
-    return os.path.join(test_dir, "Testing", "Baseline", machine_name)
+    return os.path.join(baseline_root(test_dir), machine_name)
 
 
 def resolve_machine_name(args):
@@ -491,7 +570,7 @@ def bless_test(test_dir, args):
 def shared_baseline_host(test_dir):
     """Host that blessed the shared baselines, read from the results JSON there."""
     script_name = vignette_script_name(test_dir)
-    path = os.path.join(test_dir, "Testing", "Baseline", "{0}_results.json".format(script_name))
+    path = os.path.join(baseline_root(test_dir), "{0}_results.json".format(script_name))
     try:
         with open(path, "r") as handle:
             document = json.load(handle)
@@ -547,7 +626,9 @@ def compare_images(baseline_dir, output_dir, selected_images=None, tolerance=Non
     )
 
 
-def compare_images_per_machine(shared_dir, machine_dir, machine_name, output_dir, tolerance):
+def compare_images_per_machine(
+    shared_dir, machine_dir, machine_name, output_dir, tolerance
+):
     """Compare each baselined image, preferring this machine's own baseline.
 
     The driving list is the union of the shared and machine baselines, so a
@@ -561,7 +642,9 @@ def compare_images_per_machine(shared_dir, machine_dir, machine_name, output_dir
     own = set(verify.list_baseline_images(machine_dir))
     results = []
     for name in sorted(shared | own):
-        source_dir, source = (machine_dir, machine_name) if name in own else (shared_dir, "shared")
+        source_dir, source = (
+            (machine_dir, machine_name) if name in own else (shared_dir, "shared")
+        )
         result = verify.compare_single_image(
             os.path.join(source_dir, name),
             os.path.join(output_images_dir, name),
@@ -655,7 +738,7 @@ def compare_csv_extracts(test_dir, args):
         return []
 
     output_dir = os.path.join(test_dir, "output")
-    baseline_dir = os.path.join(test_dir, "Testing", "Baseline")
+    baseline_dir = baseline_root(test_dir)
 
     results = []
     for item in declared:
@@ -688,7 +771,7 @@ def compare_numeric_results(test_dir, args):
     results_name = "{0}_results.json".format(script_name)
 
     produced = os.path.join(test_dir, "Testing", results_name)
-    baseline = os.path.join(test_dir, "Testing", "Baseline", results_name)
+    baseline = os.path.join(baseline_root(test_dir), results_name)
 
     if not os.path.exists(produced) and not os.path.exists(baseline):
         # This vignette does not emit structured results. Nothing to compare,
@@ -883,6 +966,9 @@ def create_summary_report(
     correct; reporting a stale verdict is not.
     """
     summary_report = {
+        # The git ref the baselines were read from (--baseline-ref), or None
+        # for the working tree's.
+        "baseline_ref": BASELINE_REF_NAME,
         "test_results": {},
         "any_tests_failed": False,
         "failed_image_comparisons": [],
@@ -1261,7 +1347,7 @@ def run_test(test_dir, dir_name, args):
         bless_test(test_dir, args)
 
     # -- image comparison -------------------------------------------------
-    baseline_dir = os.path.join(testing_dir, "Baseline")
+    baseline_dir = baseline_root(test_dir)
     tolerance = declared_image_tolerance(test_dir)
     if tolerance is None:
         tolerance = args.image_tolerance
@@ -1408,6 +1494,16 @@ def build_parser():
         help="Record the current output as the baseline. Without this a "
         "missing baseline is a FAILURE -- baselines are never created "
         "automatically during a normal run.",
+    )
+    bless_group.add_argument(
+        "--baseline-ref",
+        default=None,
+        metavar="REF",
+        help="Judge against the baselines as they were at git ref REF (a tag "
+        "such as baselines/visit-3.4.2-paraview-6.1.0) instead of the working "
+        "tree's, to retest an older build against the images it was blessed "
+        "with. Images, numbers, CSVs and known-good text all come from REF; "
+        "the vignettes themselves run as they are now. Not with --bless.",
     )
     bless_group.add_argument(
         "--machine-baselines",
@@ -1596,6 +1692,12 @@ def main(argv=None):
     if not args.skip_preflight and not args.clean and not args.generate_metrics:
         if not preflight(args):
             return 2
+
+    if args.baseline_ref:
+        if args.bless:
+            print("Error: --baseline-ref reads old baselines; --bless writes new ones.")
+            return 2
+        use_baseline_ref(args.baseline_ref)
 
     if args.bless:
         print(
