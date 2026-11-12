@@ -876,6 +876,13 @@ fails; regenerate it first, from the repository root with the new module
 loaded: `python3 Testing/prepare_machine.py --tool VisIt --force`.
 (ParaView's generated fixtures record their version and are rebuilt.)
 
+A fresh clone has no ex06 data, and the suites then skip ex06 and still
+pass. Fetch it in each clone before the first suite (`cd data && bash
+fetchData.sh`, section 5), or check the log for the skip and record that
+the build was tested on twelve vignettes, not thirteen. ex06 renders the
+largest data and the most plot types, so it is often where a new build
+differs.
+
 The ParaView jobs add numpy to ParaView's own Python from `sw/pv-site`, built
 for Python 3.12. If the new build's Python is another version, build a
 matching site and pass it as `VV_PV_SITE=<dir>`; otherwise Python Annotation
@@ -883,8 +890,11 @@ renders "(error)" and ex05 fails its image check.
 
 On Ibex the ParaView names carry `-gnu-` (`paraview/6.2.1-gnu-egl`,
 `paraview/6.2.1-gnu-mesa`). `sbatch` passes the `module use` and the
-variable on to the job. A name that does not load stops the job with an
-error, since a module system can report success for a module it did not find.
+variable on to the job. A short name (`paraview`, `visit`) loads that
+site's default and the full name it loaded is recorded. A name that does
+not load, or loads without supplying `pvbatch` or `visit`, stops the job
+with an error, since a module system can report success for a module it did
+not find.
 
 The baselines belong to each test, not to a version, so a new build is
 compared against the same images. The suite passes when its log ends without

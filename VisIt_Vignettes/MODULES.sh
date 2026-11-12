@@ -69,8 +69,9 @@ case "$OSVERSION" in
   ;;
 "\"SLES\""*) # Shaheen
     module load ffmpeg 2>/dev/null   # no ffmpeg module on Shaheen III; harmless
-    # Shaheen III carries visit/3.4.2 only (21 Oct 2026); a bare `module load visit`
-    # does not resolve there, the version has to be spelled out.
+    # Spelled out so a newer build made visible by `module use` (or a new
+    # site default) does not change what the suites test; set VV_VISIT_MODULE
+    # to test another build.
     module load visit/3.4.2
     VV_VISIT_MODULE="visit/3.4.2"
   ;;
@@ -84,6 +85,12 @@ fi
 # Recorded for the vignettes and for the log. The engine that the
 # customlauncher submits must be this same version.
 export VV_VISIT_MODULE="${VV_VISIT_MODULE:-visit/3.4.2}"
+# A short name (visit) loads the site default: record the full name loaded.
+if [[ "$VV_VISIT_MODULE" != */* ]]; then
+    vv_full="$(module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -m1 "^$VV_VISIT_MODULE/")" \
+        && VV_VISIT_MODULE="$vv_full"
+    unset vv_full
+fi
 # Shaheen's Environment Modules 3.2 returns 0 even for a module it cannot
 # find, and a visit already on PATH would hide a failed load, so check that
 # this exact module is listed as loaded (one name per line with -t, with any

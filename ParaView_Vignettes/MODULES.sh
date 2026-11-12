@@ -127,6 +127,12 @@ vv_exe_from_module() {
         -e 's/^(prepend|append)_path\("PATH",[[:space:]]*"([^"]+)".*/\2/p')
     return 1
 }
+# A short name (paraview) loads the site default: record the full name loaded.
+if [[ "$VV_PARAVIEW_MODULE" != */* ]]; then
+    vv_full="$(module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -m1 "^$VV_PARAVIEW_MODULE/")" \
+        && VV_PARAVIEW_MODULE="$vv_full"
+    unset vv_full
+fi
 if ! module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -qxF "$VV_PARAVIEW_MODULE" \
     || ! vv_exe_from_module pvbatch "$VV_PARAVIEW_MODULE"; then
     echo "ERROR: $VV_PARAVIEW_MODULE is not loaded, or the pvbatch on PATH ($(command -v pvbatch || echo none)) is not from it" >&2
