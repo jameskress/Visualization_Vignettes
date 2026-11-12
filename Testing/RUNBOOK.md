@@ -401,20 +401,37 @@ python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
 ```
 
 ```bash
-source VisIt_Vignettes/MODULES.sh          # visit/3.4.2: Shaheen III has no 3.4.1 any more,
-                                           # and a bare `module load visit` does not resolve
+source VisIt_Vignettes/MODULES.sh          # visit/3.4.2, Shaheen III's default
 source $SCRATCH_IOPS/sw/testing_visit_env/bin/activate
 python3 Testing/prepare_machine.py --tool VisIt
 python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
   --machine_name shaheen3-cpu --machine shaheen --launcher srun \
   --nodes 1 --ranks 8 --image-tolerance 0.0075 \
-  --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
+  --test_number 0 1 2 3 4 5 7 8 9 10 12 --timeout 1800
+```
+
+ex06's Shaheen baselines are from VisIt 3.5.0 (see "ex06's QRAIN limits
+are fixed" below), so until 3.5.0 becomes the default, run ex06 on its own
+with it, in a new shell:
+
+```bash
+module use /sw/vis2/shaheen3.2026.11/modules
+export VV_VISIT_MODULE=visit/3.5.0
+source VisIt_Vignettes/MODULES.sh
+source $SCRATCH_IOPS/sw/testing_visit_env/bin/activate
+cd Testing
+python test_suite.py ../ --test_type VisIt --visit_version 3.5.0 \
+  --machine_name shaheen3-cpu --machine shaheen --launcher srun \
+  --nodes 1 --ranks 8 --image-tolerance 0.0075 \
+  --test_number 6 --timeout 1800
 ```
 
 As a batch job, which also runs ex11 under Xvfb afterwards (the compute nodes
 have it): `Testing/shaheen_visit_suite.sbat`, submitted from `Testing/`, with
 the same `TESTS`, `RANKS` (default 8, the rank count ex06 is blessed at) and
-`EXTRA` knobs as the ParaView one. Inside the allocation the engine starts
+`EXTRA` knobs as the ParaView one. Its default run includes ex06, which fails on
+3.4.2; run ex06 as `VV_VISIT_MODULE=visit/3.5.0 TESTS=6 sbatch
+shaheen_visit_suite.sbat` after the `module use` above. Inside the allocation the engine starts
 as a job step (`-l srun -nn 1 -np 8`), which the harness arranges itself.
 
 First VisIt run on Shaheen (21 Oct 2026): 11 of 13 clean. ex06's image
@@ -572,8 +589,11 @@ source VisIt_Vignettes/MODULES.sh
 source $SCRATCH/testing_visit_env/bin/activate
 python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
   --machine_name shaheen3-ppn --machine shaheen --launcher srun \
-  --nodes 1 --ranks 8 --timeout 1800
+  --nodes 1 --ranks 8 --test_number 0 1 2 3 4 5 7 8 9 10 11 12 --timeout 1800
 ```
+
+ex06 on `ppn` also has a VisIt 3.5.0 baseline: run it on its own as in the
+`workq` example above, with `--machine_name shaheen3-ppn`.
 
 Three machine names already exist in the history for Shaheen and they mean
 different things. Keep using them: `shaheen3-cpu` for `workq`,
