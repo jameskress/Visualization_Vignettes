@@ -842,6 +842,12 @@ export FI_CXI_CQ_FILL_PERCENT=20
 export FI_TCP_IFACE=hsn0
 export CM_NETWORK_INTERFACE=hsn0
 export CM_DISABLE_SHM=1
+# Fix glibc's mmap threshold at its 32 MiB maximum instead of letting it move
+# with the allocation pattern. With ADIOS2 2.13.0-rc1 the reader's SST RDMA
+# step took 9.0 s instead of 7.2 s until this was set; 2.12.0, and rc1
+# without the commit that caused it, run the same with or without it
+# (sites/shaheen/README.md, "glibc mmap threshold").
+export MALLOC_MMAP_THRESHOLD_=33554432
 ulimit -n $(ulimit -Hn)
 ulimit -l unlimited
 

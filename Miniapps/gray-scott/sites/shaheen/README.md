@@ -265,6 +265,31 @@ one-sided communication and is fast, but with ADIOS2 created on a split
 communicator (not `MPI_COMM_WORLD`) the writers and readers never see each
 other and the job hangs.
 
+**glibc mmap threshold.** Every generated job exports
+`MALLOC_MMAP_THRESHOLD_=33554432`. That fixes the size at which glibc serves
+an allocation with mmap at its 32 MiB maximum, where by default it moves as
+the program frees large blocks. ADIOS2 2.13.0-rc1 made the reader's SST
+RDMA step slower: 9.0 s instead of 7.2 s for the 64 + 4 node f128 Ascent
+job (12 Nov 2026). Reverting one commit (c76c0ae40, which builds a per-read
+table that only the DAOS engine uses) removes the slowdown, and so does
+this setting, with the commit in place. A 64 times larger libfabric
+registration cache (`FI_MR_CACHE_MAX_COUNT`) does not.
+
+| Build | Default | Threshold fixed |
+|---|---|---|
+| 2.13.0-rc1 | 9.02 s | 7.19, 7.09, 7.22 s |
+| rc1 with c76c0ae40 reverted | 7.16 s | 7.12 s |
+| 2.12.0 | 7.07 s | 7.25 s |
+
+The extra time is in the reader's calls to the Slingshot driver
+(`/dev/cxi0`): 10.7 s on rc1, 3.4 s with the threshold fixed, 1.7 s with the
+revert. The number of calls stays about 7,000 on rc1 either way (2,700 with
+the revert), so it is the cost of each call that drops, most likely because
+the memory involved is no longer freshly mapped. With 2.12.0, which the runs
+use now, the two are within run to run spread (7.11 and 7.43 s in two
+earlier default runs). Keep it until ADIOS2 stops building the table for
+engines that do not use it, then measure again before removing it.
+
 **Errors from every rank.** A reader rank that threw used to print nothing,
 because only world rank 0 printed and in an MPMD job that is a simulation
 rank. Both programs now print fatal errors from every rank (#78).
