@@ -150,7 +150,14 @@ def run_local_test(test_dir, args):
             "timed_out": False,
         }
 
-    completed = subprocess.run(cmd)
+    # The vignette reads its baselines too (the rank count they were blessed
+    # at, the images it must produce), so under --baseline-ref point it at
+    # the same tree the suite judges against.
+    env = os.environ.copy()
+    env.pop("VV_BASELINE_DIR", None)
+    if BASELINE_REF_ROOT is not None:
+        env["VV_BASELINE_DIR"] = baseline_root(test_dir)
+    completed = subprocess.run(cmd, env=env)
 
     testing_dir = os.path.join(test_dir, "Testing")
     payload = read_run_result(testing_dir)
@@ -366,7 +373,7 @@ def log_performance(
 # of the repository as it was at a git ref, at its repository-relative path.
 BASELINE_REF_ROOT = None
 BASELINE_REF_NAME = None
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 
 def use_baseline_ref(ref):
@@ -433,7 +440,18 @@ def baseline_root(test_dir):
     """The Testing/Baseline/ directory a test is judged against."""
     if BASELINE_REF_ROOT is None:
         return os.path.join(test_dir, "Testing", "Baseline")
-    relative = os.path.relpath(os.path.abspath(test_dir), REPO_ROOT)
+    relative = os.path.relpath(os.path.realpath(test_dir), REPO_ROOT)
+    if (
+        relative == ".."
+        or relative.startswith(".." + os.sep)
+        or os.path.isabs(relative)
+    ):
+        # A test outside this repository has no baselines at the ref, and
+        # joining a "../" path would leave the extracted tree.
+        raise SystemExit(
+            "--baseline-ref: {0} is not inside {1}, whose history the ref "
+            "belongs to".format(test_dir, REPO_ROOT)
+        )
     return os.path.join(BASELINE_REF_ROOT, relative, "Testing", "Baseline")
 
 
@@ -1359,6 +1377,21 @@ def run_test(test_dir, dir_name, args):
     # -- blessing --------------------------------------------------------
     if args.bless:
         bless_test(test_dir, args)
+
+    # Clear verdicts an earlier run left: the numeric, CSV and text files
+    # below are written only when this run has something to compare, so a
+    # stale one would otherwise be read (and attributed to this run's
+    # baselines) as if this run had produced it.
+    for stale in (
+        NUMERIC_RESULTS_FILENAME,
+        CSV_RESULTS_FILENAME,
+        TEXT_RESULTS_FILENAME,
+        BASELINE_SOURCE_FILENAME,
+    ):
+        try:
+            os.remove(os.path.join(testing_dir, stale))
+        except OSError:
+            pass
 
     # -- image comparison -------------------------------------------------
     baseline_dir = baseline_root(test_dir)
