@@ -488,7 +488,10 @@ up always runs, so after the Isovolume the range is the surface maximum,
 VisIt 3.4.2 left the interior points in and reached 0.0173 by chance.
 Fixed limits give the same colours in every version, match ParaView's
 ex06 (which colours QRAIN up to 0.0172946), and match the baseline, which
-was made with 0.0173 at the top.
+was made with 0.0173 at the top: VisIt 3.4.2 renders it pixel for pixel.
+This alone does not make ex06 pass on VisIt 3.5.0. Its other rendering
+changes (terrain shading, legend text layout) differ in 4.9% of the frame
+on Shaheen, of which the QRAIN limits are 0.06% (12 Nov 2026).
 
 **Mesa's 3D texture limit is 2048.** ex06's volumes vanished (56% of the frame
 different) because llvmpipe refuses a 2240-wide volume texture. ex06 now
