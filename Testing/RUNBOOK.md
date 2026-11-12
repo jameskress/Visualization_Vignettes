@@ -592,8 +592,15 @@ python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
   --nodes 1 --ranks 8 --test_number 0 1 2 3 4 5 7 8 9 10 12 --timeout 1800
 ```
 
-ex06 on `ppn` also has a VisIt 3.5.0 baseline: run it on its own as in the
-`workq` example above, with `--machine_name shaheen3-ppn`.
+ex06 on `ppn` also has a VisIt 3.5.0 baseline. Run it on its own with
+3.5.0 as a batch job, which requests the `ppn` partition itself (the
+`--machine_name` only labels the results, it does not choose the node),
+from `Testing/`:
+
+```bash
+module use /sw/vis2/shaheen3.2026.11/modules
+VV_VISIT_MODULE=visit/3.5.0 TESTS=6 sbatch shaheen_ppn_visit_suite.sbat
+```
 
 Three machine names already exist in the history for Shaheen and they mean
 different things. Keep using them: `shaheen3-cpu` for `workq`,
