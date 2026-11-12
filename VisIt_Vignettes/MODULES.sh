@@ -92,13 +92,28 @@ if ! module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -qxF "$VV_VISIT_MODULE"; 
     # shellcheck disable=SC2317  # exit is reached when the file is run, not sourced
     return 1 2>/dev/null || exit 1
 fi
+# True if the executable $1 found on PATH lives in a PATH directory that
+# module $2 itself adds, read from `module show` (Tcl modules print
+# "prepend-path PATH <dir>", Lmod prints prepend_path("PATH","<dir>")). This
+# rejects a same-named executable that was already on PATH from elsewhere.
+vv_exe_from_module() {
+    local exe dir d
+    exe="$(command -v "$1")" || return 1
+    dir="$(cd "$(dirname "$exe")" && pwd -P)" || return 1
+    while IFS= read -r d; do
+        [ -n "$d" ] && [ "$(cd "$d" 2>/dev/null && pwd -P)" = "$dir" ] && return 0
+    done < <(module show "$2" 2>&1 | sed -nE \
+        -e 's/^(prepend|append)-path[[:space:]]+PATH[[:space:]]+([^[:space:]]+).*/\2/p' \
+        -e 's/^(prepend|append)_path\("PATH",[[:space:]]*"([^"]+)".*/\2/p')
+    return 1
+}
 # The test harness looks in $VISIT_PATH before PATH. Point it at the visit
 # this module supplies, so an inherited VISIT_PATH cannot select another build.
-if command -v visit >/dev/null; then
+if vv_exe_from_module visit "$VV_VISIT_MODULE"; then
     VISIT_PATH="$(dirname "$(command -v visit)")"
     export VISIT_PATH
 else
-    echo "ERROR: no visit on PATH after loading $VV_VISIT_MODULE" >&2
+    echo "ERROR: the visit on PATH ($(command -v visit || echo none)) is not from $VV_VISIT_MODULE" >&2
     # shellcheck disable=SC2317  # exit is reached when the file is run, not sourced
     return 1 2>/dev/null || exit 1
 fi

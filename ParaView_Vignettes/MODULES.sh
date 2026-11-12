@@ -111,10 +111,25 @@ export VV_PARAVIEW_MODULE
 # A module command can report success for a module it did not load
 # (Shaheen's Environment Modules 3.2), and the site branches discover the
 # version from the default module first, so check that this exact module
-# is now loaded and supplies pvbatch, rather than test whatever is on PATH.
+# is now loaded and that the pvbatch on PATH is the one it supplies.
+# True if the executable $1 found on PATH lives in a PATH directory that
+# module $2 itself adds, read from `module show` (Tcl modules print
+# "prepend-path PATH <dir>", Lmod prints prepend_path("PATH","<dir>")). This
+# rejects a same-named executable that was already on PATH from elsewhere.
+vv_exe_from_module() {
+    local exe dir d
+    exe="$(command -v "$1")" || return 1
+    dir="$(cd "$(dirname "$exe")" && pwd -P)" || return 1
+    while IFS= read -r d; do
+        [ -n "$d" ] && [ "$(cd "$d" 2>/dev/null && pwd -P)" = "$dir" ] && return 0
+    done < <(module show "$2" 2>&1 | sed -nE \
+        -e 's/^(prepend|append)-path[[:space:]]+PATH[[:space:]]+([^[:space:]]+).*/\2/p' \
+        -e 's/^(prepend|append)_path\("PATH",[[:space:]]*"([^"]+)".*/\2/p')
+    return 1
+}
 if ! module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -qxF "$VV_PARAVIEW_MODULE" \
-    || ! command -v pvbatch >/dev/null; then
-    echo "ERROR: $VV_PARAVIEW_MODULE is not loaded, or supplies no pvbatch" >&2
+    || ! vv_exe_from_module pvbatch "$VV_PARAVIEW_MODULE"; then
+    echo "ERROR: $VV_PARAVIEW_MODULE is not loaded, or the pvbatch on PATH ($(command -v pvbatch || echo none)) is not from it" >&2
     # shellcheck disable=SC2317  # exit is reached when the file is run, not sourced
     return 1 2>/dev/null || exit 1
 fi
