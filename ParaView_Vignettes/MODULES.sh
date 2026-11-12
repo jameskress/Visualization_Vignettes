@@ -43,10 +43,10 @@
 # Author: James Kress, <james@jameskress.com>
 #
 # VV_PARAVIEW_MODULE set in the environment names the module to load outright,
-# skipping the per-site detection. For a machine this script has never seen
-# (a site with its own module naming), or a site where
-# `module load paraview` no longer resolves. The mesa/egl argument still sets
-# the OpenGL window hint from the module name.
+# instead of the site branch's pinned build: a new build under test (made
+# visible first with `module use`), or a machine this script has never seen.
+# The mesa/egl argument still sets the OpenGL window hint from the module
+# name.
 if [ -n "${VV_PARAVIEW_MODULE:-}" ]; then
     echo "VV_PARAVIEW_MODULE=$VV_PARAVIEW_MODULE given: loading it directly"
     # Shaheen's ParaView modules refuse to load under PrgEnv-cray (the
@@ -65,10 +65,12 @@ echo "Loading modules for OS Version: $OSVERSION"
 case "$OSVERSION" in
 "\"Rocky Linux\""* | "\"Red Hat Enterprise Linux\""* | "\"AlmaLinux\""* | "\"CentOS\""*) # Ibex
 
-    # get latest paraview version number from ibex, and then load the pv we really want
-    module load paraview
-    currentVersion=$EBVERSIONPARAVIEW
-    module unload paraview
+    # ParaView 6.2.1 since 12 Nov 2026, the build the baselines were blessed
+    # with, pinned rather than read from the site default so a new site
+    # default cannot change what the suites test. Until it is released into
+    # the site tree it lives in the vis2 tree.
+    module use /sw/vis2/ibex-rl9-gpu.2026.11/modules
+    currentVersion=6.2.1
 
     modVar=$1
     if [ "$modVar" = "egl" ]; then
@@ -82,11 +84,11 @@ case "$OSVERSION" in
   ;;
 "\"SLES\""*) # Shaheen
 
-    # get latest paraview version number from shaheen, and then load the pv we really want
+    # ParaView 6.2.1 since 12 Nov 2026 (see the Ibex branch). Its modules
+    # need PrgEnv-gnu.
     module swap PrgEnv-cray PrgEnv-gnu
-    module load paraview
-    currentVersion=$EBVERSIONPARAVIEW
-    module unload paraview
+    module use /sw/vis2/shaheen3.2026.11/modules
+    currentVersion=6.2.1
 
     modVar=$1
     if [ "$modVar" = "egl" ]; then
@@ -109,8 +111,7 @@ fi
 
 export VV_PARAVIEW_MODULE
 # A module command can report success for a module it did not load
-# (Shaheen's Environment Modules 3.2), and the site branches discover the
-# version from the default module first, so check that this exact module
+# (Shaheen's Environment Modules 3.2), so check that this exact module
 # is now loaded and that the pvbatch on PATH is the one it supplies.
 # True if the executable $1 found on PATH lives in a PATH directory that
 # module $2 itself adds, read from `module show` (Tcl modules print

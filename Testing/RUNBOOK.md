@@ -54,7 +54,7 @@ the vignettes run inside `pvbatch` or the VisIt CLI and import only the
 standard library, deliberately, so that one `vignette_common.py` works under
 three interpreters.
 
-For reference, the bundled interpreters are ParaView 6.1.0 → Python 3.12 and
+For reference, the bundled interpreters are ParaView 6.2.1 → Python 3.12 and
 VisIt 3.5.0 → Python 3.13 (3.4.2 bundled 3.9). Neither is the one you build
 the venv with.
 
@@ -382,7 +382,7 @@ source $SCRATCH/testing_paraview_env/bin/activate
 pip install pandas numpy pillow matplotlib psutil
 deactivate
 
-module load paraview                       # 6.1.0-mesa is the default
+source ParaView_Vignettes/MODULES.sh mesa  # paraview/6.2.1-mesa (see below)
 python3 Testing/prepare_machine.py
 python3 Testing/prepare_machine.py --check # expect 0, or 3 without ex06 data
 ```
@@ -397,7 +397,7 @@ source $SCRATCH_IOPS/sw/testing_paraview_env/bin/activate   # AFTER the modules,
 srun --nodes=1 --ntasks=8 --cpus-per-task=24 -p workq --time=00:40:00 \
      --mem=200G -A <account> --pty /bin/bash
 cd Testing
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
   --machine_name shaheen3-cpu --machine shaheen --launcher srun \
   --image-tolerance 0.0075 --non_gpu_machine \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
@@ -432,8 +432,8 @@ metrics, which are launch facts and are now notes; its shared numeric
 baseline was re-blessed on the workstation.
 
 **Order and `PYTHONPATH` matter on Shaheen** (found 21 Oct 2026). The
-`paraview/6.1.0-mesa` module prepends ParaView's own `lib/python3.12` and its
-`site-packages` to `PYTHONPATH`. Any other python then imports ParaView's 3.12
+`paraview/6.2.1-mesa` module (and 6.1.0 before it) prepends ParaView's own
+`lib/python3.12` and its `site-packages` to `PYTHONPATH`. Any other python then imports ParaView's 3.12
 standard library and dies with `AssertionError: SRE module mismatch` on the
 first `import re`. `pvbatch` does not need that variable, so unset it after
 `MODULES.sh`. The module also prepends ParaView's `bin`, which carries a
@@ -442,7 +442,7 @@ And check the venv really holds the packages: a venv built on 2 Oct had none,
 and only looked fine because the `python/3.10.13` module's own `site-packages`
 was on `PYTHONPATH` at the time.
 
-**Shaheen's ParaView has no numpy.** `paraview/6.1.0-mesa` ships without it, so
+**Shaheen's ParaView has no numpy.** `paraview/6.1.0-mesa` and 6.2.1 ship without it, so
 Python Annotation renders the literal text "(error)" and ex05's frames fail the
 image gate at 2 to 4% (21 Oct 2026). Give ParaView's own python a user-site
 copy, built for its interpreter (3.12), on the iops disk:
@@ -563,13 +563,13 @@ from `Testing/` with the same `TESTS`, `RANKS` and `EXTRA` knobs as the workq
 ones. Run `TESTS="8"` first, for the reason below.
 
 ```bash
-source ParaView_Vignettes/MODULES.sh egl     # paraview/6.1.0-egl
+source ParaView_Vignettes/MODULES.sh egl     # paraview/6.2.1-egl
 source $SCRATCH/testing_paraview_env/bin/activate
 srun --nodes=1 --ntasks=4 --cpus-per-task=16 -p ppn --time=00:40:00 \
      --mem=200G -A <account> --pty /bin/bash
 cd Testing
 python3 prepare_machine.py --check
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
   --machine_name shaheen3-ppn-gpu-L40 --machine shaheen --launcher srun \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
@@ -592,7 +592,7 @@ Run **ex08 first** on any GPU configuration. It exists to prove the backend
 is what you asked for, and it takes seconds:
 
 ```bash
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
   --machine_name shaheen3-ppn-gpu-L40 --test_number 8 --no-metrics
 ```
 
@@ -742,7 +742,7 @@ python3 -m venv $SCRATCH/testing_paraview_env
 source $SCRATCH/testing_paraview_env/bin/activate
 pip install --no-index --find-links=$SCRATCH/offline_bundle/wheelhouse \
     pandas numpy pillow matplotlib psutil
-module load paraview/6.1.0-egl
+source ParaView_Vignettes/MODULES.sh egl    # paraview/6.2.1-egl
 python3 Testing/prepare_machine.py          # builds fixtures with THIS build
 python3 Testing/prepare_machine.py --check  # must be 0 or 3
 
@@ -751,10 +751,10 @@ groups | grep video                         # or none of this works
 srun --nodes=1 --ntasks=4 --cpus-per-task=16 -p ppn --time=00:40:00 \
      --mem=200G -A <account> --pty /bin/bash
 cd Testing
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
   --machine_name shaheen3-ppn-gpu-L40 --machine shaheen --launcher srun \
   --test_number 8 --no-metrics              # prove the backend first
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
   --machine_name shaheen3-ppn-gpu-L40 --machine shaheen --launcher srun \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
@@ -945,8 +945,7 @@ frame:
   their shared `known_good_value.txt` holds for both versions.
 
 With these, both suites pass on the new builds on Shaheen, and VisIt 3.4.2
-and ParaView 6.1.0 fail the re-blessed images. `VisIt_Vignettes/MODULES.sh`
-loads VisIt 3.5.0 by default on Shaheen and Ibex since then. ParaView's
-default is still 6.1.0, so run the ParaView suites with
-`VV_PARAVIEW_MODULE=paraview/6.2.1-mesa` (or `-egl` on `ppn`) until it
-moves.
+and ParaView 6.1.0 fail the re-blessed images. Since then the two
+`MODULES.sh` scripts load VisIt 3.5.0 and ParaView 6.2.1 by default on
+Shaheen and Ibex, from each cluster's vis2 tree (`module use`) until the
+builds are released into the site tree.
