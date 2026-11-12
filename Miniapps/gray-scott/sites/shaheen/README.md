@@ -190,6 +190,11 @@ N, reader exit status: M`), and the job's status is the first non-zero one. If t
 failed, the other is stopped (as `--kill-on-bad-exit` does for MPMD).
 
 ## After the runs
+Each run's job first saves its own batch script as `<results>/<id>_job.sbat`
+and the network, allocator and threading settings it exported (`FI_*`,
+`MALLOC_*`, `MPICH_*`, `OMP_*` and the like) as `<results>/<id>_env.txt`,
+so runs made with different settings can be told apart.
+
 When a run ends, its job submits a one-node job, `reduce.sbat` in the run
 directory, and exits, so the run's nodes are released at once (reducing
 tens of thousands of per-rank files on a 1088-node allocation used to keep

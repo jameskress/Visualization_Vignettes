@@ -881,6 +881,12 @@ echo "Starting Run: {id}"
 # Phase timestamps (seconds since the epoch) for #72: job start to run start
 # is setup, run start to run end is launch, startup, steps and shutdown.
 echo "PHASE job_start $SLURM_JOB_START_TIME"
+# Keep this job's script and the run-time settings it exported beside the
+# results, so runs made with different settings (MALLOC_MMAP_THRESHOLD_, the
+# OFI tuning) can be told apart afterwards.
+mkdir -p {results_dir}
+cp "$0" {results_dir}/{id}_job.sbat 2>/dev/null
+env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|OMP_|OSPRAY_|Sst_|ADIOS2_)' | sort > {results_dir}/{id}_env.txt
 echo "PHASE run_start $(date +%s.%N)"
 
 {command}
