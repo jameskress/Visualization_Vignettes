@@ -338,25 +338,27 @@ What the job scripts work around, so you do not rediscover it:
   baselines were blessed with.
 * **Ibex compute nodes have no Xvfb**, so ex11 (the one vignette that needs a
   display) is skipped by the batch suites. The login node has `/usr/bin/Xvfb`;
-  run ex11 there for a record, with the same `--run-id` and `--launcher none`:
-  `XVFB_SCREEN=1280x1280x24 ../Scripts/run_with_display.sh python -E test_suite.py
-  ../ --test_type ParaView ... --test_number 11 --no-offscreen`. It is a
-  two-minute, one-process job, which is all a login node should carry.
-  With ParaView 6.2.1 loaded, Xvfb itself segfaults while loading its GLX
-  extension (12 Nov 2026), because the module's libraries are on the
-  library path. Start it before loading the modules, with a private
-  cookie (the login node is shared, and without `-auth` any local account
-  could connect to the display), and run without the wrapper:
+  run ex11 there for a record, with the same `--run-id` and `--launcher none`.
+  It is a two-minute, one-process job, which is all a login node should
+  carry. Start Xvfb yourself, before loading any module, rather than through
+  `Scripts/run_with_display.sh`: with ParaView 6.2.1 loaded, Xvfb segfaults
+  while loading its GLX extension (12 Nov 2026), because the module's
+  libraries are on the library path. Give it a private cookie, since the
+  login node is shared and without `-auth` any local account could connect
+  to the display:
 
   ```bash
   export XAUTHORITY="$(mktemp)" DISPLAY=:<n>
   xauth -f "$XAUTHORITY" add "$DISPLAY" . "$(mcookie)"
   Xvfb "$DISPLAY" -auth "$XAUTHORITY" -screen 0 1280x1280x24 -nolisten tcp &
-  # then the modules, the venv, and: python -E test_suite.py ... --test_number 11
-  kill %1; rm -f "$XAUTHORITY"
+  XVFB_PID=$!
+  # then the modules, the venv, and from Testing/:
+  #   python -E test_suite.py ../ --test_type ParaView ... --test_number 11 --no-offscreen
+  kill "$XVFB_PID"; rm -f "$XAUTHORITY"
   ```
 
-  VisIt 3.5.0's ex11 runs the same way, with `--test_type VisIt`.
+  VisIt 3.5.0's ex11 runs the same way, with `--test_type VisIt` (and
+  without `--no-offscreen`).
 
 ### Submission scripts instead of an interactive session
 
