@@ -401,20 +401,37 @@ python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
 ```
 
 ```bash
-source VisIt_Vignettes/MODULES.sh          # visit/3.4.2: Shaheen III has no 3.4.1 any more,
-                                           # and a bare `module load visit` does not resolve
+source VisIt_Vignettes/MODULES.sh          # visit/3.4.2, Shaheen III's default
 source $SCRATCH_IOPS/sw/testing_visit_env/bin/activate
 python3 Testing/prepare_machine.py --tool VisIt
 python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
   --machine_name shaheen3-cpu --machine shaheen --launcher srun \
   --nodes 1 --ranks 8 --image-tolerance 0.0075 \
-  --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
+  --test_number 0 1 2 3 4 5 7 8 9 10 12 --timeout 1800
+```
+
+ex06's Shaheen baselines are from VisIt 3.5.0 (see "ex06's QRAIN limits
+are fixed" below), so until 3.5.0 becomes the default, run ex06 on its own
+with it, in a new shell:
+
+```bash
+module use /sw/vis2/shaheen3.2026.11/modules
+export VV_VISIT_MODULE=visit/3.5.0
+source VisIt_Vignettes/MODULES.sh
+source $SCRATCH_IOPS/sw/testing_visit_env/bin/activate
+cd Testing
+python test_suite.py ../ --test_type VisIt --visit_version 3.5.0 \
+  --machine_name shaheen3-cpu --machine shaheen --launcher srun \
+  --nodes 1 --ranks 8 --image-tolerance 0.0075 \
+  --test_number 6 --timeout 1800
 ```
 
 As a batch job, which also runs ex11 under Xvfb afterwards (the compute nodes
 have it): `Testing/shaheen_visit_suite.sbat`, submitted from `Testing/`, with
 the same `TESTS`, `RANKS` (default 8, the rank count ex06 is blessed at) and
-`EXTRA` knobs as the ParaView one. Inside the allocation the engine starts
+`EXTRA` knobs as the ParaView one. Its default run includes ex06, which fails on
+3.4.2; run ex06 as `VV_VISIT_MODULE=visit/3.5.0 TESTS=6 sbatch
+shaheen_visit_suite.sbat` after the `module use` above. Inside the allocation the engine starts
 as a job step (`-l srun -nn 1 -np 8`), which the harness arranges itself.
 
 First VisIt run on Shaheen (21 Oct 2026): 11 of 13 clean. ex06's image
@@ -477,6 +494,26 @@ With that, ex07 at 16 ranks on 4 nodes ends in 5.5 s.
 `CHANNEL_NOISE_FLOOR` is 12 (summed RGB). Shaheen's llvmpipe differs from the
 GPU baselines by that much on a few percent of shaded pixels, which failed
 ex05 five frames out of five at a floor of 1; real changes are 60+ levels.
+
+**ex06's QRAIN limits are fixed.** In VisIt's ex06 session the rain water
+(QRAIN) Pseudocolor has its minimum and maximum set to 0.00045 and
+0.0172946. In ActualData mode VisIt takes the legend and colour range from
+the outer surface it draws, after its face list and clean up step, not
+from all points. Since VisIt 3.5.0 (commit 2e11202063, #20527) that clean
+up always runs, so after the Isovolume the range is the surface maximum,
+0.01066, while the real maximum (Query Max) is 0.0173, inside the cloud.
+VisIt 3.4.2 left the interior points in and reached 0.0173 by chance.
+Fixed limits give the same colours in every version, match ParaView's
+ex06 (which colours QRAIN up to 0.0172946). VisIt 3.5.0 also changes the
+terrain shading and the legend text layout, 4.9% of ex06's frame on
+Shaheen (the QRAIN limits are 0.06% of that), so ex06's Shaheen baselines
+(`shaheen3-cpu`, `shaheen3-ppn`) and its new Ibex baseline (`ibex-cpu`)
+were blessed with VisIt 3.5.0 and these limits on 12 Nov 2026. VisIt 3.4.2
+no longer passes them, although it is still the default module on both
+clusters until the 3.5.0 release, so test ex06 with
+`VV_VISIT_MODULE=visit/3.5.0` (section 12; on Ibex after `module use
+/sw/vis2/ibex-rl9-gpu.2026.11/modules`). The shared baseline, which the
+workstation uses, is still from VisIt 3.4 until it is re-blessed there.
 
 **Mesa's 3D texture limit is 2048.** ex06's volumes vanished (56% of the frame
 different) because llvmpipe refuses a 2240-wide volume texture. ex06 now
@@ -554,7 +591,17 @@ source VisIt_Vignettes/MODULES.sh
 source $SCRATCH/testing_visit_env/bin/activate
 python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
   --machine_name shaheen3-ppn --machine shaheen --launcher srun \
-  --nodes 1 --ranks 8 --timeout 1800
+  --nodes 1 --ranks 8 --test_number 0 1 2 3 4 5 7 8 9 10 12 --timeout 1800
+```
+
+ex06 on `ppn` also has a VisIt 3.5.0 baseline. Run it on its own with
+3.5.0 as a batch job, which requests the `ppn` partition itself (the
+`--machine_name` only labels the results, it does not choose the node),
+from `Testing/`:
+
+```bash
+module use /sw/vis2/shaheen3.2026.11/modules
+VV_VISIT_MODULE=visit/3.5.0 TESTS=6 sbatch shaheen_ppn_visit_suite.sbat
 ```
 
 Three machine names already exist in the history for Shaheen and they mean
