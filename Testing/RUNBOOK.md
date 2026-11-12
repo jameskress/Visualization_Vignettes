@@ -415,9 +415,10 @@ python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
 `data/topologies` (ex09) and the XML time series (ex05, ex12). Both need
 `pvbatch`, so in a clone that has not run the ParaView suite, first run
 `python3 Testing/prepare_machine.py --tool ParaView` with the ParaView
-module loaded. Otherwise the VisIt preparation stops with that command
-(`--tests` limits the check to the vignettes about to run, as the batch
-scripts and the suite's preflight do).
+module loaded. Otherwise the suite's preflight refuses to start and names
+that command. It checks only the fixtures the selected vignettes read
+(`--test_number`), in the run's `--data-dir` if one is given; the batch
+scripts leave the check to it (`prepare_machine.py --skip-data-checks`).
 
 As a batch job, which also runs ex11 under Xvfb afterwards (the compute nodes
 have it): `Testing/shaheen_visit_suite.sbat`, submitted from `Testing/`, with

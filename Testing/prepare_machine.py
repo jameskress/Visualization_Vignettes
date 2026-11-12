@@ -488,7 +488,15 @@ def step_time_series_for_visit():
         "ParaView module loaded" + where_to_build()
     )
     if recorded == 0:
-        bad("XML time series missing: " + build)
+        if os.path.exists(TIME_SERIES_MANIFEST):
+            # A manifest is there but unusable; only --force makes ParaView
+            # regenerate past it.
+            bad(
+                "XML time series manifest unusable: "
+                + build.replace("--tool ParaView`", "--tool ParaView --force`")
+            )
+        else:
+            bad("XML time series missing: " + build)
         return False
     if missing:
         # The manifest is intact, so only --force makes ParaView rebuild it.
@@ -671,6 +679,14 @@ def main(argv=None):
         "among them; without --tests, every vignette is assumed.",
     )
     parser.add_argument(
+        "--skip-data-checks",
+        action="store_true",
+        help="With --tool VisIt: generate the VisIt state only, and leave the "
+        "data fixtures (topologies, XML time series) to test_suite.py's "
+        "preflight, which checks them with the run's own --data-dir and "
+        "test selection. The batch scripts use this.",
+    )
+    parser.add_argument(
         "--data-dir",
         help="With --check: look for the data fixtures here instead of the "
         "repository's data/ (test_suite.py --data-dir passes its own).",
@@ -737,6 +753,8 @@ def main(argv=None):
             # a run that selects none of them (CI, which has no ParaView) is
             # not refused.
             wanted = set(args.tests) if args.tests else None
+            if args.skip_data_checks:
+                wanted = set()
             # These run even after the ParaView step: it trusts its manifests
             # (and skips the time series when its source is absent), while
             # these check the files VisIt opens.
