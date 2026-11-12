@@ -886,9 +886,11 @@ echo "PHASE job_start $SLURM_JOB_START_TIME"
 # OFI tuning) can be told apart afterwards. Thread settings are left out:
 # each srun command sets its own (the reader's differ from the shell's), and
 # the saved script shows them.
-mkdir -p {results_dir}
-cp "$0" {results_dir}/{id}_job.sbat 2>/dev/null
-env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_)' | sort > {results_dir}/{id}_env.txt
+# A results directory that cannot be written would lose the run's numbers
+# too, so stop here rather than after the run.
+mkdir -p {results_dir} || exit 1
+cp "$0" {results_dir}/{id}_job.sbat || exit 1
+env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_)' | sort > {results_dir}/{id}_env.txt || exit 1
 echo "PHASE run_start $(date +%s.%N)"
 
 {command}
