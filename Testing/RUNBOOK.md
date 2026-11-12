@@ -136,10 +136,10 @@ expected. ParaView 6.1 dropped that writer, the generator falls through to
 ## 4. Local workstation
 
 ```bash
-export PARAVIEW_PATH=$HOME/packages/ParaView-6.1.0-MPI-Linux-Python3.12-x86_64/bin
+export PARAVIEW_PATH=$HOME/packages/ParaView-6.2.1-MPI-Linux-Python3.12-x86_64/bin
 source ~/testing_paraview_env/bin/activate
 cd Testing
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
   --machine_name $(hostname) \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
@@ -150,21 +150,21 @@ invocation:
 
 ```bash
 XVFB_SCREEN=1280x1280x24 ../Scripts/run_with_display.sh \
-  python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+  python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
     --machine_name $(hostname) --test_number 11 --no-offscreen --timeout 1800
 ```
 
 VisIt, same split:
 
 ```bash
-export VISIT_PATH=$HOME/packages/visit3_4_2.linux-x86_64/bin
+export VISIT_PATH=$HOME/packages/visit3_5_0.linux-x86_64/bin
 source ~/testing_visit_env/bin/activate
-python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
+python test_suite.py ../ --test_type VisIt --visit_version 3.5.0 \
   --machine_name $(hostname) \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 
 XVFB_SCREEN=1024x1024x24 ../Scripts/run_with_display.sh \
-  python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
+  python test_suite.py ../ --test_type VisIt --visit_version 3.5.0 \
     --machine_name $(hostname) --test_number 11 --timeout 1800
 ```
 
@@ -188,8 +188,8 @@ without X and never moved. So a clean workstation record is taken from a
 plain terminal with the desktop quiet:
 
 ```bash
-export PARAVIEW_PATH=$HOME/packages/ParaView-6.1.0-MPI-Linux-Python3.12-x86_64/bin
-export VISIT_PATH=$HOME/packages/visit3_4_2.linux-x86_64/bin
+export PARAVIEW_PATH=$HOME/packages/ParaView-6.2.1-MPI-Linux-Python3.12-x86_64/bin
+export VISIT_PATH=$HOME/packages/visit3_5_0.linux-x86_64/bin
 Testing/record_local_run.sh KW61316-2026-10-21 KW61316.kaust.edu.sa
 ```
 
@@ -516,7 +516,8 @@ Shaheen (the QRAIN limits are 0.06% of that), so ex06's Shaheen baselines
 were blessed with VisIt 3.5.0 and these limits on 12 Nov 2026, and
 `MODULES.sh` loads 3.5.0 on both clusters. VisIt 3.4.2 no longer passes
 them. The shared baseline, which the workstation uses, is still from VisIt
-3.4 until it is re-blessed there.
+3.4: VisIt 3.5.0 matches it on the workstation's GPU, so it was not
+re-blessed.
 
 **Mesa's 3D texture limit is 2048.** ex06's volumes vanished (56% of the frame
 different) because llvmpipe refuses a 2240-wide volume texture. ex06 now
@@ -944,14 +945,19 @@ compared against the same images. The suite passes when its log ends without
 failure). If a new build differs only in rendering, look at the diffs before
 re-blessing anything (section 10, and "How Baselines Work" in `README.md`).
 
-**VisIt 3.5.0 and ParaView 6.2.1 on Shaheen and Ibex (12 Nov 2026).** The
-full suites on both builds were compared against the baselines, and what
-differed was re-blessed as machine baselines after looking at each frame:
+**VisIt 3.5.0 and ParaView 6.2.1 on Shaheen, Ibex and the workstation
+(12 Nov 2026).** The full suites on both builds were compared against the
+baselines, and what differed was re-blessed after looking at each frame:
 
 * VisIt ex01, ex02, ex03 and ex11 (`shaheen3-cpu`, `shaheen3-ppn` and
   `ibex-cpu`; Ibex's ex11 run on the login node, see section 5): 0.8% of
   each frame, all in the legend, whose text layout changed in 3.5.0.
 * VisIt ex06: see "ex06's QRAIN limits are fixed" (section 6).
+* The shared baselines, blessed on the workstation (section 4): VisIt ex01,
+  ex02, ex03, ex10 and ex11 (the legend text, 0.6 to 0.8%) and ex05
+  (0.3%: the "Cycle / Time" annotation draws noticeably smaller in 3.5.0),
+  which the workstation's 0.1% tolerance catches. ParaView 6.2.1 matched
+  every shared baseline there and needed nothing.
 * ParaView ex06 (`shaheen3-cpu` and `ibex-cpu`): 12.1% and 11.8%, all in
   the Surface LIC noise texture on the ground plane. ParaView 6.2.1 with EGL
   on Shaheen `ppn` and on an Ibex A100 matched its baselines and needed
@@ -961,7 +967,8 @@ differed was re-blessed as machine baselines after looking at each frame:
   their shared `known_good_value.txt` holds for both versions.
 
 Each Ibex image is pixel identical to its Shaheen counterpart. With these,
-both suites pass on the new builds on Shaheen and Ibex, and VisIt 3.4.2
+both suites pass on the new builds on Shaheen, Ibex and the workstation,
+and VisIt 3.4.2
 and ParaView 6.1.0 fail the re-blessed images. Since then the two
 `MODULES.sh` scripts load VisIt 3.5.0 and ParaView 6.2.1 by default on
 Shaheen and Ibex, from each cluster's vis2 tree (`module use`) until the

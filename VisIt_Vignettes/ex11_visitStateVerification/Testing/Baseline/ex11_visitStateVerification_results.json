@@ -44,9 +44,8 @@
   },
   "nodes": 1,
   "notes": [
-    "No DISPLAY set. VisIt's -nowin client will still render, but wrap this vignette in xvfb-run to exercise the on-display path it is meant to cover.",
-    "display=<none>",
-    "visit_version=3.4.2"
+    "display=:99",
+    "visit_version=3.5.0"
   ],
   "numeric_extracts": [],
   "platform": "Linux",
@@ -54,10 +53,10 @@
   "schema_version": 1,
   "status": "ok",
   "timings": {
-    "render": 0.492249,
-    "restore_session": 0.54449
+    "render": 0.52773,
+    "restore_session": 0.596525
   },
   "tool": "VisIt",
   "vignette": "ex11_visitStateVerification",
-  "wall_time_s": 1.258934
+  "wall_time_s": 1.355415
 }
