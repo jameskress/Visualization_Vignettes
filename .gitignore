@@ -51,7 +51,7 @@ data/varying_series_xml/
 # Fetched by data/fetchData.sh alongside the zip, 4.3 GB extracted.
 data/currentRainfall.silo
 data/cyclone-chapala-2015-11-02_00-00-00-mb.vtm
-data/cyclone-chapala-2015-11-02_00-00-00-mb/
+data/cyclone-chapala-2015-11-02_00-00-00-mb
 
 # Scratch space for one-off comparison sheets and backups. Never an input.
 .scratch/
