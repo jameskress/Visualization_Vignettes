@@ -342,6 +342,12 @@ What the job scripts work around, so you do not rediscover it:
   `XVFB_SCREEN=1280x1280x24 ../Scripts/run_with_display.sh python -E test_suite.py
   ../ --test_type ParaView ... --test_number 11 --no-offscreen`. It is a
   two-minute, one-process job, which is all a login node should carry.
+  With ParaView 6.2.1 loaded, Xvfb itself segfaults while loading its GLX
+  extension (12 Nov 2026), because the module's libraries are on the
+  library path. Start it before loading the modules and run without the
+  wrapper: `Xvfb :<n> -screen 0 1280x1280x24 -nolisten tcp &`, `export
+  DISPLAY=:<n>`, then the modules and `python -E test_suite.py ...`. VisIt
+  3.5.0's ex11 runs the same way, with `--test_type VisIt`.
 
 ### Submission scripts instead of an interactive session
 
@@ -929,22 +935,24 @@ compared against the same images. The suite passes when its log ends without
 failure). If a new build differs only in rendering, look at the diffs before
 re-blessing anything (section 10, and "How Baselines Work" in `README.md`).
 
-**VisIt 3.5.0 and ParaView 6.2.1 on Shaheen (12 Nov 2026).** The full
-suites on both builds were compared against the baselines, and what
-differed was re-blessed as Shaheen machine baselines after looking at each
-frame:
+**VisIt 3.5.0 and ParaView 6.2.1 on Shaheen and Ibex (12 Nov 2026).** The
+full suites on both builds were compared against the baselines, and what
+differed was re-blessed as machine baselines after looking at each frame:
 
-* VisIt ex01, ex02, ex03 and ex11 (`shaheen3-cpu` and `shaheen3-ppn`): 0.8%
-  of each frame, all in the legend, whose text layout changed in 3.5.0.
+* VisIt ex01, ex02, ex03 and ex11 (`shaheen3-cpu`, `shaheen3-ppn` and
+  `ibex-cpu`; Ibex's ex11 run on the login node, see section 5): 0.8% of
+  each frame, all in the legend, whose text layout changed in 3.5.0.
 * VisIt ex06: see "ex06's QRAIN limits are fixed" (section 6).
-* ParaView ex06 (`shaheen3-cpu`): 12.1%, all in the Surface LIC noise
-  texture on the ground plane. ParaView 6.2.1 with EGL on `ppn` matched its
-  baselines and needed nothing.
+* ParaView ex06 (`shaheen3-cpu` and `ibex-cpu`): 12.1% and 11.8%, all in
+  the Surface LIC noise texture on the ground plane. ParaView 6.2.1 with EGL
+  on Shaheen `ppn` and on an Ibex A100 matched its baselines and needed
+  nothing; so did ParaView's ex11 on Ibex.
 * VisIt 3.5.0 prints the GridInformation query as `dims={Nx=50,Ny=50,Nz=50}`
   where 3.4 printed `dims={50,50,50}`; ex00 and ex05 drop the labels, so
   their shared `known_good_value.txt` holds for both versions.
 
-With these, both suites pass on the new builds on Shaheen, and VisIt 3.4.2
+Each Ibex image is pixel identical to its Shaheen counterpart. With these,
+both suites pass on the new builds on Shaheen and Ibex, and VisIt 3.4.2
 and ParaView 6.1.0 fail the re-blessed images. Since then the two
 `MODULES.sh` scripts load VisIt 3.5.0 and ParaView 6.2.1 by default on
 Shaheen and Ibex, from each cluster's vis2 tree (`module use`) until the
