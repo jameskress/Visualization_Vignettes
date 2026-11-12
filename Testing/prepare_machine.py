@@ -395,14 +395,44 @@ def step_time_series(args, pvbatch):
 
     if args.check:
         return False
-    if pvbatch is None:
+    return run([pvbatch, TIME_SERIES_GENERATOR], cwd=REPO)
+
+
+def step_time_series_for_visit():
+    """The XML time series, as the VisIt suite needs it: present and current.
+
+    Unlike step_time_series this cannot build it (no pvbatch), so it never
+    regenerates and ignores --force, and it requires the series even when
+    its source is absent: without the series ex05 and ex12 cannot run.
+    """
+    recorded = 0
+    if os.path.exists(TIME_SERIES_MANIFEST):
+        try:
+            with open(TIME_SERIES_MANIFEST, "r") as handle:
+                recorded = len(json.load(handle).get("timesteps", []))
+        except (ValueError, OSError):
+            recorded = 0
+    source_count = 0
+    if os.path.isdir(TIME_SERIES_SOURCE):
+        source_count = len(
+            [n for n in os.listdir(TIME_SERIES_SOURCE) if n.lower().endswith(".vtk")]
+        )
+    build = (
+        "the VisIt suite reads it (ex05, ex12) but it is built with pvbatch: "
+        "run `python3 Testing/prepare_machine.py --tool ParaView` with a "
+        "ParaView module loaded"
+    )
+    if recorded == 0:
+        bad("XML time series missing: " + build)
+        return False
+    if source_count and recorded != source_count:
         bad(
-            "XML time series: the VisIt suite reads it (ex05, ex12) but it is built with pvbatch: "
-            "run `python3 Testing/prepare_machine.py --tool ParaView` with a "
-            "ParaView module loaded"
+            "XML time series has {0} timestep(s), source has {1} -- stale: "
+            "{2}".format(recorded, source_count, build)
         )
         return False
-    return run([pvbatch, TIME_SERIES_GENERATOR], cwd=REPO)
+    ok("XML time series present ({0} timestep(s))".format(recorded))
+    return True
 
 
 def step_topologies_for_visit():
@@ -616,7 +646,7 @@ def main(argv=None):
                     if not step_topologies_for_visit():
                         outstanding += 1
                 if wanted is None or wanted & {5, 12}:
-                    if not step_time_series(args, None):
+                    if not step_time_series_for_visit():
                         outstanding += 1
         print("")
 
