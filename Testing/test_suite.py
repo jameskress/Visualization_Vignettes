@@ -1555,6 +1555,9 @@ def preflight(args):
         if args.test_number:
             # Only the fixtures the selected vignettes read are required.
             check += ["--tests"] + [str(n) for n in args.test_number]
+        if getattr(args, "data_dir", None):
+            # The vignettes read their datasets from there, so check there.
+            check += ["--data-dir", args.data_dir]
         status = prepare_machine.main(check)
     except SystemExit as exc:  # argparse inside prepare_machine
         status = int(exc.code or 0)
@@ -1587,7 +1590,12 @@ def preflight(args):
 
 
 def main(argv=None):
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.test_number and any(n < 0 for n in args.test_number):
+        # A negative number would index the vignette list from the end
+        # (-1 is ex12) while the preflight checked a different selection.
+        parser.error("--test_number takes vignette numbers 0 and up")
 
     test_directory = os.path.join(args.root_directory, args.test_type + "_Vignettes")
     if not os.path.isdir(test_directory):

@@ -95,6 +95,27 @@ LARGE_DATA_MARKERS = (
 )
 
 
+def use_data_dir(path):
+    """Check fixtures under `path` instead of the repository's data/.
+
+    For test_suite.py --data-dir, whose vignettes read their datasets from
+    there. Only the checks move: the generators always write into the
+    repository's data/, so this is accepted with --check only.
+    """
+    global TOPOLOGY_DIR, TOPOLOGY_MANIFEST, TIME_SERIES_DIR
+    global TIME_SERIES_MANIFEST, TIME_SERIES_SOURCE, LARGE_DATA_MARKERS
+    data = os.path.abspath(path)
+    TOPOLOGY_DIR = os.path.join(data, "topologies")
+    TOPOLOGY_MANIFEST = os.path.join(TOPOLOGY_DIR, "topologies_manifest.json")
+    TIME_SERIES_DIR = os.path.join(data, "varying_series_xml")
+    TIME_SERIES_MANIFEST = os.path.join(TIME_SERIES_DIR, "manifest.json")
+    TIME_SERIES_SOURCE = os.path.join(data, "varying_data")
+    LARGE_DATA_MARKERS = (
+        os.path.join(data, "cyclone-chapala-2015-11-02_00-00-00-mb.vtm"),
+        os.path.join(data, "currentRainfall.silo"),
+    )
+
+
 GREEN, YELLOW, RED, RESET = "\033[32m", "\033[33m", "\033[31m", "\033[0m"
 if not sys.stdout.isatty():
     GREEN = YELLOW = RED = RESET = ""
@@ -520,6 +541,11 @@ def main(argv=None):
         "among them; without --tests, every vignette is assumed.",
     )
     parser.add_argument(
+        "--data-dir",
+        help="With --check: look for the data fixtures here instead of the "
+        "repository's data/ (test_suite.py --data-dir passes its own).",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Regenerate everything, even what looks current.",
@@ -532,6 +558,13 @@ def main(argv=None):
         "only ex06's large download is absent. Usable as a preflight.",
     )
     args = parser.parse_args(argv)
+    if args.data_dir:
+        if not args.check:
+            parser.error(
+                "--data-dir is accepted with --check only: the generators "
+                "write into the repository's data/"
+            )
+        use_data_dir(args.data_dir)
 
     print("Repository : {0}".format(REPO))
     print("")
