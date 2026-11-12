@@ -77,6 +77,10 @@ IMAGE_RESULTS_FILENAME = "image_comparison_results.json"
 TEXT_RESULTS_FILENAME = "text_comparison_results.json"
 NUMERIC_RESULTS_FILENAME = "results_comparison.json"
 CSV_RESULTS_FILENAME = "csv_comparison_results.json"
+# Which baselines the comparisons beside it used: {"baseline_ref": REF or
+# null}. Written by the run that writes them, so a report that gathers a
+# vignette's comparisons from an earlier run still names their source.
+BASELINE_SOURCE_FILENAME = "baseline_source.json"
 
 
 # ---------------------------------------------------------------------------
@@ -966,9 +970,9 @@ def create_summary_report(
     correct; reporting a stale verdict is not.
     """
     summary_report = {
-        # The git ref the baselines were read from (--baseline-ref), or None
-        # for the working tree's.
-        "baseline_ref": BASELINE_REF_NAME,
+        # The git refs the baselines were read from (--baseline-ref), each
+        # vignette's from the run that compared it; null is the working tree.
+        "baseline_refs": [],
         "test_results": {},
         "any_tests_failed": False,
         "failed_image_comparisons": [],
@@ -1010,7 +1014,16 @@ def create_summary_report(
             "numeric_comparison_passed": True,
             "csv_comparison_passed": True,
             "performance_stable": True,
+            "baseline_ref": None,
         }
+        source_file = os.path.join(testing_dir, BASELINE_SOURCE_FILENAME)
+        try:
+            with open(source_file, "r") as handle:
+                test_status["baseline_ref"] = json.load(handle).get("baseline_ref")
+        except (OSError, ValueError, AttributeError):
+            pass
+        if test_status["baseline_ref"] not in summary_report["baseline_refs"]:
+            summary_report["baseline_refs"].append(test_status["baseline_ref"])
 
         gpu_exempt = is_gpu_test_allowed_to_fail(testing_dir) and args_non_gpu_machine
 
@@ -1218,6 +1231,7 @@ def clean_test_files(test_directory):
         TEXT_RESULTS_FILENAME,
         NUMERIC_RESULTS_FILENAME,
         CSV_RESULTS_FILENAME,
+        BASELINE_SOURCE_FILENAME,
         RUN_RESULT_FILENAME,
         "output.log",
         "error.log",
@@ -1367,6 +1381,8 @@ def run_test(test_dir, dir_name, args):
         comparison_results = compare_images(baseline_dir, test_dir, tolerance=tolerance)
     with open(os.path.join(testing_dir, IMAGE_RESULTS_FILENAME), "w") as handle:
         json.dump(comparison_results, handle, indent=4)
+    with open(os.path.join(testing_dir, BASELINE_SOURCE_FILENAME), "w") as handle:
+        json.dump({"baseline_ref": BASELINE_REF_NAME}, handle, indent=4)
 
     # -- numeric comparison ------------------------------------------------
     numeric = compare_numeric_results(test_dir, args)

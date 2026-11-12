@@ -926,9 +926,11 @@ VV_VISIT_MODULE=visit/3.4.2 \
 `--baseline-ref` reads every baseline (images, numbers, CSVs, known-good
 text, machine directories and shared) from the tagged commit, into a
 temporary directory, and leaves the working tree alone. The summary report
-records which ref it used. It cannot be combined with `--bless`. Only the
-baselines come from the tag: the vignettes run as they are now, so if a
-vignette changed after the tag, check out the tag itself instead.
+records, for each vignette, which ref its comparisons used
+(`baseline_ref`, null for the working tree). It cannot be combined with
+`--bless`. Only the baselines come from the tag: the vignettes run as they
+are now, so if a vignette changed after the tag, check out the tag itself
+instead.
 
 Before re-blessing for the next build, tag the commit whose baselines match
 the outgoing one (`git tag -a baselines/<tool>-<version> <commit>`, then
