@@ -478,6 +478,18 @@ With that, ex07 at 16 ranks on 4 nodes ends in 5.5 s.
 GPU baselines by that much on a few percent of shaded pixels, which failed
 ex05 five frames out of five at a floor of 1; real changes are 60+ levels.
 
+**ex06's QRAIN limits are fixed.** In VisIt's ex06 session the rain water
+(QRAIN) Pseudocolor has its minimum and maximum set to 0.00045 and
+0.0172946. In ActualData mode VisIt takes the legend and colour range from
+the outer surface it draws, after its face list and clean up step, not
+from all points. Since VisIt 3.5.0 (commit 2e11202063, #20527) that clean
+up always runs, so after the Isovolume the range is the surface maximum,
+0.01066, while the real maximum (Query Max) is 0.0173, inside the cloud.
+VisIt 3.4.2 left the interior points in and reached 0.0173 by chance.
+Fixed limits give the same colours in every version, match ParaView's
+ex06 (which colours QRAIN up to 0.0172946), and match the baseline, which
+was made with 0.0173 at the top.
+
 **Mesa's 3D texture limit is 2048.** ex06's volumes vanished (56% of the frame
 different) because llvmpipe refuses a 2240-wide volume texture. ex06 now
 resamples at 2048 on every machine, and its baseline was re-blessed on the
