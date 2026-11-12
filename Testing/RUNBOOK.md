@@ -344,10 +344,19 @@ What the job scripts work around, so you do not rediscover it:
   two-minute, one-process job, which is all a login node should carry.
   With ParaView 6.2.1 loaded, Xvfb itself segfaults while loading its GLX
   extension (12 Nov 2026), because the module's libraries are on the
-  library path. Start it before loading the modules and run without the
-  wrapper: `Xvfb :<n> -screen 0 1280x1280x24 -nolisten tcp &`, `export
-  DISPLAY=:<n>`, then the modules and `python -E test_suite.py ...`. VisIt
-  3.5.0's ex11 runs the same way, with `--test_type VisIt`.
+  library path. Start it before loading the modules, with a private
+  cookie (the login node is shared, and without `-auth` any local account
+  could connect to the display), and run without the wrapper:
+
+  ```bash
+  export XAUTHORITY="$(mktemp)" DISPLAY=:<n>
+  xauth -f "$XAUTHORITY" add "$DISPLAY" . "$(mcookie)"
+  Xvfb "$DISPLAY" -auth "$XAUTHORITY" -screen 0 1280x1280x24 -nolisten tcp &
+  # then the modules, the venv, and: python -E test_suite.py ... --test_number 11
+  kill %1; rm -f "$XAUTHORITY"
+  ```
+
+  VisIt 3.5.0's ex11 runs the same way, with `--test_type VisIt`.
 
 ### Submission scripts instead of an interactive session
 
