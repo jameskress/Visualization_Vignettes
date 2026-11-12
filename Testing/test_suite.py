@@ -1746,6 +1746,16 @@ def main(argv=None):
         if args.bless:
             print("Error: --baseline-ref reads old baselines; --bless writes new ones.")
             return 2
+        # The vignette reads the selected baselines too, through a temporary
+        # directory this process owns. A submitted job runs after this
+        # process has gone, and --generate-metrics reuses verdicts (an image
+        # tolerance set from the rank count) decided against other baselines.
+        if args.submit or args.generate_metrics:
+            print(
+                "Error: --baseline-ref needs the vignettes run here and now; "
+                "it cannot be combined with --submit or --generate-metrics."
+            )
+            return 2
         use_baseline_ref(args.baseline_ref)
 
     if args.bless:

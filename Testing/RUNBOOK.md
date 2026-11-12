@@ -928,7 +928,8 @@ text, machine directories and shared) from the tagged commit, into a
 temporary directory, and leaves the working tree alone. The summary report
 records, for each vignette, which ref its comparisons used
 (`baseline_ref`, null for the working tree). It cannot be combined with
-`--bless`. Only the baselines come from the tag: the vignettes run as they
+`--bless`, `--submit` or `--generate-metrics`: the vignettes must run in
+the same suite invocation, which is how the batch scripts run them. Only the baselines come from the tag: the vignettes run as they
 are now, so if a vignette changed after the tag, check out the tag itself
 instead.
 
