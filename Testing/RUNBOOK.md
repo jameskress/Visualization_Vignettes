@@ -54,8 +54,9 @@ the vignettes run inside `pvbatch` or the VisIt CLI and import only the
 standard library, deliberately, so that one `vignette_common.py` works under
 three interpreters.
 
-For reference, the bundled interpreters are ParaView 6.1.0 → Python 3.12 and
-VisIt 3.4.2 → Python 3.9. Neither is the one you build the venv with.
+For reference, the bundled interpreters are ParaView 6.2.1 → Python 3.12 and
+VisIt 3.5.0 → Python 3.13 (3.4.2 bundled 3.9). Neither is the one you build
+the venv with.
 
 **Check before you build anything:**
 
@@ -230,9 +231,9 @@ python test_suite.py ../ --test_type ParaView --paraview_version <version> \
 ```
 
 ```bash
-source VisIt_Vignettes/MODULES.sh                 # visit/3.4.2 on both Ibex and Shaheen
+source VisIt_Vignettes/MODULES.sh                 # visit/3.5.0 on both Ibex and Shaheen
 source $SCRATCH/testing_visit_env/bin/activate
-python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
+python test_suite.py ../ --test_type VisIt --visit_version 3.5.0 \
   --machine_name ibex-cpu --machine ibex --launcher mpirun \
   --image-tolerance 0.0075 \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
@@ -332,7 +333,9 @@ What the job scripts work around, so you do not rediscover it:
   so the numeric baseline depended on the build. The AMR now goes to Contour
   unmerged on every build and the baseline is the unmerged numbers (re-blessed
   25 Oct 2026).
-* `visit/3.4.2` is the only VisIt; `VisIt_Vignettes/MODULES.sh` loads it.
+* `VisIt_Vignettes/MODULES.sh` loads `visit/3.5.0` from
+  `/sw/vis2/ibex-rl9-gpu.2026.11/modules` (12 Nov 2026), the build the
+  baselines were blessed with.
 * **Ibex compute nodes have no Xvfb**, so ex11 (the one vignette that needs a
   display) is skipped by the batch suites. The login node has `/usr/bin/Xvfb`;
   run ex11 there for a record, with the same `--run-id` and `--launcher none`:
@@ -379,7 +382,7 @@ source $SCRATCH/testing_paraview_env/bin/activate
 pip install pandas numpy pillow matplotlib psutil
 deactivate
 
-module load paraview                       # 6.1.0-mesa is the default
+source ParaView_Vignettes/MODULES.sh mesa  # paraview/6.2.1-mesa (see below)
 python3 Testing/prepare_machine.py
 python3 Testing/prepare_machine.py --check # expect 0, or 3 without ex06 data
 ```
@@ -394,44 +397,31 @@ source $SCRATCH_IOPS/sw/testing_paraview_env/bin/activate   # AFTER the modules,
 srun --nodes=1 --ntasks=8 --cpus-per-task=24 -p workq --time=00:40:00 \
      --mem=200G -A <account> --pty /bin/bash
 cd Testing
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
   --machine_name shaheen3-cpu --machine shaheen --launcher srun \
   --image-tolerance 0.0075 --non_gpu_machine \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
 
 ```bash
-source VisIt_Vignettes/MODULES.sh          # visit/3.4.2, Shaheen III's default
+source VisIt_Vignettes/MODULES.sh          # visit/3.5.0 (see below)
 source $SCRATCH_IOPS/sw/testing_visit_env/bin/activate
 python3 Testing/prepare_machine.py --tool VisIt
-python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
-  --machine_name shaheen3-cpu --machine shaheen --launcher srun \
-  --nodes 1 --ranks 8 --image-tolerance 0.0075 \
-  --test_number 0 1 2 3 4 5 7 8 9 10 12 --timeout 1800
-```
-
-ex06's Shaheen baselines are from VisIt 3.5.0 (see "ex06's QRAIN limits
-are fixed" below), so until 3.5.0 becomes the default, run ex06 on its own
-with it, in a new shell:
-
-```bash
-module use /sw/vis2/shaheen3.2026.11/modules
-export VV_VISIT_MODULE=visit/3.5.0
-source VisIt_Vignettes/MODULES.sh
-source $SCRATCH_IOPS/sw/testing_visit_env/bin/activate
-cd Testing
 python test_suite.py ../ --test_type VisIt --visit_version 3.5.0 \
   --machine_name shaheen3-cpu --machine shaheen --launcher srun \
   --nodes 1 --ranks 8 --image-tolerance 0.0075 \
-  --test_number 6 --timeout 1800
+  --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
+
+`VisIt_Vignettes/MODULES.sh` loads `visit/3.5.0` from
+`/sw/vis2/shaheen3.2026.11/modules` (12 Nov 2026), the build the Shaheen
+baselines were blessed with, although the site default is still 3.4.2
+until the release.
 
 As a batch job, which also runs ex11 under Xvfb afterwards (the compute nodes
 have it): `Testing/shaheen_visit_suite.sbat`, submitted from `Testing/`, with
 the same `TESTS`, `RANKS` (default 8, the rank count ex06 is blessed at) and
-`EXTRA` knobs as the ParaView one. Its default run includes ex06, which fails on
-3.4.2; run ex06 as `VV_VISIT_MODULE=visit/3.5.0 TESTS=6 sbatch
-shaheen_visit_suite.sbat` after the `module use` above. Inside the allocation the engine starts
+`EXTRA` knobs as the ParaView one. Inside the allocation the engine starts
 as a job step (`-l srun -nn 1 -np 8`), which the harness arranges itself.
 
 First VisIt run on Shaheen (21 Oct 2026): 11 of 13 clean. ex06's image
@@ -442,8 +432,8 @@ metrics, which are launch facts and are now notes; its shared numeric
 baseline was re-blessed on the workstation.
 
 **Order and `PYTHONPATH` matter on Shaheen** (found 21 Oct 2026). The
-`paraview/6.1.0-mesa` module prepends ParaView's own `lib/python3.12` and its
-`site-packages` to `PYTHONPATH`. Any other python then imports ParaView's 3.12
+`paraview/6.2.1-mesa` module (and 6.1.0 before it) prepends ParaView's own
+`lib/python3.12` and its `site-packages` to `PYTHONPATH`. Any other python then imports ParaView's 3.12
 standard library and dies with `AssertionError: SRE module mismatch` on the
 first `import re`. `pvbatch` does not need that variable, so unset it after
 `MODULES.sh`. The module also prepends ParaView's `bin`, which carries a
@@ -452,7 +442,7 @@ And check the venv really holds the packages: a venv built on 2 Oct had none,
 and only looked fine because the `python/3.10.13` module's own `site-packages`
 was on `PYTHONPATH` at the time.
 
-**Shaheen's ParaView has no numpy.** `paraview/6.1.0-mesa` ships without it, so
+**Shaheen's ParaView has no numpy.** `paraview/6.1.0-mesa` and 6.2.1 ship without it, so
 Python Annotation renders the literal text "(error)" and ex05's frames fail the
 image gate at 2 to 4% (21 Oct 2026). Give ParaView's own python a user-site
 copy, built for its interpreter (3.12), on the iops disk:
@@ -508,12 +498,10 @@ ex06 (which colours QRAIN up to 0.0172946). VisIt 3.5.0 also changes the
 terrain shading and the legend text layout, 4.9% of ex06's frame on
 Shaheen (the QRAIN limits are 0.06% of that), so ex06's Shaheen baselines
 (`shaheen3-cpu`, `shaheen3-ppn`) and its new Ibex baseline (`ibex-cpu`)
-were blessed with VisIt 3.5.0 and these limits on 12 Nov 2026. VisIt 3.4.2
-no longer passes them, although it is still the default module on both
-clusters until the 3.5.0 release, so test ex06 with
-`VV_VISIT_MODULE=visit/3.5.0` (section 12; on Ibex after `module use
-/sw/vis2/ibex-rl9-gpu.2026.11/modules`). The shared baseline, which the
-workstation uses, is still from VisIt 3.4 until it is re-blessed there.
+were blessed with VisIt 3.5.0 and these limits on 12 Nov 2026, and
+`MODULES.sh` loads 3.5.0 on both clusters. VisIt 3.4.2 no longer passes
+them. The shared baseline, which the workstation uses, is still from VisIt
+3.4 until it is re-blessed there.
 
 **Mesa's 3D texture limit is 2048.** ex06's volumes vanished (56% of the frame
 different) because llvmpipe refuses a 2240-wide volume texture. ex06 now
@@ -575,13 +563,13 @@ from `Testing/` with the same `TESTS`, `RANKS` and `EXTRA` knobs as the workq
 ones. Run `TESTS="8"` first, for the reason below.
 
 ```bash
-source ParaView_Vignettes/MODULES.sh egl     # paraview/6.1.0-egl
+source ParaView_Vignettes/MODULES.sh egl     # paraview/6.2.1-egl
 source $SCRATCH/testing_paraview_env/bin/activate
 srun --nodes=1 --ntasks=4 --cpus-per-task=16 -p ppn --time=00:40:00 \
      --mem=200G -A <account> --pty /bin/bash
 cd Testing
 python3 prepare_machine.py --check
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
   --machine_name shaheen3-ppn-gpu-L40 --machine shaheen --launcher srun \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
@@ -589,19 +577,9 @@ python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
 ```bash
 source VisIt_Vignettes/MODULES.sh
 source $SCRATCH/testing_visit_env/bin/activate
-python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
+python test_suite.py ../ --test_type VisIt --visit_version 3.5.0 \
   --machine_name shaheen3-ppn --machine shaheen --launcher srun \
-  --nodes 1 --ranks 8 --test_number 0 1 2 3 4 5 7 8 9 10 12 --timeout 1800
-```
-
-ex06 on `ppn` also has a VisIt 3.5.0 baseline. Run it on its own with
-3.5.0 as a batch job, which requests the `ppn` partition itself (the
-`--machine_name` only labels the results, it does not choose the node),
-from `Testing/`:
-
-```bash
-module use /sw/vis2/shaheen3.2026.11/modules
-VV_VISIT_MODULE=visit/3.5.0 TESTS=6 sbatch shaheen_ppn_visit_suite.sbat
+  --nodes 1 --ranks 8 --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
 
 Three machine names already exist in the history for Shaheen and they mean
@@ -614,7 +592,7 @@ Run **ex08 first** on any GPU configuration. It exists to prove the backend
 is what you asked for, and it takes seconds:
 
 ```bash
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
   --machine_name shaheen3-ppn-gpu-L40 --test_number 8 --no-metrics
 ```
 
@@ -764,7 +742,7 @@ python3 -m venv $SCRATCH/testing_paraview_env
 source $SCRATCH/testing_paraview_env/bin/activate
 pip install --no-index --find-links=$SCRATCH/offline_bundle/wheelhouse \
     pandas numpy pillow matplotlib psutil
-module load paraview/6.1.0-egl
+source ParaView_Vignettes/MODULES.sh egl    # paraview/6.2.1-egl
 python3 Testing/prepare_machine.py          # builds fixtures with THIS build
 python3 Testing/prepare_machine.py --check  # must be 0 or 3
 
@@ -773,10 +751,10 @@ groups | grep video                         # or none of this works
 srun --nodes=1 --ntasks=4 --cpus-per-task=16 -p ppn --time=00:40:00 \
      --mem=200G -A <account> --pty /bin/bash
 cd Testing
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
   --machine_name shaheen3-ppn-gpu-L40 --machine shaheen --launcher srun \
   --test_number 8 --no-metrics              # prove the backend first
-python test_suite.py ../ --test_type ParaView --paraview_version 6.1.0 \
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
   --machine_name shaheen3-ppn-gpu-L40 --machine shaheen --launcher srun \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
@@ -950,3 +928,24 @@ compared against the same images. The suite passes when its log ends without
 `Unexpected test failure detected` and `test_suite.py` exits 0 (13 means a
 failure). If a new build differs only in rendering, look at the diffs before
 re-blessing anything (section 10, and "How Baselines Work" in `README.md`).
+
+**VisIt 3.5.0 and ParaView 6.2.1 on Shaheen (12 Nov 2026).** The full
+suites on both builds were compared against the baselines, and what
+differed was re-blessed as Shaheen machine baselines after looking at each
+frame:
+
+* VisIt ex01, ex02, ex03 and ex11 (`shaheen3-cpu` and `shaheen3-ppn`): 0.8%
+  of each frame, all in the legend, whose text layout changed in 3.5.0.
+* VisIt ex06: see "ex06's QRAIN limits are fixed" (section 6).
+* ParaView ex06 (`shaheen3-cpu`): 12.1%, all in the Surface LIC noise
+  texture on the ground plane. ParaView 6.2.1 with EGL on `ppn` matched its
+  baselines and needed nothing.
+* VisIt 3.5.0 prints the GridInformation query as `dims={Nx=50,Ny=50,Nz=50}`
+  where 3.4 printed `dims={50,50,50}`; ex00 and ex05 drop the labels, so
+  their shared `known_good_value.txt` holds for both versions.
+
+With these, both suites pass on the new builds on Shaheen, and VisIt 3.4.2
+and ParaView 6.1.0 fail the re-blessed images. Since then the two
+`MODULES.sh` scripts load VisIt 3.5.0 and ParaView 6.2.1 by default on
+Shaheen and Ibex, from each cluster's vis2 tree (`module use`) until the
+builds are released into the site tree.

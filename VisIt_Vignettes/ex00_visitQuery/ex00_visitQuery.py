@@ -36,6 +36,7 @@
 # Author: James Kress, <james@jameskress.com>
 #
 import os
+import re
 import sys
 
 
@@ -115,7 +116,10 @@ print("\n")
 print("3D surface area: ", Query("3D surface area"))
 print("Average Value  : ", Query("Average Value"))
 print("Centroid:        ", Query("Centroid"))
-print("GridInformation: ", Query("Grid Information"))
+# VisIt 3.5.0 labels the dimensions ("dims={Nx=50,Ny=50,Nz=50}") where 3.4
+# printed "dims={50,50,50}". Drop the labels so known_good_value.txt, which
+# every machine shares, holds for both versions.
+print("GridInformation: ", re.sub(r"\bN[xyz]=", "", Query("Grid Information")))
 print("MinMax:          ", Query("MinMax", use_actual_data=1))
 print("NumNodes:        ", Query("NumNodes", use_actual_data=1))
 print("NumZones:        ", Query("NumZones", use_actual_data=1))
