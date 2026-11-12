@@ -192,12 +192,12 @@ plain terminal with the desktop quiet:
 ```bash
 export PARAVIEW_PATH=$HOME/packages/ParaView-6.2.1-MPI-Linux-Python3.12-x86_64/bin
 export VISIT_PATH=$HOME/packages/visit3_5_0.linux-x86_64/bin
-Testing/record_local_run.sh KW61316-<YYYY-MM-DD> KW61316.kaust.edu.sa
+Testing/record_local_run.sh "KW61316-$(date +%F)" KW61316.kaust.edu.sa
 ```
 
-Use the date of the record as the id (the 21 Oct 2026 one is
-`KW61316-2026-10-21`). An id that already exists is replaced, so reusing
-an old one would overwrite that earlier record.
+The id is the record's date (the 21 Oct 2026 one is `KW61316-2026-10-21`).
+An id that already exists is replaced, so reusing an old one would
+overwrite that earlier record.
 
 `record_local_run.sh` removes any earlier record with that id, runs both
 suites (VisIt's ex11 under Xvfb), and prints the gate and performance
