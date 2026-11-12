@@ -187,9 +187,11 @@ faster than September (185 s against 192 s) and the quick vignettes carry about
 one extra second each, which is what creating GLX contexts costs on this
 41-day-old X session with four monitors. That is the record. VisIt renders
 without X and never moved. So a clean workstation record is taken from a
-plain terminal with the desktop quiet:
+plain terminal with the desktop quiet, from the repository root (not
+`Testing/`, where the commands above leave you):
 
 ```bash
+cd "$(git rev-parse --show-toplevel)"
 export PARAVIEW_PATH=$HOME/packages/ParaView-6.2.1-MPI-Linux-Python3.12-x86_64/bin
 export VISIT_PATH=$HOME/packages/visit3_5_0.linux-x86_64/bin
 Testing/record_local_run.sh "KW61316-$(date +%F)" KW61316.kaust.edu.sa
