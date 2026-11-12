@@ -589,7 +589,7 @@ source VisIt_Vignettes/MODULES.sh
 source $SCRATCH/testing_visit_env/bin/activate
 python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
   --machine_name shaheen3-ppn --machine shaheen --launcher srun \
-  --nodes 1 --ranks 8 --test_number 0 1 2 3 4 5 7 8 9 10 11 12 --timeout 1800
+  --nodes 1 --ranks 8 --test_number 0 1 2 3 4 5 7 8 9 10 12 --timeout 1800
 ```
 
 ex06 on `ppn` also has a VisIt 3.5.0 baseline: run it on its own as in the
