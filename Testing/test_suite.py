@@ -491,7 +491,9 @@ def bless_test(test_dir, args):
 def shared_baseline_host(test_dir):
     """Host that blessed the shared baselines, read from the results JSON there."""
     script_name = vignette_script_name(test_dir)
-    path = os.path.join(test_dir, "Testing", "Baseline", "{0}_results.json".format(script_name))
+    path = os.path.join(
+        test_dir, "Testing", "Baseline", "{0}_results.json".format(script_name)
+    )
     try:
         with open(path, "r") as handle:
             document = json.load(handle)
@@ -547,7 +549,9 @@ def compare_images(baseline_dir, output_dir, selected_images=None, tolerance=Non
     )
 
 
-def compare_images_per_machine(shared_dir, machine_dir, machine_name, output_dir, tolerance):
+def compare_images_per_machine(
+    shared_dir, machine_dir, machine_name, output_dir, tolerance
+):
     """Compare each baselined image, preferring this machine's own baseline.
 
     The driving list is the union of the shared and machine baselines, so a
@@ -561,7 +565,9 @@ def compare_images_per_machine(shared_dir, machine_dir, machine_name, output_dir
     own = set(verify.list_baseline_images(machine_dir))
     results = []
     for name in sorted(shared | own):
-        source_dir, source = (machine_dir, machine_name) if name in own else (shared_dir, "shared")
+        source_dir, source = (
+            (machine_dir, machine_name) if name in own else (shared_dir, "shared")
+        )
         result = verify.compare_single_image(
             os.path.join(source_dir, name),
             os.path.join(output_images_dir, name),
@@ -1516,7 +1522,7 @@ def build_parser():
     return parser
 
 
-def preflight(args):
+def preflight(args, example_dirs=None):
     """Refuse to start when this machine's generated fixtures are stale.
 
     WHY THIS IS A GATE AND NOT A README LINE
@@ -1545,7 +1551,25 @@ def preflight(args):
 
     print("Preflight: checking this machine's generated fixtures...")
     try:
-        status = prepare_machine.main(["--check", "--tool", args.test_type])
+        check = ["--check", "--tool", args.test_type]
+        if args.test_number:
+            # Only the fixtures the selected vignettes read are required.
+            # --test_number indexes the vignettes found, which is not their
+            # exNN number when one is missing, and prepare_machine reasons
+            # in exNN, so pass the numbers of the vignettes actually chosen.
+            if example_dirs is not None:
+                numbers = [
+                    extract_example_number(example_dirs[i])
+                    for i in args.test_number
+                    if 0 <= i < len(example_dirs)
+                ]
+            else:
+                numbers = list(args.test_number)
+            check += ["--tests"] + [str(n) for n in numbers]
+        if getattr(args, "data_dir", None):
+            # The vignettes read their datasets from there, so check there.
+            check += ["--data-dir", args.data_dir]
+        status = prepare_machine.main(check)
     except SystemExit as exc:  # argparse inside prepare_machine
         status = int(exc.code or 0)
     except Exception as exc:  # noqa: BLE001 - a broken probe must not block
@@ -1577,7 +1601,12 @@ def preflight(args):
 
 
 def main(argv=None):
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.test_number and any(n < 0 for n in args.test_number):
+        # A negative number would index the vignette list from the end
+        # (-1 is ex12) while the preflight checked a different selection.
+        parser.error("--test_number takes vignette numbers 0 and up")
 
     test_directory = os.path.join(args.root_directory, args.test_type + "_Vignettes")
     if not os.path.isdir(test_directory):
@@ -1594,7 +1623,7 @@ def main(argv=None):
         return 0
 
     if not args.skip_preflight and not args.clean and not args.generate_metrics:
-        if not preflight(args):
+        if not preflight(args, example_dirs):
             return 2
 
     if args.bless:

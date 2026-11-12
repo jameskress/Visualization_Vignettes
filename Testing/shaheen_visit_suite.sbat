@@ -27,7 +27,7 @@ VISIT_OUT=$("$VISIT_PATH/visit" -version 2>&1) || { echo "ERROR: $VISIT_PATH/vis
 VISIT_VERSION=$(printf '%s\n' "$VISIT_OUT" | grep -o "version of VisIt is [0-9]\+\.[0-9]\+\.[0-9]\+" | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
 [ -n "$VISIT_VERSION" ] || { echo "ERROR: no version in the output of $VISIT_PATH/visit -version"; exit 1; }
 echo "python=$(which python) visit=$(which visit) module=$VV_VISIT_MODULE version=$VISIT_VERSION node=$(hostname) start=$(date)"
-python Testing/prepare_machine.py --tool VisIt || { echo "prepare_machine failed"; exit 1; }
+python Testing/prepare_machine.py --tool VisIt --skip-data-checks || { echo "prepare_machine failed"; exit 1; }
 cd Testing
 RANKS=${RANKS:-8}
 COMMON="../ --test_type VisIt --visit_version $VISIT_VERSION --machine_name shaheen3-cpu --machine shaheen --launcher srun --nodes 1 --ranks $RANKS --image-tolerance 0.0075 ${EXTRA:---no-metrics} --timeout 1800"
