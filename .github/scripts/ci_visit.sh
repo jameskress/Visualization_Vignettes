@@ -6,7 +6,7 @@
 # top of ci_paraview.sh. Run it locally exactly as CI does:
 #
 #     docker run --rm -v "$PWD":/workdir -v "$CACHE_DIR":/data-cache:ro \
-#         -e VISIT_TARBALL=visit-3.4.1.tar.gz visit-test-env \
+#         -e VISIT_TARBALL=visit-3.5.0.tar.gz visit-test-env \
 #         bash /workdir/.github/scripts/ci_visit.sh
 #
 set -e
@@ -15,7 +15,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-VISIT_VERSION="${VISIT_VERSION:-3.4.1}"
+VISIT_VERSION="${VISIT_VERSION:-3.5.0}"
 VISIT_TARBALL="${VISIT_TARBALL:-visit-${VISIT_VERSION}.tar.gz}"
 
 echo "Running VisIt Tests..."

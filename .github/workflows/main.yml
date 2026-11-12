@@ -330,8 +330,10 @@ jobs:
     if: ${{ needs.changes.outputs.vignettes == 'true' }}
     runs-on: self-hosted
     env:
-      VISIT_VER: "3.4.1"
-      VISIT_URL: "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz"
+      # The shared VisIt baselines are blessed with 3.5.0 (12 Nov 2026), so
+      # CI runs the same release; it renders them within tolerance.
+      VISIT_VER: "3.5.0"
+      VISIT_URL: "https://github.com/visit-dav/visit/releases/download/v3.5.0/visit3_5_0.linux-x86_64-ubuntu22.tar.gz"
       # FIX: Use $HOME instead of /opt so we don't need sudo
       CACHE_DIR: "$HOME/ci-cache"
 
