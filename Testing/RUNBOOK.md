@@ -950,3 +950,23 @@ compared against the same images. The suite passes when its log ends without
 `Unexpected test failure detected` and `test_suite.py` exits 0 (13 means a
 failure). If a new build differs only in rendering, look at the diffs before
 re-blessing anything (section 10, and "How Baselines Work" in `README.md`).
+
+**VisIt 3.5.0 and ParaView 6.2.1 on Shaheen (12 Nov 2026).** The full
+suites on both builds were compared against the baselines, and what
+differed was re-blessed as Shaheen machine baselines after looking at each
+frame:
+
+* VisIt ex01, ex02, ex03 and ex11 (`shaheen3-cpu` and `shaheen3-ppn`): 0.8%
+  of each frame, all in the legend, whose text layout changed in 3.5.0.
+* VisIt ex06: see "ex06's QRAIN limits are fixed" (section 6).
+* ParaView ex06 (`shaheen3-cpu`): 12.1%, all in the Surface LIC noise
+  texture on the ground plane. ParaView 6.2.1 with EGL on `ppn` matched its
+  baselines and needed nothing.
+* VisIt 3.5.0 prints the GridInformation query as `dims={Nx=50,Ny=50,Nz=50}`
+  where 3.4 printed `dims={50,50,50}`; ex00 and ex05 drop the labels, so
+  their shared `known_good_value.txt` holds for both versions.
+
+With these, both suites pass on the new builds on Shaheen, and VisIt 3.4.2
+and ParaView 6.1.0, still the default modules until the release, fail the
+re-blessed images. Run the suites with `VV_VISIT_MODULE=visit/3.5.0` and
+`VV_PARAVIEW_MODULE=paraview/6.2.1-mesa` (or `-egl` on `ppn`) meanwhile.
