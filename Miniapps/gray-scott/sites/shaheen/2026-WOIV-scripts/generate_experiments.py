@@ -888,9 +888,10 @@ echo "PHASE job_start $SLURM_JOB_START_TIME"
 # the saved script shows them.
 # A results directory that cannot be written would lose the run's numbers
 # too, so stop here rather than after the run.
-mkdir -p {results_dir} || exit 1
-cp "$0" {results_dir}/{id}_job.sbat || exit 1
-env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_)' | sort > {results_dir}/{id}_env.txt || exit 1
+mkdir -p "{results_dir}" || exit 1
+cp "$0" "{results_dir}/{id}_job.sbat" || exit 1
+# pipefail in a subshell, so a failure anywhere in the pipeline stops the job.
+(set -o pipefail; env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_)' | sort) > "{results_dir}/{id}_env.txt" || exit 1
 echo "PHASE run_start $(date +%s.%N)"
 
 {command}
@@ -988,10 +989,10 @@ done
 SIM_PERF=$(ls -dt $OUTPUT_DIR/perf/*/ 2>/dev/null | head -1)
 if [ -n "$SIM_PERF" ]; then
     echo "Reducing $SIM_PERF..."
-    cp $SIM_PERF/metadata.json {results_dir}/{id}_metadata.json 2>/dev/null
-    cp $SIM_PERF/summary.json {results_dir}/{id}_summary.json 2>/dev/null
+    cp "$SIM_PERF/metadata.json" "{results_dir}/{id}_metadata.json" 2>/dev/null
+    cp "$SIM_PERF/summary.json" "{results_dir}/{id}_summary.json" 2>/dev/null
     # Compress only after a successful reduction, so a failure keeps the raw logs.
-    if python $REDUCE $SIM_PERF {results_dir}/{id}_writer.csv; then
+    if python "$REDUCE" "$SIM_PERF" "{results_dir}/{id}_writer.csv"; then
         echo "Compressing perf/..."
         archive perf
     else
@@ -1002,7 +1003,7 @@ fi
 # 3. Reader timings (in transit runs).
 if [ -d "$OUTPUT_DIR/reader_timers" ]; then
     echo "Reducing reader_timers..."
-    if python $REDUCE $OUTPUT_DIR/reader_timers {results_dir}/{id}_reader.csv; then
+    if python "$REDUCE" "$OUTPUT_DIR/reader_timers" "{results_dir}/{id}_reader.csv"; then
         echo "Compressing reader_timers..."
         archive reader_timers
     else
