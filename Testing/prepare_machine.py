@@ -518,9 +518,10 @@ def step_time_series_for_visit():
             [n for n in os.listdir(TIME_SERIES_SOURCE) if n.lower().endswith(".vtk")]
         )
     build = (
-        "the VisIt suite reads it (ex05, ex12) but it is built with pvbatch: "
-        "run `python3 Testing/prepare_machine.py --tool ParaView` with a "
-        "ParaView module loaded" + where_to_build()
+        "the VisIt suite reads it (ex05, ex12) but it is built with pvbatch "
+        "from the shipped data/varying_data: run `python3 "
+        "Testing/prepare_machine.py --tool ParaView` with a ParaView module "
+        "loaded" + where_to_build()
     )
     if recorded == 0:
         if os.path.exists(TIME_SERIES_MANIFEST):
@@ -635,15 +636,20 @@ SESSION_UNREADABLE = "unreadable"
 def session_recorded_version(path):
     """The VisIt version a .session says wrote it, or None.
 
-    It is the first <Field name="Version"> of the file, near the top.
+    It is the first <Field name="Version"> of the file, near the top. A file
+    that is empty or does not end with the closing </Object> of a whole
+    session was cut short, and is SESSION_UNREADABLE.
     """
     try:
         with open(path, "r") as handle:
             head = handle.read(4096)
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            handle.seek(max(0, size - 256))
+            tail = handle.read()
     except (OSError, UnicodeDecodeError):
         return SESSION_UNREADABLE
-    if not head.strip():
-        # Empty or truncated to nothing: not a session at all.
+    if not head.strip() or not tail.rstrip().endswith("</Object>"):
         return SESSION_UNREADABLE
     match = re.search(r'<Field name="Version" type="string">([^<]+)</Field>', head)
     return match.group(1).strip() if match else None
