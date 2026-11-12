@@ -62,18 +62,24 @@ echo "Loading modules for OS Version: $OSVERSION"
 case "$OSVERSION" in
 "\"CentOS\""* | "\"Rocky Linux\""* | "\"Red Hat Enterprise Linux\""* | "\"AlmaLinux\""*) # Ibex
     module load ffmpeg
-    # visit/3.4.2 since Oct 2026; 3.4.1 is gone from Ibex. Fall back to the site default.
-    module load visit/3.4.2 2>/dev/null || module load visit
+    # visit/3.5.0 since 12 Nov 2026, the build the baselines were blessed
+    # with. Until it is released into the site tree it lives in the vis2
+    # tree. No fallback to the site default: an older VisIt fails the
+    # baselines, which should be loud, not quiet.
+    module use /sw/vis2/ibex-rl9-gpu.2026.11/modules
+    module load visit/3.5.0
     # The full loaded name (visit/3.5.0-gnu, say), parsed as the check below does.
     VV_VISIT_MODULE="$(module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -m1 '^visit/')"
   ;;
 "\"SLES\""*) # Shaheen
     module load ffmpeg 2>/dev/null   # no ffmpeg module on Shaheen III; harmless
-    # Spelled out so a newer build made visible by `module use` (or a new
-    # site default) does not change what the suites test; set VV_VISIT_MODULE
-    # to test another build.
-    module load visit/3.4.2
-    VV_VISIT_MODULE="visit/3.4.2"
+    # Spelled out so a new site default does not change what the suites
+    # test; set VV_VISIT_MODULE to test another build. visit/3.5.0 since 12
+    # Nov 2026, the build the baselines were blessed with; until it is
+    # released into the site tree it lives in the vis2 tree.
+    module use /sw/vis2/shaheen3.2026.11/modules
+    module load visit/3.5.0
+    VV_VISIT_MODULE="visit/3.5.0"
   ;;
 *)
     echo ERROR: Unrecognised operating system "$OSVERSION"
@@ -84,7 +90,7 @@ fi
 
 # Recorded for the vignettes and for the log. The engine that the
 # customlauncher submits must be this same version.
-export VV_VISIT_MODULE="${VV_VISIT_MODULE:-visit/3.4.2}"
+export VV_VISIT_MODULE="${VV_VISIT_MODULE:-visit/3.5.0}"
 # A short name (visit) loads the site default: record the full name loaded.
 if [[ "$VV_VISIT_MODULE" != */* ]]; then
     vv_full="$(module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -m1 "^$VV_VISIT_MODULE/")" \

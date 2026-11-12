@@ -218,6 +218,8 @@ def main():
                     + glob.glob(os.path.join(result_path, "*.tar.gz.tmp"))
                     + glob.glob(os.path.join(args.results_dir, f"{basename}_*.csv"))
                     + glob.glob(os.path.join(args.results_dir, f"{basename}_*.json"))
+                    + glob.glob(os.path.join(args.results_dir, f"{basename}_job.sbat"))
+                    + glob.glob(os.path.join(args.results_dir, f"{basename}_env.txt"))
                 )
 
                 for log in logs:
