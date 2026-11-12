@@ -593,41 +593,63 @@ def step_pv_state(args, pvbatch, pv_version):
     return run([pvbatch, PV_STATE_GENERATOR], cwd=PV_STATE_DIR)
 
 
+def session_recorded_version(path):
+    """The VisIt version a .session says wrote it, or None.
+
+    It is the first <Field name="Version"> of the file, near the top.
+    """
+    try:
+        with open(path, "r") as handle:
+            head = handle.read(4096)
+    except OSError:
+        return None
+    match = re.search(r'<Field name="Version" type="string">([^<]+)</Field>', head)
+    return match.group(1).strip() if match else None
+
+
 def step_visit_state(args, visit, visit_ver):
     """ex11_visit.session and ex11_series.visit -- generated, not portable.
 
     The session is version-locked to the VisIt that wrote it, and the .visit
     index beside it holds absolute paths into this machine's data directory.
-    Neither is committed. A .session records no version of its own that can be
-    read back cheaply, so presence is what is checked; --force regenerates.
-    Regenerate after any VisIt version change, and after moving the checkout
-    or the data directory.
+    Neither is committed. The session records the VisIt version that wrote it
+    near its top, so a session from another version (the default moved from
+    3.4.2 to 3.5.0, say) is regenerated; --force regenerates regardless.
+    Regenerate by hand after moving the checkout or the data directory.
     """
     missing = [
         os.path.basename(path)
         for path in (VISIT_STATE, VISIT_SERIES)
         if not os.path.exists(path)
     ]
+    recorded = None if missing else session_recorded_version(VISIT_STATE)
+    stale = bool(
+        recorded and visit_ver and visit_ver != "unknown" and recorded != visit_ver
+    )
 
-    if not missing and not args.force:
+    if not missing and not stale and not args.force:
         ok(
-            "ex11_visit.session and ex11_series.visit present (regenerate with "
-            "--force after a VisIt version change or a move)"
+            "ex11_visit.session ({0}) and ex11_series.visit present (regenerate "
+            "with --force after a move)".format(recorded or "version unrecorded")
         )
         return True
 
-    todo(
-        "ex11 VisIt fixtures {0}".format(
-            "missing: " + ", ".join(missing) if missing else "-- regenerating (--force)"
+    if missing:
+        reason = "missing: " + ", ".join(missing)
+    elif stale:
+        reason = "written by VisIt {0}, running {1} -- stale".format(
+            recorded, visit_ver
         )
-    )
+    else:
+        reason = "-- regenerating (--force)"
+    todo("ex11 VisIt fixtures {0}".format(reason))
     if args.check:
         return False
 
-    # --force means "rebuild these", so clear them first. Otherwise the
+    # --force (or a stale session) means "rebuild these", so clear them first. Otherwise the
     # presence check below would pass on the old files if the generator
     # failed, and report a rebuild that never happened.
-    if args.force:
+    if args.force or stale:
         for path in (VISIT_STATE, VISIT_SERIES):
             if os.path.exists(path):
                 os.remove(path)
