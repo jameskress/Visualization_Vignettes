@@ -49,7 +49,14 @@
 # the OpenGL window hint from the module name.
 if [ -n "${VV_PARAVIEW_MODULE:-}" ]; then
     echo "VV_PARAVIEW_MODULE=$VV_PARAVIEW_MODULE given: loading it directly"
-    module load "$VV_PARAVIEW_MODULE" || { echo "ERROR: module load $VV_PARAVIEW_MODULE failed" >&2; return 1 2>/dev/null || exit 1; }
+    # Shaheen's ParaView modules refuse to load under PrgEnv-cray (the
+    # default there), as the site branch below knows; swap first.
+    if grep -q '^NAME="SLES' /etc/os-release 2>/dev/null; then
+        module swap PrgEnv-cray PrgEnv-gnu 2>/dev/null
+    fi
+    # The load is checked below, with the site branches: a module command can
+    # return 0 for a module it did not load.
+    module load "$VV_PARAVIEW_MODULE"
     OSVERSION="override"
 else
 # Check OS so we know what machine we are on
@@ -101,6 +108,38 @@ esac
 fi
 
 export VV_PARAVIEW_MODULE
+# A module command can report success for a module it did not load
+# (Shaheen's Environment Modules 3.2), and the site branches discover the
+# version from the default module first, so check that this exact module
+# is now loaded and that the pvbatch on PATH is the one it supplies.
+# True if the executable $1 found on PATH lives in a PATH directory that
+# module $2 itself adds, read from `module show` (Tcl modules print
+# "prepend-path PATH <dir>", Lmod prints prepend_path("PATH","<dir>"); one
+# entry may hold several directories joined by ":"). This
+# rejects a same-named executable that was already on PATH from elsewhere.
+vv_exe_from_module() {
+    local exe dir d
+    exe="$(command -v "$1")" || return 1
+    dir="$(cd "$(dirname "$exe")" && pwd -P)" || return 1
+    while IFS= read -r d; do
+        [ -n "$d" ] && [ "$(cd "$d" 2>/dev/null && pwd -P)" = "$dir" ] && return 0
+    done < <(module show "$2" 2>&1 | sed -nE \
+        -e 's/^(prepend|append)-path[[:space:]]+PATH[[:space:]]+([^[:space:]]+).*/\2/p' \
+        -e 's/^(prepend|append)_path\("PATH",[[:space:]]*"([^"]+)".*/\2/p' | tr ':' '\n')
+    return 1
+}
+# A short name (paraview) loads the site default: record the full name loaded.
+if [[ "$VV_PARAVIEW_MODULE" != */* ]]; then
+    vv_full="$(module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -m1 "^$VV_PARAVIEW_MODULE/")" \
+        && VV_PARAVIEW_MODULE="$vv_full"
+    unset vv_full
+fi
+if ! module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -qxF "$VV_PARAVIEW_MODULE" \
+    || ! vv_exe_from_module pvbatch "$VV_PARAVIEW_MODULE"; then
+    echo "ERROR: $VV_PARAVIEW_MODULE is not loaded, or the pvbatch on PATH ($(command -v pvbatch || echo none)) is not from it" >&2
+    # shellcheck disable=SC2317  # exit is reached when the file is run, not sourced
+    return 1 2>/dev/null || exit 1
+fi
 echo "Loaded ParaView module: $VV_PARAVIEW_MODULE"
 
 # -----------------------------------------------------------------------------

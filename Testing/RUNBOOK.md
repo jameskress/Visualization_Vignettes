@@ -829,3 +829,77 @@ often deliberately the older build.
 | `sbatch` refuses the job | `ntasks-per-node x cpus-per-task` exceeds the node | 192 on Shaheen `workq`, 128 on `ppn`, as low as 30 on an Ibex GPU node |
 | Suite refuses to start | preflight failed | read what `--check` said; `--skip-preflight` exists but every way a stale fixture fails looks like a regression |
 | A venv copied from another machine does not work | venvs are not relocatable | rebuild it from the wheelhouse on this machine |
+
+## 12. Testing a new ParaView or VisIt build
+
+To check a build before it becomes a cluster's default (#92), make its module
+visible and name it; the batch scripts load it instead of the default and
+record the version of the `pvbatch` or `visit` they actually found:
+
+```bash
+module use /sw/vis2/<build>/modules
+cd /scratch/$USER/<fresh clone of master>/Testing
+# One suite at a time per clone: the second waits for the first.
+J=$(VV_PARAVIEW_MODULE=paraview/6.2.1-mesa sbatch --parsable shaheen_pv_suite.sbat)
+VV_VISIT_MODULE=visit/3.5.0 sbatch --dependency=afterany:$J shaheen_visit_suite.sbat
+```
+
+The GPU suites take the same variables. Run ex08 first on any GPU queue: it
+proves EGL found the GPU, and without it the rest is software rendering
+under a GPU label (section 7). On Shaheen `ppn`:
+
+```bash
+VV_PARAVIEW_MODULE=paraview/6.2.1-egl TESTS="8" sbatch shaheen_ppn_pv_suite.sbat
+# once ex08 has passed, the full suites, one after the other:
+J=$(VV_PARAVIEW_MODULE=paraview/6.2.1-egl sbatch --parsable shaheen_ppn_pv_suite.sbat)
+VV_VISIT_MODULE=visit/3.5.0 sbatch --dependency=afterany:$J shaheen_ppn_visit_suite.sbat
+```
+
+On Ibex, the A100 EGL line (section 5: no `--partition` for a GPU job, and
+at most 16 CPUs per A100):
+
+```bash
+sbatch --gres=gpu:1 --constraint=a100 --ntasks=4 --cpus-per-task=4 \
+  --export=ALL,VARIANT=egl,GPU=a100,TESTS=8,VV_PARAVIEW_MODULE=paraview/6.2.1-gnu-egl ibex_pv_suite.sbat
+```
+
+Run the suites of one clone one after another (for example with
+`sbatch --dependency=afterany:<job>`), never side by side.
+
+Use a fresh clone for each build under test, and never run two builds in
+one checkout at the same time: the generated fixtures (`data/topologies`,
+the VisIt session) are shared by the checkout, so a job preparing them for
+one build can change them under a job testing another. In a checkout
+prepared with another VisIt version, the generated `ex11_visit.session` is
+kept because `prepare_machine.py` checks it only for presence, and ex11 then
+fails; regenerate it first, from the repository root with the new module
+loaded: `python3 Testing/prepare_machine.py --tool VisIt --force`.
+(ParaView's generated fixtures record their version and are rebuilt.)
+
+A fresh clone has no ex06 data, and the suites then skip ex06 and still
+pass. Fetch it in each clone before the first suite (`cd data && bash
+fetchData.sh`, section 5), or record that the build was tested without
+ex06. Other skips are expected and are listed in the log as well: the Ibex
+batch suites leave ex11 to a separate run (section 5), so record a new
+build's result together with which vignettes ran. ex06 renders the
+largest data and the most plot types, so it is often where a new build
+differs.
+
+The ParaView jobs add numpy to ParaView's own Python from `sw/pv-site`, built
+for Python 3.12. If the new build's Python is another version, build a
+matching site and pass it as `VV_PV_SITE=<dir>`; otherwise Python Annotation
+renders "(error)" and ex05 fails its image check.
+
+On Ibex the ParaView names carry `-gnu-` (`paraview/6.2.1-gnu-egl`,
+`paraview/6.2.1-gnu-mesa`). `sbatch` passes the `module use` and the
+variable on to the job. A short name (`paraview`, `visit`) loads that
+site's default and the full name it loaded is recorded. A name that does
+not load, or loads without supplying `pvbatch` or `visit`, stops the job
+with an error, since a module system can report success for a module it did
+not find.
+
+The baselines belong to each test, not to a version, so a new build is
+compared against the same images. The suite passes when its log ends without
+`Unexpected test failure detected` and `test_suite.py` exits 0 (13 means a
+failure). If a new build differs only in rendering, look at the diffs before
+re-blessing anything (section 10, and "How Baselines Work" in `README.md`).

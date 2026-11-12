@@ -10,12 +10,15 @@
 #SBATCH --output=vv-pv-suite.%j.out
 # ParaView regression suite on an Ibex node as a batch job (RUNBOOK.md section 5).
 #   cd /ibex/scratch/$USER/<clone>/Testing && sbatch ibex_pv_suite.sbat             # CPU, mesa
-#   sbatch --partition=gpu --gres=gpu:1 --constraint=a100 --export=ALL,VARIANT=egl,GPU=a100 ibex_pv_suite.sbat
+#   sbatch --gres=gpu:1 --constraint=a100 --ntasks=4 --cpus-per-task=4 --export=ALL,VARIANT=egl,GPU=a100 ibex_pv_suite.sbat
+#   (no --partition for a GPU job: Ibex refuses it; at most 16 CPUs per A100, RUNBOOK section 5)
 #   TESTS="5 6" sbatch ibex_pv_suite.sbat             # a subset
 #   EXTRA="--run-id ibex-cpu-2026-10" sbatch ...      # the one recorded run; default is --no-metrics
 #   RANKS=4 sbatch ...                                # MPI ranks per vignette (default 1)
 # VARIANT=mesa (default) runs --machine_name ibex-cpu with the software-render tolerance;
 # VARIANT=egl runs --machine_name ibex-egl-$GPU against GPU-blessed baselines at the default tolerance.
+# shellcheck disable=SC1091  # sourced files are site paths that exist only at run time
+# shellcheck disable=SC2086  # $COMMON, $TESTS, $TOL and $EXTRA are split into arguments on purpose
 set -o pipefail
 # Ibex batch shells do not define `module`; a login shell (-l) plus this makes sure it exists.
 source /usr/share/Modules/init/bash                   # the batch shell has `module` as a binary that cannot change this shell's env
@@ -27,33 +30,43 @@ cd "${SLURM_SUBMIT_DIR:-$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")}/.." || 
 VARIANT=${VARIANT:-mesa}
 SW=${VV_IBEX_SW:-/ibex/scratch/$USER/hpcsaudi}          # venvs/vv and sw/pv-site live here
 module load python/3.11.0
-source ParaView_Vignettes/MODULES.sh $VARIANT
+source ParaView_Vignettes/MODULES.sh $VARIANT || { echo "MODULES.sh failed: not testing"; exit 1; }
 # The paraview module prepends its python3.12 dirs to PYTHONPATH, which breaks every other
 # python ("SRE module mismatch"), and its python ships no numpy. Same fix as Shaheen: reach
 # pvbatch/pvpython through a wrapper that sets PYTHONPATH for itself only, then unset it.
-PVSITE=$SW/sw/pv-site
+PVSITE=${VV_PV_SITE:-$SW/sw/pv-site}   # numpy for ParaView's own Python; VV_PV_SITE for a build with another Python
 REAL_PVBATCH=$(command -v pvbatch) || { echo "pvbatch not on PATH after MODULES.sh ($VV_PARAVIEW_MODULE)"; exit 1; }
-mkdir -p "$SW/sw/pvbin"
+# One wrapper directory per job, so jobs never share or delete each other's
+# wrappers. On scratch, which the vignettes' nodes share. This does not make
+# two builds safe in one clone: the generated fixtures are shared, so test
+# each build in its own clone (Testing/RUNBOOK.md, section 12).
+PVBIN="$SW/sw/pvbin.${SLURM_JOB_ID:-$$}"
+mkdir -p "$PVBIN" || exit 1
+trap 'rm -rf "$PVBIN"' EXIT
 for tool in pvbatch pvpython; do
-    cat > "$SW/sw/pvbin/$tool" <<WRAP
+    cat > "$PVBIN/$tool" <<WRAP
 #!/bin/bash
 export PYTHONPATH=$PVSITE
 exec $(dirname "$REAL_PVBATCH")/$tool "\$@"
 WRAP
-    chmod +x "$SW/sw/pvbin/$tool"
+    chmod +x "$PVBIN/$tool"
 done
 unset PYTHONPATH
-export PARAVIEW_PATH="$SW/sw/pvbin"
+export PARAVIEW_PATH="$PVBIN"
 export PATH="$PARAVIEW_PATH:$PATH"
 source "$SW/venvs/vv/bin/activate"                       # after the modules
-PV_VERSION=${VV_PARAVIEW_MODULE#paraview/}; PV_VERSION=${PV_VERSION%%-*}
-echo "python=$(which python) pvbatch=$(which pvbatch) module=$VV_PARAVIEW_MODULE version=$PV_VERSION node=$(hostname) start=$(date)"
+# The version of the ParaView actually loaded, not the module's name.
+# pvbatch prints "paraview version X.Y.Z" on stdout; parse only that.
+PV_OUT=$("$REAL_PVBATCH" --version 2>/dev/null) || { echo "ERROR: $REAL_PVBATCH --version failed"; exit 1; }
+PV_VERSION=$(printf '%s\n' "$PV_OUT" | grep -o "paraview version [0-9]\+\.[0-9]\+\.[0-9]\+" | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
+[ -n "$PV_VERSION" ] || { echo "ERROR: no version in '$PV_OUT' from $REAL_PVBATCH --version"; exit 1; }
+echo "python=$(which python) pvbatch=$(which pvbatch) module=$VV_PARAVIEW_MODULE version=$PV_VERSION ($PV_OUT) node=$(hostname) start=$(date)"
 if [ "$VARIANT" = "egl" ]; then
     MACHINE="ibex-egl-${GPU:?set GPU=a100|v100|...}"; TOL=""
 else
     MACHINE="ibex-cpu"; TOL="--image-tolerance 0.0075 --non_gpu_machine"
 fi
-cd Testing
+cd Testing || exit 1
 python -E prepare_machine.py || { echo "prepare_machine failed"; exit 1; }
 python -E test_suite.py ../ --test_type ParaView --paraview_version "$PV_VERSION" \
   --machine_name "$MACHINE" --machine ibex --launcher mpirun \

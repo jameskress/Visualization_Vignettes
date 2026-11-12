@@ -16,15 +16,21 @@
 set -o pipefail
 cd "${SLURM_SUBMIT_DIR:-$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")}/.." || exit 1
 module load python/3.10.13
-source VisIt_Vignettes/MODULES.sh
+source VisIt_Vignettes/MODULES.sh || { echo "MODULES.sh failed: not testing"; exit 1; }
 unset PYTHONPATH                                 # the python module's own entries; the venv has everything
 IOPS=${VV_SW:-${SCRATCH_IOPS:-/scratch/$USER/iops}}   # VV_SW: software root on a machine without the iops layout (air-gapped kit)
 source "$IOPS/sw/testing_visit_env/bin/activate"   # after the modules
-echo "python=$(which python) visit=$(which visit) node=$(hostname) start=$(date)"
+# The visit the harness will run: MODULES.sh points VISIT_PATH at it.
+# visit prints "The current version of VisIt is X.Y.Z." on stderr, so read
+# both streams but take the version only from that sentence.
+VISIT_OUT=$("$VISIT_PATH/visit" -version 2>&1) || { echo "ERROR: $VISIT_PATH/visit -version failed"; exit 1; }
+VISIT_VERSION=$(printf '%s\n' "$VISIT_OUT" | grep -o "version of VisIt is [0-9]\+\.[0-9]\+\.[0-9]\+" | grep -o "[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
+[ -n "$VISIT_VERSION" ] || { echo "ERROR: no version in the output of $VISIT_PATH/visit -version"; exit 1; }
+echo "python=$(which python) visit=$(which visit) module=$VV_VISIT_MODULE version=$VISIT_VERSION node=$(hostname) start=$(date)"
 python Testing/prepare_machine.py --tool VisIt || { echo "prepare_machine failed"; exit 1; }
 cd Testing
 RANKS=${RANKS:-8}
-COMMON="../ --test_type VisIt --visit_version 3.4.2 --machine_name shaheen3-cpu --machine shaheen --launcher srun --nodes 1 --ranks $RANKS --image-tolerance 0.0075 ${EXTRA:---no-metrics} --timeout 1800"
+COMMON="../ --test_type VisIt --visit_version $VISIT_VERSION --machine_name shaheen3-cpu --machine shaheen --launcher srun --nodes 1 --ranks $RANKS --image-tolerance 0.0075 ${EXTRA:---no-metrics} --timeout 1800"
 if [ -n "${TESTS:-}" ]; then
     python test_suite.py $COMMON --test_number $TESTS
     echo "suite exit=$? end=$(date)"

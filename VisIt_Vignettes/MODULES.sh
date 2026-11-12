@@ -45,6 +45,18 @@
 #
 # Author: James Kress, <james@jameskress.com>
 #
+# VV_VISIT_MODULE, if set, names the module to load on any cluster (a new
+# build under test, made visible first with `module use`), as
+# VV_PARAVIEW_MODULE does for ParaView.
+if [ -n "${VV_VISIT_MODULE:-}" ]; then
+    echo "VV_VISIT_MODULE=$VV_VISIT_MODULE given: loading it directly"
+    module load ffmpeg 2>/dev/null   # Ibex has one, Shaheen III does not
+    # A VisIt module already loaded (from the login environment, say)
+    # conflicts with the requested one, so unload it first. The module then
+    # prepends its own bin directory, so its visit is the one found below.
+    module unload visit 2>/dev/null
+    module load "$VV_VISIT_MODULE"
+else
 OSVERSION=$( < /etc/os-release awk -F 'NAME=' '{print $2; exit;}')
 echo "Loading modules for OS Version: $OSVERSION"
 case "$OSVERSION" in
@@ -52,12 +64,14 @@ case "$OSVERSION" in
     module load ffmpeg
     # visit/3.4.2 since Oct 2026; 3.4.1 is gone from Ibex. Fall back to the site default.
     module load visit/3.4.2 2>/dev/null || module load visit
-    VV_VISIT_MODULE="$(module list 2>&1 | grep -o 'visit/[0-9.]*' | head -1)"
+    # The full loaded name (visit/3.5.0-gnu, say), parsed as the check below does.
+    VV_VISIT_MODULE="$(module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -m1 '^visit/')"
   ;;
 "\"SLES\""*) # Shaheen
     module load ffmpeg 2>/dev/null   # no ffmpeg module on Shaheen III; harmless
-    # Shaheen III carries visit/3.4.2 only (21 Oct 2026); a bare `module load visit`
-    # does not resolve there, the version has to be spelled out.
+    # Spelled out so a newer build made visible by `module use` (or a new
+    # site default) does not change what the suites test; set VV_VISIT_MODULE
+    # to test another build.
     module load visit/3.4.2
     VV_VISIT_MODULE="visit/3.4.2"
   ;;
@@ -66,8 +80,50 @@ case "$OSVERSION" in
     exit 1 # terminate and indicate error
   ;;
 esac
+fi
 
 # Recorded for the vignettes and for the log. The engine that the
 # customlauncher submits must be this same version.
 export VV_VISIT_MODULE="${VV_VISIT_MODULE:-visit/3.4.2}"
-echo "Loaded VisIt module: $VV_VISIT_MODULE"
+# A short name (visit) loads the site default: record the full name loaded.
+if [[ "$VV_VISIT_MODULE" != */* ]]; then
+    vv_full="$(module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -m1 "^$VV_VISIT_MODULE/")" \
+        && VV_VISIT_MODULE="$vv_full"
+    unset vv_full
+fi
+# Shaheen's Environment Modules 3.2 returns 0 even for a module it cannot
+# find, and a visit already on PATH would hide a failed load, so check that
+# this exact module is listed as loaded (one name per line with -t, with any
+# "(default)" or "<aL>" tag dropped), so visit/3.4.2 never matches visit/3.4.20.
+if ! module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -qxF "$VV_VISIT_MODULE"; then
+    echo "ERROR: $VV_VISIT_MODULE is not loaded" >&2
+    # shellcheck disable=SC2317  # exit is reached when the file is run, not sourced
+    return 1 2>/dev/null || exit 1
+fi
+# True if the executable $1 found on PATH lives in a PATH directory that
+# module $2 itself adds, read from `module show` (Tcl modules print
+# "prepend-path PATH <dir>", Lmod prints prepend_path("PATH","<dir>"); one
+# entry may hold several directories joined by ":"). This
+# rejects a same-named executable that was already on PATH from elsewhere.
+vv_exe_from_module() {
+    local exe dir d
+    exe="$(command -v "$1")" || return 1
+    dir="$(cd "$(dirname "$exe")" && pwd -P)" || return 1
+    while IFS= read -r d; do
+        [ -n "$d" ] && [ "$(cd "$d" 2>/dev/null && pwd -P)" = "$dir" ] && return 0
+    done < <(module show "$2" 2>&1 | sed -nE \
+        -e 's/^(prepend|append)-path[[:space:]]+PATH[[:space:]]+([^[:space:]]+).*/\2/p' \
+        -e 's/^(prepend|append)_path\("PATH",[[:space:]]*"([^"]+)".*/\2/p' | tr ':' '\n')
+    return 1
+}
+# The test harness looks in $VISIT_PATH before PATH. Point it at the visit
+# this module supplies, so an inherited VISIT_PATH cannot select another build.
+if vv_exe_from_module visit "$VV_VISIT_MODULE"; then
+    VISIT_PATH="$(dirname "$(command -v visit)")"
+    export VISIT_PATH
+else
+    echo "ERROR: the visit on PATH ($(command -v visit || echo none)) is not from $VV_VISIT_MODULE" >&2
+    # shellcheck disable=SC2317  # exit is reached when the file is run, not sourced
+    return 1 2>/dev/null || exit 1
+fi
+echo "Loaded VisIt module: $VV_VISIT_MODULE ($VISIT_PATH/visit)"
