@@ -115,7 +115,7 @@ def visit_index_files(index):
                 line = line.strip()
                 if line and not line.startswith("!"):
                     names.append(os.path.join(os.path.dirname(index), line))
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return None
     return names or None
 
@@ -313,9 +313,10 @@ def topology_recorded_version():
         return None
     try:
         with open(TOPOLOGY_MANIFEST, "r") as handle:
-            return json.load(handle).get("paraview_version")
+            document = json.load(handle)
     except (ValueError, OSError):
         return None
+    return document.get("paraview_version") if isinstance(document, dict) else None
 
 
 def pvsm_recorded_version(path):
@@ -601,7 +602,7 @@ def session_recorded_version(path):
     try:
         with open(path, "r") as handle:
             head = handle.read(4096)
-    except OSError:
+    except (OSError, UnicodeDecodeError):
         return None
     match = re.search(r'<Field name="Version" type="string">([^<]+)</Field>', head)
     return match.group(1).strip() if match else None
