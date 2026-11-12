@@ -47,7 +47,10 @@ export PATH="${VISIT_DIR}:${PATH}"
 "${VISIT_DIR}/visit" -version
 
 cd Testing
-python3 prepare_machine.py --tool VisIt
+# --tests: the vignettes run below (keep in step). Without it prepare_machine
+# would require data/topologies and the XML time series, which only pvbatch
+# builds and this image has no ParaView (see the ex09 and ex12 note below).
+python3 prepare_machine.py --tool VisIt --tests 0 1 3 6 7 8 10 11
 
 # This job ran only ex00 for a long time, which meant it never compared a
 # single image: ex00 is a query vignette and has no baseline PNGs.

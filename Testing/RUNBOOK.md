@@ -411,6 +411,14 @@ python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
   --test_number 0 1 2 3 4 5 6 7 8 9 10 12 --timeout 1800
 ```
 
+`--tool VisIt` cannot build two fixtures the VisIt suite reads:
+`data/topologies` (ex09) and the XML time series (ex05, ex12). Both need
+`pvbatch`, so in a clone that has not run the ParaView suite, first run
+`python3 Testing/prepare_machine.py --tool ParaView` with the ParaView
+module loaded. Otherwise the VisIt preparation stops with that command
+(`--tests` limits the check to the vignettes about to run, as the batch
+scripts and the suite's preflight do).
+
 As a batch job, which also runs ex11 under Xvfb afterwards (the compute nodes
 have it): `Testing/shaheen_visit_suite.sbat`, submitted from `Testing/`, with
 the same `TESTS`, `RANKS` (default 8, the rank count ex06 is blessed at) and

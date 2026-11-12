@@ -491,7 +491,9 @@ def bless_test(test_dir, args):
 def shared_baseline_host(test_dir):
     """Host that blessed the shared baselines, read from the results JSON there."""
     script_name = vignette_script_name(test_dir)
-    path = os.path.join(test_dir, "Testing", "Baseline", "{0}_results.json".format(script_name))
+    path = os.path.join(
+        test_dir, "Testing", "Baseline", "{0}_results.json".format(script_name)
+    )
     try:
         with open(path, "r") as handle:
             document = json.load(handle)
@@ -547,7 +549,9 @@ def compare_images(baseline_dir, output_dir, selected_images=None, tolerance=Non
     )
 
 
-def compare_images_per_machine(shared_dir, machine_dir, machine_name, output_dir, tolerance):
+def compare_images_per_machine(
+    shared_dir, machine_dir, machine_name, output_dir, tolerance
+):
     """Compare each baselined image, preferring this machine's own baseline.
 
     The driving list is the union of the shared and machine baselines, so a
@@ -561,7 +565,9 @@ def compare_images_per_machine(shared_dir, machine_dir, machine_name, output_dir
     own = set(verify.list_baseline_images(machine_dir))
     results = []
     for name in sorted(shared | own):
-        source_dir, source = (machine_dir, machine_name) if name in own else (shared_dir, "shared")
+        source_dir, source = (
+            (machine_dir, machine_name) if name in own else (shared_dir, "shared")
+        )
         result = verify.compare_single_image(
             os.path.join(source_dir, name),
             os.path.join(output_images_dir, name),
@@ -1545,7 +1551,11 @@ def preflight(args):
 
     print("Preflight: checking this machine's generated fixtures...")
     try:
-        status = prepare_machine.main(["--check", "--tool", args.test_type])
+        check = ["--check", "--tool", args.test_type]
+        if args.test_number:
+            # Only the fixtures the selected vignettes read are required.
+            check += ["--tests"] + [str(n) for n in args.test_number]
+        status = prepare_machine.main(check)
     except SystemExit as exc:  # argparse inside prepare_machine
         status = int(exc.code or 0)
     except Exception as exc:  # noqa: BLE001 - a broken probe must not block
