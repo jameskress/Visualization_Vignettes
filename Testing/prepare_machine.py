@@ -105,19 +105,31 @@ def where_to_build():
 def visit_index_files(index):
     """The data files a .visit index names, relative to the index.
 
-    None when the index cannot be read or names no file: a fixture whose
+    None when the index cannot be read, names no file, or declares a block
+    count (!NBLOCKS n) that the entries do not divide into: a fixture whose
     index is unusable is incomplete, whatever else is present.
     """
     names = []
+    nblocks = None
     try:
         with open(index, "r") as handle:
             for line in handle:
                 line = line.strip()
-                if line and not line.startswith("!"):
+                if line.upper().startswith("!NBLOCKS"):
+                    try:
+                        nblocks = int(line.split()[1])
+                    except (IndexError, ValueError):
+                        return None
+                elif line and not line.startswith("!"):
                     names.append(os.path.join(os.path.dirname(index), line))
     except (OSError, UnicodeDecodeError):
         return None
-    return names or None
+    if not names:
+        return None
+    # n blocks per state, so the entries must be a positive multiple of n.
+    if nblocks is not None and (nblocks < 1 or len(names) % nblocks):
+        return None
+    return names
 
 
 # What the VisIt ex09 opens under data/topologies (it uses the uniform image
@@ -461,7 +473,9 @@ def step_time_series_for_visit():
         # A malformed manifest counts as missing rather than raising, which
         # the suite's preflight would treat as "could not check".
         if not isinstance(steps, list) or not all(
-            isinstance(step, dict) and isinstance(step.get("file"), str)
+            isinstance(step, dict)
+            and isinstance(step.get("file"), str)
+            and step["file"].strip()
             for step in steps
         ):
             steps = []
@@ -474,10 +488,19 @@ def step_time_series_for_visit():
     missing = [
         os.path.relpath(path, TIME_SERIES_DIR)
         for path in wanted + (indexed or [])
-        if not os.path.exists(path)
+        if not os.path.isfile(path)
     ]
     if recorded and indexed is None and "series.visit" not in missing:
         missing.append("readable series.visit")
+    # VisIt reads the series through the index, so it must name exactly the
+    # manifest's timesteps, in order; anything else is another series.
+    if recorded and indexed is not None:
+        listed = [
+            os.path.normpath(os.path.relpath(p, TIME_SERIES_DIR)) for p in indexed
+        ]
+        expected = [os.path.normpath(step["file"]) for step in steps]
+        if listed != expected:
+            missing.append("series.visit matching the manifest")
     source_count = 0
     if os.path.isdir(TIME_SERIES_SOURCE):
         source_count = len(
@@ -594,6 +617,10 @@ def step_pv_state(args, pvbatch, pv_version):
     return run([pvbatch, PV_STATE_GENERATOR], cwd=PV_STATE_DIR)
 
 
+# session_recorded_version() for a session that exists but cannot be read.
+SESSION_UNREADABLE = "unreadable"
+
+
 def session_recorded_version(path):
     """The VisIt version a .session says wrote it, or None.
 
@@ -603,7 +630,7 @@ def session_recorded_version(path):
         with open(path, "r") as handle:
             head = handle.read(4096)
     except (OSError, UnicodeDecodeError):
-        return None
+        return SESSION_UNREADABLE
     match = re.search(r'<Field name="Version" type="string">([^<]+)</Field>', head)
     return match.group(1).strip() if match else None
 
@@ -624,7 +651,9 @@ def step_visit_state(args, visit, visit_ver):
         if not os.path.exists(path)
     ]
     recorded = None if missing else session_recorded_version(VISIT_STATE)
-    stale = bool(
+    # Unreadable is stale whatever the version; an older session with no
+    # recorded version is accepted as before.
+    stale = recorded == SESSION_UNREADABLE or bool(
         recorded and visit_ver and visit_ver != "unknown" and recorded != visit_ver
     )
 
@@ -637,6 +666,8 @@ def step_visit_state(args, visit, visit_ver):
 
     if missing:
         reason = "missing: " + ", ".join(missing)
+    elif recorded == SESSION_UNREADABLE:
+        reason = "ex11_visit.session cannot be read -- stale"
     elif stale:
         reason = "written by VisIt {0}, running {1} -- stale".format(
             recorded, visit_ver

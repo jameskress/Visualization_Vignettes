@@ -1522,7 +1522,7 @@ def build_parser():
     return parser
 
 
-def preflight(args):
+def preflight(args, example_dirs=None):
     """Refuse to start when this machine's generated fixtures are stale.
 
     WHY THIS IS A GATE AND NOT A README LINE
@@ -1554,7 +1554,18 @@ def preflight(args):
         check = ["--check", "--tool", args.test_type]
         if args.test_number:
             # Only the fixtures the selected vignettes read are required.
-            check += ["--tests"] + [str(n) for n in args.test_number]
+            # --test_number indexes the vignettes found, which is not their
+            # exNN number when one is missing, and prepare_machine reasons
+            # in exNN, so pass the numbers of the vignettes actually chosen.
+            if example_dirs is not None:
+                numbers = [
+                    extract_example_number(example_dirs[i])
+                    for i in args.test_number
+                    if 0 <= i < len(example_dirs)
+                ]
+            else:
+                numbers = list(args.test_number)
+            check += ["--tests"] + [str(n) for n in numbers]
         if getattr(args, "data_dir", None):
             # The vignettes read their datasets from there, so check there.
             check += ["--data-dir", args.data_dir]
@@ -1612,7 +1623,7 @@ def main(argv=None):
         return 0
 
     if not args.skip_preflight and not args.clean and not args.generate_metrics:
-        if not preflight(args):
+        if not preflight(args, example_dirs):
             return 2
 
     if args.bless:
