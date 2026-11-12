@@ -1,5 +1,6 @@
 import math
 import os
+import re
 import argparse
 import json
 import shutil
@@ -842,6 +843,12 @@ export FI_CXI_CQ_FILL_PERCENT=20
 export FI_TCP_IFACE=hsn0
 export CM_NETWORK_INTERFACE=hsn0
 export CM_DISABLE_SHM=1
+# Fix glibc's mmap threshold at its 32 MiB maximum instead of letting it move
+# with the allocation pattern. With ADIOS2 2.13.0-rc1 the reader's SST RDMA
+# step took 9.0 s instead of 7.2 s until this was set; 2.12.0, and rc1
+# without the commit that caused it, run the same with or without it
+# (sites/shaheen/README.md, "glibc mmap threshold").
+export MALLOC_MMAP_THRESHOLD_=33554432
 ulimit -n $(ulimit -Hn)
 ulimit -l unlimited
 
@@ -875,6 +882,17 @@ echo "Starting Run: {id}"
 # Phase timestamps (seconds since the epoch) for #72: job start to run start
 # is setup, run start to run end is launch, startup, steps and shutdown.
 echo "PHASE job_start $SLURM_JOB_START_TIME"
+# Keep this job's script and the job-wide settings it exported beside the
+# results, so runs made with different settings (MALLOC_MMAP_THRESHOLD_, the
+# OFI tuning) can be told apart afterwards. Thread settings are left out:
+# each srun command sets its own (the reader's differ from the shell's), and
+# the saved script shows them.
+# A results directory that cannot be written would lose the run's numbers
+# too, so stop here rather than after the run.
+mkdir -p "{results_dir}" || exit 1
+cp "$0" "{results_dir}/{id}_job.sbat" || exit 1
+# pipefail in a subshell, so a failure anywhere in the pipeline stops the job.
+(set -o pipefail; env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_)' | sort) > "{results_dir}/{id}_env.txt" || exit 1
 echo "PHASE run_start $(date +%s.%N)"
 
 {command}
@@ -972,10 +990,10 @@ done
 SIM_PERF=$(ls -dt $OUTPUT_DIR/perf/*/ 2>/dev/null | head -1)
 if [ -n "$SIM_PERF" ]; then
     echo "Reducing $SIM_PERF..."
-    cp $SIM_PERF/metadata.json {results_dir}/{id}_metadata.json 2>/dev/null
-    cp $SIM_PERF/summary.json {results_dir}/{id}_summary.json 2>/dev/null
+    cp "$SIM_PERF/metadata.json" "{results_dir}/{id}_metadata.json" 2>/dev/null
+    cp "$SIM_PERF/summary.json" "{results_dir}/{id}_summary.json" 2>/dev/null
     # Compress only after a successful reduction, so a failure keeps the raw logs.
-    if python $REDUCE $SIM_PERF {results_dir}/{id}_writer.csv; then
+    if python "$REDUCE" "$SIM_PERF" "{results_dir}/{id}_writer.csv"; then
         echo "Compressing perf/..."
         archive perf
     else
@@ -986,7 +1004,7 @@ fi
 # 3. Reader timings (in transit runs).
 if [ -d "$OUTPUT_DIR/reader_timers" ]; then
     echo "Reducing reader_timers..."
-    if python $REDUCE $OUTPUT_DIR/reader_timers {results_dir}/{id}_reader.csv; then
+    if python "$REDUCE" "$OUTPUT_DIR/reader_timers" "{results_dir}/{id}_reader.csv"; then
         echo "Compressing reader_timers..."
         archive reader_timers
     else
@@ -1893,5 +1911,19 @@ if __name__ == "__main__":
         help="Python venv with pandas, activated after each run to reduce its timings",
     )
     args = parser.parse_args()
+    # The jobs cd into their run directory before using these paths, so a
+    # relative --results-dir would resolve from there, not from here.
+    args.results_dir = os.path.abspath(args.results_dir)
+    # Every path below is written into shell scripts (the job, reduce.sbat)
+    # and expanded there, much of it unquoted. Rather than quote each use,
+    # accept only paths that need no quoting: letters, digits and . _ - + /
+    # (no spaces, $, quotes or other shell characters).
+    for name in ("repo_path", "bin_path", "results_dir", "output_dir", "perf_env"):
+        value = getattr(args, name)
+        if not re.fullmatch(r"[A-Za-z0-9._+/-]+", value):
+            parser.error(
+                f"--{name.replace('_', '-')} {value!r}: only letters, digits and . _ - + / are allowed, "
+                "because the path is written unquoted into the generated job scripts"
+            )
     VOLUME_SAMPLES_PER_CELL = args.volume_samples_per_cell
     generate_scripts(args)
