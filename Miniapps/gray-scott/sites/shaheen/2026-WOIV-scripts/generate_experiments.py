@@ -1,5 +1,6 @@
 import math
 import os
+import re
 import argparse
 import json
 import shutil
@@ -1913,5 +1914,16 @@ if __name__ == "__main__":
     # The jobs cd into their run directory before using these paths, so a
     # relative --results-dir would resolve from there, not from here.
     args.results_dir = os.path.abspath(args.results_dir)
+    # Every path below is written into shell scripts (the job, reduce.sbat)
+    # and expanded there, much of it unquoted. Rather than quote each use,
+    # accept only paths that need no quoting: letters, digits and . _ - + /
+    # (no spaces, $, quotes or other shell characters).
+    for name in ("repo_path", "bin_path", "results_dir", "output_dir", "perf_env"):
+        value = getattr(args, name)
+        if not re.fullmatch(r"[A-Za-z0-9._+/-]+", value):
+            parser.error(
+                f"--{name.replace('_', '-')} {value!r}: only letters, digits and . _ - + / are allowed, "
+                "because the path is written unquoted into the generated job scripts"
+            )
     VOLUME_SAMPLES_PER_CELL = args.volume_samples_per_cell
     generate_scripts(args)

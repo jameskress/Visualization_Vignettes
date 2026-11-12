@@ -104,7 +104,9 @@ python3 reduce_timers.py paper1_func_N0064_baseline/perf/<run> summary_baseline.
 ## Generate and submit
 `generate_experiments.py` writes one sbatch script per run into
 `generated_scripts/` and a run directory per run under `--results-dir`.
-`orchestrate.py` selects and submits them.
+`orchestrate.py` selects and submits them. The paths it is given go into
+the scripts unquoted, so it accepts only letters, digits and `. _ - + /` in
+them (no spaces or other shell characters) and stops otherwise.
 
 ```bash
 cd /scratch/kressjm/Visualization_Vignettes/Miniapps/gray-scott/runs
