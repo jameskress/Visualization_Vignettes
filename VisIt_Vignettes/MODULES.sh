@@ -64,7 +64,8 @@ case "$OSVERSION" in
     module load ffmpeg
     # visit/3.4.2 since Oct 2026; 3.4.1 is gone from Ibex. Fall back to the site default.
     module load visit/3.4.2 2>/dev/null || module load visit
-    VV_VISIT_MODULE="$(module list 2>&1 | grep -o 'visit/[0-9.]*' | head -1)"
+    # The full loaded name (visit/3.5.0-gnu, say), parsed as the check below does.
+    VV_VISIT_MODULE="$(module list -t 2>&1 | sed -E 's/[(<].*$//' | grep -m1 '^visit/')"
   ;;
 "\"SLES\""*) # Shaheen
     module load ffmpeg 2>/dev/null   # no ffmpeg module on Shaheen III; harmless
