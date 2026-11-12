@@ -191,9 +191,12 @@ failed, the other is stopped (as `--kill-on-bad-exit` does for MPMD).
 
 ## After the runs
 Each run's job first saves its own batch script as `<results>/<id>_job.sbat`
-and the network, allocator and threading settings it exported (`FI_*`,
-`MALLOC_*`, `MPICH_*`, `OMP_*` and the like) as `<results>/<id>_env.txt`,
-so runs made with different settings can be told apart.
+and the job-wide network and allocator settings it exported (`FI_*`,
+`CM_*`, `MALLOC_*`, `MPICH_*`, `Sst_*`, `ADIOS2_*`) as
+`<results>/<id>_env.txt`, so runs made with different settings can be told
+apart. Thread settings are not in that file because each `srun` sets its
+own (the in transit reader runs 24 OpenMP threads, the simulation 3); read
+them from the saved script.
 
 When a run ends, its job submits a one-node job, `reduce.sbat` in the run
 directory, and exits, so the run's nodes are released at once (reducing
