@@ -970,8 +970,16 @@ baselines, and what differed was re-blessed after looking at each frame:
   every shared baseline there and needed nothing.
 * ParaView ex06 (`shaheen3-cpu` and `ibex-cpu`): 12.1% and 11.8%, all in
   the Surface LIC noise texture on the ground plane. ParaView 6.2.1 with EGL
-  on Shaheen `ppn` and on an Ibex A100 matched its baselines and needed
-  nothing; so did ParaView's ex11 on Ibex.
+  on Shaheen `ppn` matched its baselines and needed nothing; so did
+  ParaView's ex11 on Ibex.
+* ParaView EGL on Ibex: one baseline for every GPU, the shared GPU-blessed
+  set. A GPU renders the same images whatever its generation: on 12 Nov 2026
+  the A100, V100, P100, RTX 2080 Ti and GTX 1080 Ti each matched the shared
+  baselines in every vignette (worst 0.001% of pixels, ex06), jobs 55527860,
+  55527928, 55527967, 55527978 and 55528133. So there are no
+  `ibex-egl-<gpu>` image directories; the `--machine_name ibex-egl-<gpu>` the
+  batch script passes only keys each GPU's performance record. Mesa (CPU)
+  has its own set, `ibex-cpu`.
 * VisIt 3.5.0 prints the GridInformation query as `dims={Nx=50,Ny=50,Nz=50}`
   where 3.4 printed `dims={50,50,50}`; ex00 and ex05 drop the labels, so
   their shared `known_good_value.txt` holds for both versions.
