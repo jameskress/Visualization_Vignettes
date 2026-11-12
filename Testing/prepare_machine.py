@@ -18,6 +18,12 @@
 #   ex11_visit.session             generated, VisIt version specific
 #   ex11_series.visit              generated, holds absolute paths
 #
+# data/topologies/ and the XML time series (data/varying_series_xml) are
+# built with pvbatch but read by the VisIt suite too (ex09; ex05 and ex12).
+# --tool VisIt cannot build them, so it checks that they exist and stops
+# with the command that builds them, instead of letting ex05 fail mid-suite.
+# --tests limits that check to the vignettes about to run.
+#
 # Until now that was four commands documented in four places -- a comment in
 # each .sbat header, Testing/README.md, data/README.md and the runbook -- and
 # nothing checked. Worse, getting it wrong is quiet: an AMR hierarchy written
@@ -52,6 +58,7 @@ import re
 import shutil
 import subprocess
 import sys
+from xml.etree import ElementTree  # nosec B405 - our own generated file
 
 
 HERE = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
@@ -82,11 +89,101 @@ VISIT_STATE_GENERATOR = os.path.join(VISIT_STATE_DIR, "ex11_make_state.py")
 # neither is portable, so both are checked.
 VISIT_SERIES = os.path.join(VISIT_STATE_DIR, "ex11_series.visit")
 
+# Set by use_data_dir() when the checks look somewhere other than data/.
+CHECKED_DATA_DIR = None
+
+
+def where_to_build():
+    """The tail of a 'build it with pvbatch' message, for the checked dir."""
+    if CHECKED_DATA_DIR and CHECKED_DATA_DIR != os.path.abspath(DATA_DIR):
+        return (
+            " (this checked {0}; generation writes into {1}, so copy what it "
+            "writes into {0})".format(CHECKED_DATA_DIR, DATA_DIR)
+        )
+    return ""
+
+
+def visit_index_files(index):
+    """The data files a .visit index names, relative to the index.
+
+    None when the index cannot be read, names no file, or declares a block
+    count (!NBLOCKS n) that the entries do not divide into: a fixture whose
+    index is unusable is incomplete, whatever else is present.
+    """
+    names = []
+    nblocks = None
+    try:
+        with open(index, "r") as handle:
+            for line in handle:
+                line = line.strip()
+                if line.upper().startswith("!NBLOCKS"):
+                    try:
+                        nblocks = int(line.split()[1])
+                    except (IndexError, ValueError):
+                        return None
+                elif line and not line.startswith("!"):
+                    names.append(os.path.join(os.path.dirname(index), line))
+    except (OSError, UnicodeDecodeError):
+        return None
+    if not names:
+        return None
+    # n blocks per state, so the entries must be a positive multiple of n.
+    if nblocks is not None and (nblocks < 1 or len(names) % nblocks):
+        return None
+    return names
+
+
+def visit_index_nblocks(index):
+    """The !NBLOCKS count a .visit index declares, or None."""
+    try:
+        with open(index, "r") as handle:
+            for line in handle:
+                line = line.strip()
+                if line.upper().startswith("!NBLOCKS"):
+                    return int(line.split()[1])
+    except (OSError, UnicodeDecodeError, IndexError, ValueError):
+        return None
+    return None
+
+
+# What the VisIt ex09 opens under data/topologies (it uses the uniform image
+# where ParaView uses the AMR hierarchy); see DATASET_KEYS in
+# vignette_common.py.
+VISIT_TOPOLOGY_FILES = (
+    "tetra_unstructured.vtu",
+    "surface_polydata.vtp",
+    "ragged_multidomain.visit",
+    "scalar_field.vti",
+)
+
 # Only ex06 needs these, and they are a 4.3 GB download.
 LARGE_DATA_MARKERS = (
     os.path.join(DATA_DIR, "cyclone-chapala-2015-11-02_00-00-00-mb.vtm"),
     os.path.join(DATA_DIR, "currentRainfall.silo"),
 )
+
+
+def use_data_dir(path):
+    """Check fixtures under `path` instead of the repository's data/.
+
+    For test_suite.py --data-dir, whose vignettes read their datasets from
+    there. Only the checks move: the generators always write into the
+    repository's data/, so this is accepted with --check only.
+    """
+    global TOPOLOGY_DIR, TOPOLOGY_MANIFEST, TIME_SERIES_DIR
+    global TIME_SERIES_MANIFEST, TIME_SERIES_SOURCE, LARGE_DATA_MARKERS
+    global CHECKED_DATA_DIR
+    data = os.path.abspath(path)
+    CHECKED_DATA_DIR = data
+    TOPOLOGY_DIR = os.path.join(data, "topologies")
+    TOPOLOGY_MANIFEST = os.path.join(TOPOLOGY_DIR, "topologies_manifest.json")
+    TIME_SERIES_DIR = os.path.join(data, "varying_series_xml")
+    TIME_SERIES_MANIFEST = os.path.join(TIME_SERIES_DIR, "manifest.json")
+    TIME_SERIES_SOURCE = os.path.join(data, "varying_data")
+    LARGE_DATA_MARKERS = (
+        os.path.join(data, "cyclone-chapala-2015-11-02_00-00-00-mb.vtm"),
+        os.path.join(data, "currentRainfall.silo"),
+    )
 
 
 GREEN, YELLOW, RED, RESET = "\033[32m", "\033[33m", "\033[31m", "\033[0m"
@@ -242,9 +339,10 @@ def topology_recorded_version():
         return None
     try:
         with open(TOPOLOGY_MANIFEST, "r") as handle:
-            return json.load(handle).get("paraview_version")
+            document = json.load(handle)
     except (ValueError, OSError):
         return None
+    return document.get("paraview_version") if isinstance(document, dict) else None
 
 
 def pvsm_recorded_version(path):
@@ -348,7 +446,9 @@ def step_time_series(args, pvbatch):
     if os.path.exists(TIME_SERIES_MANIFEST):
         try:
             with open(TIME_SERIES_MANIFEST, "r") as handle:
-                recorded = len(json.load(handle).get("timesteps", []))
+                document = json.load(handle)
+            steps = document.get("timesteps") if isinstance(document, dict) else None
+            recorded = len(steps) if isinstance(steps, list) else 0
         except (ValueError, OSError):
             recorded = 0
 
@@ -369,6 +469,153 @@ def step_time_series(args, pvbatch):
     if args.check:
         return False
     return run([pvbatch, TIME_SERIES_GENERATOR], cwd=REPO)
+
+
+def checked(step, what):
+    """Run a check; an exception inside it is a failed check, with its reason."""
+    try:
+        return step()
+    except Exception as exc:  # noqa: BLE001 - any failure to check is a FAIL
+        bad(
+            "{0}: could not be checked ({1}: {2})".format(what, type(exc).__name__, exc)
+        )
+        return False
+
+
+def step_time_series_for_visit():
+    """The XML time series, as the VisIt suite needs it: present and current.
+
+    Unlike step_time_series this cannot build it (no pvbatch), so it never
+    regenerates and ignores --force, and it requires the series even when
+    its source is absent: without the series ex05 and ex12 cannot run.
+    """
+    steps = []
+    if os.path.exists(TIME_SERIES_MANIFEST):
+        try:
+            with open(TIME_SERIES_MANIFEST, "r") as handle:
+                document = json.load(handle)
+            steps = document.get("timesteps") if isinstance(document, dict) else None
+        except (ValueError, OSError):
+            steps = None
+        # A malformed manifest counts as missing rather than raising, which
+        # the suite's preflight would treat as "could not check".
+        if not isinstance(steps, list) or not all(
+            isinstance(step, dict)
+            and isinstance(step.get("file"), str)
+            and step["file"].strip()
+            for step in steps
+        ):
+            steps = []
+    recorded = len(steps)
+    # The files ex05 and ex12 open: the .visit index, each timestep the
+    # manifest lists, and each file the index itself names.
+    wanted = [os.path.join(TIME_SERIES_DIR, "series.visit")]
+    wanted += [os.path.join(TIME_SERIES_DIR, step["file"]) for step in steps]
+    indexed = visit_index_files(wanted[0])
+    missing = [
+        os.path.relpath(path, TIME_SERIES_DIR)
+        for path in wanted + (indexed or [])
+        if not os.path.isfile(path)
+    ]
+    if recorded and indexed is None and "series.visit" not in missing:
+        missing.append("readable series.visit")
+    # VisIt reads the series through the index, so it must name exactly the
+    # manifest's timesteps, in order; anything else is another series.
+    if recorded and indexed is not None:
+        listed = [
+            os.path.normpath(os.path.relpath(p, TIME_SERIES_DIR)) for p in indexed
+        ]
+        expected = [os.path.normpath(step["file"]) for step in steps]
+        if listed != expected:
+            missing.append("series.visit matching the manifest")
+    source_count = 0
+    if os.path.isdir(TIME_SERIES_SOURCE):
+        source_count = len(
+            [n for n in os.listdir(TIME_SERIES_SOURCE) if n.lower().endswith(".vtk")]
+        )
+    build = (
+        "the VisIt suite reads it (ex05, ex12) but it is built with pvbatch "
+        "from the shipped data/varying_data: run `python3 "
+        "Testing/prepare_machine.py --tool ParaView` with a ParaView module "
+        "loaded" + where_to_build()
+    )
+    if recorded == 0:
+        if os.path.exists(TIME_SERIES_MANIFEST):
+            # A manifest is there but unusable; only --force makes ParaView
+            # regenerate past it.
+            bad(
+                "XML time series manifest unusable: "
+                + build.replace("--tool ParaView`", "--tool ParaView --force`")
+            )
+        else:
+            bad("XML time series missing: " + build)
+        return False
+    if missing:
+        # The manifest is intact, so only --force makes ParaView rebuild it.
+        bad(
+            "XML time series incomplete ({0} file(s) missing, first {1}): "
+            "{2}".format(
+                len(missing),
+                missing[0] or "an unnamed timestep",
+                build.replace("--tool ParaView`", "--tool ParaView --force`"),
+            )
+        )
+        return False
+    if source_count and recorded != source_count:
+        bad(
+            "XML time series has {0} timestep(s), source has {1} -- stale: "
+            "{2}".format(recorded, source_count, build)
+        )
+        return False
+    ok("XML time series present ({0} timestep(s))".format(recorded))
+    return True
+
+
+def step_topologies_for_visit():
+    """data/topologies, as the VisIt suite needs it: present, any version.
+
+    The ParaView major.minor lock is about ParaView reading what another
+    ParaView wrote; VisIt only needs the files. They are built with pvbatch,
+    which --tool VisIt does not have, so this only checks.
+    """
+    recorded = topology_recorded_version()
+    missing = [
+        name
+        for name in VISIT_TOPOLOGY_FILES
+        if not os.path.isfile(os.path.join(TOPOLOGY_DIR, name))
+    ]
+    # The ragged .visit index names its blocks, which are separate files,
+    # and describes ONE state of all of them: !NBLOCKS must equal the number
+    # of entries, or VisIt reads several states of fewer blocks each.
+    index = os.path.join(TOPOLOGY_DIR, "ragged_multidomain.visit")
+    blocks = visit_index_files(index)
+    if blocks is not None and visit_index_nblocks(index) != len(blocks):
+        blocks = None
+    if blocks is None:
+        if "ragged_multidomain.visit" not in missing:
+            missing.append("readable ragged_multidomain.visit")
+    else:
+        missing += [
+            os.path.relpath(path, TOPOLOGY_DIR)
+            for path in blocks
+            if not os.path.isfile(path)
+        ]
+    if recorded and not missing:
+        ok("data/topologies present (generated by ParaView {0})".format(recorded))
+        return True
+    if not recorded:
+        what, force = "missing", ""
+    else:
+        # The manifest is intact, so only --force makes ParaView rebuild.
+        what, force = "incomplete (no {0})".format(", ".join(missing)), " --force"
+    bad(
+        "data/topologies {0}: the VisIt suite reads it (ex09) but it is "
+        "built with pvbatch: run `python3 Testing/prepare_machine.py --tool "
+        "ParaView{1}` with a ParaView module loaded{2}".format(
+            what, force, where_to_build()
+        )
+    )
+    return False
 
 
 def step_pv_state(args, pvbatch, pv_version):
@@ -402,41 +649,88 @@ def step_pv_state(args, pvbatch, pv_version):
     return run([pvbatch, PV_STATE_GENERATOR], cwd=PV_STATE_DIR)
 
 
+# session_recorded_version() for a session that exists but cannot be read.
+SESSION_UNREADABLE = "unreadable"
+
+
+def session_recorded_version(path):
+    """The VisIt version a .session says wrote it, or None.
+
+    It is the first <Field name="Version"> of the file, near the top. A file
+    that is empty or does not end with the closing </Object> of a whole
+    session was cut short, and is SESSION_UNREADABLE.
+    """
+    # Binary, then decoded leniently: seeking into a text stream can land
+    # inside a multibyte character. The XML parse below is the strict check.
+    try:
+        with open(path, "rb") as handle:
+            head = handle.read(4096).decode("utf-8", errors="replace")
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            handle.seek(max(0, size - 256))
+            tail = handle.read().decode("utf-8", errors="replace")
+    except OSError:
+        return SESSION_UNREADABLE
+    if not head.strip() or not tail.rstrip().endswith("</Object>"):
+        return SESSION_UNREADABLE
+    # A file cut just after an inner </Object> still ends like a whole one,
+    # so parse it: a session is a few hundred kB of XML, written by VisIt
+    # on this machine.
+    try:
+        ElementTree.parse(path)
+    except (ElementTree.ParseError, OSError):
+        return SESSION_UNREADABLE
+    match = re.search(r'<Field name="Version" type="string">([^<]+)</Field>', head)
+    return match.group(1).strip() if match else None
+
+
 def step_visit_state(args, visit, visit_ver):
     """ex11_visit.session and ex11_series.visit -- generated, not portable.
 
     The session is version-locked to the VisIt that wrote it, and the .visit
     index beside it holds absolute paths into this machine's data directory.
-    Neither is committed. A .session records no version of its own that can be
-    read back cheaply, so presence is what is checked; --force regenerates.
-    Regenerate after any VisIt version change, and after moving the checkout
-    or the data directory.
+    Neither is committed. The session records the VisIt version that wrote it
+    near its top, so a session from another version (the default moved from
+    3.4.2 to 3.5.0, say) is regenerated; --force regenerates regardless.
+    Regenerate by hand after moving the checkout or the data directory.
     """
     missing = [
         os.path.basename(path)
         for path in (VISIT_STATE, VISIT_SERIES)
         if not os.path.exists(path)
     ]
+    recorded = None if missing else session_recorded_version(VISIT_STATE)
+    # Unreadable is stale whatever the version; an older session with no
+    # recorded version is accepted as before.
+    stale = recorded == SESSION_UNREADABLE or bool(
+        recorded and visit_ver and visit_ver != "unknown" and recorded != visit_ver
+    )
 
-    if not missing and not args.force:
+    if not missing and not stale and not args.force:
         ok(
-            "ex11_visit.session and ex11_series.visit present (regenerate with "
-            "--force after a VisIt version change or a move)"
+            "ex11_visit.session ({0}) and ex11_series.visit present (regenerate "
+            "with --force after a move)".format(recorded or "version unrecorded")
         )
         return True
 
-    todo(
-        "ex11 VisIt fixtures {0}".format(
-            "missing: " + ", ".join(missing) if missing else "-- regenerating (--force)"
+    if missing:
+        reason = "missing: " + ", ".join(missing)
+    elif recorded == SESSION_UNREADABLE:
+        reason = "ex11_visit.session cannot be read -- stale"
+    elif stale:
+        reason = "written by VisIt {0}, running {1} -- stale".format(
+            recorded, visit_ver
         )
-    )
+    else:
+        reason = "-- regenerating (--force)"
+    todo("ex11 VisIt fixtures {0}".format(reason))
     if args.check:
         return False
 
-    # --force means "rebuild these", so clear them first. Otherwise the
+    # --force (or a stale session) means "rebuild these", so clear them first. Otherwise the
     # presence check below would pass on the old files if the generator
     # failed, and report a rebuild that never happened.
-    if args.force:
+    if args.force or stale:
         for path in (VISIT_STATE, VISIT_SERIES):
             if os.path.exists(path):
                 os.remove(path)
@@ -480,6 +774,27 @@ def main(argv=None):
         "skipped either way.",
     )
     parser.add_argument(
+        "--tests",
+        type=int,
+        nargs="+",
+        help="The vignette numbers about to run. With --tool VisIt, the "
+        "pvbatch-built fixtures are required only when ex05, ex09 or ex12 is "
+        "among them; without --tests, every vignette is assumed.",
+    )
+    parser.add_argument(
+        "--skip-data-checks",
+        action="store_true",
+        help="With --tool VisIt: generate the VisIt state only, and leave the "
+        "data fixtures (topologies, XML time series) to test_suite.py's "
+        "preflight, which checks them with the run's own --data-dir and "
+        "test selection. The batch scripts use this.",
+    )
+    parser.add_argument(
+        "--data-dir",
+        help="With --check: look for the data fixtures here instead of the "
+        "repository's data/ (test_suite.py --data-dir passes its own).",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Regenerate everything, even what looks current.",
@@ -492,6 +807,13 @@ def main(argv=None):
         "only ex06's large download is absent. Usable as a preflight.",
     )
     args = parser.parse_args(argv)
+    if args.data_dir:
+        if not args.check:
+            parser.error(
+                "--data-dir is accepted with --check only: the generators "
+                "write into the repository's data/"
+            )
+        use_data_dir(args.data_dir)
 
     print("Repository : {0}".format(REPO))
     print("")
@@ -529,6 +851,25 @@ def main(argv=None):
             print("VisIt      : {0}  ({1})".format(visit_ver, visit))
             if not step_visit_state(args, visit, visit_ver):
                 outstanding += 1
+            # Fixtures the VisIt suite reads but only pvbatch can build, and
+            # only for the vignettes that read them (ex09; ex05 and ex12), so
+            # a run that selects none of them (CI, which has no ParaView) is
+            # not refused.
+            wanted = set(args.tests) if args.tests else None
+            if args.skip_data_checks:
+                wanted = set()
+            # These run even after the ParaView step: it trusts its manifests
+            # (and skips the time series when its source is absent), while
+            # these check the files VisIt opens.
+            # A check that raises (an unlistable directory, say) must fail,
+            # not escape: the suite's preflight treats an exception as "could
+            # not check" and starts anyway.
+            if wanted is None or 9 in wanted:
+                if not checked(step_topologies_for_visit, "data/topologies"):
+                    outstanding += 1
+            if wanted is None or wanted & {5, 12}:
+                if not checked(step_time_series_for_visit, "XML time series"):
+                    outstanding += 1
         print("")
 
     if not step_large_data(args):
