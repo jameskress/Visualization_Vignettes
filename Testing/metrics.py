@@ -178,6 +178,14 @@ def _tool_versions(frame):
     return frame["machine_info"].map(one)
 
 
+# The field that says how each schema-sensitive metric was measured. Rows
+# with different scopes hold different quantities, even at the same schema.
+MEASUREMENT_SCOPE = {
+    "cpu_usage_percent": "cpu_measurement_scope",
+    "memory_usage_mb": "memory_measurement_scope",
+}
+
+
 def detect_significant_changes(df, threshold=10, require_same_schema=True):
     """Flag a metric that moved by more than `threshold` percent.
 
@@ -233,7 +241,17 @@ def detect_significant_changes(df, threshold=10, require_same_schema=True):
         if metric not in frame.columns:
             continue
 
-        rows = frame[frame[metric].notna()].tail(2)
+        rows = frame[frame[metric].notna()]
+        # CPU and memory each record which measurement produced them, and the
+        # two scopes share a schema: whole-tree sampling put ex00 at 317% CPU
+        # where RUSAGE_CHILDREN said 28%. Compare only runs measured the same
+        # way as the latest one.
+        scope = MEASUREMENT_SCOPE.get(metric)
+        if scope in rows.columns and len(rows):
+            latest_scope = rows[scope].iloc[-1]
+            if isinstance(latest_scope, str):
+                rows = rows[rows[scope] == latest_scope]
+        rows = rows.tail(2)
         if len(rows) != 2:
             continue
 

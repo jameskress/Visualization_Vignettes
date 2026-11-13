@@ -73,6 +73,16 @@ MARKER_SHAPES = ["o", "s", "^", "D", "P", "X", "*", "v", "<", ">"]
 # a second was a second in 2024 too, so its history plots whole.
 SCHEMA_SENSITIVE = ("memory_usage_mb", "cpu_usage_percent")
 
+# The same two metrics also record which measurement produced them, and the
+# scopes share a schema (whole-tree CPU sampling reads about 11x higher than
+# RUSAGE_CHILDREN). A run measured differently from the configuration's
+# latest run is drawn like a pre-schema one: hollow, shaded, and left out of
+# the latest-run bars.
+MEASUREMENT_SCOPE = {
+    "cpu_usage_percent": "cpu_measurement_scope",
+    "memory_usage_mb": "memory_measurement_scope",
+}
+
 METRICS = (
     ("execution_time", "Execution time (s)"),
     ("memory_usage_mb", "Peak memory (MB)"),
@@ -122,8 +132,23 @@ def load_history(testing_dir):
             record["legacy"] = int(record.get("metrics_schema") or 0) < METRICS_SCHEMA
             rows.append(record)
         if rows:
+            for metric, field in MEASUREMENT_SCOPE.items():
+                scopes = [r.get(field) for r in rows if r.get(metric) is not None]
+                latest = scopes[-1] if scopes else None
+                for record in rows:
+                    record.setdefault("other_scope", set())
+                    if latest and record.get(field) and record.get(field) != latest:
+                        record["other_scope"].add(metric)
             history[config] = rows
     return history
+
+
+def _not_comparable(record, metric):
+    """True when this run measured `metric` differently from the current
+    runs: before the schema change, or under another measurement scope."""
+    if metric not in SCHEMA_SENSITIVE:
+        return False
+    return record["legacy"] or metric in record.get("other_scope", ())
 
 
 def _marker_map(history):
@@ -224,10 +249,11 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
         ys = [p[1] for p in points]
         axis.plot(xs, ys, "-", color=colour, linewidth=1.6, alpha=0.6, zorder=2)
 
-        # Shade the part of this panel that predates the current schema, for
-        # the metrics whose meaning changed there.
+        # Shade the part of this panel that predates the current schema or
+        # the current measurement scope, for the metrics whose meaning
+        # changed there.
         if metric in SCHEMA_SENSITIVE:
-            legacy_x = [p[0] for p in points if p[2]["legacy"]]
+            legacy_x = [p[0] for p in points if _not_comparable(p[2], metric)]
             if legacy_x and len(legacy_x) < len(points):
                 axis.axvspan(
                     min(xs) - 0.5,
@@ -249,7 +275,7 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
 
         for x, y, record in points:
             shape = marker_map.get(record["version"], "x")
-            legacy = record["legacy"] and metric in SCHEMA_SENSITIVE
+            legacy = _not_comparable(record, metric)
             axis.plot(
                 x,
                 y,
@@ -285,8 +311,9 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
     )
     if drew_legacy:
         subtitle += (
-            "   |   shaded: recorded before metrics_schema {0}, when this "
-            "number measured something else".format(METRICS_SCHEMA)
+            "   |   shaded: recorded before metrics_schema {0} or under another "
+            "measurement scope, so the number measured something "
+            "else".format(METRICS_SCHEMA)
         )
     fig.suptitle(
         "{0} - {1}\n{2}".format(ylabel, vignette, subtitle),
@@ -332,7 +359,7 @@ def _latest_figure(history, metric, ylabel, vignette, path):
                 continue
             if record["version"] in seen:
                 continue
-            if metric in SCHEMA_SENSITIVE and record["legacy"]:
+            if _not_comparable(record, metric):
                 # Comparing a schema-3 memory figure against a schema-4 one
                 # is comparing two different measurements. Leave it out and
                 # say so, rather than drawing a bar nobody can trust.
@@ -380,11 +407,12 @@ def _latest_figure(history, metric, ylabel, vignette, path):
 
     note = ""
     if metric in SCHEMA_SENSITIVE:
-        # Two short lines rather than one long one: this subtitle is drawn at
+        # Short lines rather than one long one: this subtitle is drawn at
         # the figure's width, and a single line of it was being clipped on the
         # narrow figures that a two-configuration chart produces.
         note = (
-            "\nconfigurations older than metrics_schema {0} are omitted"
+            "\nruns older than metrics_schema {0} or under another"
+            "\nmeasurement scope are omitted"
             "\n(that number measured something else)".format(METRICS_SCHEMA)
         )
     axis.set_title(
