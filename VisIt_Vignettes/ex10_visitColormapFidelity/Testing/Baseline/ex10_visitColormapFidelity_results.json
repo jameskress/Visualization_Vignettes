@@ -143,18 +143,18 @@
   "schema_version": 1,
   "status": "ok",
   "timings": {
-    "draw_categorical": 0.063592,
-    "draw_custom": 0.02555,
-    "draw_log": 0.037449,
-    "draw_preset": 0.035663,
-    "io": 0.379372,
-    "register_tables": 0.024755,
-    "render_categorical": 0.112891,
-    "render_custom": 0.120236,
-    "render_log": 0.115936,
-    "render_preset": 0.278827
+    "draw_categorical": 0.071563,
+    "draw_custom": 0.031541,
+    "draw_log": 0.038771,
+    "draw_preset": 0.035619,
+    "io": 0.443144,
+    "register_tables": 0.0246,
+    "render_categorical": 0.10778,
+    "render_custom": 0.11557,
+    "render_log": 0.117926,
+    "render_preset": 0.278813
   },
   "tool": "VisIt",
   "vignette": "ex10_visitColormapFidelity",
-  "wall_time_s": 3.827815
+  "wall_time_s": 3.873827
 }

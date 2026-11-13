@@ -330,8 +330,10 @@ jobs:
     if: ${{ needs.changes.outputs.vignettes == 'true' }}
     runs-on: self-hosted
     env:
-      VISIT_VER: "3.4.1"
-      VISIT_URL: "https://github.com/visit-dav/visit/releases/download/v3.4.1/visit3_4_1.linux-x86_64-ubuntu22.tar.gz"
+      # The shared VisIt baselines are blessed with 3.5.0 (12 Nov 2026), so
+      # CI runs the same release; it renders them within tolerance.
+      VISIT_VER: "3.5.0"
+      VISIT_URL: "https://github.com/visit-dav/visit/releases/download/v3.5.0/visit3_5_0.linux-x86_64-ubuntu22.tar.gz"
       # FIX: Use $HOME instead of /opt so we don't need sudo
       CACHE_DIR: "$HOME/ci-cache"
 
@@ -354,8 +356,14 @@ jobs:
             echo "✅ Cache Hit: Found $FILENAME. Skipping download."
           else
             echo "⚠️ Cache Miss: Downloading $FILENAME..."
-            # Added -L to follow redirects and -O to specify output
-            curl -L --retry 5 --retry-delay 5 -o "$FILEPATH" "${{ env.VISIT_URL }}"
+            # Into a temporary file, moved into the cache only once complete:
+            # the cache-hit test above accepts any file at FILEPATH, so an
+            # interrupted download left there would be reused truncated by
+            # every later run. -f makes an HTTP error fail instead of saving
+            # the error page as the archive.
+            rm -f "$FILEPATH.part"
+            curl -fL --retry 5 --retry-delay 5 -o "$FILEPATH.part" "${{ env.VISIT_URL }}"
+            mv "$FILEPATH.part" "$FILEPATH"
             echo "✅ Download complete."
           fi
 
