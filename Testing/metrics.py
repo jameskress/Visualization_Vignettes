@@ -61,6 +61,11 @@ def child_rusage_snapshot():
     }
 
 
+# Recorded as the CPU and memory scope when the ranks were launched by srun
+# and so could not be measured from here. See gather_metrics().
+SRUN_SCOPE = "unavailable-ranks-launched-by-srun"
+
+
 def gather_metrics(test_name, start_time, end_time, run_result=None, before=None):
     """Collect performance metrics for one vignette run.
 
@@ -104,7 +109,18 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
     child_maxrss_mb = _maxrss_to_mb(after.ru_maxrss)
     stale_highwater = bool(before and after.ru_maxrss <= before.get("maxrss", 0))
 
-    if sampled_peak_mb is not None:
+    # Under srun the ranks run as Slurm job steps, not as descendants of the
+    # process this harness launched, so both the tree sample and
+    # RUSAGE_CHILDREN see only the srun client: 0.01 CPU seconds and 19 MB
+    # for a ParaView ex06 that needs 62 GB. A VisIt engine started with srun
+    # is missed the same way. Neither number describes the vignette, so
+    # neither is recorded.
+    ranks_outside_tree = bool(run_result and run_result.get("ranks_outside_tree"))
+
+    if ranks_outside_tree:
+        child_maxrss_mb = None
+        measurement_scope = SRUN_SCOPE
+    elif sampled_peak_mb is not None:
         child_maxrss_mb = sampled_peak_mb
         measurement_scope = "child-tree-sampled"
     elif stale_highwater:
@@ -136,6 +152,9 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
         "cpu_usage_percent": cpu_percent,
         "cpu_seconds": cpu_seconds,
     }
+    if ranks_outside_tree:
+        metrics["cpu_measurement_scope"] = SRUN_SCOPE
+        del metrics["cpu_usage_percent"], metrics["cpu_seconds"]
 
     # Retained under the original key so existing plots keep working, but
     # only when there is a real number to put there.
@@ -176,6 +195,14 @@ def _tool_versions(frame):
         return info.get("paraview_version") or info.get("visit_version")
 
     return frame["machine_info"].map(one)
+
+
+# The field that says how each schema-sensitive metric was measured. Rows
+# with different scopes hold different quantities, even at the same schema.
+MEASUREMENT_SCOPE = {
+    "cpu_usage_percent": "cpu_measurement_scope",
+    "memory_usage_mb": "memory_measurement_scope",
+}
 
 
 def detect_significant_changes(df, threshold=10, require_same_schema=True):
@@ -233,7 +260,18 @@ def detect_significant_changes(df, threshold=10, require_same_schema=True):
         if metric not in frame.columns:
             continue
 
-        rows = frame[frame[metric].notna()].tail(2)
+        rows = frame
+        # CPU and memory each record which measurement produced them, and the
+        # scopes share a schema: whole-tree sampling put ex00 at 317% CPU
+        # where RUSAGE_CHILDREN said 28%. Compare only runs measured the same
+        # way as the latest run. If the latest run could not measure it at
+        # all, there is nothing current to compare.
+        scope = MEASUREMENT_SCOPE.get(metric)
+        if scope in rows.columns:
+            latest_scope = rows[scope].iloc[-1]
+            if isinstance(latest_scope, str):
+                rows = rows[rows[scope] == latest_scope]
+        rows = rows[rows[metric].notna()].tail(2)
         if len(rows) != 2:
             continue
 

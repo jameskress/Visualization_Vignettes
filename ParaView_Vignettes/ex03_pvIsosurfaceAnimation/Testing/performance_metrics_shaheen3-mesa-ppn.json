@@ -76,5 +76,28 @@
             "visit_version": null
         },
         "run_id": "shaheen3-mesa-ppn-2026-10-26"
+    },
+    "2026-11-13T07:56:25.259672": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "metrics_schema": 4,
+        "execution_time": 17.369952917099,
+        "memory_measurement_scope": "unavailable-ranks-launched-by-srun",
+        "cpu_measurement_scope": "unavailable-ranks-launched-by-srun",
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 17.290505,
+        "harness_rss_mb": 157.17578125,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn14",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "shaheen3-mesa-ppn-2026-11-13"
     }
 }

@@ -382,6 +382,10 @@ class VignetteContext(object):
         self.image_tolerance = None
         self.notes = []
         self._skipped = False
+        # Set by open_visit_engine() when the engine runs as a Slurm job, not
+        # as a child of this process, so the harness knows its process-tree
+        # sample of CPU and memory left the engine out.
+        self.engine_outside_tree = False
         self._start = time.time()
 
         self.log("=" * 68)
@@ -794,6 +798,7 @@ class VignetteContext(object):
             "numeric_extracts": self.numeric_extracts,
             "image_tolerance": self.image_tolerance,
             "notes": self.notes,
+            "engine_outside_tree": self.engine_outside_tree,
         }
         path = os.path.join(self.testing_dir, self.results_filename())
         with open(path, "w") as handle:
@@ -1746,6 +1751,11 @@ def open_visit_engine(ctx, open_compute_engine, extra=None):
     for warning in check_engine_fits_allocation(ctx.args):
         ctx.warn(warning)
     ctx.log("launching compute engine: {0}".format(" ".join(engine_args)))
+    # Off a workstation the engine is a job step (srun) or a job (sbatch/srun),
+    # started by slurmstepd rather than by this process. Set before the launch
+    # so a launch that fails after starting remote processes still counts.
+    if ctx.args.machine != "local":
+        ctx.engine_outside_tree = True
     if not open_compute_engine("localhost", engine_args):
         raise VignetteError(
             "OpenComputeEngine failed for machine={0} nodes={1} ranks={2}".format(

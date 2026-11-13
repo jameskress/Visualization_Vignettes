@@ -164,5 +164,32 @@
             "visit_version": null
         },
         "run_id": "pv620-local-2026-11-03"
+    },
+    "2026-11-13T08:08:32.948705": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "metrics_schema": 4,
+        "execution_time": 20.219388484954834,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 336.0141185800643,
+        "cpu_seconds": 67.94,
+        "memory_usage_mb": 1660.418,
+        "memory_usage": 1741074464.768,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 20.095414,
+        "harness_rss_mb": 169.74609375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "KW61316-2026-11-13"
     }
 }

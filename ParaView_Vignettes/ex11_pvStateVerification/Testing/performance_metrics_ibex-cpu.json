@@ -1,0 +1,29 @@
+{
+    "2026-11-13T10:49:54.355018": {
+        "test_name": "ex11_pvStateVerification",
+        "metrics_schema": 4,
+        "execution_time": 6.627683639526367,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 76.94996136484963,
+        "cpu_seconds": 5.1,
+        "memory_usage_mb": 468.641,
+        "memory_usage": 491405705.216,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 6.558327,
+        "harness_rss_mb": 99.84765625,
+        "machine_info": {
+            "system": "Linux",
+            "node": "login510-22",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-cpu-2026-11-13"
+    }
+}

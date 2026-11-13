@@ -79,5 +79,32 @@
             "visit_version": "3.4.2"
         },
         "run_id": "KW61316-2026-10-21"
+    },
+    "2026-11-13T08:20:50.139302": {
+        "test_name": "ex12_visitExtractRegression",
+        "metrics_schema": 4,
+        "execution_time": 3.7708921432495117,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 175.2900838554329,
+        "cpu_seconds": 6.61,
+        "memory_usage_mb": 534.172,
+        "memory_usage": 560119939.072,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.621211,
+        "harness_rss_mb": 192.015625,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0"
+        },
+        "run_id": "KW61316-2026-11-13"
     }
 }

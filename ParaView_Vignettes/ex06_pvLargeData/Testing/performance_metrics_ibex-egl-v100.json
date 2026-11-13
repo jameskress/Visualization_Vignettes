@@ -59,5 +59,32 @@
             "visit_version": null
         },
         "run_id": "ibex-egl-v100-2026-10-25"
+    },
+    "2026-11-13T08:11:03.003456": {
+        "test_name": "ex06_pvLargeData",
+        "metrics_schema": 4,
+        "execution_time": 494.2790381908417,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 420.3698395961027,
+        "cpu_seconds": 2077.8,
+        "memory_usage_mb": 55300.699,
+        "memory_usage": 57986985754.624,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 494.181962,
+        "harness_rss_mb": 201.7109375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu214-18",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-egl-v100-2026-11-13"
     }
 }

@@ -427,6 +427,24 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
         "stderr_log": stderr_path,
         "succeeded": (returncode == 0),
     }
+    # srun hands the ranks to slurmstepd, so they are not in the tree the
+    # sampler walked: what it measured was the srun client. VisIt does the
+    # same off a workstation, starting its compute engine with srun, and says
+    # so in its results JSON. Record that instead of the client's CPU and
+    # memory as the vignette's.
+    ranks_outside_tree = os.path.basename(str(cmd[0])) == "srun"
+    if not ranks_outside_tree:
+        document = _fresh_results_document(output_dir, started)
+        if document is not None:
+            ranks_outside_tree = bool(document.get("engine_outside_tree"))
+        else:
+            # No results JSON (a crash or a timeout), so the vignette never
+            # said. Judge from the command: VisIt off a workstation may have
+            # had its engine running when it died.
+            ranks_outside_tree = _visit_engine_may_be_remote(cmd)
+    if ranks_outside_tree:
+        payload["ranks_outside_tree"] = True
+        peak_rss_bytes = tree_cpu_seconds = None
     if peak_rss_bytes:
         payload["peak_rss_bytes"] = int(peak_rss_bytes)
         payload["peak_rss_mb"] = round(peak_rss_bytes / (1024.0 * 1024.0), 3)
@@ -448,11 +466,11 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
 
     write_run_result(output_dir, payload)
 
-    # VisIt's launcher always exits 250, so for that path the exit code says
-    # nothing and announcing it as a failure here would print "FAILED" on
-    # every line of a perfectly green run, immediately above the real
-    # verdict. The caller that knows better asks for silence and reports the
-    # verdict it derives itself.
+    # VisIt's launcher exits 250 (0 on Ibex) pass or fail, so for that path
+    # the exit code says nothing and announcing it as a failure here would
+    # print "FAILED" on every line of a perfectly green run, immediately
+    # above the real verdict. The caller that knows better asks for silence
+    # and reports the verdict it derives itself.
     if not announce_verdict:
         pass
     elif payload.get("skipped"):
@@ -504,6 +522,18 @@ def _launch_failure(output_dir, message):
 # there is nothing to pass through. The code is not merely wrong, it carries
 # no information at all.
 VISIT_LAUNCHER_EXIT_CODE = 250
+
+
+def _visit_engine_may_be_remote(cmd):
+    """True for a VisIt command whose --machine is not local, the case where
+    open_visit_engine() starts the engine through Slurm."""
+    parts = [str(part) for part in cmd]
+    if not parts or not os.path.basename(parts[0]).startswith("visit"):
+        return False
+    if "--machine" not in parts:
+        return False
+    index = parts.index("--machine") + 1
+    return index < len(parts) and parts[index] != "local"
 
 
 def _fresh_results_document(output_dir, started_at):

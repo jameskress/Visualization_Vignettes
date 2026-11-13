@@ -73,6 +73,16 @@ MARKER_SHAPES = ["o", "s", "^", "D", "P", "X", "*", "v", "<", ">"]
 # a second was a second in 2024 too, so its history plots whole.
 SCHEMA_SENSITIVE = ("memory_usage_mb", "cpu_usage_percent")
 
+# The same two metrics also record which measurement produced them, and the
+# scopes share a schema (whole-tree CPU sampling reads about 11x higher than
+# RUSAGE_CHILDREN). A run measured differently from the configuration's
+# latest run is drawn like a pre-schema one: hollow, shaded, and left out of
+# the latest-run bars.
+MEASUREMENT_SCOPE = {
+    "cpu_usage_percent": "cpu_measurement_scope",
+    "memory_usage_mb": "memory_measurement_scope",
+}
+
 METRICS = (
     ("execution_time", "Execution time (s)"),
     ("memory_usage_mb", "Peak memory (MB)"),
@@ -122,8 +132,41 @@ def load_history(testing_dir):
             record["legacy"] = int(record.get("metrics_schema") or 0) < METRICS_SCHEMA
             rows.append(record)
         if rows:
+            for metric, field in MEASUREMENT_SCOPE.items():
+                # The latest run sets the scope even when it has no value: a
+                # run that could not measure this makes the older figures
+                # history, not current.
+                scopes = [r.get(field) for r in rows if r.get(field)]
+                latest = scopes[-1] if scopes else None
+                for record in rows:
+                    record.setdefault("other_scope", set())
+                    if latest and record.get(field) and record.get(field) != latest:
+                        record["other_scope"].add(metric)
             history[config] = rows
     return history
+
+
+def _stretches(marked, xs):
+    """(first, last) x of each run of consecutive points in `marked`, where
+    consecutive means adjacent in `xs`."""
+    marked = set(marked)
+    stretches = []
+    for x in xs:
+        if x not in marked:
+            continue
+        if stretches and xs.index(x) == xs.index(stretches[-1][1]) + 1:
+            stretches[-1] = (stretches[-1][0], x)
+        else:
+            stretches.append((x, x))
+    return stretches
+
+
+def _not_comparable(record, metric):
+    """True when this run measured `metric` differently from the current
+    runs: before the schema change, or under another measurement scope."""
+    if metric not in SCHEMA_SENSITIVE:
+        return False
+    return record["legacy"] or metric in record.get("other_scope", ())
 
 
 def _marker_map(history):
@@ -224,32 +267,30 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
         ys = [p[1] for p in points]
         axis.plot(xs, ys, "-", color=colour, linewidth=1.6, alpha=0.6, zorder=2)
 
-        # Shade the part of this panel that predates the current schema, for
-        # the metrics whose meaning changed there.
+        # Shade the part of this panel that predates the current schema or
+        # the current measurement scope, for the metrics whose meaning
+        # changed there.
+        # Each contiguous stretch is shaded on its own: scopes can alternate
+        # (A, B, A), and shading from the first run would mark comparable
+        # runs as measuring something else.
         if metric in SCHEMA_SENSITIVE:
-            legacy_x = [p[0] for p in points if p[2]["legacy"]]
-            if legacy_x and len(legacy_x) < len(points):
-                axis.axvspan(
-                    min(xs) - 0.5,
-                    max(legacy_x) + 0.5,
-                    color="0.85",
-                    zorder=0,
-                )
-                axis.axvline(
-                    max(legacy_x) + 0.5,
-                    color="0.45",
-                    linestyle="--",
-                    linewidth=1.2,
-                    zorder=1,
-                )
-                drew_legacy = True
-            elif legacy_x:
-                axis.axvspan(min(xs) - 0.5, max(xs) + 0.5, color="0.85", zorder=0)
+            for first, last in _stretches(
+                [p[0] for p in points if _not_comparable(p[2], metric)], xs
+            ):
+                axis.axvspan(first - 0.5, last + 0.5, color="0.85", zorder=0)
+                if last < max(xs):
+                    axis.axvline(
+                        last + 0.5,
+                        color="0.45",
+                        linestyle="--",
+                        linewidth=1.2,
+                        zorder=1,
+                    )
                 drew_legacy = True
 
         for x, y, record in points:
             shape = marker_map.get(record["version"], "x")
-            legacy = record["legacy"] and metric in SCHEMA_SENSITIVE
+            legacy = _not_comparable(record, metric)
             axis.plot(
                 x,
                 y,
@@ -285,8 +326,9 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
     )
     if drew_legacy:
         subtitle += (
-            "   |   shaded: recorded before metrics_schema {0}, when this "
-            "number measured something else".format(METRICS_SCHEMA)
+            "\nshaded: recorded before metrics_schema {0} or under another "
+            "measurement scope, so the number measured something "
+            "else".format(METRICS_SCHEMA)
         )
     fig.suptitle(
         "{0} - {1}\n{2}".format(ylabel, vignette, subtitle),
@@ -332,13 +374,31 @@ def _latest_figure(history, metric, ylabel, vignette, path):
                 continue
             if record["version"] in seen:
                 continue
-            if metric in SCHEMA_SENSITIVE and record["legacy"]:
+            if _not_comparable(record, metric):
                 # Comparing a schema-3 memory figure against a schema-4 one
                 # is comparing two different measurements. Leave it out and
                 # say so, rather than drawing a bar nobody can trust.
                 continue
             seen.add(record["version"])
             entries.append((config, float(value), record))
+
+    # Each configuration is judged against its own latest scope, so two
+    # configurations can still disagree: one measured by RUSAGE_CHILDREN,
+    # another by whole-tree sampling. Bars on one axis must be the same
+    # quantity, so keep the scope most configurations used.
+    field = MEASUREMENT_SCOPE.get(metric)
+    if field and entries:
+        # One vote per configuration, however many versions it has.
+        counts = collections.Counter(
+            scope for _, scope in {(e[0], e[2].get(field)) for e in entries}
+        )
+        # Ties go to the whole-tree measurement, then to the name, so the
+        # same history always draws the same chart.
+        common = min(
+            counts,
+            key=lambda s: (-counts[s], s != "child-tree-sampled", str(s)),
+        )
+        entries = [e for e in entries if e[2].get(field) == common]
 
     if not entries:
         return False
@@ -380,11 +440,12 @@ def _latest_figure(history, metric, ylabel, vignette, path):
 
     note = ""
     if metric in SCHEMA_SENSITIVE:
-        # Two short lines rather than one long one: this subtitle is drawn at
+        # Short lines rather than one long one: this subtitle is drawn at
         # the figure's width, and a single line of it was being clipped on the
         # narrow figures that a two-configuration chart produces.
         note = (
-            "\nconfigurations older than metrics_schema {0} are omitted"
+            "\nruns older than metrics_schema {0} or under another"
+            "\nmeasurement scope are omitted"
             "\n(that number measured something else)".format(METRICS_SCHEMA)
         )
     axis.set_title(
@@ -416,23 +477,22 @@ def generate_individual_graphs(test_directory, current_sub_test):
     marker_map = _marker_map(history)
     written = 0
     for metric, ylabel in METRICS:
-        if _trend_figure(
-            history,
-            marker_map,
-            metric,
-            ylabel,
-            current_sub_test,
-            os.path.join(testing_dir, "{0}_comparison.png".format(metric)),
-        ):
-            written += 1
-        if _latest_figure(
-            history,
-            metric,
-            ylabel,
-            current_sub_test,
-            os.path.join(testing_dir, "{0}_latest.png".format(metric)),
-        ):
-            written += 1
+        trend_path = os.path.join(testing_dir, "{0}_comparison.png".format(metric))
+        latest_path = os.path.join(testing_dir, "{0}_latest.png".format(metric))
+        drew_trend = _trend_figure(
+            history, marker_map, metric, ylabel, current_sub_test, trend_path
+        )
+        drew_latest = _latest_figure(
+            history, metric, ylabel, current_sub_test, latest_path
+        )
+        # A chart that cannot be drawn any more must not survive from an
+        # earlier run: after the scope rules exclude every bar, yesterday's
+        # PNG would still show the numbers they exclude.
+        for drew, path in ((drew_trend, trend_path), (drew_latest, latest_path)):
+            if drew:
+                written += 1
+            elif os.path.exists(path):
+                os.remove(path)
 
     print("\tDone with `generate_individual_graphs` ({0} plot(s))".format(written))
 
