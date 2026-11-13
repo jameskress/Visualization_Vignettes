@@ -76,5 +76,32 @@
             "visit_version": null
         },
         "run_id": "ibex-egl-p100-2026-10-25"
+    },
+    "2026-11-13T10:38:04.394572": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "metrics_schema": 4,
+        "execution_time": 26.02032709121704,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 106.10935021381626,
+        "cpu_seconds": 27.61,
+        "memory_usage_mb": 522.645,
+        "memory_usage": 548033003.52,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 25.875487,
+        "harness_rss_mb": 188.53125,
+        "machine_info": {
+            "system": "Linux",
+            "node": "dgpu502-33",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-egl-p100-2026-11-13"
     }
 }

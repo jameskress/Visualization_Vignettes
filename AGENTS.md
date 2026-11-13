@@ -112,7 +112,8 @@ measurements in `Testing/LOCAL_VALIDATION.md` §4 and §4b.
 **VisIt**
 
 * `visit -cli` **exits 250 whether it worked or not** -- clean run, Python
-  traceback and crashed engine alike. The verdict comes from the vignette's
+  traceback and crashed engine alike. On Ibex it exits 0 instead, equally
+  meaningless. The verdict comes from the vignette's
   own results JSON, and only when that file was written after the run started.
 * **`-noconfig` hides 129 of VisIt's own colour tables**, not just the user's.
   `viridis`, `plasma`, `magma`, `Blues` all ship as `.ct` files that

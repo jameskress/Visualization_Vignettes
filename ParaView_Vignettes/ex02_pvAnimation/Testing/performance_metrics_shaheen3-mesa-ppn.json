@@ -76,5 +76,32 @@
             "visit_version": null
         },
         "run_id": "shaheen3-mesa-ppn-2026-10-26"
+    },
+    "2026-11-13T07:56:02.089325": {
+        "test_name": "ex02_pvAnimation",
+        "metrics_schema": 4,
+        "execution_time": 63.01363396644592,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 0.015869581502512442,
+        "cpu_seconds": 0.01,
+        "memory_usage_mb": 23.066,
+        "memory_usage": 24186454.016,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 62.957754,
+        "harness_rss_mb": 156.6640625,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn14",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "shaheen3-mesa-ppn-2026-11-13"
     }
 }

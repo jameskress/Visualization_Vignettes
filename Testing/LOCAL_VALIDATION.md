@@ -216,7 +216,7 @@ vignette declares its own numbers instead. ex11 is the clearest case:
 
 | Gate | ex11 ParaView | ex11 VisIt |
 | :--- | :--- | :--- |
-| Process exit code | yes | yes (250 ignored, see 4b.1) |
+| Process exit code | yes | yes (ignored, see 4b.1) |
 | Baseline images | 3 | 3 |
 | Numeric metrics in `results.json` | 7 | 3 |
 | In-vignette assertions | 6 | 6 |
@@ -332,9 +332,10 @@ a virtual display) need nothing special.
 Two things about a VisIt log that are normal and worth knowing before you read
 one:
 
-* **`visit -cli` exits 250 whether it worked or not.** The harness ignores the
-  exit code and reads the vignette's own results JSON instead; the line you
-  want is `Vignette passed (results JSON status=ok)`. See §4b.1.
+* **`visit -cli` exits 250 (0 on Ibex) whether it worked or not.** The
+  harness ignores the exit code and reads the vignette's own results JSON
+  instead; the line you want is `Vignette passed (results JSON status=ok)`.
+  See §4b.1.
 * **`-noconfig` is always passed**, so the run is independent of whose
   `~/.visit` it ran under. That also means VisIt starts with 18 colour tables
   rather than 157, and the vignettes load the ones they need out of the install
@@ -741,19 +742,23 @@ with ADIOS2 pinned to v2.12.1.
 never executed end to end. Everything below is a real failure on 3.4.2, in the
 order it was hit.
 
-### 4b.1 VisIt's launcher always exits 250, `Testing/run_tests.py`
+### 4b.1 VisIt's launcher exit code means nothing, `Testing/run_tests.py`
 
 `visit -cli` is a shell script that execs the real binary and returns its own
 status. It returns **250 on success**, 250 on a Python traceback, and 250 on a
 crashed compute engine. Measured on 3.4.2: a vignette that ran cleanly, one that
 raised on line 3, and one whose engine aborted with SIGABRT all exited 250.
 
+It is not even always 250. On VisIt 3.5.0 (13 Nov 2026) the same 13 passing
+vignettes exited 250 on the workstation and on Shaheen and 0 on Ibex. The code
+depends on the machine, not on whether the run worked.
+
 So for VisIt the exit code carries no information, and gating on it means either
 every run fails or none ever does. The verdict now comes from what the vignette
 itself wrote:
 
 ```
-returncode                250          (recorded, never used as the verdict)
+returncode                250          (or 0; recorded, never used as the verdict)
 exit_code_is_authoritative false
 verdict_source            "results JSON status=ok"
 succeeded                 true
@@ -1205,8 +1210,8 @@ time.
 
 ### 4b.14 `prepare_machine.py` believed VisIt's exit code, `Testing/prepare_machine.py`
 
-Section 4b.1 above is about VisIt's launcher always exiting 250. The same
-trap caught the preflight script itself. `step_visit_state` generated
+Section 4b.1 above is about VisIt's launcher exit code meaning nothing. The
+same trap caught the preflight script itself. `step_visit_state` generated
 `ex11_visit.session` and `ex11_series.visit`, VisIt wrote both files and said
 so, VisIt then exited 250 on a clean shutdown, and the step returned False on
 that code alone:

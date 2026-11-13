@@ -25,5 +25,32 @@
             "visit_version": "3.4.2"
         },
         "run_id": "shaheen3-ppn-2026-10-25"
+    },
+    "2026-11-13T08:05:35.830030": {
+        "test_name": "ex09_visitMeshTopologies",
+        "metrics_schema": 4,
+        "execution_time": 4.88493275642395,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 25.384177466298446,
+        "cpu_seconds": 1.24,
+        "memory_usage_mb": 365.422,
+        "memory_usage": 383172739.072,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.672982,
+        "harness_rss_mb": 165.6875,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn10",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0"
+        },
+        "run_id": "shaheen3-ppn-2026-11-13"
     }
 }

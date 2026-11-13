@@ -32,6 +32,10 @@ data/KAUST_Visualization_Vignettes_Large_Data.zip
 */*/Testing/memory_usage_*.png
 */combined_execution_time_plot.png
 Testing/*_summary_report.json
+# Written by test_suite.py --baseline-ref to say which baseline set a run used.
+*/*/Testing/baseline_source.json
+# Logs written by Testing/record_local_run.sh.
+Testing/record_*.log
 
 # Generated locally by Testing/prepare_machine.py, never committed. Every one
 # of these is version-locked, path-locked, or both, and none of them announces

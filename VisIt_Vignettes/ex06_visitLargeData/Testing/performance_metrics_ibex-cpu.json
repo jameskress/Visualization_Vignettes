@@ -32,5 +32,32 @@
             "paraview_version": null,
             "visit_version": "3.4.1"
         }
+    },
+    "2026-11-13T08:18:24.919347": {
+        "test_name": "ex06_visitLargeData",
+        "metrics_schema": 4,
+        "execution_time": 84.11546850204468,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 19.033360076465403,
+        "cpu_seconds": 16.01,
+        "memory_usage_mb": 2186.355,
+        "memory_usage": 2292559380.48,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 84.020639,
+        "harness_rss_mb": 176.44921875,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn113-35-l",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0"
+        },
+        "run_id": "ibex-cpu-2026-11-13"
     }
 }

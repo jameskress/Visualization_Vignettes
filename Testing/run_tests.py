@@ -448,11 +448,11 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
 
     write_run_result(output_dir, payload)
 
-    # VisIt's launcher always exits 250, so for that path the exit code says
-    # nothing and announcing it as a failure here would print "FAILED" on
-    # every line of a perfectly green run, immediately above the real
-    # verdict. The caller that knows better asks for silence and reports the
-    # verdict it derives itself.
+    # VisIt's launcher exits 250 (0 on Ibex) pass or fail, so for that path
+    # the exit code says nothing and announcing it as a failure here would
+    # print "FAILED" on every line of a perfectly green run, immediately
+    # above the real verdict. The caller that knows better asks for silence
+    # and reports the verdict it derives itself.
     if not announce_verdict:
         pass
     elif payload.get("skipped"):

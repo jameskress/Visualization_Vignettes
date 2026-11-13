@@ -25,5 +25,32 @@
             "visit_version": null
         },
         "run_id": "shaheen3-ppn-gpu-L40-2026-10-25"
+    },
+    "2026-11-13T08:01:34.442635": {
+        "test_name": "ex12_pvExtractRegression",
+        "metrics_schema": 4,
+        "execution_time": 2.0428171157836914,
+        "memory_measurement_scope": "child-tree-sampled",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_usage_percent": 0.48952008100655026,
+        "cpu_seconds": 0.01,
+        "memory_usage_mb": 25.047,
+        "memory_usage": 26263683.072,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 1.986218,
+        "harness_rss_mb": 198.60546875,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn13",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "shaheen3-ppn-gpu-L40-2026-11-13"
     }
 }
