@@ -472,23 +472,22 @@ def generate_individual_graphs(test_directory, current_sub_test):
     marker_map = _marker_map(history)
     written = 0
     for metric, ylabel in METRICS:
-        if _trend_figure(
-            history,
-            marker_map,
-            metric,
-            ylabel,
-            current_sub_test,
-            os.path.join(testing_dir, "{0}_comparison.png".format(metric)),
-        ):
-            written += 1
-        if _latest_figure(
-            history,
-            metric,
-            ylabel,
-            current_sub_test,
-            os.path.join(testing_dir, "{0}_latest.png".format(metric)),
-        ):
-            written += 1
+        trend_path = os.path.join(testing_dir, "{0}_comparison.png".format(metric))
+        latest_path = os.path.join(testing_dir, "{0}_latest.png".format(metric))
+        drew_trend = _trend_figure(
+            history, marker_map, metric, ylabel, current_sub_test, trend_path
+        )
+        drew_latest = _latest_figure(
+            history, metric, ylabel, current_sub_test, latest_path
+        )
+        # A chart that cannot be drawn any more must not survive from an
+        # earlier run: after the scope rules exclude every bar, yesterday's
+        # PNG would still show the numbers they exclude.
+        for drew, path in ((drew_trend, trend_path), (drew_latest, latest_path)):
+            if drew:
+                written += 1
+            elif os.path.exists(path):
+                os.remove(path)
 
     print("\tDone with `generate_individual_graphs` ({0} plot(s))".format(written))
 

@@ -982,7 +982,11 @@ not as children of the harness, so the tree and `RUSAGE_CHILDREN` both see the
 `srun` client alone: every Shaheen ParaView record of 13 Nov 2026 said 0.01 CPU
 seconds, and ex06 said 19 MB where it needs about 62 GB. A run launched by
 `srun` now records neither figure, with scope
-`unavailable-ranks-launched-by-srun`; execution time is unaffected. Slurm's
+`unavailable-ranks-launched-by-srun`; execution time is unaffected. VisIt
+off a workstation is the same case: it starts its compute engine with
+`srun` (or `sbatch/srun` from a login node), so the vignette writes
+`engine_outside_tree` into its results JSON and gets the same scope.
+Only a `--machine local` run keeps the engine in the measured tree. Slurm's
 own accounting (`sacct`) would be the source if those numbers are wanted.
 
 ### 4b.11 VisIt 3.4.2 loses the times of a `.visit` series, a defect in the tool

@@ -428,9 +428,15 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
         "succeeded": (returncode == 0),
     }
     # srun hands the ranks to slurmstepd, so they are not in the tree the
-    # sampler walked: what it measured was the srun client. Say so instead of
-    # recording that as the vignette's CPU and memory.
-    if os.path.basename(str(cmd[0])) == "srun":
+    # sampler walked: what it measured was the srun client. VisIt does the
+    # same off a workstation, starting its compute engine with srun, and says
+    # so in its results JSON. Record that instead of the client's CPU and
+    # memory as the vignette's.
+    ranks_outside_tree = os.path.basename(str(cmd[0])) == "srun"
+    if not ranks_outside_tree:
+        document = _fresh_results_document(output_dir, started)
+        ranks_outside_tree = bool(document and document.get("engine_outside_tree"))
+    if ranks_outside_tree:
         payload["ranks_outside_tree"] = True
         peak_rss_bytes = tree_cpu_seconds = None
     if peak_rss_bytes:

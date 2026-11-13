@@ -112,8 +112,9 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
     # Under srun the ranks run as Slurm job steps, not as descendants of the
     # process this harness launched, so both the tree sample and
     # RUSAGE_CHILDREN see only the srun client: 0.01 CPU seconds and 19 MB
-    # for a ParaView ex06 that needs 62 GB. Neither number describes the
-    # vignette, so neither is recorded.
+    # for a ParaView ex06 that needs 62 GB. A VisIt engine started with srun
+    # is missed the same way. Neither number describes the vignette, so
+    # neither is recorded.
     ranks_outside_tree = bool(run_result and run_result.get("ranks_outside_tree"))
 
     if ranks_outside_tree:
