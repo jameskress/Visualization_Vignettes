@@ -427,6 +427,12 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
         "stderr_log": stderr_path,
         "succeeded": (returncode == 0),
     }
+    # srun hands the ranks to slurmstepd, so they are not in the tree the
+    # sampler walked: what it measured was the srun client. Say so instead of
+    # recording that as the vignette's CPU and memory.
+    if os.path.basename(str(cmd[0])) == "srun":
+        payload["ranks_outside_tree"] = True
+        peak_rss_bytes = tree_cpu_seconds = None
     if peak_rss_bytes:
         payload["peak_rss_bytes"] = int(peak_rss_bytes)
         payload["peak_rss_mb"] = round(peak_rss_bytes / (1024.0 * 1024.0), 3)

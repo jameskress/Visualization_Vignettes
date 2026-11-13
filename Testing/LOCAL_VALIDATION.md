@@ -972,6 +972,19 @@ An eleven-fold correction on the *smallest* vignette in the suite. `metrics_sche
 is bumped to **4**, so the performance gate will not compare a schema-4 run
 against the schema-3 records above it.
 
+Both scopes are schema 4, though, and a run whose tree sample comes back empty
+falls back to `RUSAGE_CHILDREN`, so one history can hold both. The gate and the
+plots therefore compare CPU and memory only between runs with the same scope as
+the latest run, and draw the others hollow and shaded like pre-schema runs.
+
+`srun` defeats both measurements. Slurm starts the ranks under `slurmstepd`,
+not as children of the harness, so the tree and `RUSAGE_CHILDREN` both see the
+`srun` client alone: every Shaheen ParaView record of 13 Nov 2026 said 0.01 CPU
+seconds, and ex06 said 19 MB where it needs about 62 GB. A run launched by
+`srun` now records neither figure, with scope
+`unavailable-ranks-launched-by-srun`; execution time is unaffected. Slurm's
+own accounting (`sacct`) would be the source if those numbers are wanted.
+
 ### 4b.11 VisIt 3.4.2 loses the times of a `.visit` series, a defect in the tool
 
 > Read §4b.13 next. This entry is correct but it is not the whole story: the

@@ -133,7 +133,10 @@ def load_history(testing_dir):
             rows.append(record)
         if rows:
             for metric, field in MEASUREMENT_SCOPE.items():
-                scopes = [r.get(field) for r in rows if r.get(metric) is not None]
+                # The latest run sets the scope even when it has no value: a
+                # run that could not measure this makes the older figures
+                # history, not current.
+                scopes = [r.get(field) for r in rows if r.get(field)]
                 latest = scopes[-1] if scopes else None
                 for record in rows:
                     record.setdefault("other_scope", set())
@@ -141,6 +144,21 @@ def load_history(testing_dir):
                         record["other_scope"].add(metric)
             history[config] = rows
     return history
+
+
+def _stretches(marked, xs):
+    """(first, last) x of each run of consecutive points in `marked`, where
+    consecutive means adjacent in `xs`."""
+    marked = set(marked)
+    stretches = []
+    for x in xs:
+        if x not in marked:
+            continue
+        if stretches and xs.index(x) == xs.index(stretches[-1][1]) + 1:
+            stretches[-1] = (stretches[-1][0], x)
+        else:
+            stretches.append((x, x))
+    return stretches
 
 
 def _not_comparable(record, metric):
@@ -252,25 +270,22 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
         # Shade the part of this panel that predates the current schema or
         # the current measurement scope, for the metrics whose meaning
         # changed there.
+        # Each contiguous stretch is shaded on its own: scopes can alternate
+        # (A, B, A), and shading from the first run would mark comparable
+        # runs as measuring something else.
         if metric in SCHEMA_SENSITIVE:
-            legacy_x = [p[0] for p in points if _not_comparable(p[2], metric)]
-            if legacy_x and len(legacy_x) < len(points):
-                axis.axvspan(
-                    min(xs) - 0.5,
-                    max(legacy_x) + 0.5,
-                    color="0.85",
-                    zorder=0,
-                )
-                axis.axvline(
-                    max(legacy_x) + 0.5,
-                    color="0.45",
-                    linestyle="--",
-                    linewidth=1.2,
-                    zorder=1,
-                )
-                drew_legacy = True
-            elif legacy_x:
-                axis.axvspan(min(xs) - 0.5, max(xs) + 0.5, color="0.85", zorder=0)
+            for first, last in _stretches(
+                [p[0] for p in points if _not_comparable(p[2], metric)], xs
+            ):
+                axis.axvspan(first - 0.5, last + 0.5, color="0.85", zorder=0)
+                if last < max(xs):
+                    axis.axvline(
+                        last + 0.5,
+                        color="0.45",
+                        linestyle="--",
+                        linewidth=1.2,
+                        zorder=1,
+                    )
                 drew_legacy = True
 
         for x, y, record in points:
@@ -311,7 +326,7 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
     )
     if drew_legacy:
         subtitle += (
-            "   |   shaded: recorded before metrics_schema {0} or under another "
+            "\nshaded: recorded before metrics_schema {0} or under another "
             "measurement scope, so the number measured something "
             "else".format(METRICS_SCHEMA)
         )
@@ -366,6 +381,16 @@ def _latest_figure(history, metric, ylabel, vignette, path):
                 continue
             seen.add(record["version"])
             entries.append((config, float(value), record))
+
+    # Each configuration is judged against its own latest scope, so two
+    # configurations can still disagree: one measured by RUSAGE_CHILDREN,
+    # another by whole-tree sampling. Bars on one axis must be the same
+    # quantity, so keep the scope most configurations used.
+    field = MEASUREMENT_SCOPE.get(metric)
+    if field and entries:
+        counts = collections.Counter(e[2].get(field) for e in entries)
+        common = counts.most_common(1)[0][0]
+        entries = [e for e in entries if e[2].get(field) == common]
 
     if not entries:
         return False
