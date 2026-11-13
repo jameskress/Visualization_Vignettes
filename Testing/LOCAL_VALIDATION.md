@@ -986,8 +986,8 @@ seconds, and ex06 said 19 MB where it needs about 62 GB. A run launched by
 off a workstation is the same case: it starts its compute engine with
 `srun` (or `sbatch/srun` from a login node), so the vignette writes
 `engine_outside_tree` into its results JSON and gets the same scope.
-Only a `--machine local` run keeps the engine in the measured tree. Slurm's
-own accounting (`sacct`) would be the source if those numbers are wanted.
+Only a `--machine local` run keeps the engine in the measured tree. §4b.15
+replaces that gap with Slurm's own accounting.
 
 ### 4b.11 VisIt 3.4.2 loses the times of a `.visit` series, a defect in the tool
 
@@ -1246,6 +1246,66 @@ code, as everything else that drives VisIt does, and checks for the two files
 it asked for. `--force` deletes them first, so their presence afterwards
 means a rebuild actually happened rather than an old pair surviving a failed
 one.
+
+### 4b.15 Checking the CPU and memory numbers against the kernel, `Testing/run_tests.py`
+
+§4b.10 and the srun gap raised the obvious question: are the numbers that
+remain any good? Each vignette below ran on KW61316 inside its own cgroup
+(`systemd-run --user --scope`), which counts every process ever placed in it,
+re-parented ones included, up to the moment each exits. Its `cpu.stat` is
+exact, and its anonymous plus shared memory, sampled every 0.1 s, is the
+footprint with each page counted once. The harness's own figures were taken
+in the same run.
+
+| Run | cgroup CPU s | process tree | `RUSAGE_CHILDREN` | cgroup MB | summed RSS | summed PSS |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| ParaView ex03, 1 rank | 68.0 | 67.7 | 67.9 | 1,210 | 1,664 | |
+| ParaView ex03, 4 ranks | 104.8 | 104.1 | 104.8 | 1,878 | 3,350 | 2,191 |
+| VisIt ex02, 1 rank | 176.7 | 176.2 | 107.5 | 3,698 | 4,050 | |
+| VisIt ex02, 4 ranks | 307.3 | 304.7 | 107.6 | 4,420 | 5,083 | 4,698 |
+| ParaView ex06, 1 rank | 3,733 | 3,733 | 3,733 | 55,259 | 55,705 | |
+| VisIt ex06, 1 rank | 224.8 | 224.3 | **5.2** | 33,978 | 34,159 | |
+
+* **The process tree's CPU is right**, within 1% everywhere. That also covers
+  Ibex ParaView, which runs under `mpirun` inside the job as the 4-rank rows do.
+* **Summed RSS over-counted memory** by 40 to 80% on small and multi-rank
+  runs: each rank's RSS includes the same shared libraries. Summed PSS splits
+  each shared page among the processes that share it and lands close to the
+  cgroup. Memory is now summed PSS, scope `child-tree-pss`, with RSS kept
+  alongside as `memory_rss_mb`. Rows before this are `child-tree-sampled` and
+  the gate does not compare across the two.
+* **`RUSAGE_CHILDREN` misses VisIt's engine** (5.2 of 224.8 s). It is no
+  longer a fallback for VisIt; a VisIt run with no tree sample records CPU as
+  unavailable.
+
+**Under srun the numbers come from Slurm.** Each rank is a job step, and
+Slurm accounts for each step itself. `TotalCPU` is summed from every task's
+rusage when it exits, so it is exact; `TRESUsageInTot` `mem` is the sum over
+tasks of each task's peak. After a run whose ranks were outside the tree,
+`run_tests.py` asks `sacct` for the numbered steps of the current job that
+started during the run, and `metrics.py` records their CPU and memory plus
+the local tree's (the `srun` client, or VisIt's CLI and viewer), scope
+`slurm-steps-plus-local-tree`. The user/system split, the largest single
+task, and disk read and write come along as detail. From the 13 Nov records:
+
+| Step | CPU s | memory | process tree had said |
+| :--- | ---: | ---: | :--- |
+| Shaheen ParaView ex06, 1 task | 4,804 | 56.9 GiB | 0.01 s, 19 MB |
+| Shaheen VisIt ex06 engine, 8 tasks | 518 | 37.2 GiB | engine missing |
+| Ibex VisIt ex06 engine, 8 tasks | 578 | 43.4 GiB | engine missing |
+
+Two things to know about it:
+
+* **Shaheen samples tasks every 600 s** (`JobAcctGatherFrequency=task=600`,
+  `jobacct_gather/linux`), so a step shorter than ten minutes reported 0
+  memory. `run_tests.py` sets `SLURM_ACCTG_FREQ=task=1` inside an allocation,
+  which both its own `srun` and VisIt's read. A step that still reports 0
+  memory records CPU only. Ibex gathers through cgroups every 30 s and reports
+  memory even for two-second steps.
+* **The memory is a sum of per-task peaks**, not the peak of the sum, so it
+  can read a little high when ranks peak at different times. The local
+  sampler gives the peak of the sum. The two are different scopes and are
+  never compared.
 
 ## 5. Known issue: ex06 image stability
 

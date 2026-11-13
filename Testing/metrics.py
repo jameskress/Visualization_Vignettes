@@ -26,6 +26,7 @@
 #
 # Author: James Kress, <james@jameskress.com>
 #
+import os
 import resource
 import sys
 
@@ -65,6 +66,112 @@ def child_rusage_snapshot():
 # and so could not be measured from here. See gather_metrics().
 SRUN_SCOPE = "unavailable-ranks-launched-by-srun"
 
+# CPU and memory taken from Slurm's accounting of the run's job steps, plus
+# the process tree the harness launched itself (the srun client, or VisIt's
+# CLI and viewer). LOCAL_VALIDATION 4b.15.
+SLURM_SCOPE = "slurm-steps-plus-local-tree"
+
+# Summed PSS over the process tree. Replaces summed RSS, which counted shared
+# libraries once per rank (LOCAL_VALIDATION 4b.15).
+PSS_SCOPE = "child-tree-pss"
+
+MB = 1024.0 * 1024.0
+
+
+def _is_visit(run_result):
+    command = run_result.get("command") or [""]
+    return os.path.basename(str(command[0])).startswith("visit")
+
+
+def _sum_field(items, key):
+    values = [item.get(key) for item in items if item.get(key) is not None]
+    return sum(values) if values else None
+
+
+def _resource_figures(run_result, after, before, rusage_cpu):
+    """CPU seconds, peak memory and their scopes for one run.
+
+    In order of preference:
+
+    * ranks under srun: Slurm's accounting of the steps, plus the local tree;
+    * everything else: the sampled process tree, PSS for memory;
+    * no tree sample (psutil missing): RUSAGE_CHILDREN, except for VisIt,
+      whose engine it does not see (5 CPU seconds of a 225 s run).
+    """
+    figures = {}
+    if run_result.get("ranks_outside_tree"):
+        steps = run_result.get("slurm_steps") or []
+        local = run_result.get("local_tree") or {}
+        if not steps:
+            figures.update(
+                cpu_seconds=None,
+                memory_mb=None,
+                cpu_scope=SRUN_SCOPE,
+                memory_scope=SRUN_SCOPE,
+            )
+            return figures
+        step_cpu = _sum_field(steps, "cpu_seconds")
+        local_cpu = local.get("tree_cpu_seconds") or 0.0
+        figures["cpu_seconds"] = None if step_cpu is None else step_cpu + local_cpu
+        figures["cpu_scope"] = SLURM_SCOPE if step_cpu is not None else SRUN_SCOPE
+        for key, local_key in (
+            ("cpu_user_seconds", "tree_cpu_user_seconds"),
+            ("cpu_system_seconds", "tree_cpu_system_seconds"),
+        ):
+            part = _sum_field(steps, key)
+            if part is not None:
+                figures[key] = part + (local.get(local_key) or 0.0)
+        # Steps run one after another, so the run's peak is the largest
+        # step's, each step's being the sum of its tasks' peaks. A step that
+        # reports 0 was never sampled (Shaheen's 600 s default) and says
+        # nothing about memory.
+        step_mem = max(step.get("total_mem_bytes") or 0 for step in steps)
+        local_mem = local.get("peak_pss_bytes") or local.get("peak_rss_bytes") or 0
+        if step_mem:
+            figures["memory_mb"] = (step_mem + local_mem) / MB
+            figures["memory_scope"] = SLURM_SCOPE
+        else:
+            figures["memory_mb"] = None
+            figures["memory_scope"] = SRUN_SCOPE
+        max_task = max(step.get("max_task_mem_bytes") or 0 for step in steps)
+        if max_task:
+            figures["memory_max_task_mb"] = max_task / MB
+        for key in ("disk_read_bytes", "disk_write_bytes"):
+            total = _sum_field(steps, key)
+            if total is not None:
+                figures[key.replace("_bytes", "_mb")] = total / MB
+        figures["slurm_steps"] = [step.get("step") for step in steps]
+        return figures
+
+    if run_result.get("peak_pss_mb"):
+        figures["memory_mb"] = float(run_result["peak_pss_mb"])
+        figures["memory_scope"] = PSS_SCOPE
+        if run_result.get("peak_rss_mb"):
+            figures["memory_rss_mb"] = float(run_result["peak_rss_mb"])
+    elif run_result.get("peak_rss_mb"):
+        figures["memory_mb"] = float(run_result["peak_rss_mb"])
+        figures["memory_scope"] = "child-tree-sampled"
+    elif before and after.ru_maxrss <= before.get("maxrss", 0):
+        figures["memory_mb"] = None
+        figures["memory_scope"] = "unavailable-highwater-from-earlier-test"
+    else:
+        figures["memory_mb"] = _maxrss_to_mb(after.ru_maxrss)
+        figures["memory_scope"] = "children-highwater"
+
+    if run_result.get("tree_cpu_seconds") is not None:
+        figures["cpu_seconds"] = float(run_result["tree_cpu_seconds"])
+        figures["cpu_scope"] = "child-tree-sampled"
+        for key in ("tree_cpu_user_seconds", "tree_cpu_system_seconds"):
+            if run_result.get(key) is not None:
+                figures[key.replace("tree_", "")] = float(run_result[key])
+    elif _is_visit(run_result):
+        figures["cpu_seconds"] = None
+        figures["cpu_scope"] = "unavailable-no-tree-sample"
+    else:
+        figures["cpu_seconds"] = rusage_cpu
+        figures["cpu_scope"] = "children-rusage"
+    return figures
+
 
 def gather_metrics(test_name, start_time, end_time, run_result=None, before=None):
     """Collect performance metrics for one vignette run.
@@ -102,59 +209,26 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
     # When neither figure is trustworthy the metric is omitted rather than
     # filled in from a different test: a missing number is a gap, a wrong one
     # is a false baseline.
-    sampled_peak_mb = None
-    if run_result and run_result.get("peak_rss_mb"):
-        sampled_peak_mb = float(run_result["peak_rss_mb"])
-
-    child_maxrss_mb = _maxrss_to_mb(after.ru_maxrss)
-    stale_highwater = bool(before and after.ru_maxrss <= before.get("maxrss", 0))
-
-    # Under srun the ranks run as Slurm job steps, not as descendants of the
-    # process this harness launched, so both the tree sample and
-    # RUSAGE_CHILDREN see only the srun client: 0.01 CPU seconds and 19 MB
-    # for a ParaView ex06 that needs 62 GB. A VisIt engine started with srun
-    # is missed the same way. Neither number describes the vignette, so
-    # neither is recorded.
-    ranks_outside_tree = bool(run_result and run_result.get("ranks_outside_tree"))
-
-    if ranks_outside_tree:
-        child_maxrss_mb = None
-        measurement_scope = SRUN_SCOPE
-    elif sampled_peak_mb is not None:
-        child_maxrss_mb = sampled_peak_mb
-        measurement_scope = "child-tree-sampled"
-    elif stale_highwater:
-        child_maxrss_mb = None
-        measurement_scope = "unavailable-highwater-from-earlier-test"
-    else:
-        measurement_scope = "children-highwater"
-
-    # CPU time has the same shape of problem as memory, and it bites VisIt
-    # hardest. RUSAGE_CHILDREN counts only the processes this harness reaped
-    # itself. `visit -cli` forks a viewer, an mdserver and a compute engine,
-    # and the engine is where all the render and query time goes -- so the
-    # first VisIt suite run put ex06 at 13% CPU over 207 seconds while its
-    # engine held 33 GB. run_tests.py now samples the whole tree; prefer that
-    # when it is there, and say which one was used.
-    cpu_scope = "children-rusage"
-    cpu_seconds = child_utime + child_stime
-    if run_result and run_result.get("tree_cpu_seconds"):
-        cpu_seconds = float(run_result["tree_cpu_seconds"])
-        cpu_scope = "child-tree-sampled"
-    cpu_percent = (100.0 * cpu_seconds / elapsed) if elapsed > 0 else 0.0
+    run_result = run_result or {}
+    figures = _resource_figures(run_result, after, before, child_utime + child_stime)
+    cpu_seconds = figures.pop("cpu_seconds")
+    child_maxrss_mb = figures.pop("memory_mb")
 
     metrics = {
         "test_name": test_name,
         "metrics_schema": METRICS_SCHEMA,
         "execution_time": elapsed,
-        "memory_measurement_scope": measurement_scope,
-        "cpu_measurement_scope": cpu_scope,
-        "cpu_usage_percent": cpu_percent,
-        "cpu_seconds": cpu_seconds,
+        "memory_measurement_scope": figures.pop("memory_scope"),
+        "cpu_measurement_scope": figures.pop("cpu_scope"),
     }
-    if ranks_outside_tree:
-        metrics["cpu_measurement_scope"] = SRUN_SCOPE
-        del metrics["cpu_usage_percent"], metrics["cpu_seconds"]
+    if cpu_seconds is not None:
+        metrics["cpu_seconds"] = cpu_seconds
+        metrics["cpu_usage_percent"] = (
+            (100.0 * cpu_seconds / elapsed) if elapsed > 0 else 0.0
+        )
+    # The rest is detail: the user/system split, the per-rank peak, disk
+    # traffic and the steps themselves. None of it is compared by the gate.
+    metrics.update(figures)
 
     # Retained under the original key so existing plots keep working, but
     # only when there is a real number to put there.
