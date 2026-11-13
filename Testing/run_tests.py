@@ -499,7 +499,11 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
         payload["ranks_outside_tree"] = True
         if tree:
             payload["local_tree"] = tree
+        asked = time.time()
         steps = slurm_step_usage(started, ended)
+        # Waiting for the accounting database is not the vignette's time;
+        # metrics.py takes this back out of the execution time.
+        payload["accounting_wait_s"] = round(time.time() - asked, 3)
         if steps is not None:
             payload["slurm_steps"] = steps
     elif tree:
@@ -680,20 +684,26 @@ def parse_sacct_steps(text, job_id, started, ended, slack=2.0):
     return steps, pending
 
 
-def slurm_step_usage(started, ended, job_id=None, attempts=8, wait_s=4.0):
+def slurm_step_usage(started, ended, job_id=None, attempts=8, wait_s=3.0):
     """Accounting for the job steps this run made, or None if unavailable.
 
-    The database lags the step by a few seconds, so ask a few times until
-    every matching step is finalised. None means there is no allocation or
-    no sacct; an empty list means sacct answered and no step matched, which
-    is what a VisIt engine submitted as a separate job from a login node
-    looks like.
+    The database lags the step by a few seconds, and a step can be missing
+    from one answer and present in the next, so this asks until two answers
+    in a row list the same finalised steps. None means there is no
+    allocation or no sacct; an empty list means sacct answered and no step
+    matched, which is what a VisIt engine submitted as a separate job from a
+    login node looks like.
     """
     job_id = job_id or os.environ.get("SLURM_JOB_ID")
     sacct = shutil.which("sacct")
     if not job_id or not sacct:
         return None
+    # SLURM_TIME_FORMAT changes how sacct prints Start and End, and a format
+    # _slurm_time() cannot read would silently match no step at all.
+    env = dict(os.environ)
+    env.pop("SLURM_TIME_FORMAT", None)
     steps = []
+    previous = None
     for attempt in range(attempts):
         try:
             text = subprocess.run(
@@ -702,12 +712,15 @@ def slurm_step_usage(started, ended, job_id=None, attempts=8, wait_s=4.0):
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
                 timeout=60,
+                env=env,
             ).stdout
         except (OSError, subprocess.SubprocessError):
             return None
         steps, pending = parse_sacct_steps(text, job_id, started, ended)
-        if steps and not pending:
+        current = [step["step"] for step in steps]
+        if steps and not pending and current == previous:
             return steps
+        previous = None if pending else current
         if attempt + 1 < attempts:
             time.sleep(wait_s)
     return steps

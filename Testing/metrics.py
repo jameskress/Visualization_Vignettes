@@ -183,6 +183,10 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
     whole-process totals and are marked as such.
     """
     elapsed = float(end_time) - float(start_time)
+    # run_tests.py may have waited for Slurm's accounting after the vignette
+    # ended (see slurm_step_usage); that is not the vignette's time.
+    if run_result and run_result.get("accounting_wait_s"):
+        elapsed = max(0.0, elapsed - float(run_result["accounting_wait_s"]))
     after = resource.getrusage(resource.RUSAGE_CHILDREN)
 
     child_utime = after.ru_utime
