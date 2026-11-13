@@ -435,7 +435,13 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     ranks_outside_tree = os.path.basename(str(cmd[0])) == "srun"
     if not ranks_outside_tree:
         document = _fresh_results_document(output_dir, started)
-        ranks_outside_tree = bool(document and document.get("engine_outside_tree"))
+        if document is not None:
+            ranks_outside_tree = bool(document.get("engine_outside_tree"))
+        else:
+            # No results JSON (a crash or a timeout), so the vignette never
+            # said. Judge from the command: VisIt off a workstation may have
+            # had its engine running when it died.
+            ranks_outside_tree = _visit_engine_may_be_remote(cmd)
     if ranks_outside_tree:
         payload["ranks_outside_tree"] = True
         peak_rss_bytes = tree_cpu_seconds = None
@@ -516,6 +522,18 @@ def _launch_failure(output_dir, message):
 # there is nothing to pass through. The code is not merely wrong, it carries
 # no information at all.
 VISIT_LAUNCHER_EXIT_CODE = 250
+
+
+def _visit_engine_may_be_remote(cmd):
+    """True for a VisIt command whose --machine is not local, the case where
+    open_visit_engine() starts the engine through Slurm."""
+    parts = [str(part) for part in cmd]
+    if not parts or not os.path.basename(parts[0]).startswith("visit"):
+        return False
+    if "--machine" not in parts:
+        return False
+    index = parts.index("--machine") + 1
+    return index < len(parts) and parts[index] != "local"
 
 
 def _fresh_results_document(output_dir, started_at):
