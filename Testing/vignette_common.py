@@ -555,6 +555,18 @@ class VignetteContext(object):
             self.extracts.append(filename)
         return path
 
+    def baseline_dir(self):
+        """The Testing/Baseline/ directory this run is judged against.
+
+        Normally this vignette's own. test_suite.py --baseline-ref judges
+        against the baselines at a git ref instead and passes their
+        directory as $VV_BASELINE_DIR, so the checks made here (the blessed
+        rank count, the images that must be produced) use the same set.
+        """
+        return os.environ.get("VV_BASELINE_DIR") or os.path.join(
+            self.testing_dir, "Baseline"
+        )
+
     def baseline_ranks(self):
         """The rank count the committed baseline images were blessed at.
 
@@ -562,7 +574,7 @@ class VignetteContext(object):
         alongside everything else. Returns None when there is no baseline yet,
         or when it predates that field.
         """
-        path = os.path.join(self.testing_dir, "Baseline", self.results_filename())
+        path = os.path.join(self.baseline_dir(), self.results_filename())
         try:
             with open(path, "r") as handle:
                 return json.load(handle).get("ranks")
@@ -827,9 +839,11 @@ class VignetteContext(object):
         if exit_func is not None:
             exit_func(0)
         elif _local_partitions() > 1:
-            sys.exit(0)          # satellites must be released; interpreter teardown runs
+            sys.exit(0)  # satellites must be released; interpreter teardown runs
         else:
-            os._exit(0)          # one rank: skip teardown, which Ibex's ParaView build segfaults in
+            os._exit(
+                0
+            )  # one rank: skip teardown, which Ibex's ParaView build segfaults in
 
     def write_timing_csv(self, filename=None, rows=None):
         """Write a scaling/timing CSV next to the images.
@@ -884,7 +898,7 @@ class VignetteContext(object):
         blessed -- records the fact and asserts nothing, which keeps this
         safe to add to existing vignettes.
         """
-        baseline_dir = baseline_dir or os.path.join(self.testing_dir, "Baseline")
+        baseline_dir = baseline_dir or self.baseline_dir()
         if not os.path.isdir(baseline_dir):
             self.log(
                 "no baseline directory at {0}; image check skipped".format(baseline_dir)
@@ -1479,6 +1493,7 @@ def _local_partitions():
     """MPI ranks in this pvbatch, 1 when not under MPI or not ParaView."""
     try:
         from paraview import servermanager as _sm
+
         return int(_sm.vtkProcessModule.GetProcessModule().GetNumberOfLocalPartitions())
     except Exception:  # noqa: BLE001 - VisIt, or no server manager yet
         return 1
