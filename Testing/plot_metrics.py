@@ -388,7 +388,10 @@ def _latest_figure(history, metric, ylabel, vignette, path):
     # quantity, so keep the scope most configurations used.
     field = MEASUREMENT_SCOPE.get(metric)
     if field and entries:
-        counts = collections.Counter(e[2].get(field) for e in entries)
+        # One vote per configuration, however many versions it has.
+        counts = collections.Counter(
+            scope for _, scope in {(e[0], e[2].get(field)) for e in entries}
+        )
         common = counts.most_common(1)[0][0]
         entries = [e for e in entries if e[2].get(field) == common]
 
