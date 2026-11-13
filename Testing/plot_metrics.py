@@ -392,7 +392,12 @@ def _latest_figure(history, metric, ylabel, vignette, path):
         counts = collections.Counter(
             scope for _, scope in {(e[0], e[2].get(field)) for e in entries}
         )
-        common = counts.most_common(1)[0][0]
+        # Ties go to the whole-tree measurement, then to the name, so the
+        # same history always draws the same chart.
+        common = min(
+            counts,
+            key=lambda s: (-counts[s], s != "child-tree-sampled", str(s)),
+        )
         entries = [e for e in entries if e[2].get(field) == common]
 
     if not entries:
