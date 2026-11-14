@@ -1309,6 +1309,20 @@ Two things to know about it:
   waits up to two minutes for two identical, finalised answers, which costs
   about half a minute per `srun` vignette there. The wait is recorded as
   `accounting_wait_s` and kept out of the execution time.
+* **Checked against the local sampler on Shaheen.** The same vignettes run
+  on a workq node with `--launcher none`, so the sampled tree saw them:
+
+  | ParaView | tree PSS | Slurm memory | tree CPU s | Slurm CPU s |
+  | :--- | ---: | ---: | ---: | ---: |
+  | ex03 | 0.64 GiB | 0.53 GiB | 439 | 63.5 |
+  | ex06 | 57.6 GiB | 56.8 GiB | 20,980 | 4,774 |
+
+  Memory agrees within 1 to 17%; sampling once a second misses the top of a
+  short peak. CPU differs because the runs did: under `srun` pvbatch is bound
+  to its 24 cores, without it every thread pool spans the allocation's 192,
+  and the wall time was the same (19 against 18 s, 293 against 340 s). CPU
+  seconds measure the cores a vignette was given as much as the work it
+  did, so compare CPU only between runs launched the same way.
 * **The memory is a sum of per-task peaks**, not the peak of the sum, so it
   can read a little high when ranks peak at different times. The local
   sampler gives the peak of the sum. The two are different scopes and are
