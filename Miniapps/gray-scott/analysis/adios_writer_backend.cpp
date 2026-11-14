@@ -40,9 +40,6 @@ AdiosWriterBackend::~AdiosWriterBackend()
 void AdiosWriterBackend::Run()
 {
     const auto &opts = m_reader.GetOptions();
-    int rank, size;
-    MPI_Comm_rank(m_reader.GetComm(), &rank);
-    MPI_Comm_size(m_reader.GetComm(), &size);
 
     while (m_reader.NextStep())
     {
@@ -57,12 +54,15 @@ void AdiosWriterBackend::Run()
         // on while we write (#42).
         m_reader.EndStep();
 
-        // ReadRepartition adds one overlap plane in the slowest dimension on
-        // every rank but the last. The owned planes come first in the
-        // buffer, so writing one plane fewer writes exactly the owned part.
-        auto write_dims = read_info.local_dims;
-        if (rank != size - 1 && !write_dims.empty() && write_dims[0] > 0)
-            write_dims[0] -= 1;
+        // ReadRepartition adds the neighbour's first plane on every axis
+        // where this piece is not the last. Write only the owned points: the
+        // buffer holds local_dims, of which the owned box starts at zero, so
+        // a memory selection picks it out on any axis (slab or brick).
+        const auto &write_dims = read_info.owned_dims;
+        const bool trimmed = read_info.owned_dims != read_info.local_dims;
+        size_t owned_count = write_dims.empty() ? 0 : 1;
+        for (size_t n : write_dims)
+            owned_count *= n;
 
         m_perf_logger.start("ADIOS_Write_Time");
         m_writer.BeginStep();
@@ -75,6 +75,12 @@ void AdiosWriterBackend::Run()
                 var = m_io_out.DefineVariable<double>(*field, read_info.global_dims, read_info.local_start, write_dims);
             else
                 var.SetSelection({read_info.local_start, write_dims});
+            if (owned_count == 0)
+                continue; // more readers than planes: this one owns nothing
+            if (trimmed)
+                var.SetMemorySelection({adios2::Dims(read_info.local_dims.size(), 0), read_info.local_dims});
+            else
+                var.SetMemorySelection();
             m_writer.Put(var, (field == &opts.u_var ? u_buf : v_buf).data());
         }
         m_writer.EndStep(); // the Puts are deferred: the buffers live until here

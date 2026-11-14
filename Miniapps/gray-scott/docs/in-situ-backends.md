@@ -264,11 +264,15 @@ this yet; the fix is planned for phase 5 (#42).
 In every mode, `io` also includes the close and reopen that
 `overwrite_last_step` does before each write.
 
-Span and memory selection are checked with BP5 only. With the SST engine
-the writer ignores both settings, logs a warning and uses the default
-mode: SST does not implement span `Put()`, and its FFS marshalling is
-reported to ignore memory selections. Revisit when the in transit path is
-tested in phase 5 (#42).
+Span is checked with BP5 only; SST has no span `Put()`, so with SST the
+writer logs a warning and uses the default mode. Memory selection works
+with SST when SST marshals with BP5, its default: an in transit run with
+memory selection on (L = 65, 8 writers, 3 to 8 readers, slab and brick)
+read back bitwise identical to a BP5 file written without it. With
+`MarshalMethod=FFS` the writer turns memory selection off and says so. FFS
+is not worth using here anyway: with ADIOS2 2.11 on a workstation it
+returned wrong values even in the default mode (not investigated; nothing
+in this repository sets it).
 
 **Pointer lifetime.** `Put()` is deferred: ADIOS2 may read the memory at
 `Put()` or at any point up to `EndStep()`, depending on the engine. Each

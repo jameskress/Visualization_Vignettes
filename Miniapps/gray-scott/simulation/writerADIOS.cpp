@@ -12,19 +12,41 @@ void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, 
 {
     settings = _settings;
 
-    // Span and memory selection are checked with BP5 only. With SST they are
-    // untested here and reported not to work (span Put unsupported; FFS
-    // marshalling may ignore the memory selection), so SST uses the default
-    // mode until the in transit path is tested in phase 5 (#42).
+    // Span is checked with BP5 only; SST has no span Put(), so it is off for
+    // SST. Memory selection works with SST when SST marshals with BP5, its
+    // default: an in transit run with memory selection on reads back bitwise
+    // identical to a BP5 file written without it, for slab and brick readers
+    // (L = 65, 8 writers, 3 to 8 readers). The older FFS marshalling is
+    // reported to ignore memory selections and is not tested here, so with
+    // MarshalMethod=FFS it stays off.
     std::string engine = m_io.EngineType();
     std::transform(engine.begin(), engine.end(), engine.begin(), ::tolower);
-    if (engine == "sst" && (settings.adios_span || settings.adios_memory_selection))
+    if (engine == "sst" && settings.adios_span)
     {
         if (rank == 0)
-            vtkLog(WARNING, "ADIOS2: adios_span and adios_memory_selection are not supported with SST; "
-                            "using the default write mode");
+            vtkLog(WARNING, "ADIOS2: adios_span is not supported with SST; using the default write mode");
         settings.adios_span = false;
-        settings.adios_memory_selection = false;
+    }
+    if (engine == "sst" && settings.adios_memory_selection)
+    {
+        std::string marshal = "bp5";
+        for (const auto &kv : m_io.Parameters())
+        {
+            std::string key = kv.first;
+            std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+            if (key == "marshalmethod")
+            {
+                marshal = kv.second;
+                std::transform(marshal.begin(), marshal.end(), marshal.begin(), ::tolower);
+            }
+        }
+        if (marshal != "bp5")
+        {
+            if (rank == 0)
+                vtkLog(WARNING, "ADIOS2: adios_memory_selection is tested with SST only for MarshalMethod=BP5 "
+                                "(this run has " << marshal << "); using the default write mode");
+            settings.adios_memory_selection = false;
+        }
     }
     // overwrite_last_step closes and reopens the engine at every write. For
     // SST that drops the reader's connection and the reader then waits forever

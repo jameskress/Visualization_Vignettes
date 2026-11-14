@@ -15,7 +15,15 @@ struct RepartitionInfo
 {
     std::vector<size_t> global_dims;
     std::vector<size_t> local_start;
+    // What was read: the owned points plus, on every piece but the last
+    // along an axis, the neighbour's first plane on that axis, so that
+    // neighbouring pieces share a plane of points and no cell is lost.
     std::vector<size_t> local_dims;
+    // The owned points alone (local_dims without the shared planes).
+    std::vector<size_t> owned_dims;
+    // Per axis: true when the last plane of local_dims belongs to the next
+    // piece (is shared), false at the global boundary.
+    std::vector<bool> shared_high;
 };
 template <typename T>
 struct BlockData
@@ -35,6 +43,19 @@ struct BackendOptions
     // Only "repartition" is implemented: every backend reads an even slab
     // per rank (ReadRepartition). "preserve" is rejected at startup (#42).
     std::string block_mode = "repartition";
+    // How "repartition" divides the domain among the reader ranks:
+    //   "slab"  -- even slabs along the slowest axis (the original layout);
+    //   "brick" -- a 3D grid of ranks from MPI_Dims_create, axes ordered as
+    //              the simulation orders its own, so each reader's brick is a
+    //              whole number of writer blocks when the rank counts divide.
+    // At 262144 writers and 2048 readers a slab spans at least 4096 writers
+    // and a brick exactly 128.
+    std::string read_decomposition = "slab";
+    // The simulation's ADIOS2 XML (settings "adios_config"). The reader takes
+    // its engine parameters from the <io name="AnalysisInput"> block there,
+    // so settings such as ControlModule reach the reader as well as the
+    // writer. Empty: no XML, built-in defaults only.
+    std::string adios_config;
     std::optional<std::array<double, 3>> origin;
     std::optional<std::array<double, 3>> spacing;
     std::string sst_wait_mode = "block";
@@ -68,6 +89,10 @@ struct BackendOptions
             opts.adios_engine = js["adios_engine"];
         if (js.contains("block_mode"))
             opts.block_mode = js["block_mode"];
+        if (js.contains("read_decomposition"))
+            opts.read_decomposition = js["read_decomposition"];
+        if (js.contains("adios_config"))
+            opts.adios_config = js["adios_config"];
         if (js.contains("sst_wait_mode"))
             opts.sst_wait_mode = js["sst_wait_mode"];
         if (js.contains("sst_timeout_seconds"))

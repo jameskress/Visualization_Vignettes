@@ -16,7 +16,12 @@ FetchContent_MakeAvailable(nlohmann_json)
 
 # Find dependencies
 find_package(MPI REQUIRED)
-find_package(ADIOS2 REQUIRED COMPONENTS MPI)
+# The top-level CMakeLists.txt has usually found ADIOS2 already, and ADIOS2
+# 2.11's config fails if asked twice ("imported target adios2::cxx11 already
+# exists"), so look only when this directory is built on its own.
+if(NOT TARGET adios2::cxx11_mpi)
+  find_package(ADIOS2 REQUIRED COMPONENTS MPI)
+endif()
 find_package(Conduit REQUIRED)
 find_package(Ascent REQUIRED)
 #find_package(Viskores REQUIRED)
@@ -29,7 +34,7 @@ find_package(Ascent REQUIRED)
 #)
 
 # Create the executable
-add_executable(analysis-reader 
+add_executable(analysis-reader
   main.cpp
   adios_reader.cpp
   ascent_backend.cpp

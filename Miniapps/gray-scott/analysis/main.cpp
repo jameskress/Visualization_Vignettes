@@ -24,6 +24,7 @@ static void usage(std::ostream &os)
        << "  -e, --engine <engine>      ADIOS2 engine name override\n"
        << "  -o, --output-type <type>   Analysis backend: ascent | catalyst_insitu | catalyst_io | adios_writer\n"
        << "  -b, --block-mode <mode>    Data handling: repartition (the only mode)\n"
+       << "  -D, --decomposition <d>    How repartition splits the domain: slab | brick\n"
        << "  -w, --sst-wait-mode <m>    SST wait mode: block | timeout\n"
        << "  -t, --sst-timeout <secs>   SST timeout seconds\n"
        << "  -V, --adios-verbose <lvl>  Set ADIOS2 engine verbose level (0-5)\n"
@@ -49,12 +50,13 @@ int main(int argc, char **argv)
         std::string engine_arg;
         std::string output_type_arg;
         std::string block_mode_arg;
+        std::string decomposition_arg;
         std::string sst_wait_mode_arg;
         int adios_verbose_arg = 0;
         double sst_timeout_arg = 0.0;
         bool debug_flag = false;
 
-        const char *short_opts = "f:s:c:e:o:b:w:t:V:dh";
+        const char *short_opts = "f:s:c:e:o:b:D:w:t:V:dh";
         const struct option long_opts[] = {
             {"file", required_argument, nullptr, 'f'},
             {"settings", required_argument, nullptr, 's'},
@@ -62,6 +64,7 @@ int main(int argc, char **argv)
             {"engine", required_argument, nullptr, 'e'},
             {"output-type", required_argument, nullptr, 'o'},
             {"block-mode", required_argument, nullptr, 'b'},
+            {"decomposition", required_argument, nullptr, 'D'},
             {"sst-wait-mode", required_argument, nullptr, 'w'},
             {"sst-timeout", required_argument, nullptr, 't'},
             {"adios-verbose", required_argument, nullptr, 'V'},
@@ -91,6 +94,9 @@ int main(int argc, char **argv)
                 break;
             case 'b':
                 block_mode_arg = optarg;
+                break;
+            case 'D':
+                decomposition_arg = optarg;
                 break;
             case 'w':
                 sst_wait_mode_arg = optarg;
@@ -156,6 +162,11 @@ int main(int argc, char **argv)
         if (opts.block_mode != "repartition")
             throw std::runtime_error("block mode '" + opts.block_mode +
                                      "' is not implemented; every backend uses 'repartition' (#42)");
+        if (!decomposition_arg.empty())
+            opts.read_decomposition = decomposition_arg;
+        if (opts.read_decomposition != "slab" && opts.read_decomposition != "brick")
+            throw std::runtime_error("read decomposition '" + opts.read_decomposition +
+                                     "' is not one of: slab, brick");
         if (!sst_wait_mode_arg.empty())
             opts.sst_wait_mode = sst_wait_mode_arg;
         if (sst_timeout_arg > 0.0)
@@ -189,7 +200,10 @@ int main(int argc, char **argv)
             std::cout << "\n"
                       << std::setw(22) << "--- Processing" << "---\n"
                       << std::setw(24) << "  Analysis Backend" << ": " << opts.output_type << "\n"
-                      << std::setw(24) << "  Block Mode" << ": " << opts.block_mode << "\n";
+                      << std::setw(24) << "  Block Mode" << ": " << opts.block_mode << "\n"
+                      << std::setw(24) << "  Decomposition" << ": " << opts.read_decomposition << "\n"
+                      << std::setw(24) << "  ADIOS2 Config" << ": "
+                      << (opts.adios_config.empty() ? std::string("(none)") : opts.adios_config) << "\n";
             if (opts.output_type.find("catalyst") != std::string::npos)
             {
                 std::cout << "\n"

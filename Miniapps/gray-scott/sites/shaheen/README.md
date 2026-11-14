@@ -270,6 +270,21 @@ simulation read a multi-terabyte checkpoint. `OpenTimeoutSecs` is SST's only
 timeout; there is no `ControlTimeoutSecs`. A shutdown that hangs in SST's
 RDMA teardown is bounded by `teardown_timeout_s` (#75).
 
+**Reader parameters.** Until 14 Nov 2026 the reader built ADIOS2 with no
+XML, so `ControlModule=epoll` reached the writers only and every reader ran
+on `select()`. That was harmless while each reader stayed under 1024 writer
+connections, but a slab reader at 262144:2048 reaches at least 4096 writers
+and would hang as the reproducer did (ADIOS2 #5272). The generated XML now
+has an `AnalysisInput` block with `ControlModule=epoll` and the data plane,
+which the reader loads; its rank 0 prints the parameters in use. Runs
+before that date had readers on `select()`.
+
+**Reader decomposition.** `--reader-decomposition brick` makes each reader
+read a 3D brick aligned with the simulation's blocks instead of a slab
+along the slowest axis: at 262144 writers and 2048 readers, 128 whole
+writer blocks per reader instead of pieces of at least 4096. The default
+is still `slab` until the two are measured against each other at scale.
+
 **Other engines and transports.** SST over WAN (TCP) needs
 `ControlModule=select`; with `epoll` it aborts at once. SSC uses MPI
 one-sided communication and is fast, but with ADIOS2 created on a split
@@ -293,7 +308,9 @@ libfabric registration cache (`FI_MR_CACHE_MAX_COUNT`) does not.
 
 None of that commit's code runs for our reads: each reader's slab covers
 whole writer blocks in the two fast dimensions, so no request has gaps
-and the new per-run table is never built. What the commit changes for us
+and the new per-run table is never built. (A `brick` reader, below, also
+reads whole writer blocks when the rank counts divide; when they do not,
+its requests can have gaps and that code would run.) What the commit changes for us
 is the size of ADIOS2's internal read request, from 96 to 120 bytes (one
 added member). The revert with an unused 24 byte member put back is as
 slow as rc1 (9.08 and 9.56 s, against 8.93 s for rc1 and 7.39 s for the
