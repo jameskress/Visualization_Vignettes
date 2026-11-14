@@ -41,6 +41,7 @@
 #
 import argparse
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -675,6 +676,14 @@ def parse_sacct_steps(text, job_id, started, ended, slack=2.0):
         end_s = _slurm_time(end)
         if end_s is None or state.startswith("RUNNING"):
             pending = True
+            continue
+        # A step that ended before this run started belongs to the run
+        # before it (the start slack could otherwise let it in). sacct
+        # prints whole seconds, so compare with the start rounded down; a
+        # step ending in that very second is ours only if it also started
+        # in it.
+        started_s = math.floor(started)
+        if end_s < started_s or (end_s == started_s and start_s < started_s):
             continue
         tres_in = parse_tres(fields[9])
         tres_out = parse_tres(fields[10])
