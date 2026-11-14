@@ -84,8 +84,12 @@ def _is_visit(run_result):
 
 
 def _sum_field(items, key):
-    values = [item.get(key) for item in items if item.get(key) is not None]
-    return sum(values) if values else None
+    """Sum of `key` over every item, or None if any item lacks it: a total
+    with a step missing would read as a complete, smaller number."""
+    values = [item.get(key) for item in items]
+    if not values or any(value is None for value in values):
+        return None
+    return sum(values)
 
 
 def _resource_figures(run_result, after, before, rusage_cpu):
@@ -123,19 +127,21 @@ def _resource_figures(run_result, after, before, rusage_cpu):
                 figures[key] = part + (local.get(local_key) or 0.0)
         # Steps run one after another, so the run's peak is the largest
         # step's, each step's being the sum of its tasks' peaks. A step that
-        # reports 0 was never sampled (Shaheen's 600 s default) and says
-        # nothing about memory.
-        step_mem = max(step.get("total_mem_bytes") or 0 for step in steps)
+        # reports 0 was never sampled (Shaheen's 600 s default), and its
+        # peak could be the largest, so the run's memory is known only when
+        # every step reported one.
+        step_mems = [step.get("total_mem_bytes") or 0 for step in steps]
         local_mem = local.get("peak_pss_bytes") or local.get("peak_rss_bytes") or 0
-        if step_mem:
+        if all(step_mems):
+            step_mem = max(step_mems)
             figures["memory_mb"] = (step_mem + local_mem) / MB
             figures["memory_scope"] = SLURM_SCOPE
         else:
             figures["memory_mb"] = None
             figures["memory_scope"] = SRUN_SCOPE
-        max_task = max(step.get("max_task_mem_bytes") or 0 for step in steps)
-        if max_task:
-            figures["memory_max_task_mb"] = max_task / MB
+        max_tasks = [step.get("max_task_mem_bytes") or 0 for step in steps]
+        if all(max_tasks):
+            figures["memory_max_task_mb"] = max(max_tasks) / MB
         for key in ("disk_read_bytes", "disk_write_bytes"):
             total = _sum_field(steps, key)
             if total is not None:

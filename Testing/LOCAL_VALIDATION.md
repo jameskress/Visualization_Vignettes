@@ -1302,6 +1302,11 @@ Two things to know about it:
   which both its own `srun` and VisIt's read. A step that still reports 0
   memory records CPU only. Ibex gathers through cgroups every 30 s and reports
   memory even for two-second steps.
+* **The accounting database lags.** On Shaheen a finished step showed as
+  running for up to 57 s; it is flushed about once a minute. `run_tests.py`
+  waits up to two minutes for two identical, finalised answers, which costs
+  about half a minute per `srun` vignette there. The wait is recorded as
+  `accounting_wait_s` and kept out of the execution time.
 * **The memory is a sum of per-task peaks**, not the peak of the sum, so it
   can read a little high when ranks peak at different times. The local
   sampler gives the peak of the sum. The two are different scopes and are

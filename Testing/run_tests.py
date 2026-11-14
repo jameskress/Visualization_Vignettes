@@ -684,12 +684,14 @@ def parse_sacct_steps(text, job_id, started, ended, slack=2.0):
     return steps, pending
 
 
-def slurm_step_usage(started, ended, job_id=None, attempts=8, wait_s=3.0):
+def slurm_step_usage(started, ended, job_id=None, patience_s=120.0, wait_s=5.0):
     """Accounting for the job steps this run made, or None if unavailable.
 
-    The database lags the step by a few seconds, and a step can be missing
-    from one answer and present in the next, so this asks until two answers
-    in a row list the same finalised steps. None means there is no
+    The database lags the step: on Shaheen a finished step showed as still
+    running for up to 57 s (it is flushed about once a minute). A step can
+    also be missing from one answer and present in the next. So this asks
+    until two answers in a row list the same finalised steps, for up to
+    `patience_s`. None means there is no
     allocation or no sacct; an empty list means sacct answered and no step
     matched, which is what a VisIt engine submitted as a separate job from a
     login node looks like.
@@ -704,7 +706,8 @@ def slurm_step_usage(started, ended, job_id=None, attempts=8, wait_s=3.0):
     env.pop("SLURM_TIME_FORMAT", None)
     steps = []
     previous = None
-    for attempt in range(attempts):
+    deadline = time.time() + patience_s
+    while True:
         try:
             text = subprocess.run(
                 [sacct, "-j", str(job_id), "-n", "-P", "-o", SACCT_FIELDS],
@@ -721,9 +724,9 @@ def slurm_step_usage(started, ended, job_id=None, attempts=8, wait_s=3.0):
         if steps and not pending and current == previous:
             return steps
         previous = None if pending else current
-        if attempt + 1 < attempts:
-            time.sleep(wait_s)
-    return steps
+        if time.time() + wait_s > deadline:
+            return steps
+        time.sleep(wait_s)
 
 
 def _launch_failure(output_dir, message):
