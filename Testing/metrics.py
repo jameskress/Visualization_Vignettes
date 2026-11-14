@@ -121,11 +121,13 @@ def _resource_figures(run_result, after, before, rusage_cpu):
         # Without a local sample (no psutil) the figure covers less than a
         # sampled run does, VisIt's CLI and viewer in particular, so it gets
         # its own scope rather than a zero for the missing part.
-        scope = SLURM_SCOPE if local else SLURM_STEPS_ONLY_SCOPE
         step_cpu = _sum_field(steps, "cpu_seconds")
-        local_cpu = local.get("tree_cpu_seconds") or 0.0
-        figures["cpu_seconds"] = None if step_cpu is None else step_cpu + local_cpu
-        figures["cpu_scope"] = scope if step_cpu is not None else SRUN_SCOPE
+        local_cpu = local.get("tree_cpu_seconds")
+        cpu_scope = SLURM_SCOPE if local_cpu is not None else SLURM_STEPS_ONLY_SCOPE
+        figures["cpu_seconds"] = (
+            None if step_cpu is None else step_cpu + (local_cpu or 0.0)
+        )
+        figures["cpu_scope"] = cpu_scope if step_cpu is not None else SRUN_SCOPE
         for key, local_key in (
             ("cpu_user_seconds", "tree_cpu_user_seconds"),
             ("cpu_system_seconds", "tree_cpu_system_seconds"),
@@ -143,10 +145,14 @@ def _resource_figures(run_result, after, before, rusage_cpu):
         # otherwise, and counts shared pages more than once, so the total
         # gets its own scope.
         local_mem = local.get("peak_pss_bytes")
-        memory_scope = scope
-        if local and local_mem is None:
+        memory_scope = SLURM_SCOPE
+        if local_mem is None:
             local_mem = local.get("peak_rss_bytes")
-            memory_scope = SLURM_LOCAL_RSS_SCOPE
+            memory_scope = (
+                SLURM_LOCAL_RSS_SCOPE
+                if local_mem is not None
+                else SLURM_STEPS_ONLY_SCOPE
+            )
         if all(step_mems):
             step_mem = max(step_mems)
             figures["memory_mb"] = (step_mem + (local_mem or 0)) / MB

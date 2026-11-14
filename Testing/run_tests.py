@@ -583,8 +583,10 @@ def _tree_sample(sampler):
 # Measured on Shaheen ex06 (LOCAL_VALIDATION 4b.15): 4804 CPU seconds and
 # 56.9 GiB, where the process tree had seen the srun client's 0.01 s and 19 MB.
 
+# JobIDRaw, not JobID: an array element whose SLURM_JOB_ID is 37 is shown
+# by JobID as 36_1, and its steps would never match.
 SACCT_FIELDS = (
-    "JobID,Start,End,State,NTasks,TotalCPU,UserCPU,SystemCPU,MaxRSS,"
+    "JobIDRaw,Start,End,State,NTasks,TotalCPU,UserCPU,SystemCPU,MaxRSS,"
     "TRESUsageInTot,TRESUsageOutTot"
 )
 _MEMORY_UNITS = {
