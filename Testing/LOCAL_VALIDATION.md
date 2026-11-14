@@ -440,8 +440,9 @@ record. It is not a log of everything that was run. The rule:
   `version_comparisons` in the summary report, and the run does not fail.
   Seeing that 3.4.1 costs 2.6x the memory of 3.4.2 on ex02 is a result, not a
   false alarm, and the latest record is often deliberately the *older* build.
-* **`metrics_schema` marks where a measurement's meaning changed.** It is 4
-  now; the 2024 records predate the field. That one the gate refuses outright,
+* **`metrics_schema` marks where a measurement's meaning changed.** It is 5
+  now, since memory became summed PSS (§4b.15); the 2024 records predate the
+  field. That one the gate refuses outright,
   because those rows measured a different quantity and comparing them says
   nothing about either version (§4.9, §4b.10). This is the only case where
   numbers are withheld rather than labelled.
@@ -1272,8 +1273,9 @@ in the same run.
   runs: each rank's RSS includes the same shared libraries. Summed PSS splits
   each shared page among the processes that share it and lands close to the
   cgroup. Memory is now summed PSS, scope `child-tree-pss`, with RSS kept
-  alongside as `memory_rss_mb`. Rows before this are `child-tree-sampled` and
-  the gate does not compare across the two.
+  alongside as `memory_rss_mb`. That changes what `memory_usage_mb` means, so
+  `metrics_schema` is now **5**; the gate needs two schema-5 runs of a
+  configuration before it compares anything again.
 * **`RUSAGE_CHILDREN` misses VisIt's engine** (5.2 of 224.8 s). It is no
   longer a fallback for VisIt; a VisIt run with no tree sample records CPU as
   unavailable.

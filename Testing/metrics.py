@@ -38,7 +38,7 @@ except ImportError:  # pragma: no cover - psutil is in the documented venv
 
 # Bumped whenever the meaning of a recorded field changes, so plots and
 # regression checks can refuse to compare across a schema boundary.
-METRICS_SCHEMA = 4
+METRICS_SCHEMA = 5
 
 
 def _maxrss_to_mb(maxrss):
@@ -70,6 +70,8 @@ SRUN_SCOPE = "unavailable-ranks-launched-by-srun"
 # the process tree the harness launched itself (the srun client, or VisIt's
 # CLI and viewer). LOCAL_VALIDATION 4b.15.
 SLURM_SCOPE = "slurm-steps-plus-local-tree"
+# The same, when the local tree could not be sampled.
+SLURM_STEPS_ONLY_SCOPE = "slurm-steps-only"
 
 # Summed PSS over the process tree. Replaces summed RSS, which counted shared
 # libraries once per rank (LOCAL_VALIDATION 4b.15).
@@ -114,10 +116,14 @@ def _resource_figures(run_result, after, before, rusage_cpu):
                 memory_scope=SRUN_SCOPE,
             )
             return figures
+        # Without a local sample (no psutil) the figure covers less than a
+        # sampled run does, VisIt's CLI and viewer in particular, so it gets
+        # its own scope rather than a zero for the missing part.
+        scope = SLURM_SCOPE if local else SLURM_STEPS_ONLY_SCOPE
         step_cpu = _sum_field(steps, "cpu_seconds")
         local_cpu = local.get("tree_cpu_seconds") or 0.0
         figures["cpu_seconds"] = None if step_cpu is None else step_cpu + local_cpu
-        figures["cpu_scope"] = SLURM_SCOPE if step_cpu is not None else SRUN_SCOPE
+        figures["cpu_scope"] = scope if step_cpu is not None else SRUN_SCOPE
         for key, local_key in (
             ("cpu_user_seconds", "tree_cpu_user_seconds"),
             ("cpu_system_seconds", "tree_cpu_system_seconds"),
@@ -135,7 +141,7 @@ def _resource_figures(run_result, after, before, rusage_cpu):
         if all(step_mems):
             step_mem = max(step_mems)
             figures["memory_mb"] = (step_mem + local_mem) / MB
-            figures["memory_scope"] = SLURM_SCOPE
+            figures["memory_scope"] = scope
         else:
             figures["memory_mb"] = None
             figures["memory_scope"] = SRUN_SCOPE

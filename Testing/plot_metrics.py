@@ -64,7 +64,7 @@ import numpy as np  # noqa: E402
 try:
     from metrics import METRICS_SCHEMA
 except ImportError:  # pragma: no cover - plotting standalone
-    METRICS_SCHEMA = 4
+    METRICS_SCHEMA = 5
 
 
 MARKER_SHAPES = ["o", "s", "^", "D", "P", "X", "*", "v", "<", ">"]

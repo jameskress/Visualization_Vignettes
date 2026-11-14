@@ -692,7 +692,8 @@ def slurm_step_usage(started, ended, job_id=None, patience_s=120.0, wait_s=5.0):
     also be missing from one answer and present in the next. So this asks
     until two answers in a row list the same finalised steps, for up to
     `patience_s`. None means there is no
-    allocation or no sacct; an empty list means sacct answered and no step
+    allocation, no sacct, sacct failed, or no stable answer within
+    `patience_s`. An empty list means sacct answered twice that no step
     matched, which is what a VisIt engine submitted as a separate job from a
     login node looks like.
     """
@@ -712,20 +713,32 @@ def slurm_step_usage(started, ended, job_id=None, patience_s=120.0, wait_s=5.0):
             text = subprocess.run(
                 [sacct, "-j", str(job_id), "-n", "-P", "-o", SACCT_FIELDS],
                 stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 universal_newlines=True,
                 timeout=60,
                 env=env,
-            ).stdout
-        except (OSError, subprocess.SubprocessError):
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            print("sacct could not be run ({0}); no step accounting".format(exc))
             return None
-        steps, pending = parse_sacct_steps(text, job_id, started, ended)
+        if text.returncode != 0:
+            print(
+                "sacct exited {0}: {1}; no step accounting".format(
+                    text.returncode, text.stderr.strip()[:200]
+                )
+            )
+            return None
+        steps, pending = parse_sacct_steps(text.stdout, job_id, started, ended)
         current = [step["step"] for step in steps]
-        if steps and not pending and current == previous:
+        if not pending and current == previous:
             return steps
         previous = None if pending else current
         if time.time() + wait_s > deadline:
-            return steps
+            # A step still pending, or two answers that never agreed: what
+            # is known is a subset, and a subset totals to a smaller number
+            # that looks complete. Report nothing instead.
+            print("sacct never gave a stable, finalised answer; no step accounting")
+            return None
         time.sleep(wait_s)
 
 
