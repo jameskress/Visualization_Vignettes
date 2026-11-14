@@ -386,6 +386,9 @@ class VignetteContext(object):
         # as a child of this process, so the harness knows its process-tree
         # sample of CPU and memory left the engine out.
         self.engine_outside_tree = False
+        # How many compute engines this run asked for, so the harness knows
+        # how many Slurm job steps to wait for in the accounting.
+        self.engines_launched = 0
         self._start = time.time()
 
         self.log("=" * 68)
@@ -799,6 +802,7 @@ class VignetteContext(object):
             "image_tolerance": self.image_tolerance,
             "notes": self.notes,
             "engine_outside_tree": self.engine_outside_tree,
+            "engines_launched": self.engines_launched,
         }
         path = os.path.join(self.testing_dir, self.results_filename())
         with open(path, "w") as handle:
@@ -1756,6 +1760,7 @@ def open_visit_engine(ctx, open_compute_engine, extra=None):
     # so a launch that fails after starting remote processes still counts.
     if ctx.args.machine != "local":
         ctx.engine_outside_tree = True
+    ctx.engines_launched += 1
     if not open_compute_engine("localhost", engine_args):
         raise VignetteError(
             "OpenComputeEngine failed for machine={0} nodes={1} ranks={2}".format(

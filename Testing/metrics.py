@@ -72,6 +72,8 @@ SRUN_SCOPE = "unavailable-ranks-launched-by-srun"
 SLURM_SCOPE = "slurm-steps-plus-local-tree"
 # The same, when the local tree could not be sampled.
 SLURM_STEPS_ONLY_SCOPE = "slurm-steps-only"
+# The same, with the local tree's memory as RSS because PSS was unreadable.
+SLURM_LOCAL_RSS_SCOPE = "slurm-steps-plus-local-rss"
 
 # Summed PSS over the process tree. Replaces summed RSS, which counted shared
 # libraries once per rank (LOCAL_VALIDATION 4b.15).
@@ -137,11 +139,18 @@ def _resource_figures(run_result, after, before, rusage_cpu):
         # peak could be the largest, so the run's memory is known only when
         # every step reported one.
         step_mems = [step.get("total_mem_bytes") or 0 for step in steps]
-        local_mem = local.get("peak_pss_bytes") or local.get("peak_rss_bytes") or 0
+        # The local part is PSS when it could be read. RSS stands in
+        # otherwise, and counts shared pages more than once, so the total
+        # gets its own scope.
+        local_mem = local.get("peak_pss_bytes")
+        memory_scope = scope
+        if local and local_mem is None:
+            local_mem = local.get("peak_rss_bytes")
+            memory_scope = SLURM_LOCAL_RSS_SCOPE
         if all(step_mems):
             step_mem = max(step_mems)
-            figures["memory_mb"] = (step_mem + local_mem) / MB
-            figures["memory_scope"] = scope
+            figures["memory_mb"] = (step_mem + (local_mem or 0)) / MB
+            figures["memory_scope"] = memory_scope
         else:
             figures["memory_mb"] = None
             figures["memory_scope"] = SRUN_SCOPE
@@ -163,6 +172,10 @@ def _resource_figures(run_result, after, before, rusage_cpu):
     elif run_result.get("peak_rss_mb"):
         figures["memory_mb"] = float(run_result["peak_rss_mb"])
         figures["memory_scope"] = "child-tree-sampled"
+    elif _is_visit(run_result):
+        # RUSAGE_CHILDREN does not see VisIt's engine, for memory as for CPU.
+        figures["memory_mb"] = None
+        figures["memory_scope"] = "unavailable-no-tree-sample"
     elif before and after.ru_maxrss <= before.get("maxrss", 0):
         figures["memory_mb"] = None
         figures["memory_scope"] = "unavailable-highwater-from-earlier-test"

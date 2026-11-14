@@ -482,10 +482,15 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     # so in its results JSON. Record that instead of the client's CPU and
     # memory as the vignette's.
     ranks_outside_tree = os.path.basename(str(cmd[0])) == "srun"
+    # How many job steps the run made, when that is known: one srun, or one
+    # per compute engine the VisIt vignette opened.
+    expected_steps = 1 if ranks_outside_tree else None
     if not ranks_outside_tree:
         document = _fresh_results_document(output_dir, started)
         if document is not None:
             ranks_outside_tree = bool(document.get("engine_outside_tree"))
+            if document.get("engines_launched"):
+                expected_steps = int(document["engines_launched"])
         else:
             # No results JSON (a crash or a timeout), so the vignette never
             # said. Judge from the command: VisIt off a workstation may have
@@ -500,7 +505,7 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
         if tree:
             payload["local_tree"] = tree
         asked = time.time()
-        steps = slurm_step_usage(started, ended)
+        steps = slurm_step_usage(started, ended, expected=expected_steps)
         # Waiting for the accounting database is not the vignette's time;
         # metrics.py takes this back out of the execution time.
         payload["accounting_wait_s"] = round(time.time() - asked, 3)
@@ -684,14 +689,18 @@ def parse_sacct_steps(text, job_id, started, ended, slack=2.0):
     return steps, pending
 
 
-def slurm_step_usage(started, ended, job_id=None, patience_s=120.0, wait_s=5.0):
+def slurm_step_usage(
+    started, ended, job_id=None, expected=None, patience_s=120.0, wait_s=5.0
+):
     """Accounting for the job steps this run made, or None if unavailable.
 
     The database lags the step: on Shaheen a finished step showed as still
     running for up to 57 s (it is flushed about once a minute). A step can
-    also be missing from one answer and present in the next. So this asks
-    until two answers in a row list the same finalised steps, for up to
-    `patience_s`. None means there is no
+    also be missing from one answer and present in the next. When the
+    caller knows how many steps the run made (`expected`), this asks until
+    that many are finalised; otherwise until two answers in a row list the
+    same finalised steps, which shows the answer is stable but cannot show
+    it is complete. Either way, for up to `patience_s`. None means there is no
     allocation, no sacct, sacct failed, or no stable answer within
     `patience_s`. An empty list means sacct answered twice that no step
     matched, which is what a VisIt engine submitted as a separate job from a
@@ -730,8 +739,11 @@ def slurm_step_usage(started, ended, job_id=None, patience_s=120.0, wait_s=5.0):
             return None
         steps, pending = parse_sacct_steps(text.stdout, job_id, started, ended)
         current = [step["step"] for step in steps]
-        if not pending and current == previous:
-            return steps
+        if not pending:
+            if expected is not None and len(current) >= expected:
+                return steps
+            if expected is None and current == previous:
+                return steps
         previous = None if pending else current
         if time.time() + wait_s > deadline:
             # A step still pending, or two answers that never agreed: what
