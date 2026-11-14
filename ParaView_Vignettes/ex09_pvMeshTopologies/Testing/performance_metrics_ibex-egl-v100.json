@@ -52,5 +52,35 @@
             "visit_version": null
         },
         "run_id": "ibex-egl-v100-2026-11-13"
+    },
+    "2026-11-14T21:46:49.069042": {
+        "test_name": "ex09_pvMeshTopologies",
+        "metrics_schema": 5,
+        "execution_time": 3.2196857929229736,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 2.87,
+        "cpu_usage_percent": 89.13913296472593,
+        "memory_rss_mb": 778.574,
+        "cpu_user_seconds": 2.3,
+        "cpu_system_seconds": 0.57,
+        "memory_usage_mb": 526.8,
+        "memory_usage": 552389836.8,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.134219,
+        "harness_rss_mb": 190.59375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu213-10",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-egl-v100-2026-11-14"
     }
 }

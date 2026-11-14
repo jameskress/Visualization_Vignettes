@@ -48,5 +48,40 @@
             "visit_version": "3.5.0"
         },
         "run_id": "shaheen3-ppn-2026-11-13"
+    },
+    "2026-11-14T22:02:57.162295": {
+        "test_name": "ex09_visitMeshTopologies",
+        "metrics_schema": 5,
+        "execution_time": 4.654796781539915,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 24.3,
+        "cpu_usage_percent": 522.0421242957248,
+        "cpu_user_seconds": 23.354,
+        "cpu_system_seconds": 0.9460000000000001,
+        "memory_max_task_mb": 309.8828125,
+        "disk_read_mb": 507.0791873931885,
+        "disk_write_mb": 8.392333984375e-05,
+        "slurm_steps": [
+            "15988518.9"
+        ],
+        "memory_usage_mb": 2268.1171875,
+        "memory_usage": 2378293248.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.589068,
+        "harness_rss_mb": 159.35546875,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn9",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0"
+        },
+        "run_id": "shaheen3-ppn-2026-11-14"
     }
 }

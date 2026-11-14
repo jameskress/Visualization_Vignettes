@@ -171,5 +171,35 @@
             "visit_version": null
         },
         "run_id": "ibex-cpu-2026-11-13"
+    },
+    "2026-11-14T21:36:36.365951": {
+        "test_name": "ex03_pvIsosurfaceAnimation",
+        "metrics_schema": 5,
+        "execution_time": 13.60158658027649,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 46.09,
+        "cpu_usage_percent": 338.8575275978069,
+        "memory_rss_mb": 612.102,
+        "cpu_user_seconds": 40.1,
+        "cpu_system_seconds": 5.99,
+        "memory_usage_mb": 607.638,
+        "memory_usage": 637154623.488,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 13.495543,
+        "harness_rss_mb": 184.58984375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn511-24",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-cpu-2026-11-14"
     }
 }

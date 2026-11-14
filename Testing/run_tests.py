@@ -340,7 +340,12 @@ class _PeakRssSampler(object):
             times = process.cpu_times()
             user, system = float(times.user), float(times.system)
             key = (process.pid, process.create_time())
-            if user + system > sum(self._cpu_by_pid.get(key, (0.0, 0.0))):
+            # Store the first reading even when it is zero: a process seen at
+            # 0.00 s (a short-lived srun client) was measured, and leaving it
+            # out made its tree look unsampled.
+            if key not in self._cpu_by_pid or user + system > sum(
+                self._cpu_by_pid[key]
+            ):
                 self._cpu_by_pid[key] = (user, system)
         except Exception:  # noqa: BLE001 - CPU times are best effort
             pass
