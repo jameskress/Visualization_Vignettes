@@ -11,6 +11,8 @@ sacct.txt), and writes per-run totals:
   nodes; mean and peak node power.
 * CPU: per-node mean utilisation from /proc/stat differences.
 * NIC: bytes sent and received, and the NACK and retry counter increases.
+* Steps whose node list is not fully covered by samples get no sampled
+  figures (nodes_expected and nodes_sampled say why).
 * Slurm: each numbered step's elapsed time, CPU seconds, peak task memory
   and ConsumedEnergyRaw, as sacct reported them, plus the sampled energy,
   mean power and CPU use of that step's nodes. An in transit run is one
@@ -50,10 +52,14 @@ def _num(text):
 
 
 def _increase(rows, key):
-    """Last minus first value of a cumulative counter, or None."""
+    """Last minus first value of a cumulative counter, or None.
+
+    None too if the counter went backwards anywhere (a reset), not only
+    between the first and last samples.
+    """
     values = [_num(r.get(key)) for r in rows]
     values = [v for v in values if v is not None]
-    if len(values) < 2 or values[-1] < values[0]:
+    if len(values) < 2 or any(b < a for a, b in zip(values, values[1:])):
         return None
     return values[-1] - values[0]
 
@@ -164,10 +170,16 @@ def main(argv):
     steps = read_sacct(os.path.join(tel_dir, "sacct.txt"))
     by_name = {n["node"]: n for n in nodes}
     for step in steps:
-        mine = [
-            by_name[h] for h in expand_nodelist(step.get("node_list")) if h in by_name
-        ]
+        expected = expand_nodelist(step.get("node_list"))
+        mine = [by_name[h] for h in expected if h in by_name]
+        step["nodes_expected"] = len(expected)
         step["nodes_sampled"] = len(mine)
+        if not expected or len(mine) < len(expected):
+            # Totals over some of a step's nodes would look complete.
+            step["sampled_energy_j"] = None
+            step["sampled_power_mean_w"] = None
+            step["sampled_cpu_busy_fraction"] = None
+            continue
         energies = [n.get("energy_j") for n in mine]
         step["sampled_energy_j"] = (
             sum(energies) if mine and all(e is not None for e in energies) else None

@@ -1038,6 +1038,11 @@ fi
 # run-to-run noise (15 Nov 2026).
 TELEMETRY_START = """# --- Telemetry (--telemetry) ---
 TEL=$OUTPUT_DIR/telemetry
+# A resubmitted job starts afresh: an earlier job's samples (it stopped
+# before its reduction) are moved aside, not mixed into this run's totals.
+if [ -e $TEL ]; then
+    mv $TEL $TEL.prev-$(cat $TEL/job_id 2>/dev/null || echo unknown)-$(date +%s)
+fi
 mkdir -p $TEL/nodes
 echo "$SLURM_JOB_ID" > $TEL/job_id
 # Slurm samples tasks and energy every 600 s by default on Shaheen, which
@@ -1052,10 +1057,13 @@ srun --overlap --nodes=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem
     --output=$TEL/sampler.log --error=$TEL/sampler.log \\
     {repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/node_sampler.sh $TEL/nodes 1 &
 TEL_PID=$!
+# Out of the job table, so the launch's `wait -n` (bash 4.4 cannot name
+# PIDs) never takes the sampler for an application step.
+disown $TEL_PID
 """
 
 TELEMETRY_STOP = """kill $TEL_PID 2>/dev/null
-wait $TEL_PID 2>/dev/null
+for i in $(seq 1 10); do kill -0 $TEL_PID 2>/dev/null || break; sleep 1; done
 """
 
 TELEMETRY_REDUCE = """# 4. Telemetry (--telemetry): Slurm's step accounting, once the run's steps
@@ -1064,20 +1072,43 @@ TELEMETRY_REDUCE = """# 4. Telemetry (--telemetry): Slurm's step accounting, onc
 TEL=$OUTPUT_DIR/telemetry
 if [ -f $TEL/job_id ]; then
     RUN_JOB=$(cat $TEL/job_id)
+    # Accounting counts only once sacct answers, lists the run's numbered
+    # steps, and none of them is still active. A failed or empty answer is
+    # asked again; if none is final within 3 minutes there is no sacct.txt
+    # and the summary has no Slurm steps, rather than a partial list.
+    FIELDS=JobIDRaw,JobName,Start,End,Elapsed,NNodes,NTasks,NodeList,State,ExitCode,TotalCPU,UserCPU,SystemCPU,MaxRSS,MaxRSSNode,AveRSS,TRESUsageInTot,TRESUsageOutTot,ConsumedEnergyRaw,AveCPUFreq
+    rm -f $TEL/sacct.txt
     for i in $(seq 1 18); do
-        sacct -j $RUN_JOB -n -o State | grep -q -E 'RUNNING|PENDING|COMPLETING' || break
+        if sacct -j $RUN_JOB -P -o $FIELDS > $TEL/sacct.tmp 2>/dev/null \\
+            && grep -q -E "^$RUN_JOB\\.[0-9]" $TEL/sacct.tmp \\
+            && ! cut -d'|' -f9 $TEL/sacct.tmp | grep -q -E 'RUNNING|PENDING|COMPLETING|REQUEUED'; then
+            mv $TEL/sacct.tmp $TEL/sacct.txt
+            break
+        fi
         sleep 10
     done
-    sacct -j $RUN_JOB -P -o JobIDRaw,JobName,Start,End,Elapsed,NNodes,NTasks,NodeList,State,ExitCode,TotalCPU,UserCPU,SystemCPU,MaxRSS,MaxRSSNode,AveRSS,TRESUsageInTot,TRESUsageOutTot,ConsumedEnergyRaw,AveCPUFreq > $TEL/sacct.txt
-    cp $TEL/sacct.txt "{results_dir}/{id}_sacct.txt"
-    if python {repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/summarize_telemetry.py $TEL "{results_dir}/{id}_telemetry.json"; then
-        cp $TEL/env.txt $TEL/modules.txt $TEL/ldd.txt $TEL/source.txt "{results_dir}/" 2>/dev/null
-        for f in env modules ldd source; do
-            [ -f "{results_dir}/$f.txt" ] && mv "{results_dir}/$f.txt" "{results_dir}/{id}_tel_$f.txt"
-        done
-        [ -d $TEL/nodes ] && (cd $TEL && tar -czf nodes.tar.gz.tmp nodes/ && mv nodes.tar.gz.tmp nodes.tar.gz && rm -rf nodes/)
+    rm -f $TEL/sacct.tmp
+    if [ -f $TEL/sacct.txt ]; then
+        cp $TEL/sacct.txt "{results_dir}/{id}_sacct.txt"
     else
-        echo "Telemetry summary failed; telemetry/nodes kept."
+        echo "sacct gave no final answer for job $RUN_JOB; no Slurm step accounting."
+    fi
+    # A rerun after a successful reduction finds only the archive: restore it.
+    if [ ! -d $TEL/nodes ] && [ -f $TEL/nodes.tar.gz ]; then
+        tar -xzf $TEL/nodes.tar.gz -C $TEL || {{ echo "Could not restore telemetry/nodes; summary kept."; rm -rf $TEL/nodes; }}
+    fi
+    SUMMARY="{results_dir}/{id}_telemetry.json"
+    if [ -d $TEL/nodes ] && python {repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/summarize_telemetry.py $TEL "$SUMMARY.tmp"; then
+        mv "$SUMMARY.tmp" "$SUMMARY"
+        # Straight to this experiment's names: reductions of other runs share
+        # the results directory.
+        for f in env modules ldd source; do
+            [ -f $TEL/$f.txt ] && cp $TEL/$f.txt "{results_dir}/{id}_tel_$f.txt"
+        done
+        (cd $TEL && tar -czf nodes.tar.gz.tmp nodes/ && mv nodes.tar.gz.tmp nodes.tar.gz && rm -rf nodes/)
+    else
+        rm -f "$SUMMARY.tmp"
+        echo "Telemetry summary failed; telemetry/nodes and any earlier summary kept."
     fi
 fi
 
