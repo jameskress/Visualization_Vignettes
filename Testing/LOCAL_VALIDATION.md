@@ -1315,7 +1315,9 @@ Things to know about it:
 * **Steps are matched by time, in whole seconds.** A step an earlier run
   already took is never counted again. A step that started and ended in the
   second this run started could be either run's, so that run records no
-  Slurm figures instead of guessing.
+  Slurm figures instead of guessing. More steps in the run's window than it
+  made means another step ran in the same allocation; the rows cannot be
+  told apart, so that run records no Slurm figures either.
 * **Checked against the local sampler on Shaheen.** The same vignettes run
   on a workq node with `--launcher none`, so the sampled tree saw them:
 

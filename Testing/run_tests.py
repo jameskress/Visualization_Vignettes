@@ -739,7 +739,7 @@ def slurm_step_usage(
     running for up to 57 s (it is flushed about once a minute). A step can
     also be missing from one answer and present in the next. When the
     caller knows how many steps the run made (`expected`), this asks until
-    that many are finalised; otherwise until two answers in a row list the
+    exactly that many are finalised, and gives up at once if there are more; otherwise until two answers in a row list the
     same finalised steps, which shows the answer is stable but cannot show
     it is complete. Either way, for up to `patience_s`. None means there is no
     allocation, no sacct, sacct failed, a step whose owner cannot be told
@@ -789,8 +789,17 @@ def slurm_step_usage(
             )
             return None
         current = [step["step"] for step in steps]
+        if expected is not None and len(current) > expected:
+            # More steps in the run's window than it made: another step ran
+            # in the same allocation, and which rows are this run's cannot
+            # be told apart. Totalling them all would over-count.
+            print(
+                "{0} steps in this run's window but it made {1}; "
+                "no step accounting".format(len(current), expected)
+            )
+            return None
         if not pending and (
-            (expected is not None and len(current) >= expected)
+            (expected is not None and len(current) == expected)
             or (expected is None and current == previous)
         ):
             _CLAIMED_STEPS.update(current)
