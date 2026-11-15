@@ -733,7 +733,9 @@ def parse_sacct_steps(
         started_s = math.floor(started)
         if end_s < started_s or (end_s == started_s and start_s < started_s):
             continue
-        if end_s == started_s:
+        if end_s == started_s and step_name is None:
+            # Without a name it could be the previous run's; with one, the
+            # name already says it is this run's.
             ambiguous = True
             continue
         tres_in = parse_tres(fields[9])
