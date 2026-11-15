@@ -314,6 +314,27 @@ class _PeakRssSampler(object):
     page among the processes that share it, so the sum is the tree's real
     footprint (2191 MB there). RSS is still recorded for comparison with
     history, and used when PSS cannot be read.
+
+    I/O, FOR EXPLAINING A SWING (schema 6)
+
+    The same walk reads each process's /proc/<pid>/io, cumulative like CPU
+    time. read_bytes and write_bytes are what reached storage, so a run that
+    found its input in the page cache reads far less than one that did not,
+    and that difference is often the whole of a time swing on the
+    workstation. rchar and wchar count every read and write call, cached or
+    not. One more /proc read per process per sample.
+
+    Unlike CPU time, the kernel adds a reaped child's I/O into its parent's
+    counters (wait_task_zombie), so summing the last reading of every pid
+    counts a child twice: a test that wrote 100 MB and ran a child writing
+    50 MB summed to 200 MB. When a child vanishes while its parent is still
+    in the tree, the child's last reading is subtracted once from the total.
+    The parent's counter then carries the child's whole I/O, including any
+    after the child's last sample, which the plain sum would have missed.
+
+    Context switches are not recorded: /proc/<pid>/status counts only the
+    main thread's, so they undercount every multithreaded renderer. The
+    largest number of processes and threads seen at once is recorded.
     """
 
     INTERVAL_S = 0.25
@@ -324,6 +345,16 @@ class _PeakRssSampler(object):
         self.peak_pss_bytes = 0
         self._pss_ok = True
         self._cpu_by_pid = {}
+        self._io_by_pid = {}
+        # A reaped child's last reading, to subtract once (see above).
+        self._io_reaped = [0, 0, 0, 0]
+        self._io_parent = {}
+        self._io_seen = set()
+        self._io_seen_now = set()
+        self._key_by_pid = {}
+        self.peak_processes = 0
+        self.peak_threads = 0
+        self._threads_now = 0
         self._stop = threading.Event()
         self._thread = None
 
@@ -351,19 +382,86 @@ class _PeakRssSampler(object):
                 self._cpu_by_pid[key] = (user, system)
         except Exception:  # noqa: BLE001 - CPU times are best effort
             pass
+        self._account_io(process)
         return rss, pss
 
+    def _account_io(self, process):
+        """Record one process's cumulative I/O and thread count.
+
+        Best effort: a field this platform or this process does not expose
+        is simply absent, and the totals then report None rather than a
+        partial sum (see io_totals).
+        """
+        try:
+            key = (process.pid, process.create_time())
+        except Exception:  # noqa: BLE001 - exited since the memory read
+            return
+        self._io_seen_now.add(key)
+        self._key_by_pid[process.pid] = key
+        try:
+            self._io_parent.setdefault(key, process.ppid())
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            io = process.io_counters()
+            reading = (
+                int(io.read_bytes),
+                int(io.write_bytes),
+                int(getattr(io, "read_chars", 0)),
+                int(getattr(io, "write_chars", 0)),
+            )
+            if key not in self._io_by_pid or sum(reading) >= sum(self._io_by_pid[key]):
+                self._io_by_pid[key] = reading
+        except Exception:  # noqa: BLE001 - no /proc/<pid>/io (macOS, perms)
+            self._io_by_pid.setdefault(key, None)
+        try:
+            self._threads_now += int(process.num_threads())
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _settle_reaped(self):
+        """Subtract, once, each vanished child whose parent is still sampled."""
+        for key in self._io_seen - self._io_seen_now:
+            parent_key = self._key_by_pid.get(self._io_parent.get(key))
+            reading = self._io_by_pid.get(key)
+            if parent_key in self._io_seen_now and reading:
+                for i in range(4):
+                    self._io_reaped[i] += reading[i]
+        self._io_seen = self._io_seen_now
+
     def _sample_once(self, process):
+        self._threads_now = 0
+        self._io_seen_now = set()
+        self._key_by_pid = {}
         rss, pss = self._account(process)
+        processes = 1
         for child in process.children(recursive=True):
             try:
                 child_rss, child_pss = self._account(child)
             except Exception:  # noqa: BLE001 - a child may exit mid-walk
                 continue
+            processes += 1
             rss += child_rss
             if pss is not None and child_pss is not None:
                 pss += child_pss
+        self.peak_processes = max(self.peak_processes, processes)
+        self.peak_threads = max(self.peak_threads, self._threads_now)
+        self._settle_reaped()
         return rss, pss
+
+    @property
+    def io_totals(self):
+        """(read_bytes, write_bytes, rchar, wchar) over the tree, or None.
+
+        None when nothing was read, or when any sampled process's I/O was
+        unreadable: a total missing a process would look complete and small.
+        """
+        if not self._io_by_pid or any(v is None for v in self._io_by_pid.values()):
+            return None
+        return tuple(
+            max(0, sum(v[i] for v in self._io_by_pid.values()) - self._io_reaped[i])
+            for i in range(4)
+        )
 
     @property
     def cpu_seconds(self):
@@ -419,6 +517,77 @@ class _PeakRssSampler(object):
         return self.peak_bytes or None
 
 
+# ---------------------------------------------------------------------------
+# Node energy (schema 6)
+#
+# HPE Cray EX nodes expose cumulative node, CPU and memory energy in
+# /sys/cray/pm_counters, readable without privilege and updated about ten
+# times a second. The counters cover the whole node, so they describe one
+# run only when nothing else can be running there: the job must own every
+# CPU of every node it holds. Shaheen's shared and ppn partitions place
+# several jobs on one node, and a figure read there would include theirs, so
+# none is recorded. The workstation's RAPL counters are root-only and the
+# machine is shared, so it records none either.
+# ---------------------------------------------------------------------------
+PM_COUNTERS_DIR = "/sys/cray/pm_counters"
+PM_COUNTER_FILES = {
+    "node_joules": "energy",
+    "cpu_joules": "cpu_energy",
+    "memory_joules": "memory_energy",
+}
+
+
+def job_owns_its_nodes(environ=None, cpus_on_node=None):
+    """True when this Slurm job holds every CPU of every node it was given.
+
+    SLURM_JOB_CPUS_PER_NODE reads like "384(x2),192"; each count must equal
+    this node's CPU count (the job's nodes are assumed alike, which they are
+    within a partition). Outside an allocation the answer is False: an
+    unallocated node can be running anything.
+    """
+    environ = os.environ if environ is None else environ
+    cpus_on_node = cpus_on_node or os.cpu_count()
+    text = environ.get("SLURM_JOB_CPUS_PER_NODE")
+    if not environ.get("SLURM_JOB_ID") or not text or not cpus_on_node:
+        return False
+    for item in text.split(","):
+        count = item.split("(", 1)[0].strip()
+        if not count.isdigit() or int(count) != int(cpus_on_node):
+            return False
+    return True
+
+
+def read_pm_counters(directory=PM_COUNTERS_DIR):
+    """{node_joules, cpu_joules, memory_joules, generation} or None.
+
+    Each file reads "<value> J <timestamp> us". The generation changes when
+    the counters are reset, so two readings are subtracted only when their
+    generations match.
+    """
+    if not os.path.isdir(directory):
+        return None
+    reading = {}
+    try:
+        for key, name in PM_COUNTER_FILES.items():
+            with open(os.path.join(directory, name), "r") as handle:
+                reading[key] = int(handle.read().split()[0])
+        with open(os.path.join(directory, "generation"), "r") as handle:
+            reading["generation"] = handle.read().strip()
+    except (OSError, ValueError, IndexError):
+        return None
+    return reading
+
+
+def pm_energy(before, after):
+    """Energy used between two pm_counters readings, or None."""
+    if not before or not after or before["generation"] != after["generation"]:
+        return None
+    used = {key: after[key] - before[key] for key in PM_COUNTER_FILES}
+    if any(value < 0 for value in used.values()):
+        return None
+    return used
+
+
 def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     """Run a vignette, tee its streams to disk, and report the outcome."""
 
@@ -450,6 +619,16 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
 
     print("Executing: {0}".format(" ".join(str(part) for part in cmd)))
     sys.stdout.flush()
+
+    # Context, not a measurement of the run: how busy the host already was
+    # when the vignette started. On the shared workstation this is the first
+    # thing to look at when a time swings.
+    try:
+        load_at_start = round(os.getloadavg()[0], 2)
+    except (AttributeError, OSError):
+        load_at_start = None
+    owns_nodes = job_owns_its_nodes()
+    pm_before = read_pm_counters() if owns_nodes else None
 
     started = time.time()
     timed_out = False
@@ -489,6 +668,7 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
 
     ended = time.time()
     duration = ended - started
+    pm_after = read_pm_counters() if pm_before else None
 
     payload = {
         "command": [str(part) for part in cmd],
@@ -498,7 +678,15 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
         "stdout_log": stdout_path,
         "stderr_log": stderr_path,
         "succeeded": (returncode == 0),
+        "job_owns_its_nodes": owns_nodes,
     }
+    if load_at_start is not None:
+        payload["load_1m_at_start"] = load_at_start
+    if env.get("VTK_DEFAULT_OPENGL_WINDOW"):
+        payload["opengl_window"] = env["VTK_DEFAULT_OPENGL_WINDOW"]
+    energy = pm_energy(pm_before, pm_after)
+    if energy is not None:
+        payload["pm_energy"] = energy
     # srun hands the ranks to slurmstepd, so they are not in the tree the
     # sampler walked: what it measured was the srun client. VisIt does the
     # same off a workstation, starting its compute engine with srun, and says
@@ -602,6 +790,16 @@ def _tree_sample(sampler):
         sample["tree_cpu_seconds"] = round(sampler.cpu_seconds, 3)
         sample["tree_cpu_user_seconds"] = round(user, 3)
         sample["tree_cpu_system_seconds"] = round(system, 3)
+    io = sampler.io_totals
+    if io is not None:
+        for name, value in zip(
+            ("io_read_bytes", "io_write_bytes", "io_rchar_bytes", "io_wchar_bytes"),
+            io,
+        ):
+            sample[name] = value
+    if sampler.peak_processes:
+        sample["peak_processes"] = sampler.peak_processes
+        sample["peak_threads"] = sampler.peak_threads
     return sample
 
 
@@ -619,7 +817,7 @@ def _tree_sample(sampler):
 # by JobID as 36_1, and its steps would never match.
 SACCT_FIELDS = (
     "JobIDRaw,Start,End,State,NTasks,TotalCPU,UserCPU,SystemCPU,MaxRSS,"
-    "TRESUsageInTot,TRESUsageOutTot,JobName"
+    "TRESUsageInTot,TRESUsageOutTot,JobName,ConsumedEnergyRaw"
 )
 _MEMORY_UNITS = {
     "": 1,
@@ -675,6 +873,21 @@ def parse_tres(text):
             key, value = item.split("=", 1)
             fields[key.strip()] = value.strip()
     return fields
+
+
+def _energy_field(fields):
+    """ConsumedEnergyRaw (added in schema 6) in joules, or None.
+
+    Found by name in SACCT_FIELDS rather than by position, so a field added
+    to the list later does not shift it.
+    """
+    index = SACCT_FIELDS.split(",").index("ConsumedEnergyRaw")
+    if len(fields) <= index:
+        return None
+    text = fields[index].strip()
+    if not text.isdigit() or int(text) == 0:
+        return None
+    return int(text)
 
 
 def _slurm_time(text):
@@ -758,6 +971,11 @@ def parse_sacct_steps(
                 "total_mem_bytes": parse_slurm_size(tres_in.get("mem")),
                 "disk_read_bytes": parse_slurm_size(tres_in.get("fs/disk")),
                 "disk_write_bytes": parse_slurm_size(tres_out.get("fs/disk")),
+                # Joules over the step's nodes, from Slurm's energy plugin
+                # (pm_counters on Shaheen). Blank or 0 where no plugin is
+                # configured, which is recorded as unknown. Whole-node, so
+                # metrics.py uses it only when the job owns its nodes.
+                "energy_joules": _energy_field(fields),
             }
         )
     return steps, pending, ambiguous

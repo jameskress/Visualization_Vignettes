@@ -1347,6 +1347,75 @@ Things to know about it:
   sampler gives the peak of the sum. The two are different scopes and are
   never compared.
 
+### 4b.16 Drift warnings, a dashboard, and what else a run records, `Testing/drift.py`
+
+The gate compares the last two runs at 10%. It cannot say that a run is
+unusual for its history, and nothing could be read without running
+`plot_metrics.py` by hand. Three additions, all warnings or context, none a
+new failure.
+
+**Drift thresholds, chosen from the committed history.** `drift.py` judges
+each run against the earlier runs of the same vignette, configuration, tool
+version, comparable schema and measurement scope (README, "Drift warnings").
+Run over every committed record (985, as of 15 Nov 2026), only execution time had
+histories long enough to judge (3 or more earlier runs of one version), at 94
+points; CPU and memory at schema 5 have at most one earlier run each so far.
+
+| Rule alone | Execution-time points flagged, of 94 |
+| :--- | ---: |
+| beyond 4 robust sigma (1.4826 x MAD) | 29 |
+| moved 10% from the median | 40 |
+| moved 25% from the median | 18 |
+| moved 50% from the median | 8 |
+| **all of: 4 sigma, 25%, 2 s** | **7** |
+
+The median move was 8.9% and the 90th percentile 46%. Sigma alone flags a
+third of the points, because a three-run history of a quiet vignette has a
+MAD of a few hundredths of a second; the relative floor is what makes it
+usable. The seven that remain are all step changes with a known cause or a
+clear before and after:
+
+* VisIt ex06 on KW61316, 58 s to 209 s on 21 Sep 2026: the commit that
+  fixed and re-blessed the vignettes after the first end-to-end run (a4fdc7c).
+  Every later run stays near 209 s.
+* ParaView ex06 on KW61316, 517 s to 198 s and 205 s in Oct 2024, the week
+  the suite was first committed (d732aa5).
+* ParaView ex00 on ibex-cpu and ibex-egl-p6000, about 4.5 s to 1.8 s on
+  21 to 22 Oct 2024, and ex05 on ibex-egl-rtx2080ti, 4.7 s to 7.1 s: the
+  same first week of Ibex runs.
+
+That is the behaviour wanted: nothing from ordinary noise, every step change
+found on the run that made it. The thresholds are set again from data once
+schema-6 histories have CPU, memory, I/O and energy at five runs or more.
+
+**I/O from the process tree double counted reaped children.** The kernel
+adds a child's I/O into its parent's `/proc/<pid>/io` when the parent reaps
+it, so summing each pid's last reading counted it twice. A test process that
+wrote 100 MB with `fsync` and ran a child that wrote 50 MB summed to 200 MB.
+The sampler now subtracts a vanished child's last reading once when its parent
+is still in the tree, and the same test reads 150 MB (twice, identically).
+CPU time does not have this problem: psutil reports a process's own CPU
+separately from its children's.
+
+**Context switches are left out.** `/proc/<pid>/status` reports the main
+thread's switches only, so a multithreaded pvbatch would undercount by its
+thread count. Summing `/proc/<pid>/task/*/status` would cost one read per
+thread per sample. The load average at start is recorded instead, as
+context, and the most processes and threads the tree had at once.
+
+**Energy is recorded only where it is the run's alone.** Shaheen's Slurm
+gathers energy through `acct_gather_energy/pm_counters`, so `sacct`'s
+`ConsumedEnergyRaw` is per step (job 15988521: 39 J to 23,369 J across its
+twelve steps). `/sys/cray/pm_counters` on a compute node reads node, CPU and
+memory energy in whole joules at about 10 Hz without privilege. Both count the
+whole node, and Shaheen's `shared` and `ppn` partitions place several jobs on
+one node; `OverSubscribe=NO` is set on every partition, including those two,
+so it cannot tell them apart. The harness instead compares
+`SLURM_JOB_CPUS_PER_NODE` with the node's CPU count: on a whole debug node
+both read 384. Energy is recorded only when they match on every node.
+`AveCPUFreq` was considered and left out: it read 19.2 GHz for steps on the
+same job.
+
 ## 5. Known issue: ex06 image stability
 
 `ex06_pvLargeData` differs **4.13% of pixels between two consecutive runs** on

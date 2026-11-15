@@ -38,7 +38,14 @@ except ImportError:  # pragma: no cover - psutil is in the documented venv
 
 # Bumped whenever the meaning of a recorded field changes, so plots and
 # regression checks can refuse to compare across a schema boundary.
-METRICS_SCHEMA = 5
+#
+# 6 adds fields (verdicts, build, baseline, I/O, energy, host context) and
+# changes the meaning of none, so its CPU and memory still compare with 5's:
+# MIN_COMPARABLE_SCHEMA is the oldest schema whose CPU and memory figures
+# mean what the current one's do. Bump that too when a figure changes
+# meaning; leave it when a schema only adds fields.
+METRICS_SCHEMA = 6
+MIN_COMPARABLE_SCHEMA = 5
 
 
 def _maxrss_to_mb(maxrss):
@@ -94,6 +101,44 @@ def _sum_field(items, key):
     if not values or any(value is None for value in values):
         return None
     return sum(values)
+
+
+# Energy from Slurm's accounting of the run's steps (schema 6).
+ENERGY_SLURM_SCOPE = "slurm-steps-whole-nodes"
+# Energy from /sys/cray/pm_counters on the node the harness ran on.
+ENERGY_PM_SCOPE = "node-pm-counters"
+# Storage I/O summed over the sampled process tree, from /proc/<pid>/io.
+IO_TREE_SCOPE = "child-tree-proc-io"
+
+
+def _local_tree_detail(run_result):
+    """Schema-6 detail from the sampled tree, for runs whose ranks it holds.
+
+    Not used for srun runs: there the local tree is only the launcher, and
+    its I/O and thread counts would read as the vignette's.
+    """
+    detail = {}
+    if run_result.get("io_read_bytes") is not None:
+        detail["io_scope"] = IO_TREE_SCOPE
+        for key in ("io_read", "io_write", "io_rchar", "io_wchar"):
+            value = run_result.get(key + "_bytes")
+            if value is not None:
+                detail[key + "_mb"] = value / MB
+    for key in (
+        "peak_processes",
+        "peak_threads",
+    ):
+        if run_result.get(key) is not None:
+            detail[key] = run_result[key]
+    # Whole-node energy, recorded by run_tests.py only when the job owned
+    # the node; on one node, which is where these runs' ranks are.
+    energy = run_result.get("pm_energy")
+    if energy and energy.get("node_joules") is not None:
+        detail["energy_joules"] = float(energy["node_joules"])
+        detail["energy_cpu_joules"] = float(energy.get("cpu_joules") or 0.0)
+        detail["energy_memory_joules"] = float(energy.get("memory_joules") or 0.0)
+        detail["energy_scope"] = ENERGY_PM_SCOPE
+    return detail
 
 
 def _resource_figures(run_result, after, before, rusage_cpu):
@@ -168,6 +213,13 @@ def _resource_figures(run_result, after, before, rusage_cpu):
             if total is not None:
                 figures[key.replace("_bytes", "_mb")] = total / MB
         figures["slurm_steps"] = [step.get("step") for step in steps]
+        # Slurm's step energy covers whole nodes, so it is this run's only
+        # when the job owned every node it ran on, and the run's total only
+        # when every step reported one.
+        energies = [step.get("energy_joules") for step in steps]
+        if run_result.get("job_owns_its_nodes") and all(energies):
+            figures["energy_joules"] = float(sum(energies))
+            figures["energy_scope"] = ENERGY_SLURM_SCOPE
         return figures
 
     if run_result.get("peak_pss_mb"):
@@ -188,6 +240,8 @@ def _resource_figures(run_result, after, before, rusage_cpu):
     else:
         figures["memory_mb"] = _maxrss_to_mb(after.ru_maxrss)
         figures["memory_scope"] = "children-highwater"
+
+    figures.update(_local_tree_detail(run_result))
 
     if run_result.get("tree_cpu_seconds") is not None:
         figures["cpu_seconds"] = float(run_result["tree_cpu_seconds"])
@@ -277,6 +331,10 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
         metrics["run_succeeded"] = run_result.get("succeeded", False)
         if run_result.get("duration_s") is not None:
             metrics["subprocess_time"] = run_result["duration_s"]
+        # Context for reading the numbers, not measurements of the run.
+        for key in ("load_1m_at_start", "opengl_window", "job_owns_its_nodes"):
+            if run_result.get(key) is not None:
+                metrics[key] = run_result[key]
 
     if psutil is not None:
         try:
@@ -343,14 +401,14 @@ def detect_significant_changes(df, threshold=10, require_same_schema=True):
 
     frame = df
     if require_same_schema and "metrics_schema" in frame.columns:
-        current = frame[frame["metrics_schema"] == METRICS_SCHEMA]
+        current = frame[frame["metrics_schema"] >= MIN_COMPARABLE_SCHEMA]
         if len(current) >= 2:
             frame = current
         else:
             print(
-                "\t\tOnly {0} run(s) at metrics schema {1}; skipping comparison "
-                "until a second comparable run exists.".format(
-                    len(current), METRICS_SCHEMA
+                "\t\tOnly {0} run(s) at metrics schema {1} or later; skipping "
+                "comparison until a second comparable run exists.".format(
+                    len(current), MIN_COMPARABLE_SCHEMA
                 )
             )
             return None

@@ -678,7 +678,7 @@ same for ParaView and VisIt.
 | :--- | :--- |
 | Nothing but the numbers, same tool version | **Regression.** Over 10% on a metric fails the run and lands in `significant_performance_changes`. |
 | Tool version (6.0.1 against 6.1.0, 3.4.1 against 3.4.2) | **Reported, not failed.** Printed with both version numbers, either direction, any size, and recorded under `version_comparisons`. |
-| `metrics_schema` | **Refused.** The comparison is skipped and says so. |
+| `metrics_schema` older than 5 | **Refused.** The comparison is skipped and says so. Schema 6 only added fields, so 5 and 6 compare (`MIN_COMPARABLE_SCHEMA` in `metrics.py`). |
 
 Those three are genuinely different situations:
 
@@ -701,6 +701,97 @@ version recorded inside each record, which is how `shaheen3-cpu` has carried
 VisIt 3.4.1 and 3.4.2 together since 2024 and how the ParaView files carry
 5.13.1 alongside 6.x. Splitting them by file name hides exactly the
 comparison the table above exists to produce.
+
+### What a record holds (metrics schema 6)
+
+Schema 6 added fields and changed the meaning of none, so its CPU and memory
+compare with schema 5's. Every field below is optional: a record carries it
+only when it could be measured, and never fills a gap from another run.
+
+| Field | What it is |
+| :--- | :--- |
+| `verdicts` | Each gate's raw result for this run: `run` (bool), `image` and `csv` (`PASS`, `FAIL` or null when the vignette has none), `image_statuses` (count per image status), `numeric` (the results-JSON comparison status), `text` (legacy log match, or null), and `passed` (all of them). Before the summary's GPU exemption. |
+| `build` | `tool`, `version`, `launcher` (pvbatch, srun, visit), `ranks`, `opengl_window` (the VTK window class the harness chose) and `id`: the first 12 hex digits of the SHA-256 of the tool executable's resolved path, following a small wrapper script's `exec`. The path itself is not recorded, because on the clusters it is a module path. Same id, same install. |
+| `baseline` | `ref` (`--baseline-ref`, null for the working tree), `commit` (the last commit to touch this vignette's `Testing/Baseline/` at that ref) and `image_sources` (how many images were judged against the shared set and how many against `Baseline/<machine_name>/`). |
+| `repo` | `commit` of the checkout that ran, and `dirty` when tracked files other than the history files were modified. |
+| `io_read_mb`, `io_write_mb` | Storage reads and writes summed over the sampled process tree (`/proc/<pid>/io` `read_bytes`, `write_bytes`), scope `io_scope: child-tree-proc-io`. A reaped child's I/O is counted once, not again in its parent (`LOCAL_VALIDATION.md` 4b.16). A run that finds its input in the page cache reads almost nothing, so a first run after a reboot or a cache flush reads far more than the next. Local-tree runs only. |
+| `io_rchar_mb`, `io_wchar_mb` | Every read and write call, cached or not (`rchar`, `wchar`). |
+| `peak_processes`, `peak_threads` | The most processes and threads the tree had at once. |
+| `energy_joules` | Energy the run used, recorded only when the Slurm job owned every CPU of every node it held, because both sources count whole nodes. `energy_scope` says which: `slurm-steps-whole-nodes` (sum of `ConsumedEnergyRaw` over the run's steps, for srun runs) or `node-pm-counters` (`/sys/cray/pm_counters/energy` before and after, for runs on the harness's node, with `energy_cpu_joules` and `energy_memory_joules` beside it). Never recorded on Shaheen's shared or ppn partitions, nor on the workstation. |
+| `load_1m_at_start` | The host's one-minute load average when the vignette started. Context, not a measurement of the run: on the shared workstation it is the first thing to look at when a time swings. |
+| `job_owns_its_nodes` | Whether the Slurm job held every CPU of its nodes (`SLURM_JOB_CPUS_PER_NODE` against the node's CPU count). False outside Slurm. |
+| `opengl_window` | `VTK_DEFAULT_OPENGL_WINDOW` as launched (ParaView). |
+| `machine_info.cpu_model`, `.logical_cpus`, `.memory_total_gb` | The host's hardware. |
+
+All of it is read in the passes the harness already made: a few extra `/proc`
+reads per 0.25 s sample, one more `sacct` field, two file reads on a Cray
+node, and one `git log` per vignette.
+
+## The results dashboard
+
+`Testing/dashboard.py` turns every committed history file into a static site:
+an index of every configuration by site, and one page per configuration with
+each vignette's pass/fail history, its telemetry over time, its drift
+warnings, and the build and baselines each run used. It also writes
+`records.json`, every record flattened with its configuration, site, tool and
+vignette, for analysis elsewhere. Host names are left out of all of it.
+
+```bash
+python3 Testing/dashboard.py --out _site      # standard library only
+python3 -m http.server --directory _site      # look at it
+```
+
+`.github/workflows/dashboard.yml` builds it on a GitHub-hosted runner and
+publishes it to <https://jameskress.github.io/Visualization_Vignettes/dashboard/>
+on every master push that changes a history file or the generator; a pull
+request builds it and attaches the site as an artifact. Pages serves the
+`gh-pages` branch, which also holds the Docker badge at its root; each
+workflow replaces only its own files there.
+
+Each chart holds one metric and draws only the runs measured the same way as
+the latest one (metrics schema and measurement scope), coloured by tool
+version, one colour per version on every page. x is the run's position in
+that vignette's history, so a year without runs takes no room. Records from
+before schema 6 carry no gate verdicts and show as *ran* rather than pass or
+fail.
+
+## Drift warnings
+
+The performance gate compares the last two runs and fails at 10%.
+`Testing/drift.py` asks a different question: is this run unusual for this
+vignette, against many earlier runs? It warns and never fails the suite.
+
+For each of execution time, CPU seconds, peak memory, Slurm disk read and
+write, process-tree storage read and write, and energy, the history is the
+earlier runs of the same vignette in the same history file (so the same
+configuration), with the same tool version, metrics schema 5 or later (any
+schema for execution time), and the same measurement scope. Of those, the
+latest 20 are summarised by their median and median absolute deviation
+(MAD). A run is flagged when all three hold:
+
+| Condition | Why |
+| :--- | :--- |
+| at least 3 earlier runs | fewer cannot say what normal is; the run gets no verdict |
+| \|x - median\| >= 4 x 1.4826 x MAD, or MAD is 0 | outside this history's own noise (about four sigma) |
+| \|x - median\| >= the relative floor x median and >= the absolute floor | big enough to be worth reading about |
+
+| Metric | Relative floor | Absolute floor |
+| :--- | ---: | ---: |
+| execution time, CPU seconds | 25% | 2 s |
+| peak memory | 25% | 64 MB |
+| disk and storage read, write | 50% | 16 MB |
+| energy | 25% | 500 J |
+
+A faster or smaller run is flagged as readily as a slower one: either way
+something changed. The thresholds and the measurement behind them are in
+`LOCAL_VALIDATION.md` section 4b.16; they live at the top of `drift.py`.
+
+Warnings appear three ways: a `DRIFT (warning)` line under the vignette and a
+`Drift warnings` block at the end of the harness output, a `drift_warnings`
+list in `<tool>_<machine>_summary_report.json` (and `drift` on the vignette's
+`test_results` entry), and a highlighted point and row on the dashboard. They
+never set `any_tests_failed`. Like the gate, the check runs only when this run
+appended a record, so `--no-metrics` runs report none.
 
 ### Cleaning up records that are already committed
 
