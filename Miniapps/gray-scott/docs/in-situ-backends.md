@@ -250,8 +250,11 @@ there is a one-cell gap between blocks. Those added points are ghost
 points (`DUPLICATEPOINT`), but the cells they close are owned by the
 block: only cells whose low corner belongs to another block are ghosts.
 Flagging every cell that touches an added point would remove owned
-boundary cells and open the gap again. The analysis reader does this:
-its Catalyst backend flags the added points `DUPLICATEPOINT`, and its
+boundary cells and open the gap again. The analysis reader does this
+between its own pieces only: the last piece along each axis adds no plane,
+so the periodic wrap-around cells (between the last global point and the
+first) are not built, and the reader's mesh covers (L-1)^3 cells, not L^3.
+Its Catalyst backend flags the added points `DUPLICATEPOINT`, and its
 Ascent backend marks every cell owned (`ascent_ghosts` = 0). Ascent has no
 point ghost field, so in Ascent the added points are not flagged and a
 point-based query counts them twice (#42).

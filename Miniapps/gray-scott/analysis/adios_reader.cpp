@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cmath>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <chrono>
 #include <thread>
@@ -22,10 +23,15 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
         m_adios = std::make_unique<adios2::ADIOS>(m_opts.adios_config, m_comm);
     m_io = std::make_unique<adios2::IO>(m_adios->DeclareIO("AnalysisInput"));
 
-    // A parameter the XML sets is left as the XML has it; ADIOS2 matches
-    // parameter names case-insensitively, so this does too.
+    // A parameter the XML sets keeps the XML's value. BP5 matches parameter
+    // names case-insensitively but SST matches them exactly (ADIOS2 2.11,
+    // SstParamParser.cpp), so the XML's value is found in any case and
+    // set again under the canonical name, which both engines read.
     const auto xml_params = m_io->Parameters();
-    auto xml_sets = [&xml_params](std::string key) {
+    auto xml_value = [&xml_params](std::string key) -> std::optional<std::string> {
+        const auto exact = xml_params.find(key);
+        if (exact != xml_params.end())
+            return exact->second;
         std::transform(key.begin(), key.end(), key.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         for (const auto &kv : xml_params)
@@ -34,9 +40,9 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
             std::transform(k.begin(), k.end(), k.begin(),
                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             if (k == key)
-                return true;
+                return kv.second;
         }
-        return false;
+        return std::nullopt;
     };
 
     if (m_opts.adios_verbose > 0)
@@ -54,9 +60,9 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
     std::string engine = m_opts.adios_engine;
     std::transform(engine.begin(), engine.end(), engine.begin(),
                    [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-    if (xml_sets("OpenTimeoutSecs"))
+    if (const auto xml_timeout = xml_value("OpenTimeoutSecs"))
     {
-        // The XML's value stands.
+        m_io->SetParameter("OpenTimeoutSecs", *xml_timeout);
     }
     else if (engine != "SST")
     {
