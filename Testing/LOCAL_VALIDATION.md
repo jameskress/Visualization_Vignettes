@@ -1470,6 +1470,24 @@ under `srun` (job 15997926) and once with `--launcher none` (job 15997927):
   `srun` used 64 CPU s against 436 locally, the binding effect §4b.15
   describes.
 
+### 4b.17 Recording every configuration with verdicts, 15 Nov 2026
+
+One run per active configuration (187 records, every gate passing) gave the
+dashboard its first schema-6 verdicts, builds and baselines. Two things it
+found:
+
+* **VisIt ex08 gated a launch fact.** `hw_accel_requested` was a metric, so
+  the first `ibex-gpu` run with `--hw-accel` failed the numeric gate against
+  the workstation's baseline (`false`). It is a note now, like
+  `engine_is_parallel` beside it, and the key is gone from the shared
+  baseline. A workstation run of ex08 passes with the change.
+* **`--vignette-arg` could not carry a flag.** `--vignette-arg --hw-accel`
+  is two options to argparse. The Ibex script passes `--vignette-arg=--hw-accel`,
+  and `test_suite.py` now forwards every value to `run_tests.py` the same way.
+
+ex11 was skipped on the two Ibex nodes that had no Xvfb (`ibex-cpu`, both
+tools; `ibex-gpu`); the #104 records had landed on one that had it.
+
 ## 5. Known issue: ex06 image stability
 
 `ex06_pvLargeData` differs **4.13% of pixels between two consecutive runs** on
