@@ -5,6 +5,8 @@
 # utilities for darshan-parser. Usage: build-darshan.sh <software dir>
 set -e
 S=${1:?usage: build-darshan.sh <software dir>}
+mkdir -p "$S"
+S=$(cd "$S" && pwd)  # absolute, so the later cd's do not change its meaning
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=/dev/null
 source "$HERE/MODULES.sh"
@@ -18,8 +20,11 @@ cd "$S/darshan-3.4.7-build/runtime"
 "$SRC/darshan-runtime/configure" --prefix="$P" CC=cc \
     --with-log-path-by-env=DARSHAN_LOG_DIR_PATH --with-jobid-env=SLURM_JOB_ID \
     --enable-lustre-mod --disable-hdf5-mod
-make -j 16 && make install
+# Separate commands, so set -e stops the script if either fails.
+make -j 16
+make install
 cd "$S/darshan-3.4.7-build/util"
 "$SRC/darshan-util/configure" --prefix="$P" CC=gcc
-make -j 16 && make install
+make -j 16
+make install
 echo "Darshan installed in $P (generate_experiments.py --darshan-prefix $P)"

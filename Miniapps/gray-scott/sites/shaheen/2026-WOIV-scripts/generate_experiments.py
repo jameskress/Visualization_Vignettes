@@ -2090,7 +2090,9 @@ def generate_scripts(args):
     for nodes, stage_nodes, queue_limit in ADIOS_SWEEP_CONFIGS:
         EXPERIMENTS.append(
             {
-                "id": f"adios_sweep_N{nodes:04d}_S{stage_nodes:03d}_q{queue_limit}_readonly",
+                # "scale" first and a "transit" component, which orchestrate.py
+                # reads as the paper and the in transit type.
+                "id": f"scale_transit_adios_sweep_N{nodes:04d}_S{stage_nodes:03d}_q{queue_limit}_readonly",
                 "paper": "scale",
                 "type": "intransit",
                 "backend": "adios",
@@ -2272,7 +2274,14 @@ if __name__ == "__main__":
     # and expanded there, much of it unquoted. Rather than quote each use,
     # accept only paths that need no quoting: letters, digits and . _ - + /
     # (no spaces, $, quotes or other shell characters).
-    for name in ("repo_path", "bin_path", "results_dir", "output_dir", "perf_env"):
+    for name in (
+        "repo_path",
+        "bin_path",
+        "results_dir",
+        "output_dir",
+        "perf_env",
+        "darshan_prefix",
+    ):
         value = getattr(args, name)
         if not re.fullmatch(r"[A-Za-z0-9._+/-]+", value):
             parser.error(

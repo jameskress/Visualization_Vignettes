@@ -23,6 +23,7 @@ columns empty; nothing is guessed.
 import csv
 import glob
 import json
+import math
 import os
 import re
 import sys
@@ -59,9 +60,11 @@ def _csv_means(path, keys):
         values = []
         for row in rows:
             try:
-                values.append(float(row[key + "_mean"]))
+                value = float(row[key + "_mean"])
             except (KeyError, TypeError, ValueError):
-                pass
+                continue
+            if math.isfinite(value):  # nan or inf would make invalid JSON
+                values.append(value)
         out[key] = round(sum(values) / len(values), 4) if values else None
     return out
 
@@ -197,7 +200,7 @@ def main(argv):
         writer.writerows(rows)
     with open(prefix + ".jsonl", "w") as handle:
         for row in rows:
-            handle.write(json.dumps(row) + "\n")
+            handle.write(json.dumps(row, allow_nan=False) + "\n")
     print("corpus_index: {0} runs -> {1}.csv, {1}.jsonl".format(len(rows), prefix))
     return 0
 
