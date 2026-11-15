@@ -1,5 +1,6 @@
 #include "catalyst_backend.h"
 #include <catalyst.hpp>
+#include <array>
 #include <cstdint>
 #include <filesystem>
 #include <iostream>
@@ -19,7 +20,8 @@ namespace
         const std::vector<double> &buf_u,
         const std::vector<double> *buf_v,
         const BackendOptions &opts,
-        std::vector<std::uint8_t> &point_ghosts)
+        std::vector<std::uint8_t> &point_ghosts,
+        std::array<std::size_t, 6> &ghost_shape)
     {
         mesh_node["type"] = "uniform";
         std::array<double, 3> global_origin = opts.origin.value_or(std::array<double, 3>{0.0, 0.0, 0.0});
@@ -76,17 +78,25 @@ namespace
         // those points DUPLICATEPOINT (vtkDataSetAttributes) so point-based
         // analysis in a Catalyst script does not count them twice (#42).
         // With slabs only z is shared; with bricks any of the three.
-        point_ghosts.assign(nx * ny * nz, 0);
         const bool shared_z = read_info.shared_high.size() == 3 && read_info.shared_high[0];
         const bool shared_y = read_info.shared_high.size() == 3 && read_info.shared_high[1];
         const bool shared_x = read_info.shared_high.size() == 3 && read_info.shared_high[2];
-        if (shared_x || shared_y || shared_z)
+        // The flags depend only on the piece's shape, which is the same every
+        // step: fill them when it changes (the first step), not every step.
+        // The fill visits every point, 268 million per reader at 64 + 4 nodes.
+        const std::array<std::size_t, 6> shape{nx, ny, nz, shared_x, shared_y, shared_z};
+        if (point_ghosts.size() != nx * ny * nz || shape != ghost_shape)
         {
-            for (size_t k = 0; k < nz; ++k)
-                for (size_t j = 0; j < ny; ++j)
-                    for (size_t i = 0; i < nx; ++i)
-                        if ((shared_z && k == nz - 1) || (shared_y && j == ny - 1) || (shared_x && i == nx - 1))
-                            point_ghosts[(k * ny + j) * nx + i] = std::uint8_t{1};
+            point_ghosts.assign(nx * ny * nz, 0);
+            if (shared_x || shared_y || shared_z)
+            {
+                for (size_t k = 0; k < nz; ++k)
+                    for (size_t j = 0; j < ny; ++j)
+                        for (size_t i = 0; i < nx; ++i)
+                            if ((shared_z && k == nz - 1) || (shared_y && j == ny - 1) || (shared_x && i == nx - 1))
+                                point_ghosts[(k * ny + j) * nx + i] = std::uint8_t{1};
+            }
+            ghost_shape = shape;
         }
         mesh_node["fields/vtkGhostType/association"].set_string("vertex");
         mesh_node["fields/vtkGhostType/topology"].set_string("mesh");
@@ -99,7 +109,8 @@ CatalystBackend::CatalystBackend(const BackendOptions &opts)
       m_perf_logger("reader_timers",
                     [&]() { int rank; MPI_Comm_rank(opts.comm, &rank); return rank; }(),
                     [&]() { char hostname[256]; gethostname(hostname, sizeof(hostname)); return std::string(hostname); }(),
-                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "Blueprint_Time", "Vis_Time", "total_step"}),
+                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "Blueprint_Time", "Vis_Time", "total_step",
+                     "Mesh_Build"}),
       m_reader(opts, m_perf_logger)
 {
     conduit_cpp::Node init_params;
@@ -151,8 +162,9 @@ void CatalystBackend::Run()
         exec_params["catalyst/state/time"].set_float64(static_cast<double>(step));
         exec_params["catalyst/channels/grid/type"].set_string("mesh");
 
-        std::vector<double> u_buf, v_buf;
-        std::vector<std::uint8_t> point_ghosts;
+        // Members, kept across steps (catalyst_backend.h).
+        std::vector<double> &u_buf = m_u_buf;
+        std::vector<double> &v_buf = m_v_buf;
         RepartitionInfo read_info;
 
         m_perf_logger.start("Blueprint_Time");
@@ -163,8 +175,11 @@ void CatalystBackend::Run()
         // goes on while we render (#76, #42).
         m_reader.EndStep();
 
+        m_perf_logger.start("Mesh_Build");
         auto data_node = exec_params["catalyst/channels/grid/data"];
-        BuildRepartitionedCatalystMesh(data_node, read_info, u_buf, &v_buf, current_opts, point_ghosts);
+        BuildRepartitionedCatalystMesh(data_node, read_info, u_buf, &v_buf, current_opts, m_point_ghosts,
+                                       m_ghost_shape);
+        m_perf_logger.stop("Mesh_Build");
         m_perf_logger.stop("Blueprint_Time");
 
         m_perf_logger.start("Vis_Time");

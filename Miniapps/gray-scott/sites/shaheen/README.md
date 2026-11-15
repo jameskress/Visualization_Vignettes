@@ -503,18 +503,32 @@ showed Contour 21.7 s, GhostCells 8.4 s and OSPRay 11 to 13 s on rank 0.
   64 + 4, so the surface itself is the difference. Ascent's isosurface there
   takes 8.0 s per step. Fewer readers per node would fit it; that changes
   the fan-in, so it is not done here.
-
-**Reader allocations.** Separately from the above, the ascent-perf work
-(branch `gs-ascent-perf`, on top of #103) found every backend reallocating its field buffers
-each step and the job's `MALLOC_MMAP_THRESHOLD_` sending large VTK
-allocations to `mmap`. Measured on the Catalyst reader at 64 + 4 (two runs
-each, frames bit-identical), `MALLOC_MMAP_MAX_=0
-MALLOC_TRIM_THRESHOLD_=137438953472` on the reader cut the slice step from
-4.95 and 4.69 s to 3.77 and 3.76 s, and the isosurface from 24.05 and 23.74
-s to 21.23 and 19.37 s. That setting belongs in the reader's environment for
-both backends; it is not in this change.
 * With the job's old settings the 64 + 4 Catalyst isosurface also ran out
   of memory, in both runs.
+
+**Reader allocations.** The ascent-perf work (#110) found every backend
+reallocating its field buffers each step and the job's
+`MALLOC_MMAP_THRESHOLD_` sending large VTK allocations to `mmap`.
+
+* The Catalyst reader now keeps `u`, `v` and its point ghost flags across
+  steps (members of `CatalystBackend`; `ReadRepartition` resizes a buffer
+  only when its size changes), and refills the flags only when the piece's
+  shape changes. The flags were a serial pass over every point each step;
+  the `Mesh_Build` timer now reads 0.47 s on the first step and about 70 us
+  after. Total seconds per step, two runs each, with the settings above:
+  slices at 64 + 4 4.61 and 4.83 to 3.47 and 3.49 (`Blueprint_Time` 3.03 and
+  3.23 to 2.10 and 2.11; system CPU 2.9 to 1.0 s per step), at 256 + 16
+  10.72 and 10.77 to 8.81 and 8.74, at 512 + 32 6.76 and 7.32 to 6.22 and
+  6.35; the isosurface at 64 + 4 23.33 and 24.93 to 23.09 and 22.80
+  (`Blueprint_Time` 3.85 to 2.47). Frames are bit-identical before and after
+  at all four, and still change from step to step. Peak reader memory rises
+  by 0.3 to 1.0 GB, since the buffers now stay allocated between steps.
+* `MALLOC_MMAP_MAX_=0 MALLOC_TRIM_THRESHOLD_=137438953472` on the reader
+  (two runs each at 64 + 4, frames bit-identical) cut the slice step from
+  4.95 and 4.69 s to 3.77 and 3.76 s, and the isosurface from 24.05 and
+  23.74 s to 21.23 and 19.37 s, with peak reader memory on the isosurface up
+  from 27.7 to 30.5 GB. #110 adds it to the reader's environment for both
+  backends.
 
 **Stage timers.** `Vis_Time` covers all of `catalyst_execute`. Each Paper 2
 Catalyst script now writes ParaView's own scoped log to
