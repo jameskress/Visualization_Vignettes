@@ -77,17 +77,19 @@ def _darshan_totals(directory):
     sum would look complete), and a counter is empty when no log has a valid
     (non-negative) value for it; Darshan writes -1 for unknown."""
     logs = glob.glob(os.path.join(directory, "*.darshan"))
-    parsed = glob.glob(os.path.join(directory, "*.total.txt"))
+    texts = []
+    for path in glob.glob(os.path.join(directory, "*.total.txt")):
+        try:
+            with open(path) as handle:
+                texts.append(handle.read())
+        except OSError:
+            pass  # unreadable: not counted as parsed
     totals = {key: None for key in DARSHAN_KEYS}
     totals["logs"] = len(logs)
-    totals["logs_parsed"] = len(parsed)
-    if not logs or len(parsed) < len(logs):
+    totals["logs_parsed"] = len(texts)
+    if not logs or len(texts) < len(logs):
         return totals
-    for path in parsed:
-        try:
-            text = open(path).read()
-        except OSError:
-            continue
+    for text in texts:
         for key in DARSHAN_KEYS:
             match = re.search(r"^" + key + r":\s+(-?\d+)", text, re.M)
             if match and int(match.group(1)) >= 0:
