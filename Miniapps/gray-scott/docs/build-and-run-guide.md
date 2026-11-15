@@ -228,17 +228,22 @@ make -j install
 
 ### Kombyne
 
-`Kombyne` is a closed source, paid, commercial in situ software. They do have a `lite` version, which we make use of in this repo, that is free. We cannot distribute the source, as such you have to get your free copy from the [Kombyne Lite downloads page](https://www.ilight.com/kombyne-lite-downloads-4/).
+`Kombyne` is a closed source, commercial in situ product from Intelligent Light. Its free `Kombyne-lite` version, which this repo uses, is distributed only as prebuilt binaries, so it cannot be included in this repo or the Docker image. Get your own copy from the [Kombyne Lite downloads page](https://www.ilight.com/kombyne-lite-downloads-4/). We use version 1.5 (`kombynelite-v1.5-linux-x86_64`).
 
 ```bash
-# Download Kombyne-Lite from the Inteligent Light website.
-
 cd /path/to/install
-tar zxvf kombyne-lite-1.0.0-ubuntu18-gcc7.5-openmpi.tar.gz
-
-# Then, in your cmake configuration file, just set the location, for example:
-# kombynelite_DIR=/home/kressjm/packages/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite
+tar zxvf kombynelite-v1.5-linux-x86_64.tar.gz   # the name of the file you downloaded
+# In your CMake configuration, point at its package config, for example:
+# -Dkombynelite_DIR=/path/to/install/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite
 ```
+
+**MPI.** The Lite archive was built with Open MPI (2.1.1, GCC 7.5, Ubuntu 18.04; see its `docs/kombyne_package_info.txt`) and calls Open MPI symbols directly. It links only against an Open MPI that has the C++ bindings (`mpi_cxx`):
+
+* Workstation (KW61316): the system Open MPI 4.1.2 works.
+* Ibex: the system Open MPI has no `mpi_cxx`; build one with `--enable-mpi-cxx` (`sites/ibex/README.md`).
+* Shaheen III: it does not link with Cray MPICH (`undefined reference to 'ompi_mpi_int'`), so Kombyne-lite does not run there. All Kombyne runs so far, including the 2026 WOIV paper's, were on Ibex. Running on Shaheen needs a Kombyne build from source.
+
+The Lite archive also carries its own Conduit (0.5.1), which is why `ENABLE_ASCENT` and `ENABLE_KOMBYNELITE` cannot both be on.
 
 ### Building Gray-Scott with CMake presets (recommended)
 
@@ -913,68 +918,65 @@ local grid size:      32x32x64
 
 ## Running with Kombyne
 
-Kombyne is an optional dependency that provides in-situ capabilities, allowing you to create visualization pipelines and renderings directly from the simulation. Kombyne is a commercial in situ product, as such, this repo makes use of the `lite` version which is free, but not folly featured. Below are instructions on how to configure and run the included Kombyne examples.
+Kombyne-lite renders images and exports data in situ. It is not in the Docker image (see [Kombyne](#kombyne) under How to build locally for getting it and for the MPI it needs). The adaptor is `simulation/writerKombyne.cpp`; `docs/in-situ-backends.md` describes the mesh, ghost cells and zero-copy hand-over.
 
-### Step 1: ⚙️ Configure Your Pipeline
+### Step 1: Build with Kombyne
 
-To run with Kombyne, you must first edit the **`/configs/miniapp-settings/settings-kombyne.json`** file.
-
-Inside this file, you need to set the `kombynelite_script_path` key to the name of the in-situ script you wish to execute from the options below.
-
-**Example `settings-kombyne.json`:**
-
-```json
-{
-    ...
-    "output_type": "kombyne",
-    "kombynelite_script_path": "kombyne-extract-png.yaml"
-    ...
-}
-```
-
-#### Available In-Situ Scripts
-
-| Script                        | Description                                                                                                                                 |
-| :---------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------ |
-| `kombyne-extract-png.yaml`    | **(Image Export)** Performs a rendering of a slice of the scalar field and saves the visualization as a series of PNG images.               |
-| `kombyne-multi-pipeline.yaml` | **(Advanced Visualization)** Renders two seperate images, first, a slice and second, an isosurface, creating a PNG image for each timestep. |
-| `kombyne-save-data.yaml`      | **(Data Export)** Saves the simulation data to a \*.vtm file at each time step.                                                             |
-
-> 💡 **Note:** Kombyne does not support the same actions that the other in situ libraries in this miniapp do, as a result, its renderings are close approximations to what the other in situ systems produce.
-
-### Step 2: 🚀 Execute the Simulation
-
-Once you have configured the settings file to point to your desired script, you can run the simulation.
+Ascent must be off; Catalyst and ADIOS2 may be on. The shortest build (checked 2026-11-15 from a fresh clone on the workstation, about 10 seconds):
 
 ```bash
-# Navigate to your project's installation directory
-cd <path_to_install>
-
-# Create a dedicated directory for the run
-mkdir run-kombyne
-cd run-kombyne
-
-# Create symbolic links to the necessary Kombyne scripts
-ln -s ../configs/kombyne_scripts/kombyne-extract-png.yaml .
-ln -s ../configs/kombyne_scripts/kombyne-multi-pipeline.yaml .
-ln -s ../configs/kombyne_scripts/kombyne-save-data.yaml .
-
-# Run the simulation with 4 processes
-mpirun -np 4 ../gray-scott --settings-file=../configs/miniapp-settings/settings-kombyne.json --logging-level=INFO
+cd Visualization_Vignettes/Miniapps/gray-scott
+cmake -S . -B build/kombyne -DCMAKE_BUILD_TYPE=Release \
+  -DVTK_DIR=$HOME/packages/paraview-src/build_6.2.0/install/lib/cmake/paraview-6.2/vtk \
+  -DENABLE_KOMBYNELITE=ON \
+  -Dkombynelite_DIR=$HOME/packages/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite
+cmake --build build/kombyne -j
 ```
 
-### Step 3: ✅ Verify the Output
+Or add `ENABLE_KOMBYNELITE` and `kombynelite_DIR` to your user preset (README, Build). Add `-DGS_PVPYTHON=<pvpython>` to get the Kombyne ghost volume test as well as the render check.
 
-If the simulation starts correctly, your console will display the run parameters, confirming that the `output_type` is `kombyne`. Depending on the script you chose, you will find PNG images or data files in your run directory.
+### Step 2: Choose a pipeline
+
+`kombynelite_script_path` in the settings file names the Kombyne YAML script, relative to the run directory. `configs/miniapp-settings/settings-kombyne.json` uses `kombyne-multi-pipeline.yaml`.
+
+| Script | What it writes |
+| :--- | :--- |
+| `kombyne-extract-png.yaml` | a slice of V through the centre, as PNG images |
+| `kombyne-multi-pipeline.yaml` | a slice of U and an isosurface of U, one PNG of each per output step |
+| `kombyne-save-data.yaml` | the full grid, one `full_grid.<step>.vtm` per output step with a `full_grid._domains/` directory of pieces |
+
+The scripts fix the pseudocolor `minimum` and `maximum` and place slices between grid planes (3.25, not 3.2), so images match across rank counts. Kombyne Lite has fewer operations than the other backends (no volume rendering, for one), so its images approximate theirs.
+
+### Step 3: Run
+
+```bash
+mkdir run-kombyne && cd run-kombyne
+cp ../configs/kombyne_scripts/*.yaml ../configs/miniapp-settings/settings-kombyne.json .
+OMP_NUM_THREADS=2 KB_TIMERS_ENABLED=true mpirun -np 4 ../build/kombyne/gray-scott --settings-file=settings-kombyne.json
+```
+
+This runs a 64^3 grid for 100 steps with output every 10 and takes about 10 seconds. Kombyne creates `extracts/` itself; it holds 20 PNG files (`kombyne_slice_u_ts_*.png`, `kombyne_iso_u_ts_*.png`). The run also writes `timings.000N.txt` per rank (Kombyne's timers, below) and `perf/<run>/` (the miniapp's performance log; the metadata records the backend as `Kombyne-lite unknown`, since the Lite package gives CMake no version). Set `OMP_NUM_THREADS`: without it each rank starts one OpenMP thread per core.
+
+### Step 4: Check it
+
+From the miniapp directory (`cd ..` from `run-kombyne`):
+
+```bash
+ctest --test-dir build/kombyne -R kombyne --no-tests=error --output-on-failure
+```
+
+`gs_render_kombyne` (registered when CMake finds Python 3 with NumPy and Pillow) renders an isosurface on 1 and 4 ranks and compares the images; `gs_ghost_volume_kombyne` (registered only when `GS_PVPYTHON` is set, either from a `pvpython` on `PATH` at configure time or from `-DGS_PVPYTHON=<pvpython>` in Step 1) reads the `kombyne-save-data.yaml` export on 1, 2, 4 and 8 ranks and counts cells. Check that the CTest summary lists both; `--no-tests=error` fails the command only when neither is registered. Kombyne's export writes its ghost mask as `__ghostCells` (1 = real), not `vtkGhostType`, so apply it before measuring anything in ParaView (`docs/in-situ-backends.md`, Kombyne-lite).
 
 <details>
-<summary>Click to see sample console output</summary>
+<summary>Sample console output (4 ranks)</summary>
 
-```bash
+```text
 ========================================
-grid:                 128x128x128
+grid:                 64x64x64
 restart:              no
+checkpoint:           no
 steps:                100
+burn_in_steps:        0
 plotgap:              10
 F:                    0.01
 k:                    0.05
@@ -984,9 +986,10 @@ Dv:                   0.1
 noise:                1e-07
 output_file_name:
 output_type:          kombyne
-kombynelite_script_path: kombyne-extract-png.yaml
+overwrite_last_step:  no
+kombynelite_script_path: kombyne-multi-pipeline.yaml
 process layout:       2x2x1
-local grid size:      64x64x64
+local grid size:      32x32x64
 ========================================
 ```
 

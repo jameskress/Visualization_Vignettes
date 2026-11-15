@@ -53,6 +53,18 @@ With 2.12.0, SST over the MPI data plane ran consistently in the Paper 2
 tests. SST over RDMA with 2.12.0 completed a 1,024 + 32 node Catalyst run
 (#79), with the shutdown bounded by #75. #72 compares the two at scale.
 
+# Kombyne
+Kombyne-lite does not run on Shaheen III. Its prebuilt archive calls Open
+MPI symbols directly and fails to link against Cray MPICH (`undefined
+reference to 'ompi_mpi_int'`), which is why `config.bash` keeps
+`ENABLE_KOMBYNELITE=OFF`. It failed for the 2026 WOIV paper and again for
+the #71 recheck (8 Nov 2026). Every Kombyne run so far was on Ibex with an
+Open MPI built with C++ bindings (`sites/ibex/README.md`): the paper's
+Kombyne jobs on 32 nodes (1,024 ranks, the footnote in
+`2026-WOIV-scripts/plot_performance.py`), and the #71 recheck at 1024^3 on
+64 ranks. Running Kombyne at scale here needs a build of the full Kombyne
+from source against Cray MPICH.
+
 # ParaView
 The superbuild configuration used on Shaheen III:
 
@@ -252,7 +264,9 @@ handling, neither the transport:
   not get it. The price is memory: the 64 + 4 node isosurface's peak RSS
   per reader rank rose from 26.5 to 31.7 GB (8 per node, 370 GB per node).
   It helps Catalyst's readers too (64 + 4 nodes: slices 4.8 -> 3.8 s,
-  isosurface 23.9 -> 20.3 s, identical images), so every backend gets it.
+  isosurface 23.9 -> 20.3 s, identical images; peak reader RSS of the
+  isosurface 27.7 -> 30.5 GB), so every backend gets it, except in Paper 1's
+  jobs, which keep the setup they ran with (#71).
 
 The per-step page faults are recorded as counters (`minflt_*`, analysis
 README) next to the timers.
@@ -291,12 +305,12 @@ or drop it from the matrix.
 
 ## After the runs
 Each run's job first saves its own batch script as `<results>/<id>_job.sbat`
-and the job-wide network and allocator settings it exported (`FI_*`,
-`CM_*`, `MALLOC_*`, `MPICH_*`, `Sst_*`, `ADIOS2_*`) as
+and the job-wide network, allocator and Mesa settings it exported (`FI_*`,
+`CM_*`, `MALLOC_*`, `MPICH_*`, `Sst_*`, `ADIOS2_*`, `GALLIUM_*`, `LP_*`) as
 `<results>/<id>_env.txt`, so runs made with different settings can be told
 apart. Thread settings are not in that file because each `srun` sets its
-own (the in transit reader runs 24 OpenMP threads, the simulation 3); read
-them from the saved script.
+own (the in transit reader has 24 cores per rank, bound for Ascent and
+unbound for Catalyst; the simulation 3); read them from the saved script.
 
 When a run ends, its job submits a one-node job, `reduce.sbat` in the run
 directory, and exits, so the run's nodes are released at once (reducing
@@ -308,7 +322,10 @@ writes `reduce-<jobid>.out` and produces:
   with that run's `metadata.json` and `summary.json` copied beside it as
   `<id>_metadata.json` and `<id>_summary.json`;
 * `<results>/<id>_reader.csv`, from `reader_timers/` (in transit runs);
-* `perf/` and `reader_timers/` are then compressed to `.tar.gz`, to save inodes.
+* `<results>/<id>_catalyst.csv`, from `catalyst_timers/` (in transit
+  Catalyst runs; see "Catalyst reader performance");
+* `perf/`, `reader_timers/` and `catalyst_timers/` are then compressed to
+  `.tar.gz`, to save inodes.
 
 `large-runs/audit_runs.py --results-dir <results>` lists runs that are missing, failed
 (time limit, out of memory, crash) or still running. If a run's reduction
@@ -316,8 +333,9 @@ job could not be submitted, its Slurm log says `REDUCE_SUBMIT_FAILED`
 (`grep -l REDUCE_SUBMIT_FAILED <results>/*/slurm-*.out`); if it was
 submitted but failed, check `<run>/reduce-*.out`. Either way,
 `sbatch <run>/reduce.sbat` redoes that run's reduction, for any experiment
-(`xport_*`, `scale_*` or `paper2_*`); it first restores `perf/` and
-`reader_timers/` from their `.tar.gz` if an earlier reduction archived them.
+(`xport_*`, `scale_*` or `paper2_*`); it first restores `perf/`,
+`reader_timers/` and `catalyst_timers/` from their `.tar.gz` if an earlier
+reduction archived them.
 Only one reduction of a run runs at a time (`<run>/reduce.lock`); a reduction
 killed at its time limit leaves the lock behind, so remove it by hand before
 rerunning.
@@ -491,4 +509,126 @@ generator's jobs set both.
 **Catalyst renders with OSPRay.** The Paper 2 Catalyst templates (slices,
 isosurface, volume) use OSPRay, the CPU ray tracer: it is faster than
 OSMesa's software rasteriser and is the like-for-like comparison with
-Ascent's VTK-m ray tracer. Paper 1's template is unchanged.
+Ascent's VTK-m ray tracer. Paper 1's template is unchanged. Measured at
+64 + 4 nodes with the fixes below (two runs each): slices 1.60 s per step
+with OSPRay against 2.45 and 2.60 s with llvmpipe on 24 threads; the
+isosurface 43.5 s against 50.7 and 51.5 s.
+
+## Catalyst reader performance
+
+The in transit Catalyst reader rendered 5 to 13 times slower than Ascent's
+(`Vis_Time` 13.7 s per step against 1.1 s at 64 + 4 nodes, 28 s against
+4.3 s at 256 + 16). Two settings in the generated jobs did it; neither is
+in ParaView or the reader.
+
+* **The reader ran on one core.** The reader's `srun` set
+  `OMP_PLACES=cores OMP_PROC_BIND=close`. The OpenMP runtime binds the
+  process's main thread to its first place, one core, at start-up, and
+  every thread that OpenMP does not create inherits that mask: OSPRay's and
+  VTK's TBB pools and llvmpipe's threads. A probe of a running reader showed
+  each rank's `Cpus_allowed_list` as a single core (`0`, `24`, `48`, ...),
+  and the old runs used about 16 CPU seconds in a 17 s step. Ascent's VTK-m
+  threads are OpenMP threads, each bound to its own core, so Ascent was not
+  affected.
+* **Mesa's reference rasteriser.** The job exported `GALLIUM_DRIVER=softpipe`
+  and `LP_NUM_THREADS=1`. OpenGL still draws around OSPRay (the image blit,
+  IceT's buffers, the scalar bar, the orientation axes), and softpipe took
+  about 6 s of each 2048 x 2048 frame. llvmpipe is Mesa's JIT rasteriser.
+* `OSPRAY_THREADS` does nothing: OSPRay 2.7 reads `OSPRAY_NUM_THREADS`. Once
+  unbound, its TBB pool uses the rank's 24 cores without it (setting
+  `OSPRAY_NUM_THREADS=24` changed nothing), so the generator no longer sets
+  either.
+
+The generator now gives the Catalyst reader `OMP_PROC_BIND=false
+LP_NUM_THREADS=24` and the job `GALLIUM_DRIVER=llvmpipe`. The Ascent reader
+keeps its binding: unbound, Ascent's slice step took 1.45 and 1.53 s
+against 1.07 and 1.15 s. Paper 1 jobs keep the settings they were run with.
+
+Slices, mean seconds per step over steps 1 and up (two runs per arm,
+submitted together in shuffled order; the ADIOS2 2.13.0-rc1 build of PR
+#103, so Ascent has its in-place mesh):
+
+| Nodes | Catalyst before: `Vis_Time` / total | Catalyst after | Ascent |
+| :--- | :--- | :--- | :--- |
+| 64 + 4 | 13.94, 13.91 / 17.34, 17.11 | 1.59, 1.62 / 4.92, 4.95 | 1.07, 1.15 / 5.15, 5.03 |
+| 256 + 16 | 27.34, 27.38 / 34.07, 34.05 | 4.29, 4.53 / 10.85, 11.19 | 4.95, 5.04 / 12.45, 12.53 |
+| 512 + 32 | 24.95, 25.11 / 27.82, 27.99 | 3.88, 4.39 / 6.85, 7.36 | 5.17, 4.71 / 8.98, 8.56 |
+| 1024 + 64 | 23.73 / 25.23 (10 Nov, one run) | 4.14, 4.69 / 5.65, 6.22 | 4.95, 5.28 / 6.50, 6.85 |
+
+Volume `Vis_Time`: at 64 + 4, Catalyst 6.61 and 7.27 s before, 1.51 and
+1.28 s after, Ascent 1.05 and 1.04 s; at 512 + 32, Catalyst 6.78 and 6.79 s
+before, 0.48 and 0.63 s after, Ascent 0.54 and 1.08 s. The 1024 + 64
+"before" in the slice table is the 10 November run of an older build, not
+part of the A/B (the queue was shared, so that arm was dropped).
+
+**Renders.** Unbinding changes no pixel. llvmpipe instead of softpipe
+changes 68,000 to 86,000 of the 4.2 million pixels of a slice frame, almost
+all by one level (OSPRay's image as Mesa blits it); the 236 pixels that
+change by more than 32 levels are the orientation axes' lines and the
+scalar bar's labels, the same 236 at 64 + 4, 256 + 16 and 512 + 32. A
+volume frame changes in 674 pixels, all on those overlays. Each arm's frames
+were identical from run to run. The same 4096^3 data rendered on different
+reader counts differs only at slab seams: 102 to 108 pixels between 256 + 16
+and 512 + 32, before and after alike, and 44 to 48 between 512 + 32 and
+1024 + 64 after.
+
+**The isosurface** was slow for other reasons: at 64 + 4 nodes after the
+fixes above, 44 s per step, against 6.2 s for Ascent. The stage timers
+showed Contour 21.7 s, GhostCells 8.4 s and OSPRay 11 to 13 s on rank 0.
+
+* ParaView 6.0's Contour runs serial synchronized templates on image data.
+  Its `FastMode` property should switch to flying edges, which is
+  multithreaded, but `vtkPVContourFilter::ContourUsingSuperclass` copies
+  every setting to the filter it runs except that one, so setting it changes
+  nothing (43.4 and 43.7 s). The template now uses the `FlyingEdges3D` filter
+  from ParaView's `AcceleratedAlgorithms` plugin, with Contour's normals and
+  scalars. It is also the algorithm VTK-m's contour (Ascent) uses. About 2%
+  of pixels change, by 1 to 3 levels and at most 78, as isolated pixels over
+  the surface: flying edges triangulates ambiguous cells differently and
+  keeps degenerate triangles.
+* GhostCells copies every array it is given, and `u` is not drawn. The
+  template now passes only `v` and the ghost flags: bit-identical frames,
+  44 to 38 s. With both `u` and flying edges' working arrays, a 64 + 4 run
+  ran out of memory; with `v` alone it fits.
+* Together: 19.5 and 20.4 s per step at 64 + 4 (filters 7.9 s, OSPRay
+  11 to 12 s). OSPRay's share is the dense surface (v = 0.1 lies in the
+  noise, so it has tens of millions of small triangles): VTK hands OSPRay a
+  copy of the mesh every frame and Embree rebuilds its BVH. OpenGL was
+  slower still (above).
+* At 512 + 32 nodes (4096^3) the Catalyst isosurface runs out of memory on
+  the readers at the first output, with flying edges and with Contour alike
+  (two runs and one run; the reader component's sampled peak was 27.5 GB
+  per rank, 8 ranks on a 384 GB node). Each rank holds as many points as at
+  64 + 4, so the surface itself is the difference. Ascent's isosurface there
+  takes 8.0 s per step. Fewer readers per node would fit it; that changes
+  the fan-in, so it is not done here.
+
+**Reader allocations.** Separately from the above, the ascent-perf work
+(branch `gs-ascent-perf`, on top of #103) found every backend reallocating its field buffers
+each step and the job's `MALLOC_MMAP_THRESHOLD_` sending large VTK
+allocations to `mmap`. Measured on the Catalyst reader at 64 + 4 (two runs
+each, frames bit-identical), `MALLOC_MMAP_MAX_=0
+MALLOC_TRIM_THRESHOLD_=137438953472` on the reader cut the slice step from
+4.95 and 4.69 s to 3.77 and 3.76 s, and the isosurface from 24.05 and 23.74
+s to 21.23 and 19.37 s. That setting belongs in the reader's environment for
+both backends; it is not in this change.
+* With the job's old settings the 64 + 4 Catalyst isosurface also ran out
+  of memory, in both runs.
+
+**Stage timers.** `Vis_Time` covers all of `catalyst_execute`. Each Paper 2
+Catalyst script now writes ParaView's own scoped log to
+`catalyst_timers/rank_<r>.log` when `GS_CATALYST_TIMERS=1`, and the reader's
+`srun` turns on the `PARAVIEW_LOG_CATALYST_VERBOSITY`,
+`PARAVIEW_LOG_PIPELINE_VERBOSITY` and `PARAVIEW_LOG_RENDERING_VERBOSITY`
+categories (rank 0 also prints them to stderr). The reduction job runs
+`catalyst_timers.py` and writes `<results>/<id>_catalyst.csv`: per step, the
+mean and maximum over ranks of `execute` (`Vis_Time`), `overhead` (the
+Blueprint check and Catalyst's bookkeeping, about 1 ms; the zero-copy
+conversion to VTK runs inside `update`), `update` (the filters), `render`,
+`icet_pass`, `icet_render` (the local OSPRay render), `icet_composite`,
+`capture` and `png_write`. At 256 + 16 nodes the slice step after the fix
+is filters 1.6 to 1.8 s, IceT's composite about 2.5 s (128 ranks at
+2048 x 2048) and the PNG 0.24 s. A Catalyst script that raises an exception
+does not stop the reader: `Vis_Time` drops to near zero and the run looks
+fast. In `<id>_catalyst.csv` such a step has `execute` but no `update`,
+`render` or `capture`, and the reader's stderr has the Python traceback.
