@@ -479,12 +479,7 @@ class _PeakRssSampler(object):
             # fresh counters hold every child reaped before the read, so
             # each of these is settled now and leaves the tree, and none is
             # counted twice if the run ends before the next sample.
-            gone = [
-                other
-                for other in self._io_seen_now
-                if self._io_parent.get(other) == ancestor
-                and not self._still_running(other)
-            ]
+            gone = self._gone_descendants(ancestor)
             if not self._reread_io(ancestor):
                 # The ancestor exited too. Its last reading may or may not
                 # hold the child, so no total can be trusted.
@@ -495,6 +490,27 @@ class _PeakRssSampler(object):
                     self._io_reaped[i] += value
             self._io_seen_now.difference_update(gone)
         self._io_seen = self._io_seen_now
+
+    def _gone_descendants(self, ancestor):
+        """Every sampled process under `ancestor` that has since been reaped.
+
+        Followed through descendants that are gone too: a grandchild reaped
+        by a child that the ancestor then reaped is in the ancestor's
+        counters as well, and once its parent leaves the tree nothing else
+        could settle it.
+        """
+        dead = [
+            key
+            for key in self._io_seen_now
+            if key != ancestor and not self._still_running(key)
+        ]
+        gone, frontier = [], {ancestor}
+        while frontier:
+            layer = [key for key in dead if self._io_parent.get(key) in frontier]
+            dead = [key for key in dead if key not in layer]
+            gone.extend(layer)
+            frontier = set(layer)
+        return gone
 
     def _reread_io(self, key):
         """Read process `key`'s I/O again now; False if it has gone."""

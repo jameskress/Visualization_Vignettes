@@ -204,19 +204,43 @@ def short_date(timestamp):
     return str(timestamp)[:10]
 
 
-def page_name(config):
-    """A configuration's page, distinct for distinct names, never index.html.
+def page_names(configs):
+    """{configuration: page file}, distinct for distinct names, never index.html.
 
-    A name that is already safe keeps its own spelling (history file names
-    are distinct, so these are too). A name that had to be changed, or that
-    would be the overview's, gets a digest of the original so that two
-    configurations never share a page.
+    A configuration keeps its own spelling when it is safe in a URL. One
+    that had to be changed, or that would take a name already given out
+    (index.html, or another configuration's page, compared without case),
+    gets a digest of its original name, lengthened until it is free.
     """
-    safe = re.sub(r"[^A-Za-z0-9._-]", "_", config)
-    if safe == config and safe.lower() != "index":
-        return safe + ".html"
-    digest = hashlib.sha256(config.encode("utf-8")).hexdigest()[:10]
-    return "{0}-{1}.html".format(safe, digest)
+    used = {"index.html", "records.json"}
+    names = {}
+    # Unchanged names first, so a safe name is never the one displaced.
+    for config in sorted(configs, key=lambda c: (_safe(c) != c, c)):
+        safe = _safe(config)
+        digest = hashlib.sha256(config.encode("utf-8")).hexdigest()
+        candidate = safe + ".html" if safe == config else None
+        length = 10
+        while candidate is None or candidate.lower() in used:
+            candidate = "{0}-{1}.html".format(safe, digest[:length])
+            length += 2
+        used.add(candidate.lower())
+        names[config] = candidate
+    return names
+
+
+# Filled by build_site() from every configuration it renders.
+PAGE_NAMES = {}
+
+
+def page_name(config):
+    """The page build_site() gave this configuration."""
+    if config not in PAGE_NAMES:
+        PAGE_NAMES.update(page_names(set(PAGE_NAMES) | {config}))
+    return PAGE_NAMES[config]
+
+
+def _safe(config):
+    return re.sub(r"[^A-Za-z0-9._-]", "_", config)
 
 
 def nice_ticks(value, target=4):
@@ -802,6 +826,8 @@ def build_site(out_dir, repo_root=REPO_ROOT, generated=None):
         mapping = {v: i % len(SLOTS_LIGHT) for i, v in enumerate(versions)}
         slot_maps[tool] = lambda v, m=mapping: m.get(v, 0)
 
+    PAGE_NAMES.clear()
+    PAGE_NAMES.update(page_names({config for config, _ in histories}))
     with open(os.path.join(out_dir, "index.html"), "w") as handle:
         handle.write(render_index(histories, generated))
 
