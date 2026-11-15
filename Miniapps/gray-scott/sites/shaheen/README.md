@@ -448,7 +448,9 @@ The run's job passes its ID to the reduction job (`RUN_JOB_ID`; to rerun a
 reduction by hand, `sbatch --export=ALL,RUN_JOB_ID=<run job> reduce.sbat`),
 which then saves `sacct` for every step (`<id>_sacct.txt`), the Darshan
 logs and their `darshan-parser` totals (`<id>_darshan/`), the MPICH counter
-summary (`<id>_mpich_cxi_summary.txt`),
+summary (`<id>_mpich_cxi_summary.txt`), the job they belong to
+(`<id>_tel_job.txt`: a reduction of another job of the same experiment
+removes all of these first),
 writes `<id>_telemetry.json` (energy per run and per step's nodes, mean
 power, CPU use, NIC bytes and retries) and archives the per-node samples.
 An in transit run is one heterogeneous step: `.1+0` is the simulation and

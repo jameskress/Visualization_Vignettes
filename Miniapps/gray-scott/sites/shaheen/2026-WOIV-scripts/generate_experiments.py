@@ -1212,6 +1212,18 @@ if [ -z "$RUN_JOB_ID" ] && [ -d $OUTPUT_DIR/telemetry ]; then
 fi
 if [ -f $TEL/job_id ]; then
     RUN_JOB=$(cat $TEL/job_id)
+    # The experiment-level exports below hold one job's telemetry. If they
+    # belong to another job of this experiment (or to an older reduction
+    # that recorded no job), remove them all first, so nothing of that job
+    # is ever left beside this one's results, whatever fails below.
+    TJ="{results_dir}/{id}_tel_job.txt"
+    if [ "$(cat "$TJ" 2>/dev/null)" != "$RUN_JOB" ]; then
+        rm -rf "{results_dir}/{id}_sacct.txt" "{results_dir}/{id}_telemetry.json" \\
+            "{results_dir}/{id}_darshan" "{results_dir}/{id}_mpich_cxi_summary.txt" \\
+            "{results_dir}/{id}_tel_env.txt" "{results_dir}/{id}_tel_modules.txt" \\
+            "{results_dir}/{id}_tel_ldd.txt" "{results_dir}/{id}_tel_source.txt"
+        echo "$RUN_JOB" > "$TJ"
+    fi
     # Accounting counts only once sacct answers, lists the run's numbered
     # steps, and none of them is still active. A failed or empty answer is
     # asked again; if none is final within 3 minutes there is no sacct.txt
@@ -1240,15 +1252,27 @@ if [ -f $TEL/job_id ]; then
     # Darshan: a text total of every log, then the logs themselves beside
     # the other results (one log per MPI job).
     if [ -d $TEL/darshan ] && [ -x "{darshan_prefix}/bin/darshan-parser" ]; then
+        # A log counts as parsed only if darshan-parser succeeds and prints no
+        # "Error:" (3.4.7 reports a truncated module record that way and still
+        # exits 0); otherwise its output is kept as <log>.parse-failed.txt and
+        # the corpus index leaves the run's Darshan totals empty.
         for log in $(find $TEL/darshan -name '*.darshan' 2>/dev/null); do
-            "{darshan_prefix}/bin/darshan-parser" --total --perf "$log" > "${{log%.darshan}}.total.txt" 2>&1
+            out="${{log%.darshan}}"
+            rm -f "$out.total.txt" "$out.parse-failed.txt"
+            if "{darshan_prefix}/bin/darshan-parser" --total --perf "$log" > "$out.total.tmp" 2>&1 \\
+                && ! grep -q '^Error:' "$out.total.tmp"; then
+                mv "$out.total.tmp" "$out.total.txt"
+            else
+                mv "$out.total.tmp" "$out.parse-failed.txt"
+                echo "darshan-parser could not read $log; see $out.parse-failed.txt"
+            fi
         done
         # This job's logs replace an earlier job's of the same experiment,
         # through a fresh directory, so the index never sums two runs. With
         # -exec ... + find fails if cp does, and the old export stays.
         DX="{results_dir}/{id}_darshan"
         rm -rf "$DX.tmp" && mkdir -p "$DX.tmp" \\
-            && find $TEL/darshan \\( -name '*.darshan' -o -name '*.total.txt' \\) -exec cp -t "$DX.tmp/" {{}} + \\
+            && find $TEL/darshan \\( -name '*.darshan' -o -name '*.total.txt' -o -name '*.parse-failed.txt' \\) -exec cp -t "$DX.tmp/" {{}} + \\
             && rm -rf "$DX" && mv "$DX.tmp" "$DX"
     fi
     # Cray MPICH's NIC counter summary, from the run's job output.

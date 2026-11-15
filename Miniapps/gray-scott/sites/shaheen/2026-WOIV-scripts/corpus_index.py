@@ -11,7 +11,9 @@ results directories (a run is any <id>_job.sbat). Each row holds:
   from 1 up (most steps write nothing, so writer_write_step_s is small),
   mean reader step times over its steps from 1 up (step 0 includes
   start-up), the reader's EndStep, build and vis times,
-  sampled energy and node power, and Darshan's bytes read and written;
+  sampled energy and node power, and Darshan's bytes read and written
+  (with the number of logs and how many parsed; the bytes are empty unless
+  every log parsed);
 * where everything is: the path of each artifact (timers, telemetry,
   accounting, environment snapshot, Darshan logs, MPICH counters), empty
   when a run does not have it.
@@ -70,10 +72,18 @@ def _csv_means(path, keys):
 
 
 def _darshan_totals(directory):
-    """Sum of each counter over a run's logs; None for a counter no log has a
-    valid (non-negative) value for. Darshan writes -1 for unknown."""
+    """Sum of each counter over a run's logs, and how many logs there are and
+    how many parsed. The totals are empty unless every log parsed (a partial
+    sum would look complete), and a counter is empty when no log has a valid
+    (non-negative) value for it; Darshan writes -1 for unknown."""
+    logs = glob.glob(os.path.join(directory, "*.darshan"))
+    parsed = glob.glob(os.path.join(directory, "*.total.txt"))
     totals = {key: None for key in DARSHAN_KEYS}
-    for path in glob.glob(os.path.join(directory, "*.total.txt")):
+    totals["logs"] = len(logs)
+    totals["logs_parsed"] = len(parsed)
+    if not logs or len(parsed) < len(logs):
+        return totals
+    for path in parsed:
         try:
             text = open(path).read()
         except OSError:
@@ -153,9 +163,8 @@ def index_run(results_dir, run_id):
     row["nic_tx_bytes"] = totals.get("nic_hni_sts_tx_ok_octets")
     row["nic_rx_bytes"] = totals.get("nic_hni_sts_rx_ok_octets")
     darshan_dir = artifact("_darshan")
-    for key, value in (
-        _darshan_totals(darshan_dir) if darshan_dir else {k: None for k in DARSHAN_KEYS}
-    ).items():
+    blank = {k: None for k in DARSHAN_KEYS + ("logs", "logs_parsed")}
+    for key, value in (_darshan_totals(darshan_dir) if darshan_dir else blank).items():
         row["darshan_" + key.replace("total_", "").lower()] = value
     for name, suffix in (
         ("job_script", "_job.sbat"),
@@ -170,6 +179,7 @@ def index_run(results_dir, run_id):
         ("tel_modules", "_tel_modules.txt"),
         ("tel_ldd", "_tel_ldd.txt"),
         ("tel_source", "_tel_source.txt"),
+        ("tel_job", "_tel_job.txt"),
         ("darshan_dir", "_darshan"),
         ("mpich_cxi_summary", "_mpich_cxi_summary.txt"),
     ):
