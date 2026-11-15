@@ -97,7 +97,22 @@ jobs:
           name: dashboard
           path: dashboard
       - name: Publish
+        id: publish
         if: ${{ steps.tip.outputs.newest == 'true' }}
+        continue-on-error: true
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: dashboard
+          destination_dir: dashboard
+          commit_message: 'dashboard: ${{ github.sha }}'
+      # main.yml's badge step pushes to the same branch, and the action
+      # neither rebases nor retries, so a push that lands in between is
+      # rejected. Try once more from the new tip. (A shared concurrency
+      # group would make this wait for main.yml's whole image build.)
+      - name: Publish again if the branch moved
+        if: ${{ steps.tip.outputs.newest == 'true' && steps.publish.outcome == 'failure' }}
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

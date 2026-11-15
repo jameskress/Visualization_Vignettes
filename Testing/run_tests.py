@@ -460,6 +460,11 @@ class _PeakRssSampler(object):
             ancestor = self._io_parent.get(key)
             hops = 0
             while ancestor in vanished and hops < 64:
+                if self._still_running(ancestor):
+                    # An orphan still running reaped it: the I/O stays in a
+                    # process outside the tree, not in anything above.
+                    ancestor = None
+                    break
                 ancestor = self._io_parent.get(ancestor)
                 hops += 1
             if ancestor not in self._io_seen_now:
