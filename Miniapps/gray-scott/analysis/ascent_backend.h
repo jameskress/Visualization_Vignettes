@@ -22,4 +22,8 @@ private:
     // All zero: every cell of the piece is owned. Kept across steps and
     // passed to Ascent with set_external (BuildRepartitionedBlueprint).
     std::vector<std::int32_t> m_cell_ghosts;
+    // The step's fields and mesh, kept across steps so nothing field-sized
+    // is allocated in the step loop (AGENTS.md, zero-copy invariant).
+    std::vector<double> m_u_buf, m_v_buf;
+    conduit::Node m_mesh;
 };

@@ -204,6 +204,105 @@ In `steps` jobs each step's exit status is printed (`Simulation exit status:
 N, reader exit status: M`), and the job's status is the first non-zero one. If the first step to end
 failed, the other is stopped (as `--kill-on-bad-exit` does for MPMD).
 
+## In transit reader costs
+`--paper pipe` selects the `pipe_*` jobs: Ascent and Catalyst slices,
+volume and isosurface, RDMA, one MPMD `srun`, 101 steps (6 outputs), at
+64 + 4 nodes (`f128`, 2048^3) and at 256 + 16, 512 + 32 and 1024 + 64 nodes
+(4096^3), all 128:1 in tasks, except the isosurface at 256 + 16 nodes,
+which runs out of memory (below). `--ascent-timings` turns on Ascent's
+per-filter timings (`ascent_filter_times_<rank>.csv` in the run directory,
+one file per rank, so leave it off for production runs).
+
+Measured on the Ascent reader, 15 Nov 2026, ADIOS2 2.13.0-rc1, slab
+decomposition. Times are the reader's `total_step` in seconds, averaged over
+ranks and over output steps 1 to 5 (step 0 is first-touch warm-up).
+"Before" is #103 with the new timers only; "after" is this change. At 64 + 4
+and 256 + 16 nodes the arms ran at the same time, two runs each; at
+512 + 32 the volume pair and at 1024 + 64 every pair ran one job at a
+time, back to back (all six 1088-node jobs within 23 minutes), because the
+`workq` limit of 2048 nodes per user, shared with other runs, did not fit
+them together. Read those as single runs, with the usual cross-batch spread
+of up to 2 s per step. Two arms run back to back inside one allocation do
+not work: the second `srun` waits for ever ("Requested nodes are busy")
+after the first one's teardown.
+
+| Nodes | Field per reader | Slices | Volume | Isosurface |
+|---|---|---|---|---|
+| 64 + 4 | 2.2 GB | 5.34 -> 2.97 | 4.26 -> 3.07 | 9.75 -> 6.51 |
+| 256 + 16 | 4.4 GB | 12.4 -> 6.75 | 8.43 -> 5.46 | out of memory, both |
+| 512 + 32 (after with `--reader-smt`) | 2.2 GB | 8.52 -> 3.96 | 3.96 -> 2.81 | 12.4 -> 9.19 |
+| 1024 + 64 | 1.1 GB | 6.29 -> 3.25 | 1.96 -> 1.73 | 6.42 -> 4.66 |
+
+Every image matches the "before" run within the spread two "before" runs
+show between themselves: at most a few pixels per 2048^2 frame, on the
+bounding box lines and axis labels.
+
+**Where the time went.** Two things, both the reader's own memory
+handling, neither the transport:
+
+* *Fresh field buffers every step.* The reader declared its two field
+  buffers inside the step loop, so every step allocated, zero-filled and
+  page-faulted them, and freed them at the end. That was the time left in
+  `Blueprint_Time` after `ADIOS_EndStep`: the new `Read_Alloc` timer
+  measures 1.0 to 1.15 s per step at 64 + 4 nodes (2.2 GB per field per
+  reader), 2.3 s at 256 + 16 and 0.23 s at 1024 + 64; `Read_Setup` (the
+  selection bookkeeping) and `Mesh_Build` (the Blueprint mesh) are under
+  1 ms. The buffers now live as long as the reader (Ascent and
+  `adios_writer` here, Catalyst in #111). Alone, that
+  takes 64 + 4 node slices from 5.0 to 3.7 s, volume from 4.2 to 3.2 and
+  the isosurface from 9.6 to 8.7.
+* *The allocator.* With the job-wide 32 MiB `MALLOC_MMAP_THRESHOLD_` (see
+  "glibc mmap threshold" below), every VTK-m block larger than that is
+  mapped when allocated and unmapped when freed, so each step faulted the
+  same memory in again. The isosurface took 7.8 million minor faults
+  (about 30 GB) and 41 s of system CPU per reader rank per step at 64 + 4
+  nodes; the slices about 2 GB. The reader now runs with
+  `MALLOC_MMAP_MAX_=0 MALLOC_TRIM_THRESHOLD_=137438953472`
+  (`READER_MALLOC_ENV` in the generator), so freed blocks stay in the heap
+  for the next step: isosurface system CPU falls to 1.9 s, slices
+  3.8 -> 3.0 s and isosurface 8.7 -> 6.5 s per step. The simulation does
+  not get it. The price is memory: the 64 + 4 node isosurface's peak RSS
+  per reader rank rose from 26.5 to 31.7 GB (8 per node, 370 GB per node).
+  It helps Catalyst's readers too (64 + 4 nodes: slices 4.8 -> 3.8 s,
+  isosurface 23.9 -> 20.3 s, identical images; peak reader RSS of the
+  isosurface 27.7 -> 30.5 GB), so every backend gets it, except in Paper 1's
+  jobs, which keep the setup they ran with (#71).
+
+The per-step page faults are recorded as counters (`minflt_*`, analysis
+README) next to the timers.
+
+**Ascent's own time** (`--ascent-timings`, 64 + 4 nodes, after):
+
+* Slices: about 0.1 s per slice filter, but the slice normal to z, the
+  slab axis, lies in one reader's slab, and that rank spends 0.3 s on it
+  (0.8 s at 256 + 16 and 1024 + 64) while the others wait; then
+  rendering and compositing, 0.25 s. A brick decomposition would share the
+  z slice among readers; it was not measured here.
+* Volume: rendering and compositing, 0.9 s.
+* Isosurface: contour 1.7 s, then rendering the triangles and compositing,
+  2.4 s. At this point of the run the v = 0.1 surface fills the whole cube
+  with fine structure, so the triangle count is large.
+* Ghost cells: the reader publishes an all-zero `ascent_ghosts` field
+  (every cell is owned). Ascent still runs a ghost strip over it: 0.09 s
+  per step on the whole mesh plus a pass after each pipeline. Leaving the
+  field out (measured, not done) saves 0.05 to 0.25 s per step with the
+  allocator setting, more without it.
+
+**Threads.** The reader's 24 OpenMP threads per rank, bound `close` to
+cores, are as fast as `spread` and 0.1 s faster than unbound. Both hardware
+threads of the same 24 cores (48 threads, `--reader-smt`) save another
+0.5 s on the 64 + 4 node isosurface, 0.1 s on volume and 0.05 s on slices.
+It changes every backend's reader launch (and drops the job-wide
+`--hint=nomultithread`; the simulation's `srun` keeps its own), so it is
+off by default until Catalyst is measured with it.
+
+**Isosurface at 256 + 16 nodes runs out of memory**, before and after:
+each reader holds 4.4 GB per field, and the contour of a surface that fills
+the domain needs more than a node's 370 GB across 8 readers. The same
+holds for any 4096^3 isosurface with 16 staging nodes. Either use more
+staging nodes for that size (32, as at 512 + 32, keeps 2.2 GB per reader)
+or drop it from the matrix.
+
 ## After the runs
 Each run's job first saves its own batch script as `<results>/<id>_job.sbat`
 and the job-wide network, allocator and Mesa settings it exported (`FI_*`,

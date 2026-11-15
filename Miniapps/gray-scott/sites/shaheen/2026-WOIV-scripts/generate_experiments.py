@@ -82,6 +82,41 @@ SCALE_LAUNCHES = ["mpmd", "steps"]
 SCALE_RUN_STEPS = 101
 SCALE_TIME_LIMIT = "0:45:00"
 
+# Reader cost study: each in transit pipeline (slices, volume, isosurface)
+# for Ascent and Catalyst, RDMA, one MPMD srun, at the f128 size and along
+# the step 2 scaling ladder (sites/shaheen/README.md, "In transit reader
+# costs"). (name, simulation nodes, grid, staging nodes).
+PIPE_CONFIGS = [
+    ("f128", 64, 2048, 4),
+    ("s256", 256, 4096, 16),
+    ("s512", 512, 4096, 32),
+    ("s1024", 1024, 4096, 64),
+]
+PIPE_RUN_STEPS = 101  # 6 outputs at plotgap 20
+PIPE_TIME_LIMIT = "0:45:00"
+# Ascent's per-filter timings (ascent_options.yaml `timings`); off by default
+# because Ascent writes one file per rank. --ascent-timings turns it on.
+ASCENT_TIMINGS = False
+
+# Run the in transit reader on both hardware threads of its 24 cores (48
+# OpenMP threads) instead of one. Ascent at f128: isosurface -0.54 s/step,
+# volume -0.12, slices -0.05 (sites/shaheen/README.md, "In transit reader
+# costs"). Off by default: it changes every backend's reader, so it waits
+# for Catalyst to be measured with it too. --reader-smt turns it on.
+READER_SMT = False
+
+# The in transit reader's allocator: never mmap, never trim. The job-wide
+# MALLOC_MMAP_THRESHOLD_ (32 MiB) makes every larger block an mmap that is
+# unmapped when freed, so each step the reader faulted the same memory in
+# again: the Ascent isosurface took 7.8 M minor faults (about 30 GB) and
+# 41 s of system CPU per rank per step, the slices about 2 GB. With these the
+# heap keeps freed blocks for the next step: isosurface 8.7 -> 6.5 s/step and
+# slices 3.8 -> 3.0 s/step at f128, at the cost of a higher RSS
+# (sites/shaheen/README.md, "In transit reader costs"). Every backend's
+# reader gets it (reader_env), so comparisons stay fair; the simulation does
+# not, and neither do Paper 1's jobs, which keep the setup they ran with (#71).
+READER_MALLOC_ENV = "MALLOC_MMAP_MAX_=0 MALLOC_TRIM_THRESHOLD_=137438953472"
+
 CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
 
 PIPELINE_FILES = {
@@ -144,7 +179,7 @@ ASCENT_OPTIONS_TEMPLATE = """runtime:
     backend: "openmp"
 actions_file: "{actions_file}"
 messages: "info"
-timings: "false"
+timings: "{timings}"
 """
 
 # --- ASCENT TEMPLATES ---
@@ -813,7 +848,7 @@ SBATCH_TEMPLATE = """#!/bin/bash
 {cpus_per_task_line}
 {network_line}
 #SBATCH --time={time_limit}
-#SBATCH --hint=nomultithread
+{hint_line}
 #SBATCH --exclusive
 #SBATCH --output={output_dir}/slurm-%j.out
 #SBATCH --error={output_dir}/slurm-%j.err
@@ -1106,7 +1141,7 @@ CMD_INTRANSIT = """srun --exclusive --propagate=NOFILE --hint=nomultithread --ki
     --logging-level={logging_level} \\
     --settings-file=$OUTPUT_DIR/settings.json \\
     : \\
-    --exclusive --nodes={stage_nodes} --ntasks={stage_ranks} --ntasks-per-node=8 --cpus-per-task=24 --mem-bind=v,local --cpu-bind=threads \\
+    --exclusive --nodes={stage_nodes} --ntasks={stage_ranks} --ntasks-per-node=8 {reader_cpus} --mem-bind=v,local --cpu-bind=threads \\
     env {reader_env} \\
     $EXE_STAGE \\
     --settings $OUTPUT_DIR/settings-stage.json \\
@@ -1126,8 +1161,8 @@ CMD_INTRANSIT_STEPS = """srun --network=job_vni --exclusive --propagate=NOFILE -
     --logging-level={logging_level} \\
     --settings-file=$OUTPUT_DIR/settings.json &
 SIM_PID=$!
-srun --network=job_vni --exclusive --propagate=NOFILE --hint=nomultithread \\
-    --nodes={stage_nodes} --ntasks={stage_ranks} --ntasks-per-node=8 --cpus-per-task=24 --mem-bind=v,local --cpu-bind=threads \\
+srun --network=job_vni --exclusive --propagate=NOFILE {reader_hint} \\
+    --nodes={stage_nodes} --ntasks={stage_ranks} --ntasks-per-node=8 {reader_cpus} --mem-bind=v,local --cpu-bind=threads \\
     env {reader_env} \\
     $EXE_STAGE \\
     --settings $OUTPUT_DIR/settings-stage.json \\
@@ -1196,13 +1231,33 @@ CATALYST_TIMER_ENV = (
 )
 
 
+def reader_smt(exp):
+    """--reader-smt applies to every in transit run but Paper 1's (as run, #71)."""
+    return READER_SMT and exp.get("paper") != "paper1"
+
+
 def reader_env(exp):
-    """Environment for an in transit run's reader srun (see above)."""
-    if exp.get("paper") != "paper1" and exp.get("stage_pipeline", "").startswith(
-        "catalyst_"
-    ):
-        return CATALYST_READER_ENV + " " + CATALYST_TIMER_ENV
-    return ASCENT_READER_ENV
+    """Environment for an in transit run's reader srun (see above).
+
+    Paper 1 jobs keep the environment they were run with (#71). Every other
+    reader gets READER_MALLOC_ENV, and with --reader-smt 48 threads on the
+    rank's 24 cores instead of 24.
+    """
+    if exp.get("paper") == "paper1":
+        return ASCENT_READER_ENV
+    if exp.get("stage_pipeline", "").startswith("catalyst_"):
+        env = CATALYST_READER_ENV + " " + CATALYST_TIMER_ENV
+        if reader_smt(exp):
+            env = env.replace("OMP_NUM_THREADS=24", "OMP_NUM_THREADS=48")
+            env = env.replace("LP_NUM_THREADS=24", "LP_NUM_THREADS=48")
+    else:
+        env = ASCENT_READER_ENV
+        if reader_smt(exp):
+            env = env.replace(
+                "OMP_NUM_THREADS=24 OMP_PLACES=cores",
+                "OMP_NUM_THREADS=48 OMP_PLACES=threads",
+            )
+    return env + " " + READER_MALLOC_ENV
 
 
 def generate_settings_json(exp, output_dir, copied_files, args):
@@ -1449,7 +1504,12 @@ def copy_pipeline_files(exp, output_dir, repo_root):
 
         opts_path = os.path.join(output_dir, "ascent_options.yaml")
         with open(opts_path, "w") as f:
-            f.write(ASCENT_OPTIONS_TEMPLATE.format(actions_file=actions_filename))
+            f.write(
+                ASCENT_OPTIONS_TEMPLATE.format(
+                    actions_file=actions_filename,
+                    timings="true" if ASCENT_TIMINGS else "false",
+                )
+            )
         files_to_copy["ascent_opts"] = opts_path
 
     elif effective_backend == "catalyst":
@@ -1936,6 +1996,37 @@ def generate_scripts(args):
                     }
                 )
 
+    # 7. Reader cost study: every pipeline, RDMA, MPMD.
+    for name, nodes, grid, stage_nodes in PIPE_CONFIGS:
+        pid, p_init_steps = ensure_init(grid)
+        for backend in ["ascent", "catalyst"]:
+            for wl_suffix, wl_type in WORKLOAD_MAPPING:
+                if wl_type == "data_save":
+                    continue
+                # 4.4 GB per field per reader: the isosurface runs out of
+                # memory there, before and after the reader fixes
+                # (sites/shaheen/README.md, "In transit reader costs").
+                if name == "s256" and wl_type == "isosurface":
+                    continue
+                EXPERIMENTS.append(
+                    {
+                        "id": f"pipe_transit_rdma_mpmd_{name}_N{nodes:04d}_S{stage_nodes:03d}_{backend}_{wl_suffix}",
+                        "paper": "pipe",
+                        "type": "intransit",
+                        "backend": "adios",
+                        "workload": wl_type,
+                        "sim_nodes": nodes,
+                        "stage_nodes": stage_nodes,
+                        "grid_size": grid,
+                        "stage_pipeline": f"{backend}_{wl_suffix}",
+                        "parent_id": pid,
+                        "total_steps": p_init_steps + PIPE_RUN_STEPS,
+                        "transport": "RDMA",
+                        "launch": "mpmd",
+                        "time_limit": PIPE_TIME_LIMIT,
+                    }
+                )
+
     # Preflight, before any file is written: a run whose existing settings
     # use the other decomposition stops the whole generation, so nothing
     # beside that run's results (adios2.xml included) is rewritten.
@@ -1989,12 +2080,22 @@ def generate_scripts(args):
             grid_size=exp["grid_size"],
             logging_level=GLOBAL_SETTINGS["logging_level"],
             reader_env=reader_env(exp),
+            # --reader-smt: both hardware threads of the reader's 24 cores.
+            reader_cpus="--cpus-per-task=48 --threads-per-core=2"
+            if reader_smt(exp)
+            else "--cpus-per-task=24",
+            reader_hint="" if reader_smt(exp) else "--hint=nomultithread",
         )
 
         script_content = SBATCH_TEMPLATE.format(
             id=exp["id"],
             account=args.account,
             partition=SYSTEM_CONFIG["partition"],
+            # A job-wide nomultithread would refuse the reader's second
+            # hardware threads; the simulation's srun still asks for it.
+            hint_line=""
+            if reader_smt(exp) and exp["type"] == "intransit"
+            else "#SBATCH --hint=nomultithread",
             total_nodes=total_nodes,
             total_ranks=combined_total_ranks
             if exp["type"] == "intransit"
@@ -2054,6 +2155,16 @@ if __name__ == "__main__":
         help="How the in transit reader splits the domain: slab (slowest axis) or brick (aligned with writer blocks)",
     )
     parser.add_argument(
+        "--ascent-timings",
+        action="store_true",
+        help="Turn on Ascent's per-filter timings (ascent_options.yaml `timings`)",
+    )
+    parser.add_argument(
+        "--reader-smt",
+        action="store_true",
+        help="Run the in transit reader with 48 threads on both hardware threads of its 24 cores",
+    )
+    parser.add_argument(
         "--perf-env",
         default=f"/scratch/{os.environ.get('USER', 'user')}/perf_env",
         help="Python venv with pandas, activated after each run to reduce its timings",
@@ -2075,4 +2186,6 @@ if __name__ == "__main__":
             )
     VOLUME_SAMPLES_PER_CELL = args.volume_samples_per_cell
     READ_DECOMPOSITION = args.reader_decomposition
+    ASCENT_TIMINGS = args.ascent_timings
+    READER_SMT = args.reader_smt
     generate_scripts(args)

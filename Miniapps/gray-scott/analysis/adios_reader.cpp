@@ -156,6 +156,13 @@ MPI_Comm AdiosReader::GetComm() const
     return m_comm;
 }
 
+double AdiosReader::TakeAllocFaults()
+{
+    const double f = m_alloc_faults;
+    m_alloc_faults = 0.0;
+    return f;
+}
+
 template <typename Vec>
 size_t AdiosReader::productDims(const Vec &v)
 {
@@ -250,9 +257,13 @@ void AdiosReader::ReadRepartition(const std::string &var_name, std::vector<T> &b
         buffer.clear();
         return;
     }
+    // Read_Setup: the selection bookkeeping. Read_Alloc: sizing the buffer.
+    // Both are inside the backends' Blueprint_Time (#103 follow-up).
+    m_logger.start("Read_Setup");
     auto var = m_io->InquireVariable<T>(var_name);
     if (!var)
     {
+        m_logger.stop("Read_Setup");
         // A named variable that is not in the stream is a settings or
         // writer mismatch: say so, rather than render empty data (#42).
         // (An empty name skips the field, above.)
@@ -337,8 +348,13 @@ void AdiosReader::ReadRepartition(const std::string &var_name, std::vector<T> &b
     if (local_count > 0)
     {
         var.SetSelection({read_info.local_start, read_info.local_dims});
+        m_logger.stop("Read_Setup");
+        m_logger.start("Read_Alloc");
+        const double faults0 = ProcessMinorFaults();
         if (buffer.size() != local_count)
             buffer.resize(local_count);
+        m_alloc_faults += ProcessMinorFaults() - faults0;
+        m_logger.stop("Read_Alloc");
 
         // Deferred: the reads of a step complete together at EndStep(), one
         // round of communication with the writers instead of one per field
@@ -351,6 +367,7 @@ void AdiosReader::ReadRepartition(const std::string &var_name, std::vector<T> &b
     }
     else
     {
+        m_logger.stop("Read_Setup");
         buffer.clear();
     }
 }
