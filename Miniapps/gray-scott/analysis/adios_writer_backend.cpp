@@ -1,6 +1,9 @@
 #include "adios_writer_backend.h"
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
+#include <stdexcept>
 #include <unistd.h>
 
 namespace
@@ -10,6 +13,27 @@ namespace
         if (std::filesystem::exists("adios2.xml"))
             return adios2::ADIOS("adios2.xml", comm);
         return adios2::ADIOS(comm);
+    }
+
+    std::string Lower(std::string text)
+    {
+        std::transform(text.begin(), text.end(), text.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return text;
+    }
+
+    // SST with a marshalling other than BP5 (FFS) ignores a memory selection
+    // and sends the first values of the buffer as if they were contiguous
+    // (ADIOS2 2.11, SstWriter.tcc). BP5 files and SST's BP5 marshalling
+    // honour it.
+    bool HonoursMemorySelection(adios2::IO &io)
+    {
+        if (Lower(io.EngineType()) != "sst")
+            return true;
+        for (const auto &kv : io.Parameters())
+            if (Lower(kv.first) == "marshalmethod")
+                return Lower(kv.second) == "bp5";
+        return true; // SST marshals with BP5 by default
     }
 } // end anonymous namespace
 
@@ -25,6 +49,16 @@ AdiosWriterBackend::AdiosWriterBackend(const BackendOptions &opts)
     m_io_out = m_adios.DeclareIO("AnalysisOutput");
     if (m_io_out.EngineType().empty())
         m_io_out.SetEngine("BP5");
+    // A slab's owned points are a prefix of its buffer, so an engine that
+    // ignores the memory selection still sends the right values. A brick's
+    // are not. Packing them into a contiguous buffer does not help either:
+    // with ADIOS2 2.11 an 8-reader brick written through SST with FFS read
+    // back wrong even then, while the same packed blocks through BP5
+    // marshalling were bitwise identical. Refuse the combination.
+    if (m_opts.read_decomposition == "brick" && !HonoursMemorySelection(m_io_out))
+        throw std::runtime_error(
+            "AnalysisOutput: SST with MarshalMethod other than BP5 cannot carry a "
+            "brick decomposition; use MarshalMethod=BP5, a BP5 file, or -D slab");
     m_writer = m_io_out.Open(m_opts.adios_output_file, adios2::Mode::Write);
     m_writer_open = true;
 }

@@ -308,9 +308,14 @@ libfabric registration cache (`FI_MR_CACHE_MAX_COUNT`) does not.
 
 None of that commit's code runs for our reads: each reader's slab covers
 whole writer blocks in the two fast dimensions, so no request has gaps
-and the new per-run table is never built. (A `brick` reader, below, also
-reads whole writer blocks when the rank counts divide; when they do not,
-its requests can have gaps and that code would run.) What the commit changes for us
+and the new per-run table is never built. (A `brick` reader, below, is
+different. Its owned box lines up with writer blocks only when `L` divides
+evenly by both rank counts on each axis: at `L` = 66 four writers split an
+axis at 34 and two readers at 33. Even then, the plane it reads from each
+neighbour cuts into the next writer blocks in the fast dimensions, so at
+4096^3 with 262144 writers and 2048 readers an interior brick owns 4 x 4 x 8
+blocks but requests parts of 5 x 5 x 9. Its requests can have gaps, and that
+code may run.) What the commit changes for us
 is the size of ADIOS2's internal read request, from 96 to 120 bytes (one
 added member). The revert with an unused 24 byte member put back is as
 slow as rc1 (9.08 and 9.56 s, against 8.93 s for rc1 and 7.39 s for the

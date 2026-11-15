@@ -272,8 +272,9 @@ void AdiosReader::ReadRepartition(const std::string &var_name, std::vector<T> &b
         {
             // The simulation's own split: MPI_Dims_create, with dims[0] along
             // x, the fastest axis (simulation/gray-scott.cpp). Splitting the
-            // readers the same way lines a brick up with whole writer blocks
-            // whenever the rank counts divide.
+            // readers the same way lines a brick's owned box up with whole
+            // writer blocks when L divides evenly by both counts on each axis.
+            // The shared planes still reach into the next blocks.
             int dims[3] = {0, 0, 0};
             MPI_Dims_create(size, 3, dims);
             parts = {dims[2], dims[1], dims[0]}; // z, y, x
