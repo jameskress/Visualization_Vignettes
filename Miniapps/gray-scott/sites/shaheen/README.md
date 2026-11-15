@@ -409,17 +409,25 @@ submitted together in shuffled order; the ADIOS2 2.13.0-rc1 build of PR
 | :--- | :--- | :--- | :--- |
 | 64 + 4 | 13.94, 13.91 / 17.34, 17.11 | 1.59, 1.62 / 4.92, 4.95 | 1.07, 1.15 / 5.15, 5.03 |
 | 256 + 16 | 27.34, 27.38 / 34.07, 34.05 | 4.29, 4.53 / 10.85, 11.19 | 4.95, 5.04 / 12.45, 12.53 |
-SCALE_ROWS
+| 512 + 32 | 24.95, 25.11 / 27.82, 27.99 | 3.88, 4.39 / 6.85, 7.36 | 5.17, 4.71 / 8.98, 8.56 |
+| 1024 + 64 | 23.73 / 25.23 (10 Nov, one run) | 4.14, 4.69 / 5.65, 6.22 | 4.95, 5.28 / 6.50, 6.85 |
 
-Volume at 64 + 4: Catalyst 6.61 and 7.27 s before, 1.51 and 1.28 s after;
-Ascent 1.05 and 1.04 s.
-VOLUME_ROWS
+Volume `Vis_Time`: at 64 + 4, Catalyst 6.61 and 7.27 s before, 1.51 and
+1.28 s after, Ascent 1.05 and 1.04 s; at 512 + 32, Catalyst 6.78 and 6.79 s
+before, 0.48 and 0.63 s after, Ascent 0.54 and 1.08 s. The 1024 + 64
+"before" in the slice table is the 10 November run of an older build, not
+part of the A/B (the queue was shared, so that arm was dropped).
 
 **Renders.** Unbinding changes no pixel. llvmpipe instead of softpipe
-changes about 85,000 of the 4.2 million pixels of a slice frame, almost
+changes 68,000 to 86,000 of the 4.2 million pixels of a slice frame, almost
 all by one level (OSPRay's image as Mesa blits it); the 236 pixels that
 change by more than 32 levels are the orientation axes' lines and the
-scalar bar's labels. Each arm's frames were identical from run to run.
+scalar bar's labels, the same 236 at 64 + 4, 256 + 16 and 512 + 32. A
+volume frame changes in 674 pixels, all on those overlays. Each arm's frames
+were identical from run to run. The same 4096^3 data rendered on different
+reader counts differs only at slab seams: 102 to 108 pixels between 256 + 16
+and 512 + 32, before and after alike, and 44 to 48 between 512 + 32 and
+1024 + 64 after.
 
 **The isosurface** was slow for other reasons: at 64 + 4 nodes after the
 fixes above, 44 s per step, against 6.2 s for Ascent. The stage timers
@@ -444,7 +452,25 @@ showed Contour 21.7 s, GhostCells 8.4 s and OSPRay 11 to 13 s on rank 0.
   noise, so it has tens of millions of small triangles): VTK hands OSPRay a
   copy of the mesh every frame and Embree rebuilds its BVH. OpenGL was
   slower still (above).
-ISO_ROWS
+* At 512 + 32 nodes (4096^3) the Catalyst isosurface runs out of memory on
+  the readers at the first output, with flying edges and with Contour alike
+  (two runs and one run; the reader component's sampled peak was 27.5 GB
+  per rank, 8 ranks on a 384 GB node). Each rank holds as many points as at
+  64 + 4, so the surface itself is the difference. Ascent's isosurface there
+  takes 8.0 s per step. Fewer readers per node would fit it; that changes
+  the fan-in, so it is not done here.
+
+**Reader allocations.** Separately from the above, the ascent-perf work
+(branch `gs-ascent-perf`, on top of #103) found every backend reallocating its field buffers
+each step and the job's `MALLOC_MMAP_THRESHOLD_` sending large VTK
+allocations to `mmap`. Measured on the Catalyst reader at 64 + 4 (two runs
+each, frames bit-identical), `MALLOC_MMAP_MAX_=0
+MALLOC_TRIM_THRESHOLD_=137438953472` on the reader cut the slice step from
+4.95 and 4.69 s to 3.77 and 3.76 s, and the isosurface from 24.05 and 23.74
+s to 21.23 and 19.37 s. That setting belongs in the reader's environment for
+both backends; it is not in this change.
+* With the job's old settings the 64 + 4 Catalyst isosurface also ran out
+  of memory, in both runs.
 
 **Stage timers.** `Vis_Time` covers all of `catalyst_execute`. Each Paper 2
 Catalyst script now writes ParaView's own scoped log to
