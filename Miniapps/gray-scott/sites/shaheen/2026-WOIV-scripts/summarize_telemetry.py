@@ -11,6 +11,10 @@ sacct.txt), and writes per-run totals:
   nodes; mean and peak node power.
 * CPU: per-node mean utilisation from /proc/stat differences.
 * NIC: bytes sent and received, and the NACK and retry counter increases.
+* Run totals, likewise, only when every allocated node (scontrol's NodeList
+  in job.txt, or else the steps' node lists) has usable samples.
+* Non-finite values (nan, inf) count as missing, and a counter needs values
+  at both ends of the sampled interval.
 * Steps whose node list is not fully covered by samples get no sampled
   figures (nodes_expected and nodes_sampled say why).
 * Slurm: each numbered step's elapsed time, CPU seconds, peak task memory
@@ -27,6 +31,7 @@ Only the standard library is used, so it runs in any Python 3.
 import csv
 import glob
 import json
+import math
 import os
 import re
 import sys
@@ -45,10 +50,12 @@ NIC_PREFIX = "nic_"
 
 
 def _num(text):
+    """A finite float, or None (blank, unreadable, nan or inf)."""
     try:
-        return float(text)
+        value = float(text)
     except (TypeError, ValueError):
         return None
+    return value if math.isfinite(value) else None
 
 
 def _increase(rows, key):
@@ -58,8 +65,12 @@ def _increase(rows, key):
     between the first and last samples.
     """
     values = [_num(r.get(key)) for r in rows]
-    values = [v for v in values if v is not None]
-    if len(values) < 2 or any(b < a for a, b in zip(values, values[1:])):
+    # Both ends must be present: a difference over a shorter span than the
+    # node's interval_s would be added to other nodes' full-interval ones.
+    if len(values) < 2 or values[0] is None or values[-1] is None:
+        return None
+    present = [v for v in values if v is not None]
+    if any(b < a for a, b in zip(present, present[1:])):
         return None
     return values[-1] - values[0]
 
@@ -114,6 +125,18 @@ def expand_nodelist(text):
     return names
 
 
+def allocated_nodes(tel_dir, steps):
+    """The run's allocated node names: scontrol's NodeList in job.txt, or
+    else every node a numbered step ran on. None if neither is known."""
+    path = os.path.join(tel_dir, "job.txt")
+    if os.path.exists(path):
+        match = re.search(r"\sNodeList=(\S+)", open(path).read())
+        if match and match.group(1) != "(null)":
+            return expand_nodelist(match.group(1))
+    names = {h for step in steps for h in expand_nodelist(step.get("node_list"))}
+    return sorted(names) or None
+
+
 def read_sacct(path):
     """Numbered steps from `sacct -P` output with a header line."""
     if not os.path.exists(path):
@@ -159,11 +182,22 @@ def main(argv):
     if not nodes:
         print("telemetry: no node has two or more samples; no summary written")
         return 1
-    totals = {"nodes_sampled": len(nodes)}
+    steps = read_sacct(os.path.join(tel_dir, "sacct.txt"))
+    expected = allocated_nodes(tel_dir, steps)
+    sampled = {n["node"] for n in nodes}
+    covered = expected is not None and set(expected) <= sampled
+    totals = {
+        "nodes_sampled": len(nodes),
+        "nodes_expected": len(expected) if expected is not None else None,
+    }
+    # Run totals, like step totals, only when every allocated node has
+    # usable samples: a sum over some of them would look like the run's.
     for key in ("energy_j", "cpu_energy_j", "memory_energy_j"):
         values = [n.get(key) for n in nodes]
         totals[key] = (
-            sum(values) if values and all(v is not None for v in values) else None
+            sum(values)
+            if covered and values and all(v is not None for v in values)
+            else None
         )
     powers = [n["power_mean_w"] for n in nodes if "power_mean_w" in n]
     totals["node_power_mean_w"] = (
@@ -172,8 +206,9 @@ def main(argv):
     nic_keys = sorted({k for n in nodes for k in n if k.startswith(NIC_PREFIX)})
     for key in nic_keys:
         values = [n.get(key) for n in nodes]
-        totals[key] = sum(values) if all(v is not None for v in values) else None
-    steps = read_sacct(os.path.join(tel_dir, "sacct.txt"))
+        totals[key] = (
+            sum(values) if covered and all(v is not None for v in values) else None
+        )
     by_name = {n["node"]: n for n in nodes}
     for step in steps:
         expected = expand_nodelist(step.get("node_list"))
@@ -210,7 +245,7 @@ def main(argv):
         "nodes": nodes,
     }
     with open(out_path, "w") as handle:
-        json.dump(summary, handle, indent=1)
+        json.dump(summary, handle, indent=1, allow_nan=False)
     print(
         "telemetry: {0} nodes, {1} J, mean node power {2} W".format(
             totals["nodes_sampled"], totals["energy_j"], totals["node_power_mean_w"]
