@@ -457,11 +457,9 @@ class TimeAxis(object):
         return date_ticks(self.start, self.end, max_ticks)
 
 
-def svg_open(width, height, label):
-    return (
-        '<svg class="chart" viewBox="0 0 {0} {1}" role="img" aria-label="{2}">'.format(
-            width, height, esc(label)
-        )
+def svg_open(width, height, label, cls="chart"):
+    return '<svg class="{3}" viewBox="0 0 {0} {1}" role="img" aria-label="{2}">'.format(
+        width, height, esc(label), cls
     )
 
 
@@ -691,7 +689,12 @@ def svg_dot_plot(tool, rows):
         return left + frac * (width - left - right)
 
     out = [
-        svg_open(width, height, "{0} time per vignette across machines".format(tool))
+        svg_open(
+            width,
+            height,
+            "{0} time per vignette across machines".format(tool),
+            "chart rows",
+        )
     ]
     decade = lo
     while decade <= hi * 1.0001:
@@ -733,7 +736,12 @@ def svg_version_timeline(tool, rows, slot_of):
     height = top + bottom + row_h * len(rows)
     axis = TimeAxis(stamps, left, width - right)
     out = [
-        svg_open(width, height, "{0} version per configuration over time".format(tool))
+        svg_open(
+            width,
+            height,
+            "{0} version per configuration over time".format(tool),
+            "chart rows",
+        )
     ]
     for moment, label in axis.ticks(6):
         x = axis.x(moment)
@@ -824,6 +832,7 @@ gap:12px;margin-top:8px}
 .chart-box h4{margin:0;font-size:13px;font-weight:600}
 .chart-box .unit{color:var(--muted);font-weight:400}
 svg.chart{width:100%%;height:auto;display:block}
+svg.chart.rows{max-width:860px}
 svg .grid{stroke:var(--grid);stroke-width:1}
 svg .axis{stroke:var(--axis);stroke-width:1}
 svg .rowline{stroke:var(--grid);stroke-width:1;stroke-dasharray:2 3}
