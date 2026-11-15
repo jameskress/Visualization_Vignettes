@@ -77,13 +77,16 @@ def _darshan_totals(directory):
     sum would look complete), and a counter is empty when no log has a valid
     (non-negative) value for it; Darshan writes -1 for unknown."""
     logs = glob.glob(os.path.join(directory, "*.darshan"))
+    # Each log's own summary (<log>.total.txt beside <log>.darshan): a log
+    # counts as parsed only if that file reads; summaries with no log are
+    # ignored, so an extra file can never make up for a missing one.
     texts = []
-    for path in glob.glob(os.path.join(directory, "*.total.txt")):
+    for log in logs:
         try:
-            with open(path) as handle:
+            with open(log[: -len(".darshan")] + ".total.txt") as handle:
                 texts.append(handle.read())
         except OSError:
-            pass  # unreadable: not counted as parsed
+            pass  # missing or unreadable: not parsed
     totals = {key: None for key in DARSHAN_KEYS}
     totals["logs"] = len(logs)
     totals["logs_parsed"] = len(texts)
