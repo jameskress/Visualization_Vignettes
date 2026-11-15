@@ -181,6 +181,20 @@ Kombyne takes its own grid objects, not a Conduit tree. Its adaptor
 * The old adaptor copied u and v without halos and built per-point
   coordinates, which left a one-cell gap between ranks.
 
+Cost per output step, old adaptor (9f77464^, `kb_sgrid` of the interior,
+float coordinates built every write, `KB_MEM_COPY` of `u_noghost()`) against
+the current one, both built from the same tree. Workstation, 256^3, 8 ranks
+of 4 OpenMP threads, 5 outputs, `write_step` slowest rank, median of 3 runs
+(2026-11-15):
+
+| Script | Old | Current |
+| :--- | ---: | ---: |
+| One slice of V, 1024 x 1024 PNG | 236 ms | 143 ms |
+| `kombyne-save-data.yaml` (VTK export) | 126 ms | 46 ms |
+
+The export is also smaller (1.4 GB against 2.2 GB for the five steps): the
+current grid stores three axis arrays instead of a coordinate per point.
+
 Timers: `wrap` (building the handles, about 50 microseconds at 64^3) and
 `execute` (`kb_simulation_execute`, including its exports).
 

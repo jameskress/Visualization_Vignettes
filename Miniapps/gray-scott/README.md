@@ -199,7 +199,7 @@ Measured on the KVL workstation; other Linux machines need the same pieces.
 | Catalyst 2 | for `catalyst_*` output | same ParaView build (must match the VTK above) |
 | Ascent | for `ascent` output | optional |
 | ADIOS2 | for `adios` output and the in transit reader | optional |
-| Kombyne-lite | for `kombyne` output | optional, free version 1.5 |
+| Kombyne-lite | for `kombyne` output | optional, free version 1.5; links only with Open MPI built with C++ bindings (not Cray MPICH) |
 | GPU | not yet | two RTX A5000; GPU support is planned (`ENABLE_GPU`, off) |
 
 VTK and Catalyst must come from the same ParaView build that Catalyst loads

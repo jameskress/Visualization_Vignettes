@@ -53,6 +53,18 @@ With 2.12.0, SST over the MPI data plane ran consistently in the Paper 2
 tests. SST over RDMA with 2.12.0 completed a 1,024 + 32 node Catalyst run
 (#79), with the shutdown bounded by #75. #72 compares the two at scale.
 
+# Kombyne
+Kombyne-lite does not run on Shaheen III. Its prebuilt archive calls Open
+MPI symbols directly and fails to link against Cray MPICH (`undefined
+reference to 'ompi_mpi_int'`), which is why `config.bash` keeps
+`ENABLE_KOMBYNELITE=OFF`. It failed for the 2026 WOIV paper and again for
+the #71 recheck (8 Nov 2026). Every Kombyne run so far was on Ibex with an
+Open MPI built with C++ bindings (`sites/ibex/README.md`): the paper's
+Kombyne jobs on 32 nodes (1,024 ranks, the footnote in
+`2026-WOIV-scripts/plot_performance.py`), and the #71 recheck at 1024^3 on
+64 ranks. Running Kombyne at scale here needs a build of the full Kombyne
+from source against Cray MPICH.
+
 # ParaView
 The superbuild configuration used on Shaheen III:
 
