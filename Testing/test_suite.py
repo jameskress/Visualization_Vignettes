@@ -362,7 +362,7 @@ def log_performance(
     # The trailing newline matches the 112 history files already committed.
     # Without it every append rewrites the last line as "\ No newline at end
     # of file" and the diff is noise on top of the one added record.
-    APPENDED_HISTORIES.add(os.path.realpath(log_file))
+    APPENDED_HISTORIES[os.path.realpath(log_file)] = timestamp
     temp_file = log_file + ".tmp"
     with open(temp_file, "w") as handle:
         json.dump(data, handle, indent=4)
@@ -384,7 +384,7 @@ def log_performance(
 _HOST_HARDWARE = None
 # The history files this invocation appended to, so the summary judges
 # drift on this run's records only, not on a vignette it did not run.
-APPENDED_HISTORIES = set()
+APPENDED_HISTORIES = {}  # history file -> timestamp of the record appended
 TOOL_EXECUTABLES = ("pvbatch", "pvpython", "visit")
 
 
@@ -1425,8 +1425,12 @@ def create_summary_report(
                 # Only a record this invocation appended is judged: a vignette
                 # outside --test_number, or a --generate-metrics pass, would
                 # otherwise report an earlier run's drift as this run's.
-                appended = os.path.realpath(performance_file) in APPENDED_HISTORIES
-                warnings = drift.check_latest(performance_data) if appended else []
+                # The record itself, by its timestamp: another invocation may
+                # have appended to the same file since.
+                appended = APPENDED_HISTORIES.get(os.path.realpath(performance_file))
+                warnings = (
+                    drift.check_latest(performance_data, appended) if appended else []
+                )
                 if warnings:
                     test_status["drift"] = warnings
                     summary_report["drift_warnings"].append({subdir: warnings})

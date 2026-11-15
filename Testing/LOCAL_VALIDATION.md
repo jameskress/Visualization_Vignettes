@@ -440,9 +440,11 @@ record. It is not a log of everything that was run. The rule:
   `version_comparisons` in the summary report, and the run does not fail.
   Seeing that 3.4.1 costs 2.6x the memory of 3.4.2 on ex02 is a result, not a
   false alarm, and the latest record is often deliberately the *older* build.
-* **`metrics_schema` marks where a measurement's meaning changed.** It is 5
-  now, since memory became summed PSS (§4b.15); the 2024 records predate the
-  field. That one the gate refuses outright,
+* **`metrics_schema` marks where a measurement's meaning changed.** It is 6
+  now. Memory became summed PSS at 5 (§4b.15); 6 only added fields (§4b.16),
+  so `MIN_COMPARABLE_SCHEMA` stays 5 and the gate compares 5 with 6. The 2024
+  records predate the field. Rows below `MIN_COMPARABLE_SCHEMA` the gate
+  refuses outright,
   because those rows measured a different quantity and comparing them says
   nothing about either version (§4.9, §4b.10). This is the only case where
   numbers are withheld rather than labelled.

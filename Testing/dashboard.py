@@ -17,9 +17,11 @@
 # inline SVG with a few lines of script for the hover tooltip; the pages
 # work without the script, minus the tooltip.
 #
-# What it deliberately leaves out: host names (machine_info.node) and
-# executable paths. On the clusters those name nodes and module paths that
-# stay out of anything public; the records name a build by a hash instead.
+# What it deliberately leaves out: the host name each record carries
+# (machine_info.node) and executable paths. On the clusters those name
+# compute nodes and module paths that stay out of anything public; the
+# records name a build by a hash instead. Configuration names are the
+# history files' names, already public in the repository.
 #
 # Author: James Kress, <james@jameskress.com>
 #

@@ -734,7 +734,10 @@ an index of every configuration by site, and one page per configuration with
 each vignette's pass/fail history, its telemetry over time, its drift
 warnings, and the build and baselines each run used. It also writes
 `records.json`, every record flattened with its configuration, site, tool and
-vignette, for analysis elsewhere. Host names are left out of all of it.
+vignette, for analysis elsewhere. The host name each record carries
+(`machine_info.node`, a compute node on the clusters) is left out of all of
+it, as are executable paths. Configuration names are the history files'
+names, already public in the repository, so they are shown as they are.
 
 ```bash
 python3 Testing/dashboard.py --out _site      # standard library only

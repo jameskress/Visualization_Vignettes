@@ -186,13 +186,21 @@ def check_history(records):
     return verdicts
 
 
-def check_latest(history):
-    """Drift warnings for the newest record of a {timestamp: record} history."""
+def check_latest(history, timestamp=None):
+    """Drift warnings for one record of a {timestamp: record} history.
+
+    The record at `timestamp`, judged against those before it; the newest
+    record when `timestamp` is None.
+    """
     if not history:
         return []
     ordered = sorted(history.items())
-    latest_timestamp, latest = ordered[-1]
-    results = check_record(latest, [record for _, record in ordered[:-1]])
+    if timestamp is None:
+        timestamp = ordered[-1][0]
+    if timestamp not in history:
+        return []
+    earlier = [record for ts, record in ordered if ts < timestamp]
+    results = check_record(history[timestamp], earlier)
     return [item for item in results if item["verdict"] == "drift"]
 
 
