@@ -66,11 +66,29 @@ jobs:
     permissions:
       contents: write   # pushes to gh-pages
     steps:
+      # A re-run of an older master run would otherwise put an older
+      # dashboard over a newer one. Publish only the current master tip.
+      - name: Is this still the master tip?
+        id: tip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          TIP=$(gh api "repos/$REPO/commits/master" --jq .sha)
+          if [ "$TIP" = "$SHA" ]; then
+            echo "newest=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "master is at $TIP, this run built $SHA: not publishing"
+            echo "newest=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/download-artifact@v7
+        if: ${{ steps.tip.outputs.newest == 'true' }}
         with:
           name: dashboard
           path: dashboard
       - name: Publish
+        if: ${{ steps.tip.outputs.newest == 'true' }}
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

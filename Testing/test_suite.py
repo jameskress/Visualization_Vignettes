@@ -487,7 +487,12 @@ def build_identity(run_result, args):
         (part for part in command if os.path.basename(str(part)) in TOOL_EXECUTABLES),
         None,
     )
-    tool = "visit" if getattr(args, "visit_version", None) else "paraview"
+    # The suite being run names the tool; a version flag is optional.
+    tool = (
+        "visit"
+        if str(getattr(args, "test_type", "")).lower() == "visit"
+        else "paraview"
+    )
     build = {
         "tool": tool,
         "version": args.visit_version if tool == "visit" else args.paraview_version,
@@ -514,7 +519,7 @@ def baseline_identity(test_dir, comparison_results):
         os.path.relpath(os.path.realpath(test_dir), REPO_ROOT), "Testing", "Baseline"
     )
     commit = _git(
-        "log", "-1", "--format=%h", BASELINE_REF_NAME or "HEAD", "--", relative
+        "log", "-1", "--format=%h", BASELINE_REF_COMMIT or "HEAD", "--", relative
     )
     sources = {}
     for result in comparison_results or []:
@@ -578,6 +583,8 @@ def comparison_verdicts(
 # of the repository as it was at a git ref, at its repository-relative path.
 BASELINE_REF_ROOT = None
 BASELINE_REF_NAME = None
+# The full commit that ref resolved to, for git commands; NAME is a label.
+BASELINE_REF_COMMIT = None
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 
@@ -594,7 +601,7 @@ def use_baseline_ref(ref):
     lookup. The working tree is not touched. Only the baselines move: a
     vignette that changed since `ref` runs as it is now.
     """
-    global BASELINE_REF_ROOT, BASELINE_REF_NAME
+    global BASELINE_REF_ROOT, BASELINE_REF_NAME, BASELINE_REF_COMMIT
     try:
         commit = subprocess.check_output(
             ["git", "-C", REPO_ROOT, "rev-parse", "--verify", ref + "^{commit}"],
@@ -635,6 +642,7 @@ def use_baseline_ref(ref):
         tar.extractall(root, members=members)
     BASELINE_REF_ROOT = root
     BASELINE_REF_NAME = "{0} ({1})".format(ref, commit[:12])
+    BASELINE_REF_COMMIT = commit
     print(
         "Baselines from {0} ({1}), {2} file(s); the working tree's are "
         "ignored.".format(ref, commit[:12], sum(1 for m in members if m.isfile()))

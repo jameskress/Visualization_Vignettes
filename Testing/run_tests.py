@@ -348,6 +348,7 @@ class _PeakRssSampler(object):
         self._io_by_pid = {}
         # A reaped child's last reading, to subtract once (see above).
         self._io_reaped = [0, 0, 0, 0]
+        # Each process's parent, as a key, from the walk that first saw it.
         self._io_parent = {}
         self._io_seen = set()
         self._io_seen_now = set()
@@ -398,10 +399,13 @@ class _PeakRssSampler(object):
             return
         self._io_seen_now.add(key)
         self._key_by_pid[process.pid] = key
-        try:
-            self._io_parent.setdefault(key, process.ppid())
-        except Exception:  # noqa: BLE001
-            pass
+        if key not in self._io_parent:
+            # The walk visits a parent before its children, so the parent's
+            # key is already known for this sample when it is in the tree.
+            try:
+                self._io_parent[key] = self._key_by_pid.get(process.ppid())
+            except Exception:  # noqa: BLE001
+                self._io_parent[key] = None
         try:
             io = process.io_counters()
             reading = (
@@ -419,12 +423,40 @@ class _PeakRssSampler(object):
         except Exception:  # noqa: BLE001
             pass
 
+    @staticmethod
+    def _still_running(key):
+        """True when the process `key` names exists, outside the tree now."""
+        pid, created = key
+        try:
+            return psutil.Process(pid).create_time() == created
+        except Exception:  # noqa: BLE001 - gone, or not ours to read
+            return False
+
     def _settle_reaped(self):
-        """Subtract, once, each vanished child whose parent is still sampled."""
-        for key in self._io_seen - self._io_seen_now:
-            parent_key = self._key_by_pid.get(self._io_parent.get(key))
+        """Subtract, once, each vanished child whose I/O a live ancestor now holds.
+
+        A child and its parent can both exit between two samples, the
+        parent reaping the child first and then being reaped itself, so the
+        child's I/O lands in the nearest ancestor still alive. Walk up
+        through ancestors that vanished in the same interval. A child that
+        left the tree still running was orphaned (its parent exited without
+        reaping it), so its I/O never reaches the tree and nothing is
+        subtracted; the one case left ambiguous is a parent and an orphaned
+        child that both exit inside one 0.25 s interval.
+        """
+        vanished = self._io_seen - self._io_seen_now
+        for key in vanished:
+            if self._still_running(key):
+                continue  # left the tree alive (orphaned): nobody reaped it
             reading = self._io_by_pid.get(key)
-            if parent_key in self._io_seen_now and reading:
+            ancestor = self._io_parent.get(key)
+            hops = 0
+            while ancestor in vanished and hops < 64:
+                ancestor = self._io_parent.get(ancestor)
+                hops += 1
+            if ancestor not in self._io_seen_now:
+                ancestor = None
+            if ancestor is not None and reading:
                 for i in range(4):
                     self._io_reaped[i] += reading[i]
         self._io_seen = self._io_seen_now

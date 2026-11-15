@@ -198,7 +198,9 @@ def short_date(timestamp):
 
 
 def page_name(config):
-    return re.sub(r"[^A-Za-z0-9._-]", "_", config) + ".html"
+    """A configuration's page; never index.html, which is the overview."""
+    name = re.sub(r"[^A-Za-z0-9._-]", "_", config) + ".html"
+    return "config-" + name if name.lower() == "index.html" else name
 
 
 def nice_ticks(value, target=4):
