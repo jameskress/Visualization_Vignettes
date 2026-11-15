@@ -133,5 +133,78 @@
             "visit_version": null
         },
         "run_id": "ibex-egl-gtx1080ti-2026-11-14"
+    },
+    "2026-11-15T18:41:11.412819": {
+        "test_name": "ex01_pvScreenshot",
+        "metrics_schema": 6,
+        "execution_time": 2.274420738220215,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 2.0,
+        "cpu_usage_percent": 87.93447783830202,
+        "memory_rss_mb": 385.203,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 8.13671875,
+        "io_rchar_mb": 35.17471694946289,
+        "io_wchar_mb": 4.105666160583496,
+        "peak_processes": 2,
+        "peak_threads": 17,
+        "cpu_user_seconds": 1.63,
+        "cpu_system_seconds": 0.37,
+        "memory_usage_mb": 305.242,
+        "memory_usage": 320069435.392,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.18852,
+        "load_1m_at_start": 5.59,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 170.18359375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "e86b14ac9039",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu502-11",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 32,
+            "cpu_model": "Intel(R) Xeon(R) Gold 6142 CPU @ 2.60GHz",
+            "memory_total_gb": 376.6
+        },
+        "run_id": "ibex-egl-gtx1080ti-2026-11-15"
     }
 }

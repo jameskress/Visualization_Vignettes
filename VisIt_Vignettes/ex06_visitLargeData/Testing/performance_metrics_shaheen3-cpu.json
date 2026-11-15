@@ -134,5 +134,76 @@
             "visit_version": "3.5.0"
         },
         "run_id": "shaheen3-cpu-2026-11-14"
+    },
+    "2026-11-15T18:44:59.345862": {
+        "test_name": "ex06_visitLargeData",
+        "metrics_schema": 6,
+        "execution_time": 61.80589233970642,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 453.161,
+        "cpu_usage_percent": 733.2003193308357,
+        "cpu_user_seconds": 424.961,
+        "cpu_system_seconds": 28.2,
+        "memory_max_task_mb": 6602.58203125,
+        "disk_read_mb": 28406.119926452637,
+        "disk_write_mb": 9.1552734375e-05,
+        "slurm_steps": [
+            "16002207.6"
+        ],
+        "energy_joules": 23165.0,
+        "energy_scope": "slurm-steps-whole-nodes",
+        "memory_usage_mb": 45383.79296875,
+        "memory_usage": 47588356096.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 61.717064,
+        "load_1m_at_start": 2.92,
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 146.34375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "e10240fd5ab0"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "405bba7",
+            "image_sources": {
+                "shaheen3-cpu": 1
+            }
+        },
+        "repo": {
+            "commit": "e86b14ac9039",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00046",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 384,
+            "cpu_model": "AMD EPYC 9654 96-Core Processor",
+            "memory_total_gb": 376.4
+        },
+        "run_id": "shaheen3-cpu-2026-11-15"
     }
 }

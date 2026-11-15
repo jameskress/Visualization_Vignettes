@@ -134,5 +134,79 @@
             "visit_version": null
         },
         "run_id": "shaheen3-cpu-2026-11-14"
+    },
+    "2026-11-15T18:24:04.794765": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "metrics_schema": 6,
+        "execution_time": 69.238982421875,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 335.846,
+        "cpu_usage_percent": 485.0533445937741,
+        "cpu_user_seconds": 324.741,
+        "cpu_system_seconds": 11.105,
+        "memory_max_task_mb": 593.40625,
+        "disk_read_mb": 31.973169326782227,
+        "disk_write_mb": 250.37919425964355,
+        "slurm_steps": [
+            "16002206.4"
+        ],
+        "energy_joules": 25238.0,
+        "energy_scope": "slurm-steps-whole-nodes",
+        "memory_usage_mb": 601.4228515625,
+        "memory_usage": 630637568.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 68.875755,
+        "load_1m_at_start": 1.67,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 184.921875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "srun",
+            "ranks": 1,
+            "id": "a6ce8012af70",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "405bba7",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "e86b14ac9039",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00046",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 384,
+            "cpu_model": "AMD EPYC 9654 96-Core Processor",
+            "memory_total_gb": 376.4
+        },
+        "run_id": "shaheen3-cpu-2026-11-15"
     }
 }

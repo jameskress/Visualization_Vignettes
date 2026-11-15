@@ -66,5 +66,75 @@
             "paraview_version": null,
             "visit_version": "3.4.1"
         }
+    },
+    "2026-11-15T19:16:37.616284": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "metrics_schema": 6,
+        "execution_time": 16.586873819351197,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 53.145,
+        "cpu_usage_percent": 320.4039566394844,
+        "cpu_user_seconds": 33.925,
+        "cpu_system_seconds": 19.22,
+        "memory_max_task_mb": 288.78515625,
+        "disk_read_mb": 169.14177989959717,
+        "disk_write_mb": 0.010685920715332031,
+        "slurm_steps": [
+            "55625516.5"
+        ],
+        "memory_usage_mb": 1083.7373046875,
+        "memory_usage": 1136380928.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 16.457518,
+        "load_1m_at_start": 36.94,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 176.92578125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 5,
+                "NOT BASELINED": 15
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 4,
+            "id": "e6351a500560"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "c9b82d5",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "22abc1a3813f",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu101-09-r",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 64,
+            "cpu_model": "AMD EPYC 7713P 64-Core Processor",
+            "memory_total_gb": 503.7
+        },
+        "run_id": "ibex-gpu-2026-11-15"
     }
 }

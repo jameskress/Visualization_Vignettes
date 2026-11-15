@@ -83,5 +83,74 @@
             "visit_version": "3.5.0"
         },
         "run_id": "ibex-cpu-2026-11-14"
+    },
+    "2026-11-15T18:35:21.394671": {
+        "test_name": "ex09_visitMeshTopologies",
+        "metrics_schema": 6,
+        "execution_time": 4.512169864654541,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 22.465,
+        "cpu_usage_percent": 497.87575986392875,
+        "cpu_user_seconds": 13.417000000000002,
+        "cpu_system_seconds": 9.048,
+        "memory_max_task_mb": 200.40625,
+        "disk_read_mb": 582.6869602203369,
+        "disk_write_mb": 0.02134418487548828,
+        "slurm_steps": [
+            "55623742.9"
+        ],
+        "memory_usage_mb": 1353.693359375,
+        "memory_usage": 1419450368.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.432177,
+        "load_1m_at_start": 69.2,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 158.53515625,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "e6351a500560"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "e86b14ac9039",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn504-22",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 192,
+            "cpu_model": "AMD EPYC 9655 96-Core Processor",
+            "memory_total_gb": 755.5
+        },
+        "run_id": "ibex-cpu-2026-11-15"
     }
 }
