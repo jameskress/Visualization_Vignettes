@@ -1631,6 +1631,11 @@ def visit_engine_args(args, extra=None, inside_allocation=None):
     if inside_allocation:
         # A job step of the allocation we are already holding.
         launch = ["-l", "srun", "-nn", str(nodes), "-np", str(ranks)]
+        # The harness names each run's job steps so its Slurm accounting
+        # takes only this run's; VisIt's srun launcher turns `-n` into `-J`.
+        step_name = os.environ.get("VV_SLURM_STEP_NAME")
+        if step_name:
+            launch += ["-n", step_name]
     else:
         # A fresh job, submitted through the site's customlauncher.
         launch = ["-l", "sbatch/srun", "-nn", str(nodes), "-np", str(ranks)]

@@ -1312,12 +1312,21 @@ Things to know about it:
   wait is recorded as `accounting_wait_s` and kept out of the execution time.
   A run that left no results JSON has no known step count, so it records no
   Slurm figures rather than a total that might be partial.
-* **Steps are matched by time, in whole seconds.** A step an earlier run
-  already took is never counted again. A step that started and ended in the
-  second this run started could be either run's, so that run records no
-  Slurm figures instead of guessing. More steps in the run's window than it
-  made means another step ran in the same allocation; the rows cannot be
-  told apart, so that run records no Slurm figures either.
+* **Each run names its own steps, and only those are counted.** Inside an
+  allocation the harness gives every run a unique step name (`vv-` and 12
+  hex digits): `--job-name` on its own `srun`, and `-n` to VisIt, whose
+  `srun` launcher turns it into `-J`. `SLURM_JOB_NAME` would not do: srun
+  ignores it inside an allocation, and the steps were named after the
+  executable. sacct's `JobName` column then picks out the run's steps.
+  Checked on Shaheen (jobs 15998005 and 15998006) with an unrelated `srun
+  --overlap` step started every 4 s beside the suite: 138 and 82 such steps
+  ran, and ParaView ex03 and ex06 and VisIt ex02 and ex06 each recorded
+  exactly their own one step.
+* **Steps are also matched by time, in whole seconds.** A step an earlier
+  run already took is never counted again. A step that started and ended in
+  the second this run started could be either run's, so that run records no
+  Slurm figures instead of guessing. More named steps in the window than
+  the run made also records no Slurm figures.
 * **Checked against the local sampler on Shaheen.** The same vignettes run
   on a workq node with `--launcher none`, so the sampled tree saw them:
 

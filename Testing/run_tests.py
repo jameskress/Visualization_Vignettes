@@ -48,6 +48,7 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 
 try:
     import psutil  # pyright: ignore[reportMissingModuleSource]
@@ -420,8 +421,6 @@ class _PeakRssSampler(object):
 
 def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     """Run a vignette, tee its streams to disk, and report the outcome."""
-    print("Executing: {0}".format(" ".join(str(part) for part in cmd)))
-    sys.stdout.flush()
 
     stdout_path = os.path.join(output_dir, "output.log")
     stderr_path = os.path.join(output_dir, "error.log")
@@ -433,6 +432,24 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     if os.environ.get("SLURM_JOB_ID") and not env.get("SLURM_ACCTG_FREQ"):
         env = dict(env)
         env["SLURM_ACCTG_FREQ"] = "task=1"
+
+    # Name this run's job steps, so its Slurm accounting can be told from any
+    # other step in the allocation by name, not only by time and count.
+    # Inside an allocation srun ignores SLURM_JOB_NAME (measured on Shaheen:
+    # steps were named after the executable), so the name goes on the
+    # command line: on the harness's own srun here, and through
+    # VV_SLURM_STEP_NAME to vignette_common, which passes it to VisIt as
+    # `-n`, which VisIt's srun launcher turns into `-J`.
+    step_name = None
+    if os.environ.get("SLURM_JOB_ID"):
+        step_name = "vv-" + uuid.uuid4().hex[:12]
+        env = dict(env)
+        env["VV_SLURM_STEP_NAME"] = step_name
+        if os.path.basename(str(cmd[0])) == "srun":
+            cmd = [cmd[0], "--job-name=" + step_name] + list(cmd[1:])
+
+    print("Executing: {0}".format(" ".join(str(part) for part in cmd)))
+    sys.stdout.flush()
 
     started = time.time()
     timed_out = False
@@ -518,7 +535,9 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
             print("Step count unknown (no results JSON); no step accounting")
         else:
             asked = time.time()
-            steps = slurm_step_usage(started, ended, expected=expected_steps)
+            steps = slurm_step_usage(
+                started, ended, expected=expected_steps, step_name=step_name
+            )
             # Waiting for the accounting database is not the vignette's time;
             # metrics.py takes this back out of the execution time.
             payload["accounting_wait_s"] = round(time.time() - asked, 3)
@@ -600,7 +619,7 @@ def _tree_sample(sampler):
 # by JobID as 36_1, and its steps would never match.
 SACCT_FIELDS = (
     "JobIDRaw,Start,End,State,NTasks,TotalCPU,UserCPU,SystemCPU,MaxRSS,"
-    "TRESUsageInTot,TRESUsageOutTot"
+    "TRESUsageInTot,TRESUsageOutTot,JobName"
 )
 _MEMORY_UNITS = {
     "": 1,
@@ -666,14 +685,19 @@ def _slurm_time(text):
 _CLAIMED_STEPS = set()
 
 
-def parse_sacct_steps(text, job_id, started, ended, slack=2.0, claimed=None):
+def parse_sacct_steps(
+    text, job_id, started, ended, slack=2.0, claimed=None, step_name=None
+):
     """The numbered steps of `job_id` that ran inside [started, ended].
 
     Returns (steps, pending, ambiguous). pending is True when a matching step
     has not been finalised in the accounting database yet, so the caller
     should ask again. ambiguous is True when an unclaimed step ended in the
     second this run started: sacct prints whole seconds, so it could be this
-    run's or the previous one's, and the caller should not guess.
+    run's or the previous one's, and the caller should not guess. With
+    `step_name`, only steps with that name (the JobName column) count: the
+    harness names every step a run makes, so another operation's step in
+    the same allocation and time window is never taken for this run's.
     """
     claimed = _CLAIMED_STEPS if claimed is None else claimed
     steps = []
@@ -689,6 +713,8 @@ def parse_sacct_steps(text, job_id, started, ended, slack=2.0, claimed=None):
             continue  # the job itself, .batch, .extern
         if step_id in claimed:
             continue  # an earlier run's
+        if step_name is not None and (len(fields) < 12 or fields[11] != step_name):
+            continue  # another operation's step
         start_s = _slurm_time(start)
         # The slack lets in a step whose start sacct rounded down to just
         # before this run's; nothing lets in one that started after the run
@@ -731,7 +757,13 @@ def parse_sacct_steps(text, job_id, started, ended, slack=2.0, claimed=None):
 
 
 def slurm_step_usage(
-    started, ended, job_id=None, expected=None, patience_s=120.0, wait_s=5.0
+    started,
+    ended,
+    job_id=None,
+    expected=None,
+    patience_s=120.0,
+    wait_s=5.0,
+    step_name=None,
 ):
     """Accounting for the job steps this run made, or None if unavailable.
 
@@ -744,6 +776,7 @@ def slurm_step_usage(
     it is complete. Either way, for up to `patience_s`. None means there is no
     allocation, no sacct, sacct failed, a step whose owner cannot be told
     from its whole-second times, or no stable answer within `patience_s`.
+    With `step_name`, only steps of that name count (see parse_sacct_steps).
     With `expected` unset, an empty list means sacct answered twice that no
     step matched. The harness itself always passes `expected`, and records
     nothing when it cannot.
@@ -780,7 +813,7 @@ def slurm_step_usage(
             )
             return None
         steps, pending, ambiguous = parse_sacct_steps(
-            text.stdout, job_id, started, ended
+            text.stdout, job_id, started, ended, step_name=step_name
         )
         if ambiguous:
             print(
