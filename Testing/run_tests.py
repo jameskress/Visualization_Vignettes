@@ -401,7 +401,7 @@ class _PeakRssSampler(object):
             )
         except psutil.NoSuchProcess:
             reading = None  # reaped since the walk listed it: in its parent
-        except Exception:  # noqa: BLE001 - no /proc/<pid>/io (macOS, perms)
+        except psutil.AccessDenied:
             reading = None
             # The kernel refuses /proc/<pid>/io (EACCES) for a process of
             # our own user only while it exits: its memory is gone and it
@@ -411,6 +411,9 @@ class _PeakRssSampler(object):
             # this harness cannot see, and the total is withheld.
             if not self._is_own_exiting(process):
                 self._io_unreadable = True
+        except Exception:  # noqa: BLE001 - no io_counters (macOS) or other
+            reading = None
+            self._io_unreadable = True
         if reading is not None and self._io_now is not None:
             self._io_now = [a + b for a, b in zip(self._io_now, reading)]
         try:
