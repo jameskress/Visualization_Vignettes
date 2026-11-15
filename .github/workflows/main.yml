@@ -195,7 +195,10 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: badges
-          force_orphan: true
+          # Keep the rest of gh-pages: the results dashboard lives in
+          # dashboard/ (dashboard.yml). force_orphan replaced the whole
+          # branch with the badge and deleted it on every master push.
+          keep_files: true
 
       - name: Prune Docker System
         if: always()  # Run this even if the build fails

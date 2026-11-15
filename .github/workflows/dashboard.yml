@@ -1,0 +1,80 @@
+name: Results dashboard
+
+# Builds the vignette results dashboard (Testing/dashboard.py) from the
+# committed performance_metrics records and publishes it to GitHub Pages at
+# https://jameskress.github.io/Visualization_Vignettes/dashboard/.
+#
+# Pages is served from the gh-pages branch, which also holds the Docker
+# badge that main.yml publishes at its root. This workflow replaces only
+# dashboard/, and main.yml keeps every file but its badge, so neither
+# removes the other's.
+#
+# Runs on a GitHub-hosted runner: the generator is standard-library Python
+# and puts no load on the shared self-hosted runner. A pull request builds
+# the site and attaches it as an artifact to look at; only master publishes.
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - '**/performance_metrics_*.json'
+      - 'Testing/dashboard.py'
+      - 'Testing/drift.py'
+      - '.github/workflows/dashboard.yml'
+  pull_request:
+    branches: [ '**' ]
+    paths:
+      - '**/performance_metrics_*.json'
+      - 'Testing/dashboard.py'
+      - 'Testing/drift.py'
+      - '.github/workflows/dashboard.yml'
+  workflow_dispatch:
+
+# One publish at a time; a newer master push replaces a queued one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the dashboard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Generate
+        run: python3 Testing/dashboard.py --out _site/dashboard
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dashboard
+          path: _site/dashboard
+          retention-days: 14
+
+  publish:
+    name: Publish to GitHub Pages
+    needs: build
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write   # pushes to gh-pages
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: dashboard
+          path: dashboard
+      - name: Publish
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: dashboard
+          destination_dir: dashboard
+          commit_message: 'dashboard: ${{ github.sha }}'
