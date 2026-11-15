@@ -30,16 +30,24 @@ void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, 
     }
     if ((engine == "sst" || engine == "effis") && settings.adios_memory_selection)
     {
+        // SST reads only the exact key MarshalMethod (ADIOS2 2.11,
+        // SstParamParser.cpp); any other spelling is ignored and SST uses
+        // BP5. Read the same key so this check and the engine agree.
+        const auto params = m_io.Parameters();
         std::string marshal = "bp5";
-        for (const auto &kv : m_io.Parameters())
+        const auto it = params.find("MarshalMethod");
+        if (it != params.end())
+        {
+            marshal = it->second;
+            std::transform(marshal.begin(), marshal.end(), marshal.begin(), ::tolower);
+        }
+        for (const auto &kv : params)
         {
             std::string key = kv.first;
             std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-            if (key == "marshalmethod")
-            {
-                marshal = kv.second;
-                std::transform(marshal.begin(), marshal.end(), marshal.begin(), ::tolower);
-            }
+            if (key == "marshalmethod" && kv.first != "MarshalMethod" && rank == 0)
+                vtkLog(WARNING, "ADIOS2: SST ignores the parameter '" << kv.first
+                                << "'; the name is MarshalMethod");
         }
 #if !defined(ADIOS2_VERSION) || ADIOS2_VERSION < 21000
         marshal += " with ADIOS2 before 2.10";

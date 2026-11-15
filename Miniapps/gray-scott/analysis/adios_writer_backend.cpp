@@ -34,9 +34,13 @@ namespace
 #if !defined(ADIOS2_VERSION) || ADIOS2_VERSION < 21000
         return false;
 #endif
-        for (const auto &kv : io.Parameters())
-            if (Lower(kv.first) == "marshalmethod")
-                return Lower(kv.second) == "bp5";
+        // SST reads only the exact key MarshalMethod (ADIOS2 2.11,
+        // SstParamParser.cpp); any other spelling is ignored, so read the
+        // same key the engine does.
+        const auto params = io.Parameters();
+        const auto it = params.find("MarshalMethod");
+        if (it != params.end())
+            return Lower(it->second) == "bp5";
         return true; // SST marshals with BP5 by default
     }
 } // end anonymous namespace

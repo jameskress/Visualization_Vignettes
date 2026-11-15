@@ -282,8 +282,14 @@ before that date had readers on `select()`.
 **Reader decomposition.** `--reader-decomposition brick` makes each reader
 read a 3D brick aligned with the simulation's blocks instead of a slab
 along the slowest axis: at 262144 writers and 2048 readers, 128 whole
-writer blocks per reader instead of pieces of at least 4096. The default
-is still `slab` until the two are measured against each other at scale.
+writer blocks per reader instead of pieces of at least 4096. Measured on
+the 64 + 4 node f128 Ascent job (three runs each, 15 Nov 2026), the two
+take the same time per reader step (7.7 s slab, 7.8 s brick): brick spends
+longer in `EndStep` and less in rendering. The images differ in about 0.1%
+of pixels, nearly all by two levels or less, with no seams. The default
+stays `slab`. The experiment IDs do not include the decomposition, so
+generate slab and brick runs into different `--results-dir`s; the
+generator refuses to regenerate an in transit run with the other one.
 
 **Other engines and transports.** SST over WAN (TCP) needs
 `ControlModule=select`; with `epoll` it aborts at once. SSC uses MPI

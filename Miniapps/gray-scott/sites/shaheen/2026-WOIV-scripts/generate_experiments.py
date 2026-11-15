@@ -1088,8 +1088,33 @@ echo "Simulation exit status: $SIM_RC, reader exit status: $STAGE_RC"
 """
 
 
+def check_decomposition_unchanged(output_dir):
+    """Refuse to regenerate a run with a different reader decomposition.
+
+    The experiment ID does not include the decomposition, so a slab and a
+    brick generation into the same --results-dir share directories, and new
+    settings would sit beside the old run's numbers. Settings written before
+    the option existed are slab runs. Only in transit runs have a reader;
+    the initialisation runs, often shared between results directories,
+    are not checked.
+    """
+    for name in ("settings.json", "settings-stage.json"):
+        path = os.path.join(output_dir, name)
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            old = json.load(f).get("read_decomposition", "slab")
+        if old != READ_DECOMPOSITION:
+            raise SystemExit(
+                f"{path} is a {old} run; generating {READ_DECOMPOSITION} would put its "
+                f"settings beside that run's results. Use another --results-dir."
+            )
+
+
 def generate_settings_json(exp, output_dir, copied_files, args):
     is_init = exp["workload"] == "initialization"
+    if exp["type"] == "intransit" and not is_init:
+        check_decomposition_unchanged(output_dir)
     init_noise_level = 0.01
     run_noise_level = 0.00001
     steps = exp["total_steps"]
