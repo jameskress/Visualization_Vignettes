@@ -82,6 +82,26 @@ SCALE_LAUNCHES = ["mpmd", "steps"]
 SCALE_RUN_STEPS = 101
 SCALE_TIME_LIMIT = "0:45:00"
 
+# ADIOS2 transport at scale (Paper 2, ADIOS2 #5272 follow-up): the readonly
+# reader backend, which reads each step and does nothing else, so the times
+# are SST's alone. (simulation nodes, staging nodes, SST QueueLimit).
+# 1920 + 128 (122880 writers) is the largest real layout within the 2048-node
+# per-job cap; the whole machine waits for a maintenance window.
+ADIOS_SWEEP_GRID = 4096
+ADIOS_SWEEP_CONFIGS = [
+    (256, 16, 1),  # scaling at 128 writers per reader
+    (512, 32, 1),
+    (1024, 64, 1),
+    (1920, 128, 1),
+    (1024, 16, 1),  # reader count at 1024 simulation nodes
+    (1024, 32, 1),
+    (1024, 128, 1),
+    (512, 32, 2),  # QueueLimit 2 against 1
+    (1920, 128, 2),
+]
+ADIOS_SWEEP_RUN_STEPS = 101
+ADIOS_SWEEP_TIME_LIMIT = "0:45:00"
+
 # Reader cost study: each in transit pipeline (slices, volume, isosurface)
 # for Ascent and Catalyst, RDMA, one MPMD srun, at the f128 size and along
 # the step 2 scaling ladder (sites/shaheen/README.md, "In transit reader
@@ -118,6 +138,11 @@ READER_SMT = False
 READER_MALLOC_ENV = "MALLOC_MMAP_MAX_=0 MALLOC_TRIM_THRESHOLD_=137438953472"
 
 CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
+# Darshan (I/O characterization) for --telemetry; --darshan-prefix overrides,
+# --no-darshan leaves it out. Built by software/build-darshan-3.4.7.sh.
+DARSHAN_PREFIX = (
+    "/scratch/kressjm/Visualization_Vignettes/software/darshan-3.4.7-install"
+)
 
 PIPELINE_FILES = {
     "adios_xml": "configs/adios2_configs/adios2.xml",
@@ -136,7 +161,7 @@ ADIOS_XML_TEMPLATE = """<?xml version="1.0"?>
         <engine type="{engine_type}">
             <parameter key="verbose" value="0"/>
             <parameter key="RendezvousReaderCount" value="{rendezvous}"/>
-            <parameter key="QueueLimit" value="1"/>
+            <parameter key="QueueLimit" value="{queue_limit}"/>
             <parameter key="QueueFullPolicy" value="Block"/>
             <parameter key="DataTransport" value="{data_transport}"/>
             <parameter key="ControlModule" value="epoll"/>
@@ -995,12 +1020,12 @@ mkdir -p "{results_dir}" || exit 1
 cp "$0" "{results_dir}/{id}_job.sbat" || exit 1
 # pipefail in a subshell, so a failure anywhere in the pipeline stops the job.
 (set -o pipefail; env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_|GALLIUM_|LP_)' | sort) > "{results_dir}/{id}_env.txt" || exit 1
-echo "PHASE run_start $(date +%s.%N)"
+{telemetry_start}echo "PHASE run_start $(date +%s.%N)"
 
 {command}
 RUN_RC=$?
 echo "PHASE run_end $(date +%s.%N)"
-echo "Run exit status: $RUN_RC"
+{telemetry_stop}echo "Run exit status: $RUN_RC"
 
 # =============================================================================
 # POST-PROCESSING in its own one-node job (#72)
@@ -1012,12 +1037,12 @@ echo "Run complete. Submitting the reduction job ({output_dir}/reduce.sbat)..."
 # Retry a transient controller error or submit limit; if it still fails,
 # print a marker that can be grepped for, since the job's state stays the run's.
 for attempt in 1 2 3; do
-    if sbatch {output_dir}/reduce.sbat; then
+    if sbatch --export=ALL,RUN_JOB_ID=$SLURM_JOB_ID {output_dir}/reduce.sbat; then
         break
     fi
     echo "sbatch of the reduction job failed (attempt $attempt of 3)"
     if [ "$attempt" -eq 3 ]; then
-        echo "REDUCE_SUBMIT_FAILED: run it later with: sbatch {output_dir}/reduce.sbat"
+        echo "REDUCE_SUBMIT_FAILED: run it later with: sbatch --export=ALL,RUN_JOB_ID=$SLURM_JOB_ID {output_dir}/reduce.sbat"
     else
         sleep 10
     fi
@@ -1034,7 +1059,9 @@ REDUCE_TEMPLATE = """#!/bin/bash
 #SBATCH --account={account}
 #SBATCH --partition={partition}
 #SBATCH --nodes=1
-#SBATCH --time=1:00:00
+# One node, so a long limit costs little: reducing 65536 per-rank timer
+# files took over 54 minutes (1024 + 32 node sweep run, 15 Nov 2026).
+#SBATCH --time=4:00:00
 #SBATCH --output={output_dir}/reduce-%j.out
 #SBATCH --error={output_dir}/reduce-%j.err
 
@@ -1125,7 +1152,154 @@ if [ -d "$OUTPUT_DIR/catalyst_timers" ]; then
     fi
 fi
 
-echo "PHASE reduce_end $(date +%s.%N)"
+{telemetry_reduce}echo "PHASE reduce_end $(date +%s.%N)"
+"""
+
+# --telemetry: per-node power, CPU, memory and NIC counters at 1 Hz, Slurm
+# step accounting with energy, and an environment snapshot, for the Paper 2
+# telemetry corpus (sites/shaheen/README.md, "Telemetry"). Off by default.
+# The sampler is one task per node with --overlap; on 2 nodes beside a step
+# using every core it neither delayed that step nor changed its time beyond
+# run-to-run noise (15 Nov 2026).
+TELEMETRY_START = """# --- Telemetry (--telemetry) ---
+# One directory per job, so a resubmitted run never mixes its samples with
+# an earlier job's, and each job's reduction reads only its own.
+TEL=$OUTPUT_DIR/telemetry/$SLURM_JOB_ID
+mkdir -p $TEL/nodes
+echo "$SLURM_JOB_ID" > $TEL/job_id
+# Slurm samples tasks and energy every 600 s by default on Shaheen, which
+# leaves short steps with no memory or energy figures.
+export SLURM_ACCTG_FREQ=task=30,energy=30
+module list > $TEL/modules.txt 2>&1
+env | grep -E '^(SLURM_|OMP_|OSPRAY_|GALLIUM_|VTK_|TBB_|MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_|LD_LIBRARY_PATH=)' | sort > $TEL/env.txt
+for b in "$EXE_SIM" "$EXE_STAGE"; do echo "== $b"; ldd "$b" 2>&1; done > $TEL/ldd.txt
+(cat "{repo_path}/SOURCE.txt" 2>/dev/null; git -C "{repo_path}" describe --always --dirty 2>/dev/null) > $TEL/source.txt
+scontrol show job $SLURM_JOB_ID > $TEL/job.txt 2>&1
+srun --overlap --nodes=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
+    --output=$TEL/sampler.log --error=$TEL/sampler.log \\
+    {repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/node_sampler.sh $TEL/nodes 1 &
+TEL_PID=$!
+# Out of the job table, so the launch's `wait -n` (bash 4.4 cannot name
+# PIDs) never takes the sampler for an application step.
+disown $TEL_PID
+# Cray MPICH's NIC counters for MPI traffic (the simulation's halos and
+# collectives): a summary over the job's NICs (min, mean, max) printed to
+# the job's output when MPI finalizes; the reduction saves it.
+export MPICH_OFI_CXI_COUNTER_REPORT=2
+{darshan_start}"""
+
+# Darshan for --telemetry: every file read and write of the run (POSIX,
+# MPI-IO, STDIO, Lustre striping), one log per MPI job. Preloaded only for
+# the run's own srun commands: set after the sampler starts, unset after.
+DARSHAN_START = """mkdir -p $TEL/darshan
+export DARSHAN_LOG_DIR_PATH=$TEL/darshan
+export LD_PRELOAD={darshan_prefix}/lib/libdarshan.so${{LD_PRELOAD:+:$LD_PRELOAD}}
+"""
+
+TELEMETRY_STOP = """unset LD_PRELOAD
+kill $TEL_PID 2>/dev/null
+for i in $(seq 1 10); do kill -0 $TEL_PID 2>/dev/null || break; sleep 1; done
+"""
+
+TELEMETRY_REDUCE = """# 5. Telemetry (--telemetry): Slurm's step accounting, once the run's steps
+#    are final (the database lags about a minute), then a summary and an
+#    archive of the per-node samples.
+# The run's job passes its ID (RUN_JOB_ID); to rerun by hand, use
+# sbatch --export=ALL,RUN_JOB_ID=<run job> reduce.sbat.
+TEL=$OUTPUT_DIR/telemetry/${{RUN_JOB_ID:-none}}
+if [ -z "$RUN_JOB_ID" ] && [ -d $OUTPUT_DIR/telemetry ]; then
+    echo "RUN_JOB_ID not set; telemetry not reduced (see reduce.sbat)."
+fi
+if [ -f $TEL/job_id ]; then
+    RUN_JOB=$(cat $TEL/job_id)
+    # The experiment-level exports below hold one job's telemetry. If they
+    # belong to another job of this experiment (or to an older reduction
+    # that recorded no job), remove them all first, so nothing of that job
+    # is ever left beside this one's results, whatever fails below.
+    TJ="{results_dir}/{id}_tel_job.txt"
+    if [ "$(cat "$TJ" 2>/dev/null)" != "$RUN_JOB" ]; then
+        rm -rf "{results_dir}/{id}_sacct.txt" "{results_dir}/{id}_telemetry.json" \\
+            "{results_dir}/{id}_darshan" "{results_dir}/{id}_mpich_cxi_summary.txt" \\
+            "{results_dir}/{id}_tel_env.txt" "{results_dir}/{id}_tel_modules.txt" \\
+            "{results_dir}/{id}_tel_ldd.txt" "{results_dir}/{id}_tel_source.txt"
+        echo "$RUN_JOB" > "$TJ"
+    fi
+    # Accounting counts only once sacct answers, lists the run's numbered
+    # steps, and none of them is still active. A failed or empty answer is
+    # asked again; if none is final within 3 minutes there is no sacct.txt
+    # and the summary has no Slurm steps, rather than a partial list.
+    FIELDS=JobIDRaw,JobName,Start,End,Elapsed,NNodes,NTasks,NodeList,State,ExitCode,TotalCPU,UserCPU,SystemCPU,MaxRSS,MaxRSSNode,AveRSS,TRESUsageInTot,TRESUsageOutTot,ConsumedEnergyRaw,AveCPUFreq
+    # A refresh replaces sacct.txt only with an answer that passes; an
+    # earlier final answer for this job is kept otherwise.
+    for i in $(seq 1 18); do
+        if sacct -j $RUN_JOB -P -o $FIELDS > $TEL/sacct.tmp 2>/dev/null \\
+            && grep -q -E "^$RUN_JOB\\.[0-9]" $TEL/sacct.tmp \\
+            && ! cut -d'|' -f9 $TEL/sacct.tmp | grep -q -E 'RUNNING|PENDING|COMPLETING|REQUEUED'; then
+            mv $TEL/sacct.tmp $TEL/sacct.txt
+            break
+        fi
+        sleep 10
+    done
+    if [ -f $TEL/sacct.tmp ] && [ -f $TEL/sacct.txt ]; then
+        echo "sacct gave no final answer this time; the earlier one is kept."
+    fi
+    rm -f $TEL/sacct.tmp
+    if [ -f $TEL/sacct.txt ]; then
+        cp $TEL/sacct.txt "{results_dir}/{id}_sacct.txt"
+    else
+        echo "sacct gave no final answer for job $RUN_JOB; no Slurm step accounting."
+    fi
+    # Darshan: a text total of every log, then the logs themselves beside
+    # the other results (one log per MPI job).
+    if [ -d $TEL/darshan ] && [ -x "{darshan_prefix}/bin/darshan-parser" ]; then
+        # A log counts as parsed only if darshan-parser succeeds and prints no
+        # "Error:" (3.4.7 reports a truncated module record that way and still
+        # exits 0); otherwise its output is kept as <log>.parse-failed.txt and
+        # the corpus index leaves the run's Darshan totals empty.
+        for log in $(find $TEL/darshan -name '*.darshan' 2>/dev/null); do
+            out="${{log%.darshan}}"
+            rm -f "$out.total.txt" "$out.parse-failed.txt"
+            if "{darshan_prefix}/bin/darshan-parser" --total --perf "$log" > "$out.total.tmp" 2>&1 \\
+                && ! grep -q '^Error:' "$out.total.tmp"; then
+                mv "$out.total.tmp" "$out.total.txt"
+            else
+                mv "$out.total.tmp" "$out.parse-failed.txt"
+                echo "darshan-parser could not read $log; see $out.parse-failed.txt"
+            fi
+        done
+        # This job's logs replace an earlier job's of the same experiment,
+        # through a fresh directory, so the index never sums two runs. With
+        # -exec ... + find fails if cp does, and the old export stays.
+        DX="{results_dir}/{id}_darshan"
+        rm -rf "$DX.tmp" && mkdir -p "$DX.tmp" \\
+            && find $TEL/darshan \\( -name '*.darshan' -o -name '*.total.txt' -o -name '*.parse-failed.txt' \\) -exec cp -t "$DX.tmp/" {{}} + \\
+            && rm -rf "$DX" && mv "$DX.tmp" "$DX"
+    fi
+    # Cray MPICH's NIC counter summary, from the run's job output.
+    if [ -f $OUTPUT_DIR/slurm-$RUN_JOB.out ]; then
+        sed -n '/MPICH Slingshot CXI Counter Summary/,/^PHASE run_end/p' $OUTPUT_DIR/slurm-$RUN_JOB.out \\
+            | grep -v '^PHASE' > $TEL/mpich_cxi_summary.txt
+        [ -s $TEL/mpich_cxi_summary.txt ] && cp $TEL/mpich_cxi_summary.txt "{results_dir}/{id}_mpich_cxi_summary.txt"
+    fi
+    # A rerun after a successful reduction finds only the archive: restore it.
+    if [ ! -d $TEL/nodes ] && [ -f $TEL/nodes.tar.gz ]; then
+        tar -xzf $TEL/nodes.tar.gz -C $TEL || {{ echo "Could not restore telemetry/nodes; summary kept."; rm -rf $TEL/nodes; }}
+    fi
+    SUMMARY="{results_dir}/{id}_telemetry.json"
+    if [ -d $TEL/nodes ] && python {repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/summarize_telemetry.py $TEL "$SUMMARY.tmp"; then
+        mv "$SUMMARY.tmp" "$SUMMARY"
+        # Straight to this experiment's names: reductions of other runs share
+        # the results directory.
+        for f in env modules ldd source; do
+            [ -f $TEL/$f.txt ] && cp $TEL/$f.txt "{results_dir}/{id}_tel_$f.txt"
+        done
+        (cd $TEL && tar -czf nodes.tar.gz.tmp nodes/ && mv nodes.tar.gz.tmp nodes.tar.gz && rm -rf nodes/)
+    else
+        rm -f "$SUMMARY.tmp"
+        echo "Telemetry summary failed; telemetry/nodes and any earlier summary kept."
+    fi
+fi
+
 """
 
 CMD_INLINE = """srun --exclusive --propagate=NOFILE --hint=nomultithread \\
@@ -1389,6 +1563,7 @@ def generate_adios_xml(exp, output_dir):
         data_transport=data_transport,
         sim_aggregators=sim_aggregators,
         stage_aggregators=stage_aggregators,
+        queue_limit=exp.get("queue_limit", 1),
     )
     with open(f"{output_dir}/adios2.xml", "w") as f:
         f.write(xml_content)
@@ -1996,6 +2171,30 @@ def generate_scripts(args):
                     }
                 )
 
+    pid, p_init_steps = ensure_init(ADIOS_SWEEP_GRID)
+    for nodes, stage_nodes, queue_limit in ADIOS_SWEEP_CONFIGS:
+        EXPERIMENTS.append(
+            {
+                # "scale" first and a "transit" component, which orchestrate.py
+                # reads as the paper and the in transit type.
+                "id": f"scale_transit_adios_sweep_N{nodes:04d}_S{stage_nodes:03d}_q{queue_limit}_readonly",
+                "paper": "scale",
+                "type": "intransit",
+                "backend": "adios",
+                "workload": "transport",
+                "sim_nodes": nodes,
+                "stage_nodes": stage_nodes,
+                "grid_size": ADIOS_SWEEP_GRID,
+                "stage_pipeline": "readonly_transport",
+                "parent_id": pid,
+                "total_steps": p_init_steps + ADIOS_SWEEP_RUN_STEPS,
+                "transport": "RDMA",
+                "launch": "mpmd",
+                "queue_limit": queue_limit,
+                "time_limit": ADIOS_SWEEP_TIME_LIMIT,
+            }
+        )
+
     # 7. Reader cost study: every pipeline, RDMA, MPMD.
     for name, nodes, grid, stage_nodes in PIPE_CONFIGS:
         pid, p_init_steps = ensure_init(grid)
@@ -2113,6 +2312,15 @@ def generate_scripts(args):
             repo_path=args.repo_path,
             bin_path=args.bin_path,
             command=command,
+            telemetry_start=TELEMETRY_START.format(
+                repo_path=args.repo_path,
+                darshan_start=""
+                if args.no_darshan
+                else DARSHAN_START.format(darshan_prefix=args.darshan_prefix),
+            )
+            if args.telemetry
+            else "",
+            telemetry_stop=TELEMETRY_STOP if args.telemetry else "",
             catalyst_lib_path=CATALYST_LIB_PATH,
             paraview_lib_path=os.path.dirname(CATALYST_LIB_PATH.rstrip("/")),
             gallium_driver="softpipe" if exp.get("paper") == "paper1" else "llvmpipe",
@@ -2126,6 +2334,14 @@ def generate_scripts(args):
             results_dir=args.results_dir,
             perf_env=args.perf_env,
             repo_path=args.repo_path,
+            telemetry_reduce=TELEMETRY_REDUCE.format(
+                repo_path=args.repo_path,
+                results_dir=args.results_dir,
+                id=exp["id"],
+                darshan_prefix=args.darshan_prefix,
+            )
+            if args.telemetry
+            else "",
         )
         with open(f"{run_output_dir}/reduce.sbat", "w") as f:
             f.write(reduce_content)
@@ -2147,6 +2363,23 @@ if __name__ == "__main__":
         type=float,
         default=VOLUME_SAMPLES_PER_CELL,
         help="Ascent volume samples per cell along the ray (9 avoids rank-dependent banding; fewer is cheaper)",
+    )
+    parser.add_argument(
+        "--telemetry",
+        action="store_true",
+        help="Sample per-node power, CPU, memory and NIC counters at 1 Hz, record "
+        "Slurm step accounting with energy and an environment snapshot "
+        "(sites/shaheen/README.md, Telemetry)",
+    )
+    parser.add_argument(
+        "--no-darshan",
+        action="store_true",
+        help="With --telemetry, leave out Darshan (I/O characterization)",
+    )
+    parser.add_argument(
+        "--darshan-prefix",
+        default=DARSHAN_PREFIX,
+        help="Darshan install with lib/libdarshan.so and bin/darshan-parser",
     )
     parser.add_argument(
         "--reader-decomposition",
@@ -2177,7 +2410,14 @@ if __name__ == "__main__":
     # and expanded there, much of it unquoted. Rather than quote each use,
     # accept only paths that need no quoting: letters, digits and . _ - + /
     # (no spaces, $, quotes or other shell characters).
-    for name in ("repo_path", "bin_path", "results_dir", "output_dir", "perf_env"):
+    for name in (
+        "repo_path",
+        "bin_path",
+        "results_dir",
+        "output_dir",
+        "perf_env",
+        "darshan_prefix",
+    ):
         value = getattr(args, name)
         if not re.fullmatch(r"[A-Za-z0-9._+/-]+", value):
             parser.error(

@@ -414,6 +414,66 @@ one-sided communication and is fast, but with ADIOS2 created on a split
 communicator (not `MPI_COMM_WORLD`) the writers and readers never see each
 other and the job hangs.
 
+**Telemetry.** `generate_experiments.py --telemetry` (off by default)
+records, for every run:
+
+* `node_sampler.sh`, one task per node started with `srun --overlap` just
+  before the run: Cray `pm_counters` (node, CPU and memory power and
+  cumulative energy, CPU temperatures), `/proc` CPU ticks, available memory
+  and load, and the Slingshot NIC's sent and received bytes and its NACK
+  and retry counters, at 1 Hz, in `telemetry/<job id>/nodes/<host>.csv` (one directory per job, so a
+  resubmitted run never mixes samples with an earlier job's). All of it is
+  readable without privileges. Shaheen's CPU nodes have one NIC each
+  (`cxi0`). On 2 nodes, a step using every core ran no slower with the
+  sampler beside it (2.725 s per task alone, 2.75 s with it, 2.745 s alone
+  again) and started without waiting.
+* An environment snapshot: the job's settings variables, `module list`,
+  `ldd` of both binaries, the source revision and `scontrol show job`.
+* `SLURM_ACCTG_FREQ=task=30,energy=30`, so steps get memory and energy
+  figures (Shaheen samples every 600 s by default).
+* Darshan 3.4.7 (`build-darshan.sh <software dir>`; Shaheen has no Darshan
+  module), preloaded only into the run's own `srun` commands: every file
+  read and write, through POSIX, MPI-IO and STDIO, with Lustre striping, in
+  `telemetry/<job id>/darshan/`. It does not see SST's network transfers,
+  which the NIC counters cover. On the 64 + 4 node f128 Ascent run it logged
+  the 2048^3 checkpoint restart (137 GB read, about 37000 opens) and the
+  images and logs (200 MB written), and reader steps took 4.75 and 5.44 s
+  with it against 5.28 s without. `--no-darshan` leaves it out.
+* Cray MPICH's NIC counter summary for the run's MPI traffic
+  (`MPICH_OFI_CXI_COUNTER_REPORT=2`): minimum, mean and maximum over the
+  job's NICs of traffic, pauses, NACKs and cache behaviour, printed when MPI
+  finalizes and saved by the reduction.
+
+The run's job passes its ID to the reduction job (`RUN_JOB_ID`; to rerun a
+reduction by hand, `sbatch --export=ALL,RUN_JOB_ID=<run job> reduce.sbat`),
+which then saves `sacct` for every step (`<id>_sacct.txt`), the Darshan
+logs and their `darshan-parser` totals (`<id>_darshan/`), the MPICH counter
+summary (`<id>_mpich_cxi_summary.txt`), the job they belong to
+(`<id>_tel_job.txt`: a reduction of another job of the same experiment
+removes all of these first),
+writes `<id>_telemetry.json` (energy per run and per step's nodes, mean
+power, CPU use, NIC bytes and retries) and archives the per-node samples.
+An in transit run is one heterogeneous step: `.1+0` is the simulation and
+`.1+1` the reader. Slurm reports no CPU or energy for the reader component,
+so the sampled figures are the only ones for its nodes. On the 64 + 4 node
+f128 Ascent run the simulation's nodes sampled 1.47 MJ against sacct's
+1.54 MJ (its window is slightly longer), and the reader's 4 nodes 72.7 kJ
+against sacct's 0. Prefer the sampled energy: sacct polls energy every 30 s
+here, and on the 256 + 16 node `readonly` sweep run it gave the simulation
+step 9.66 MJ against 13.06 MJ sampled, and the sampler's own step 0. CPU use
+is a fraction of all hardware threads, including the second thread of each
+core that the jobs leave idle.
+
+**Corpus index.** `2026-WOIV-scripts/corpus_index.py <out prefix>
+<results dir> ...` writes one row per run (any `<id>_job.sbat`) to
+`<out prefix>.csv` and `.jsonl`: what was run (nodes, ranks, backends,
+grid, decomposition, ADIOS2 version, build), headline numbers (simulation
+and reader step times over steps 1 and up, the reader's EndStep, build and
+vis times, sampled energy and power, Darshan bytes) and the path of every
+artifact. Missing inputs leave their columns empty. The reduction of a
+large run can take a while: 65536 per-rank timer files took over 54
+minutes, so the reduction job's limit is 4 hours.
+
 **glibc mmap threshold.** Every generated job exports
 `MALLOC_MMAP_THRESHOLD_=33554432`. That fixes the size at which glibc serves
 an allocation with mmap at its 32 MiB maximum, where by default it moves as
