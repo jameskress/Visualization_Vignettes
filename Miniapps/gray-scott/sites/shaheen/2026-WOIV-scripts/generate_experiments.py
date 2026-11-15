@@ -908,12 +908,12 @@ mkdir -p "{results_dir}" || exit 1
 cp "$0" "{results_dir}/{id}_job.sbat" || exit 1
 # pipefail in a subshell, so a failure anywhere in the pipeline stops the job.
 (set -o pipefail; env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_)' | sort) > "{results_dir}/{id}_env.txt" || exit 1
-echo "PHASE run_start $(date +%s.%N)"
+{telemetry_start}echo "PHASE run_start $(date +%s.%N)"
 
 {command}
 RUN_RC=$?
 echo "PHASE run_end $(date +%s.%N)"
-echo "Run exit status: $RUN_RC"
+{telemetry_stop}echo "Run exit status: $RUN_RC"
 
 # =============================================================================
 # POST-PROCESSING in its own one-node job (#72)
@@ -1027,7 +1027,60 @@ if [ -d "$OUTPUT_DIR/reader_timers" ]; then
     fi
 fi
 
-echo "PHASE reduce_end $(date +%s.%N)"
+{telemetry_reduce}echo "PHASE reduce_end $(date +%s.%N)"
+"""
+
+# --telemetry: per-node power, CPU, memory and NIC counters at 1 Hz, Slurm
+# step accounting with energy, and an environment snapshot, for the Paper 2
+# telemetry corpus (sites/shaheen/README.md, "Telemetry"). Off by default.
+# The sampler is one task per node with --overlap; on 2 nodes beside a step
+# using every core it neither delayed that step nor changed its time beyond
+# run-to-run noise (15 Nov 2026).
+TELEMETRY_START = """# --- Telemetry (--telemetry) ---
+TEL=$OUTPUT_DIR/telemetry
+mkdir -p $TEL/nodes
+echo "$SLURM_JOB_ID" > $TEL/job_id
+# Slurm samples tasks and energy every 600 s by default on Shaheen, which
+# leaves short steps with no memory or energy figures.
+export SLURM_ACCTG_FREQ=task=30,energy=30
+module list > $TEL/modules.txt 2>&1
+env | grep -E '^(SLURM_|OMP_|OSPRAY_|GALLIUM_|VTK_|TBB_|MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_|LD_LIBRARY_PATH=)' | sort > $TEL/env.txt
+for b in "$EXE_SIM" "$EXE_STAGE"; do echo "== $b"; ldd "$b" 2>&1; done > $TEL/ldd.txt
+(cat "{repo_path}/SOURCE.txt" 2>/dev/null; git -C "{repo_path}" describe --always --dirty 2>/dev/null) > $TEL/source.txt
+scontrol show job $SLURM_JOB_ID > $TEL/job.txt 2>&1
+srun --overlap --nodes=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
+    --output=$TEL/sampler.log --error=$TEL/sampler.log \\
+    {repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/node_sampler.sh $TEL/nodes 1 &
+TEL_PID=$!
+"""
+
+TELEMETRY_STOP = """kill $TEL_PID 2>/dev/null
+wait $TEL_PID 2>/dev/null
+"""
+
+TELEMETRY_REDUCE = """# 4. Telemetry (--telemetry): Slurm's step accounting, once the run's steps
+#    are final (the database lags about a minute), then a summary and an
+#    archive of the per-node samples.
+TEL=$OUTPUT_DIR/telemetry
+if [ -f $TEL/job_id ]; then
+    RUN_JOB=$(cat $TEL/job_id)
+    for i in $(seq 1 18); do
+        sacct -j $RUN_JOB -n -o State | grep -q -E 'RUNNING|PENDING|COMPLETING' || break
+        sleep 10
+    done
+    sacct -j $RUN_JOB -P -o JobIDRaw,JobName,Start,End,Elapsed,NNodes,NTasks,NodeList,State,ExitCode,TotalCPU,UserCPU,SystemCPU,MaxRSS,MaxRSSNode,AveRSS,TRESUsageInTot,TRESUsageOutTot,ConsumedEnergyRaw,AveCPUFreq > $TEL/sacct.txt
+    cp $TEL/sacct.txt "{results_dir}/{id}_sacct.txt"
+    if python {repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/summarize_telemetry.py $TEL "{results_dir}/{id}_telemetry.json"; then
+        cp $TEL/env.txt $TEL/modules.txt $TEL/ldd.txt $TEL/source.txt "{results_dir}/" 2>/dev/null
+        for f in env modules ldd source; do
+            [ -f "{results_dir}/$f.txt" ] && mv "{results_dir}/$f.txt" "{results_dir}/{id}_tel_$f.txt"
+        done
+        [ -d $TEL/nodes ] && (cd $TEL && tar -czf nodes.tar.gz.tmp nodes/ && mv nodes.tar.gz.tmp nodes.tar.gz && rm -rf nodes/)
+    else
+        echo "Telemetry summary failed; telemetry/nodes kept."
+    fi
+fi
+
 """
 
 CMD_INLINE = """srun --exclusive --propagate=NOFILE --hint=nomultithread \\
@@ -1917,6 +1970,10 @@ def generate_scripts(args):
             repo_path=args.repo_path,
             bin_path=args.bin_path,
             command=command,
+            telemetry_start=TELEMETRY_START.format(repo_path=args.repo_path)
+            if args.telemetry
+            else "",
+            telemetry_stop=TELEMETRY_STOP if args.telemetry else "",
             catalyst_lib_path=CATALYST_LIB_PATH,
             paraview_lib_path=os.path.dirname(CATALYST_LIB_PATH.rstrip("/")),
         )
@@ -1929,6 +1986,11 @@ def generate_scripts(args):
             results_dir=args.results_dir,
             perf_env=args.perf_env,
             repo_path=args.repo_path,
+            telemetry_reduce=TELEMETRY_REDUCE.format(
+                repo_path=args.repo_path, results_dir=args.results_dir, id=exp["id"]
+            )
+            if args.telemetry
+            else "",
         )
         with open(f"{run_output_dir}/reduce.sbat", "w") as f:
             f.write(reduce_content)
@@ -1950,6 +2012,13 @@ if __name__ == "__main__":
         type=float,
         default=VOLUME_SAMPLES_PER_CELL,
         help="Ascent volume samples per cell along the ray (9 avoids rank-dependent banding; fewer is cheaper)",
+    )
+    parser.add_argument(
+        "--telemetry",
+        action="store_true",
+        help="Sample per-node power, CPU, memory and NIC counters at 1 Hz, record "
+        "Slurm step accounting with energy and an environment snapshot "
+        "(sites/shaheen/README.md, Telemetry)",
     )
     parser.add_argument(
         "--reader-decomposition",
