@@ -24,7 +24,8 @@ log opens while the script is imported, inside the first step and after
 ParaView has logged that step's number, so scopes before the first number in
 the file are counted to the step before it. That first step's row is partial
 (only the scopes that closed after the log opened) and also holds the
-pipeline's start-up; compare steps 1 and up.
+pipeline's start-up; compare steps 1 and up. A log with no step number at
+all (a run with one output) reports its scopes as step -1.
 
 usage: catalyst_timers.py LOG_DIR OUTPUT_CSV
 """
@@ -79,6 +80,10 @@ def parse(path):
                     t = pending if step is None else steps[step]
                     t[name] = t.get(name, 0.0) + float(m.group(1))
                     break
+    if pending and not steps:
+        # No step number after the log opened (a run with one output): the
+        # step is unknown, so report its scopes as step -1.
+        steps[-1] = pending
     for t in steps.values():
         if "execute" in t and "coprocess" in t:
             t["overhead"] = t["execute"] - t["coprocess"]
