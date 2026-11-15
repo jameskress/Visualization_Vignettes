@@ -135,7 +135,9 @@ def build_run_command(test_dir, args):
     if args.verbose:
         cmd.append("--verbose")
     for extra in args.vignette_arg:
-        cmd += ["--vignette-arg", extra]
+        # Attached with "=": a value that starts with "--" (--hw-accel) would
+        # otherwise be read by run_tests.py's parser as an option of its own.
+        cmd.append("--vignette-arg=" + extra)
     return cmd, run_tests_path
 
 
