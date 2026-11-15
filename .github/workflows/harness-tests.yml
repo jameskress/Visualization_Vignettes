@@ -1,0 +1,44 @@
+name: Harness unit tests
+
+# Unit tests for the regression harness itself (Testing/test_*.py other than
+# test_suite.py, which is the suite runner, not a test). Today that is
+# Testing/test_io_sampler.py: the process-tree I/O sum with the reap order
+# scripted, plus one real non-dumpable child. They need only Python and
+# psutil, take under a second, and run on a GitHub-hosted runner, so they
+# put no load on the shared self-hosted one.
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'Testing/**.py'
+      - '.github/workflows/harness-tests.yml'
+  pull_request:
+    branches: [ '**' ]
+    paths:
+      - 'Testing/**.py'
+      - '.github/workflows/harness-tests.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Harness unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install psutil
+        run: python -m pip install psutil
+      - name: Run
+        run: python -m unittest -v Testing/test_io_sampler.py

@@ -758,6 +758,17 @@ that vignette's history, so a year without runs takes no room. Records from
 before schema 6 carry no gate verdicts and show as *ran* rather than pass or
 fail.
 
+### Harness unit tests
+
+`Testing/test_io_sampler.py` checks the process-tree I/O sum with the reap
+order scripted, plus one real non-dumpable child (Linux). It needs only psutil
+and runs in under a second; `.github/workflows/harness-tests.yml` runs it on a
+GitHub-hosted runner whenever a `Testing/` Python file changes.
+
+```bash
+python3 -m unittest -v Testing/test_io_sampler.py
+```
+
 ## Drift warnings
 
 The performance gate compares the last two runs and fails at 10%.
