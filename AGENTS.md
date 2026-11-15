@@ -96,7 +96,9 @@ Rules that are not negotiable:
   directory exists it is used automatically. Bless only the images that
   genuinely differ by renderer (ex06 on `shaheen3-cpu`, 21 Oct 2026), after
   looking at them; a per-machine bless touches nothing else, and numeric, CSV
-  and text baselines stay shared.
+  and text baselines stay shared. A configuration that renders the same pixels
+  as another uses that one's directory with `--baseline-machine` rather than a
+  copy (`ibex-gpu` VisIt uses `ibex-cpu`'s): one baseline per site per renderer.
 * **`metrics_schema` gets bumped whenever a recorded field changes meaning.**
   It is 6. The performance gate, the drift check, the plots and the
   dashboard all refuse to compare below `MIN_COMPARABLE_SCHEMA` (5), which is

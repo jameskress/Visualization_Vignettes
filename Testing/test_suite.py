@@ -692,6 +692,17 @@ def resolve_machine_name(args):
     return args.machine_name if args.machine_name else platform.uname().node
 
 
+def resolve_baseline_machine(args):
+    """Whose per-machine image baselines this run is judged against.
+
+    The run's own configuration unless --baseline-machine names another that
+    renders the same pixels: VisIt on an Ibex GPU node draws ex06 bit for bit
+    as on an Ibex CPU node (15 Nov 2026), and a second copy of the same
+    images would break the one-baseline-per-site-per-renderer rule.
+    """
+    return getattr(args, "baseline_machine", None) or resolve_machine_name(args)
+
+
 def create_baseline_images(output_dir, max_images=5, baseline_dir=None):
     """Copy rendered images into the baseline directory.
 
@@ -779,7 +790,7 @@ def bless_test(test_dir, args):
         # and belong to whoever blessed them on the reference machine; the
         # first per-machine bless on Shaheen silently replaced ex06's shared
         # results JSON with Shaheen's numbers (21 Oct 2026).
-        image_dir = machine_baseline_dir(test_dir, resolve_machine_name(args))
+        image_dir = machine_baseline_dir(test_dir, resolve_baseline_machine(args))
         print("  image baselines for this machine only: {0}".format(image_dir))
         print("  numeric and CSV baselines left as they are (shared)")
         create_baseline_images(
@@ -1647,7 +1658,7 @@ def run_test(test_dir, dir_name, args):
             "  {0} declares an image tolerance of {1:.4%} (suite default "
             "{2:.4%}).".format(dir_name, tolerance, args.image_tolerance)
         )
-    machine_name = resolve_machine_name(args)
+    machine_name = resolve_baseline_machine(args)
     machine_dir = machine_baseline_dir(test_dir, machine_name)
     if os.path.isdir(machine_dir) or getattr(args, "machine_baselines", False):
         print("  image baselines: {0} first, shared for the rest".format(machine_dir))
@@ -1834,6 +1845,15 @@ def build_parser():
         "it is used automatically. For the gates that differ by renderer "
         "(Surface LIC noise, Mesa vs GPU shading); numeric, CSV and text "
         "baselines stay shared.",
+    )
+    bless_group.add_argument(
+        "--baseline-machine",
+        default=None,
+        metavar="NAME",
+        help="Use Testing/Baseline/NAME/ for per-machine image baselines instead "
+        "of Testing/Baseline/<machine_name>/, for a configuration that renders "
+        "exactly what NAME renders (ibex-gpu VisIt uses ibex-cpu's). The run is "
+        "still recorded under --machine_name.",
     )
     bless_group.add_argument(
         "--bless-shared",
