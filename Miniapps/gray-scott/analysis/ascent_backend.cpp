@@ -9,15 +9,22 @@
 
 namespace
 {
+    // Builds the domain in place in multi_mesh: u, v and the ghosts are
+    // external (no copy), so the buffers must stay valid through
+    // publish() and execute().
     template <typename T>
-    conduit::Node BuildRepartitionedBlueprint(
+    void BuildRepartitionedBlueprint(
         const RepartitionInfo &read_info,
         const std::vector<T> &buf_u,
         const std::vector<T> *buf_v,
+        std::vector<std::int32_t> &cell_ghosts,
         size_t step,
-        const BackendOptions &opts)
+        const BackendOptions &opts,
+        conduit::Node &multi_mesh)
     {
-        conduit::Node domain;
+        multi_mesh.reset();
+        multi_mesh.set(conduit::DataType::list());
+        conduit::Node &domain = multi_mesh.append();
         domain["state/cycle"] = static_cast<long long>(step);
         std::array<double, 3> global_origin = opts.origin.value_or(std::array<double, 3>{0.0, 0.0, 0.0});
         std::array<double, 3> spacing = opts.spacing.value_or(std::array<double, 3>{0.1, 0.1, 0.1});
@@ -60,9 +67,22 @@ namespace
             domain["fields/v/values"].set_external(const_cast<T *>(buf_v->data()), buf_v->size());
         }
 
-        conduit::Node multi_mesh(conduit::DataType::list());
-        multi_mesh.append().set(domain);
-        return multi_mesh;
+        // Ghosts, mirroring the Catalyst backend: ReadRepartition adds the
+        // neighbour's first plane of points on each shared_high axis, so
+        // pieces share points but every cell belongs to exactly one piece.
+        // Ascent's ghost field (ascent_ghosts) is element associated only:
+        // the shared points cannot be flagged, and no cell is a ghost, so
+        // every cell is 0 (owned). This is the convention the simulation's
+        // Ascent backend publishes. A point-based query in Ascent still
+        // counts the shared planes twice (analysis/README.md). The buffer
+        // is reused across steps and only resized, still all zero.
+        const size_t cx = nx > 1 ? nx - 1 : 1;
+        const size_t cy = ny > 1 ? ny - 1 : 1;
+        const size_t cz = nz > 1 ? nz - 1 : 1;
+        cell_ghosts.resize(cx * cy * cz, 0);
+        domain["fields/ascent_ghosts/association"] = "element";
+        domain["fields/ascent_ghosts/topology"] = "mesh";
+        domain["fields/ascent_ghosts/values"].set_external(cell_ghosts.data(), cell_ghosts.size());
     }
 }
 
@@ -94,7 +114,7 @@ void AscentBackend::Run()
         // reader owns: end the step now, then use them, so the simulation
         // goes on while we render (#76, #42).
         m_reader.EndStep();
-        mesh_blueprint = BuildRepartitionedBlueprint(read_info, u_buf, &v_buf, step, m_reader.GetOptions());
+        BuildRepartitionedBlueprint(read_info, u_buf, &v_buf, m_cell_ghosts, step, m_reader.GetOptions(), mesh_blueprint);
         m_perf_logger.stop("Blueprint_Time");
 
         m_perf_logger.start("Vis_Time");

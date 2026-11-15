@@ -181,6 +181,20 @@ Kombyne takes its own grid objects, not a Conduit tree. Its adaptor
 * The old adaptor copied u and v without halos and built per-point
   coordinates, which left a one-cell gap between ranks.
 
+Cost per output step, old adaptor (9f77464^, `kb_sgrid` of the interior,
+float coordinates built every write, `KB_MEM_COPY` of `u_noghost()`) against
+the current one, both built from the same tree. Workstation, 256^3, 8 ranks
+of 4 OpenMP threads, 5 outputs, `write_step` slowest rank, median of 3 runs
+(2026-11-15):
+
+| Script | Old | Current |
+| :--- | ---: | ---: |
+| One slice of V, 1024 x 1024 PNG | 236 ms | 143 ms |
+| `kombyne-save-data.yaml` (VTK export) | 126 ms | 46 ms |
+
+The export is also smaller (1.4 GB against 2.2 GB for the five steps): the
+current grid stores three axis arrays instead of a coordinate per point.
+
 Timers: `wrap` (building the handles, about 50 microseconds at 64^3) and
 `execute` (`kb_simulation_execute`, including its exports).
 
@@ -250,8 +264,14 @@ there is a one-cell gap between blocks. Those added points are ghost
 points (`DUPLICATEPOINT`), but the cells they close are owned by the
 block: only cells whose low corner belongs to another block are ghosts.
 Flagging every cell that touches an added point would remove owned
-boundary cells and open the gap again. The analysis reader does not do
-this yet; the fix is planned for phase 5 (#42).
+boundary cells and open the gap again. The analysis reader does this
+between its own pieces only: the last piece along each axis adds no plane,
+so the periodic wrap-around cells (between the last global point and the
+first) are not built, and the reader's mesh covers (L-1)^3 cells, not L^3.
+Its Catalyst backend flags the added points `DUPLICATEPOINT`, and its
+Ascent backend marks every cell owned (`ascent_ghosts` = 0). Ascent has no
+point ghost field, so in Ascent the added points are not flagged and a
+point-based query counts them twice (#42).
 
 **The three write modes.**
 
@@ -264,11 +284,17 @@ this yet; the fix is planned for phase 5 (#42).
 In every mode, `io` also includes the close and reopen that
 `overwrite_last_step` does before each write.
 
-Span and memory selection are checked with BP5 only. With the SST engine
-the writer ignores both settings, logs a warning and uses the default
-mode: SST does not implement span `Put()`, and its FFS marshalling is
-reported to ignore memory selections. Revisit when the in transit path is
-tested in phase 5 (#42).
+Span is checked with BP5 only; SST has no span `Put()`, so with SST the
+writer logs a warning and uses the default mode. Memory selection works
+with SST when SST marshals with BP5, its default: an in transit run with
+memory selection on (L = 65, 8 writers, 3 to 8 readers, slab and brick)
+read back bitwise identical to a BP5 file written without it. With
+`MarshalMethod=FFS`, or with ADIOS2 older than 2.9.2 (whose SST BP5
+marshalling ignored memory selections), the writer turns memory selection
+off and says so. FFS
+is not worth using here anyway: with ADIOS2 2.11 on a workstation it
+returned wrong values even in the default mode (not investigated; nothing
+in this repository sets it).
 
 **Pointer lifetime.** `Put()` is deferred: ADIOS2 may read the memory at
 `Put()` or at any point up to `EndStep()`, depending on the engine. Each

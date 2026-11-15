@@ -125,7 +125,7 @@ if(ENABLE_CATALYST)
   find_package(catalyst 2.0 REQUIRED)
 
   if(NOT catalyst_FOUND)
-    
+
   endif()
 
   message(STATUS "Catalyst writer enabled.")
@@ -145,11 +145,16 @@ endif()
 
 # ADIOS2 (Optional)
 if(ENABLE_ADIOS2)
-  find_package(ADIOS2 REQUIRED COMPONENTS MPI)
+  # Ascent's config may have found ADIOS2 already (same scope), and ADIOS2
+  # 2.11's config fails if asked twice ("imported target adios2::cxx11
+  # already exists"), so look only if it has not.
+  if(NOT TARGET adios2::cxx11_mpi)
+    find_package(ADIOS2 REQUIRED COMPONENTS MPI)
+  endif()
 
   if(ADIOS2_FOUND)
       message(STATUS "Found ADIOS2 version ${ADIOS2_VERSION}.")
-    
+
       if(ADIOS2_MPI_FOUND)
         message(STATUS "ADIOS2 MPI support: ENABLED")
       else()
@@ -167,7 +172,7 @@ endif()
 # Kombyne (Optional)
 if(ENABLE_KOMBYNELITE)
   find_package(kombynelite REQUIRED)
-  
+
   if(kombynelite_FOUND)
     message(STATUS "Kombyne lite found config at: ${kombynelite_DIR}")
 
@@ -175,13 +180,13 @@ if(ENABLE_KOMBYNELITE)
     # kombynelite_DIR is likely .../lib/cmake/kombynelite
     # We need to go up 3 levels to get to the base folder
     get_filename_component(KOMBYNE_INSTALL_ROOT "${kombynelite_DIR}/../../.." ABSOLUTE)
-    
+
     message(STATUS "Kombyne Install Root: ${KOMBYNE_INSTALL_ROOT}")
 
     # 2. Manually define the Bundled Conduit Libraries
-    # Order matters for static linking! 
+    # Order matters for static linking!
     # Usually: Relay -> Blueprint -> Conduit
-    set(KOMBYNE_BUNDLED_LIBS 
+    set(KOMBYNE_BUNDLED_LIBS
         "${KOMBYNE_INSTALL_ROOT}/lib/libconduit_relay.a"
         "${KOMBYNE_INSTALL_ROOT}/lib/libconduit_blueprint.a"
         "${KOMBYNE_INSTALL_ROOT}/lib/libconduit.a"
@@ -327,10 +332,10 @@ if(ENABLE_ADIOS2)
 endif()
 
 if(ENABLE_KOMBYNELITE)
-  target_link_libraries(gray-scott PRIVATE 
+  target_link_libraries(gray-scott PRIVATE
       kombynelite
       ${KOMBYNE_BUNDLED_LIBS}
-      MPI::MPI_CXX          
+      MPI::MPI_CXX
   )
 
   target_link_options(gray-scott PRIVATE "-Wl,--allow-shlib-undefined")
@@ -396,7 +401,7 @@ install(DIRECTORY configs/adios2_configs/
 # Install script files
 install(DIRECTORY scripts/
         DESTINATION .
-        FILES_MATCHING 
+        FILES_MATCHING
         PATTERN "*.py"
         PATTERN "*.sh")
 

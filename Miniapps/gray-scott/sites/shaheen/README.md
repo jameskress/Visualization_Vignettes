@@ -53,6 +53,18 @@ With 2.12.0, SST over the MPI data plane ran consistently in the Paper 2
 tests. SST over RDMA with 2.12.0 completed a 1,024 + 32 node Catalyst run
 (#79), with the shutdown bounded by #75. #72 compares the two at scale.
 
+# Kombyne
+Kombyne-lite does not run on Shaheen III. Its prebuilt archive calls Open
+MPI symbols directly and fails to link against Cray MPICH (`undefined
+reference to 'ompi_mpi_int'`), which is why `config.bash` keeps
+`ENABLE_KOMBYNELITE=OFF`. It failed for the 2026 WOIV paper and again for
+the #71 recheck (8 Nov 2026). Every Kombyne run so far was on Ibex with an
+Open MPI built with C++ bindings (`sites/ibex/README.md`): the paper's
+Kombyne jobs on 32 nodes (1,024 ranks, the footnote in
+`2026-WOIV-scripts/plot_performance.py`), and the #71 recheck at 1024^3 on
+64 ranks. Running Kombyne at scale here needs a build of the full Kombyne
+from source against Cray MPICH.
+
 # ParaView
 The superbuild configuration used on Shaheen III:
 
@@ -274,6 +286,29 @@ simulation read a multi-terabyte checkpoint. `OpenTimeoutSecs` is SST's only
 timeout; there is no `ControlTimeoutSecs`. A shutdown that hangs in SST's
 RDMA teardown is bounded by `teardown_timeout_s` (#75).
 
+**Reader parameters.** Until 14 Nov 2026 the reader built ADIOS2 with no
+XML, so `ControlModule=epoll` reached the writers only and every reader ran
+on `select()`. That was harmless while each reader stayed under 1024 writer
+connections, but a slab reader at 262144:2048 reaches at least 4096 writers
+and would hang as the reproducer did (ADIOS2 #5272). The generated XML now
+has an `AnalysisInput` block with `ControlModule=epoll` and the data plane,
+which the reader loads; its rank 0 prints the parameters in use. Runs
+before that date had readers on `select()`.
+
+**Reader decomposition.** `--reader-decomposition brick` makes each reader
+read a 3D brick aligned with the simulation's blocks instead of a slab
+along the slowest axis: at 262144 writers and 2048 readers, each reader
+owns 128 writer blocks (4 x 4 x 8) and, with the planes it shares with its
+neighbours, requests parts of 225 (5 x 5 x 9), instead of pieces of at
+least 4096. Measured on
+the 64 + 4 node f128 Ascent job (three runs each, 15 Nov 2026), the two
+take the same time per reader step (7.7 s slab, 7.8 s brick): brick spends
+longer in `EndStep` and less in rendering. The images differ in about 0.1%
+of pixels, nearly all by two levels or less, with no seams. The default
+stays `slab`. The experiment IDs do not include the decomposition, so
+generate slab and brick runs into different `--results-dir`s; the
+generator refuses to regenerate an in transit run with the other one.
+
 **Other engines and transports.** SST over WAN (TCP) needs
 `ControlModule=select`; with `epoll` it aborts at once. SSC uses MPI
 one-sided communication and is fast, but with ADIOS2 created on a split
@@ -297,7 +332,16 @@ libfabric registration cache (`FI_MR_CACHE_MAX_COUNT`) does not.
 
 None of that commit's code runs for our reads: each reader's slab covers
 whole writer blocks in the two fast dimensions, so no request has gaps
-and the new per-run table is never built. What the commit changes for us
+and the new per-run table is never built. (A `brick` reader, below, is
+different. Its owned box lines up with writer blocks when every reader
+boundary falls on a writer boundary. `L` dividing evenly by both rank counts
+is enough but not needed: at `L` = 66 four writers split an axis at 17, 34
+and 50 and two readers at 33 (no match), while at `L` = 67 four writers
+split at 17, 34 and 51 and two readers at 34 (a match). Even then, the plane it reads from each
+neighbour cuts into the next writer blocks in the fast dimensions, so at
+4096^3 with 262144 writers and 2048 readers an interior brick owns 4 x 4 x 8
+blocks but requests parts of 5 x 5 x 9. Its requests can have gaps, and that
+code may run.) What the commit changes for us
 is the size of ADIOS2's internal read request, from 96 to 120 bytes (one
 added member). The revert with an unused 24 byte member put back is as
 slow as rc1 (9.08 and 9.56 s, against 8.93 s for rc1 and 7.39 s for the
