@@ -275,7 +275,7 @@ writer logs a warning and uses the default mode. Memory selection works
 with SST when SST marshals with BP5, its default: an in transit run with
 memory selection on (L = 65, 8 writers, 3 to 8 readers, slab and brick)
 read back bitwise identical to a BP5 file written without it. With
-`MarshalMethod=FFS`, or with ADIOS2 older than 2.10 (whose SST BP5
+`MarshalMethod=FFS`, or with ADIOS2 older than 2.9.2 (whose SST BP5
 marshalling ignored memory selections), the writer turns memory selection
 off and says so. FFS
 is not worth using here anyway: with ADIOS2 2.11 on a workstation it
