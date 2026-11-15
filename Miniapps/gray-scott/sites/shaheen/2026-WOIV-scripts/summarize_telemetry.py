@@ -153,6 +153,12 @@ def main(argv):
         summarize_node(p)
         for p in sorted(glob.glob(os.path.join(tel_dir, "nodes", "*.csv")))
     ]
+    # A node with fewer than two samples has no differences to report, and
+    # a run with none such has no telemetry: fail rather than publish one.
+    nodes = [n for n in nodes if n.get("samples", 0) >= 2]
+    if not nodes:
+        print("telemetry: no node has two or more samples; no summary written")
+        return 1
     totals = {"nodes_sampled": len(nodes)}
     for key in ("energy_j", "cpu_energy_j", "memory_energy_j"):
         values = [n.get(key) for n in nodes]
@@ -196,7 +202,9 @@ def main(argv):
         step["sampled_cpu_busy_fraction"] = (
             round(sum(busy) / len(busy), 4) if busy else None
         )
+    job_file = os.path.join(tel_dir, "job_id")
     summary = {
+        "job_id": open(job_file).read().strip() if os.path.exists(job_file) else None,
         "totals": totals,
         "slurm_steps": steps,
         "nodes": nodes,

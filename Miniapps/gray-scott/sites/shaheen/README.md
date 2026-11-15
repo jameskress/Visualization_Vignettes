@@ -318,7 +318,8 @@ records, for every run:
   before the run: Cray `pm_counters` (node, CPU and memory power and
   cumulative energy, CPU temperatures), `/proc` CPU ticks, available memory
   and load, and the Slingshot NIC's sent and received bytes and its NACK
-  and retry counters, at 1 Hz, in `telemetry/nodes/<host>.csv`. All of it is
+  and retry counters, at 1 Hz, in `telemetry/<job id>/nodes/<host>.csv` (one directory per job, so a
+  resubmitted run never mixes samples with an earlier job's). All of it is
   readable without privileges. Shaheen's CPU nodes have one NIC each
   (`cxi0`). On 2 nodes, a step using every core ran no slower with the
   sampler beside it (2.725 s per task alone, 2.75 s with it, 2.745 s alone
@@ -328,7 +329,9 @@ records, for every run:
 * `SLURM_ACCTG_FREQ=task=30,energy=30`, so steps get memory and energy
   figures (Shaheen samples every 600 s by default).
 
-The reduction job then saves `sacct` for every step (`<id>_sacct.txt`),
+The run's job passes its ID to the reduction job (`RUN_JOB_ID`; to rerun a
+reduction by hand, `sbatch --export=ALL,RUN_JOB_ID=<run job> reduce.sbat`),
+which then saves `sacct` for every step (`<id>_sacct.txt`),
 writes `<id>_telemetry.json` (energy per run and per step's nodes, mean
 power, CPU use, NIC bytes and retries) and archives the per-node samples.
 An in transit run is one heterogeneous step: `.1+0` is the simulation and

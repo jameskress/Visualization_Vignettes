@@ -82,6 +82,26 @@ SCALE_LAUNCHES = ["mpmd", "steps"]
 SCALE_RUN_STEPS = 101
 SCALE_TIME_LIMIT = "0:45:00"
 
+# ADIOS2 transport at scale (Paper 2, ADIOS2 #5272 follow-up): the readonly
+# reader backend, which reads each step and does nothing else, so the times
+# are SST's alone. (simulation nodes, staging nodes, SST QueueLimit).
+# 1920 + 128 (122880 writers) is the largest real layout within the 2048-node
+# per-job cap; the whole machine waits for a maintenance window.
+ADIOS_SWEEP_GRID = 4096
+ADIOS_SWEEP_CONFIGS = [
+    (256, 16, 1),  # scaling at 128 writers per reader
+    (512, 32, 1),
+    (1024, 64, 1),
+    (1920, 128, 1),
+    (1024, 16, 1),  # reader count at 1024 simulation nodes
+    (1024, 32, 1),
+    (1024, 128, 1),
+    (512, 32, 2),  # QueueLimit 2 against 1
+    (1920, 128, 2),
+]
+ADIOS_SWEEP_RUN_STEPS = 101
+ADIOS_SWEEP_TIME_LIMIT = "0:45:00"
+
 CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
 
 PIPELINE_FILES = {
@@ -101,7 +121,7 @@ ADIOS_XML_TEMPLATE = """<?xml version="1.0"?>
         <engine type="{engine_type}">
             <parameter key="verbose" value="0"/>
             <parameter key="RendezvousReaderCount" value="{rendezvous}"/>
-            <parameter key="QueueLimit" value="1"/>
+            <parameter key="QueueLimit" value="{queue_limit}"/>
             <parameter key="QueueFullPolicy" value="Block"/>
             <parameter key="DataTransport" value="{data_transport}"/>
             <parameter key="ControlModule" value="epoll"/>
@@ -925,12 +945,12 @@ echo "Run complete. Submitting the reduction job ({output_dir}/reduce.sbat)..."
 # Retry a transient controller error or submit limit; if it still fails,
 # print a marker that can be grepped for, since the job's state stays the run's.
 for attempt in 1 2 3; do
-    if sbatch {output_dir}/reduce.sbat; then
+    if sbatch --export=ALL,RUN_JOB_ID=$SLURM_JOB_ID {output_dir}/reduce.sbat; then
         break
     fi
     echo "sbatch of the reduction job failed (attempt $attempt of 3)"
     if [ "$attempt" -eq 3 ]; then
-        echo "REDUCE_SUBMIT_FAILED: run it later with: sbatch {output_dir}/reduce.sbat"
+        echo "REDUCE_SUBMIT_FAILED: run it later with: sbatch --export=ALL,RUN_JOB_ID=$SLURM_JOB_ID {output_dir}/reduce.sbat"
     else
         sleep 10
     fi
@@ -1037,12 +1057,9 @@ fi
 # using every core it neither delayed that step nor changed its time beyond
 # run-to-run noise (15 Nov 2026).
 TELEMETRY_START = """# --- Telemetry (--telemetry) ---
-TEL=$OUTPUT_DIR/telemetry
-# A resubmitted job starts afresh: an earlier job's samples (it stopped
-# before its reduction) are moved aside, not mixed into this run's totals.
-if [ -e $TEL ]; then
-    mv $TEL $TEL.prev-$(cat $TEL/job_id 2>/dev/null || echo unknown)-$(date +%s)
-fi
+# One directory per job, so a resubmitted run never mixes its samples with
+# an earlier job's, and each job's reduction reads only its own.
+TEL=$OUTPUT_DIR/telemetry/$SLURM_JOB_ID
 mkdir -p $TEL/nodes
 echo "$SLURM_JOB_ID" > $TEL/job_id
 # Slurm samples tasks and energy every 600 s by default on Shaheen, which
@@ -1069,7 +1086,12 @@ for i in $(seq 1 10); do kill -0 $TEL_PID 2>/dev/null || break; sleep 1; done
 TELEMETRY_REDUCE = """# 4. Telemetry (--telemetry): Slurm's step accounting, once the run's steps
 #    are final (the database lags about a minute), then a summary and an
 #    archive of the per-node samples.
-TEL=$OUTPUT_DIR/telemetry
+# The run's job passes its ID (RUN_JOB_ID); to rerun by hand, use
+# sbatch --export=ALL,RUN_JOB_ID=<run job> reduce.sbat.
+TEL=$OUTPUT_DIR/telemetry/${{RUN_JOB_ID:-none}}
+if [ -z "$RUN_JOB_ID" ] && [ -d $OUTPUT_DIR/telemetry ]; then
+    echo "RUN_JOB_ID not set; telemetry not reduced (see reduce.sbat)."
+fi
 if [ -f $TEL/job_id ]; then
     RUN_JOB=$(cat $TEL/job_id)
     # Accounting counts only once sacct answers, lists the run's numbered
@@ -1077,7 +1099,8 @@ if [ -f $TEL/job_id ]; then
     # asked again; if none is final within 3 minutes there is no sacct.txt
     # and the summary has no Slurm steps, rather than a partial list.
     FIELDS=JobIDRaw,JobName,Start,End,Elapsed,NNodes,NTasks,NodeList,State,ExitCode,TotalCPU,UserCPU,SystemCPU,MaxRSS,MaxRSSNode,AveRSS,TRESUsageInTot,TRESUsageOutTot,ConsumedEnergyRaw,AveCPUFreq
-    rm -f $TEL/sacct.txt
+    # A refresh replaces sacct.txt only with an answer that passes; an
+    # earlier final answer for this job is kept otherwise.
     for i in $(seq 1 18); do
         if sacct -j $RUN_JOB -P -o $FIELDS > $TEL/sacct.tmp 2>/dev/null \\
             && grep -q -E "^$RUN_JOB\\.[0-9]" $TEL/sacct.tmp \\
@@ -1087,6 +1110,9 @@ if [ -f $TEL/job_id ]; then
         fi
         sleep 10
     done
+    if [ -f $TEL/sacct.tmp ] && [ -f $TEL/sacct.txt ]; then
+        echo "sacct gave no final answer this time; the earlier one is kept."
+    fi
     rm -f $TEL/sacct.tmp
     if [ -f $TEL/sacct.txt ]; then
         cp $TEL/sacct.txt "{results_dir}/{id}_sacct.txt"
@@ -1324,6 +1350,7 @@ def generate_adios_xml(exp, output_dir):
         data_transport=data_transport,
         sim_aggregators=sim_aggregators,
         stage_aggregators=stage_aggregators,
+        queue_limit=exp.get("queue_limit", 1),
     )
     with open(f"{output_dir}/adios2.xml", "w") as f:
         f.write(xml_content)
@@ -1925,6 +1952,28 @@ def generate_scripts(args):
                         "time_limit": SCALE_TIME_LIMIT,
                     }
                 )
+
+    pid, p_init_steps = ensure_init(ADIOS_SWEEP_GRID)
+    for nodes, stage_nodes, queue_limit in ADIOS_SWEEP_CONFIGS:
+        EXPERIMENTS.append(
+            {
+                "id": f"adios_sweep_N{nodes:04d}_S{stage_nodes:03d}_q{queue_limit}_readonly",
+                "paper": "scale",
+                "type": "intransit",
+                "backend": "adios",
+                "workload": "transport",
+                "sim_nodes": nodes,
+                "stage_nodes": stage_nodes,
+                "grid_size": ADIOS_SWEEP_GRID,
+                "stage_pipeline": "readonly_transport",
+                "parent_id": pid,
+                "total_steps": p_init_steps + ADIOS_SWEEP_RUN_STEPS,
+                "transport": "RDMA",
+                "launch": "mpmd",
+                "queue_limit": queue_limit,
+                "time_limit": ADIOS_SWEEP_TIME_LIMIT,
+            }
+        )
 
     # Preflight, before any file is written: a run whose existing settings
     # use the other decomposition stops the whole generation, so nothing
