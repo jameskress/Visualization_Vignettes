@@ -348,8 +348,6 @@ class _PeakRssSampler(object):
         self._io_by_pid = {}
         # A reaped child's last reading, to subtract once (see above).
         self._io_reaped = [0, 0, 0, 0]
-        # Subtractions waiting for their ancestor's next reading.
-        self._io_pending = {}
         # Each process's parent, as a key, from the walk that first saw it.
         self._io_parent = {}
         self._io_seen = set()
@@ -446,14 +444,14 @@ class _PeakRssSampler(object):
         subtracted; the one case left ambiguous is a parent and an orphaned
         child that both exit inside one 0.25 s interval.
 
-        The subtraction waits for the ancestor's next reading: the ancestor
-        may have been read this sample before it reaped the child, and if it
-        then exits unread, its stored counters never included the child.
+        The ancestor may have been read this sample before it reaped the
+        child (the root is read before the walk lists its children), so its
+        counters are read again here, after the child is known to be gone
+        and therefore reaped, and the subtraction is made against that
+        reading. If the ancestor has exited too, whether its last reading
+        held the child cannot be known, and nothing is subtracted: the
+        child's own reading then stands for it.
         """
-        for ancestor in list(self._io_pending):
-            if ancestor in self._io_seen_now:
-                for i, value in enumerate(self._io_pending.pop(ancestor)):
-                    self._io_reaped[i] += value
         vanished = self._io_seen - self._io_seen_now
         for key in vanished:
             if self._still_running(key):
@@ -466,11 +464,31 @@ class _PeakRssSampler(object):
                 hops += 1
             if ancestor not in self._io_seen_now:
                 ancestor = None
-            if ancestor is not None and reading:
-                pending = self._io_pending.setdefault(ancestor, [0, 0, 0, 0])
+            if ancestor is not None and reading and self._reread_io(ancestor):
                 for i in range(4):
-                    pending[i] += reading[i]
+                    self._io_reaped[i] += reading[i]
         self._io_seen = self._io_seen_now
+
+    def _reread_io(self, key):
+        """Read process `key`'s I/O again now; False if it has gone."""
+        pid, created = key
+        try:
+            process = psutil.Process(pid)
+            if process.create_time() != created:
+                return False
+            io = process.io_counters()
+        except Exception:  # noqa: BLE001 - exited, or unreadable
+            return False
+        reading = (
+            int(io.read_bytes),
+            int(io.write_bytes),
+            int(getattr(io, "read_chars", 0)),
+            int(getattr(io, "write_chars", 0)),
+        )
+        previous = self._io_by_pid.get(key)
+        if previous is None or sum(reading) >= sum(previous):
+            self._io_by_pid[key] = reading
+        return True
 
     def _sample_once(self, process):
         self._threads_now = 0

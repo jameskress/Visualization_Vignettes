@@ -537,9 +537,13 @@ def comparison_verdicts(
     """The verdict each gate reached on this run, as recorded with it.
 
     Each gate's entry is raw, what the comparison found. `passed` is the
-    suite's verdict: a vignette that needs a GPU (is_gpu_test_allowed_to_fail)
-    on a --non_gpu_machine is exempt from every gate, as in the summary
-    report, and `gpu_exempt` says so. Without that, ex00 on every CPU node
+    verdict of the comparison gates (run, image, numeric, CSV, text) as the
+    summary report judges them: a vignette that needs a GPU
+    (is_gpu_test_allowed_to_fail) on a --non_gpu_machine is exempt from
+    every gate, and `gpu_exempt` says so. The performance gate is not part
+    of it: it compares this record with the history after the record is
+    written, and its verdict lives in the summary report (and drift on the
+    dashboard). Without that, ex00 on every CPU node
     would read as a failure: its legacy text baseline names the GPU's OpenGL
     vendor.
     """

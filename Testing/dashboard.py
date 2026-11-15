@@ -26,6 +26,7 @@
 import argparse
 import datetime
 import glob
+import hashlib
 import html
 import json
 import math
@@ -192,7 +193,11 @@ def fmt(value, digits=1):
         if abs(value) >= 1000:
             return "{0:,.0f}".format(value)
         return "{0:.{1}f}".format(value, digits)
-    return str(value)
+    # Everything returned here goes into HTML unescaped by the callers, and
+    # a hand-edited record could hold anything: escape what is not a number.
+    if isinstance(value, int) and not isinstance(value, bool):
+        return str(value)
+    return esc(value)
 
 
 def short_date(timestamp):
@@ -200,9 +205,18 @@ def short_date(timestamp):
 
 
 def page_name(config):
-    """A configuration's page; never index.html, which is the overview."""
-    name = re.sub(r"[^A-Za-z0-9._-]", "_", config) + ".html"
-    return "config-" + name if name.lower() == "index.html" else name
+    """A configuration's page, distinct for distinct names, never index.html.
+
+    A name that is already safe keeps its own spelling (history file names
+    are distinct, so these are too). A name that had to be changed, or that
+    would be the overview's, gets a digest of the original so that two
+    configurations never share a page.
+    """
+    safe = re.sub(r"[^A-Za-z0-9._-]", "_", config)
+    if safe == config and safe.lower() != "index":
+        return safe + ".html"
+    digest = hashlib.sha256(config.encode("utf-8")).hexdigest()[:10]
+    return "{0}-{1}.html".format(safe, digest)
 
 
 def nice_ticks(value, target=4):
