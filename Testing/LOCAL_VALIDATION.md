@@ -1480,7 +1480,15 @@ found:
   the first `ibex-gpu` run with `--hw-accel` failed the numeric gate against
   the workstation's baseline (`false`). It is a note now, like
   `engine_is_parallel` beside it, and the key is gone from the shared
-  baseline. A workstation run of ex08 passes with the change.
+  baseline. A workstation run of ex08 passes with the change. Against an
+  older ref (`--baseline-ref` before this change), ex08's numeric gate
+  reports `hw_accel_requested` as a missing metric and fails: that ref's
+  baseline still holds the key. Expected, not a regression.
+* **ibex-gpu renders VisIt exactly as ibex-cpu.** At 8 ranks, where ex06
+  keeps its image gate, the GPU node's ex06 frame was bit for bit
+  `ibex-cpu`'s blessed baseline and 35% off the workstation's shared one.
+  `--baseline-machine ibex-cpu` (new) judges `ibex-gpu` against that
+  directory instead of a copy, and the record was retaken at 8 ranks.
 * **`--vignette-arg` could not carry a flag.** `--vignette-arg --hw-accel`
   is two options to argparse. The Ibex script passes `--vignette-arg=--hw-accel`,
   and `test_suite.py` now forwards every value to `run_tests.py` the same way.
