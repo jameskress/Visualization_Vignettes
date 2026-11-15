@@ -103,6 +103,11 @@ ADIOS_SWEEP_RUN_STEPS = 101
 ADIOS_SWEEP_TIME_LIMIT = "0:45:00"
 
 CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
+# Darshan (I/O characterization) for --telemetry; --darshan-prefix overrides,
+# --no-darshan leaves it out. Built by software/build-darshan-3.4.7.sh.
+DARSHAN_PREFIX = (
+    "/scratch/kressjm/Visualization_Vignettes/software/darshan-3.4.7-install"
+)
 
 PIPELINE_FILES = {
     "adios_xml": "configs/adios2_configs/adios2.xml",
@@ -967,7 +972,9 @@ REDUCE_TEMPLATE = """#!/bin/bash
 #SBATCH --account={account}
 #SBATCH --partition={partition}
 #SBATCH --nodes=1
-#SBATCH --time=1:00:00
+# One node, so a long limit costs little: reducing 65536 per-rank timer
+# files took over 54 minutes (1024 + 32 node sweep run, 15 Nov 2026).
+#SBATCH --time=4:00:00
 #SBATCH --output={output_dir}/reduce-%j.out
 #SBATCH --error={output_dir}/reduce-%j.err
 
@@ -1077,9 +1084,22 @@ TEL_PID=$!
 # Out of the job table, so the launch's `wait -n` (bash 4.4 cannot name
 # PIDs) never takes the sampler for an application step.
 disown $TEL_PID
+# Cray MPICH's NIC counters for MPI traffic (the simulation's halos and
+# collectives): a summary over the job's NICs (min, mean, max) printed to
+# the job's output when MPI finalizes; the reduction saves it.
+export MPICH_OFI_CXI_COUNTER_REPORT=2
+{darshan_start}"""
+
+# Darshan for --telemetry: every file read and write of the run (POSIX,
+# MPI-IO, STDIO, Lustre striping), one log per MPI job. Preloaded only for
+# the run's own srun commands: set after the sampler starts, unset after.
+DARSHAN_START = """mkdir -p $TEL/darshan
+export DARSHAN_LOG_DIR_PATH=$TEL/darshan
+export LD_PRELOAD={darshan_prefix}/lib/libdarshan.so${{LD_PRELOAD:+:$LD_PRELOAD}}
 """
 
-TELEMETRY_STOP = """kill $TEL_PID 2>/dev/null
+TELEMETRY_STOP = """unset LD_PRELOAD
+kill $TEL_PID 2>/dev/null
 for i in $(seq 1 10); do kill -0 $TEL_PID 2>/dev/null || break; sleep 1; done
 """
 
@@ -1118,6 +1138,21 @@ if [ -f $TEL/job_id ]; then
         cp $TEL/sacct.txt "{results_dir}/{id}_sacct.txt"
     else
         echo "sacct gave no final answer for job $RUN_JOB; no Slurm step accounting."
+    fi
+    # Darshan: a text total of every log, then the logs themselves beside
+    # the other results (one log per MPI job).
+    if [ -d $TEL/darshan ] && [ -x "{darshan_prefix}/bin/darshan-parser" ]; then
+        for log in $(find $TEL/darshan -name '*.darshan' 2>/dev/null); do
+            "{darshan_prefix}/bin/darshan-parser" --total --perf "$log" > "${{log%.darshan}}.total.txt" 2>&1
+        done
+        mkdir -p "{results_dir}/{id}_darshan"
+        find $TEL/darshan \\( -name '*.darshan' -o -name '*.total.txt' \\) -exec cp {{}} "{results_dir}/{id}_darshan/" \\;
+    fi
+    # Cray MPICH's NIC counter summary, from the run's job output.
+    if [ -f $OUTPUT_DIR/slurm-$RUN_JOB.out ]; then
+        sed -n '/MPICH Slingshot CXI Counter Summary/,/^PHASE run_end/p' $OUTPUT_DIR/slurm-$RUN_JOB.out \\
+            | grep -v '^PHASE' > $TEL/mpich_cxi_summary.txt
+        [ -s $TEL/mpich_cxi_summary.txt ] && cp $TEL/mpich_cxi_summary.txt "{results_dir}/{id}_mpich_cxi_summary.txt"
     fi
     # A rerun after a successful reduction finds only the archive: restore it.
     if [ ! -d $TEL/nodes ] && [ -f $TEL/nodes.tar.gz ]; then
@@ -2050,7 +2085,12 @@ def generate_scripts(args):
             repo_path=args.repo_path,
             bin_path=args.bin_path,
             command=command,
-            telemetry_start=TELEMETRY_START.format(repo_path=args.repo_path)
+            telemetry_start=TELEMETRY_START.format(
+                repo_path=args.repo_path,
+                darshan_start=""
+                if args.no_darshan
+                else DARSHAN_START.format(darshan_prefix=args.darshan_prefix),
+            )
             if args.telemetry
             else "",
             telemetry_stop=TELEMETRY_STOP if args.telemetry else "",
@@ -2067,7 +2107,10 @@ def generate_scripts(args):
             perf_env=args.perf_env,
             repo_path=args.repo_path,
             telemetry_reduce=TELEMETRY_REDUCE.format(
-                repo_path=args.repo_path, results_dir=args.results_dir, id=exp["id"]
+                repo_path=args.repo_path,
+                results_dir=args.results_dir,
+                id=exp["id"],
+                darshan_prefix=args.darshan_prefix,
             )
             if args.telemetry
             else "",
@@ -2099,6 +2142,16 @@ if __name__ == "__main__":
         help="Sample per-node power, CPU, memory and NIC counters at 1 Hz, record "
         "Slurm step accounting with energy and an environment snapshot "
         "(sites/shaheen/README.md, Telemetry)",
+    )
+    parser.add_argument(
+        "--no-darshan",
+        action="store_true",
+        help="With --telemetry, leave out Darshan (I/O characterization)",
+    )
+    parser.add_argument(
+        "--darshan-prefix",
+        default=DARSHAN_PREFIX,
+        help="Darshan install with lib/libdarshan.so and bin/darshan-parser",
     )
     parser.add_argument(
         "--reader-decomposition",
