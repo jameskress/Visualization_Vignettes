@@ -264,22 +264,26 @@ phase makes it true; update the line when that changes)
 * **Zero-copy.** Arrays handed to Conduit or VTK reuse the simulation's own
   pointer (`assert(wrapped_ptr == raw_sim_ptr)`), and nothing field-sized
   is allocated in the timestep loop. Small per-write metadata allocations
-  inside the backends are accepted (James, 2026-11-08, on #25). *Today:* Ascent, Catalyst, Kombyne and PVTI copy every
-  step (PVTI through `u_ghost()`, converted to float; the others through
-  `u_noghost()`). ADIOS2 passes the simulation array to a deferred `Put()`
-  only with `adios_memory_selection`; its default and span modes copy, so
-  default ADIOS2 timings are not zero-copy timings. *Made true in phase 3* (#20 to #25).
+  inside the backends are accepted (James, 2026-11-08, on #25). *Today:*
+  true for Ascent and Catalyst (`set_external`), Kombyne (`KB_MEM_BORROW`)
+  and PVTI (`SetArray(..., save = 1)`), all on the full ghosted block
+  (phase 3, #20 to #25; `docs/in-situ-backends.md`, Zero-copy). ADIOS2
+  passes the simulation array to a deferred `Put()` only with
+  `adios_memory_selection`; its default and span modes copy, so default
+  ADIOS2 timings are not zero-copy timings.
 * **Ghost cell tagging.** Halo cells are flagged (Conduit Blueprint ghost
   field, `vtkGhostType` for ParaView) so pipelines drop duplicate boundaries
   and seams disappear; each cell is owned by exactly one rank. *Today:*
-  untagged, and the Catalyst adaptor shifts each rank's mesh until the pieces
-  touch instead. *Made true in phase 3* (#20, #21, #24).
+  true for Ascent, Catalyst, Kombyne and PVTI from one ownership rule in
+  `simulation/mesh_blueprint.h`, checked by the ghost volume and render
+  tests (phase 3, #20, #21, #23, #24). ADIOS2 stores each point once and
+  needs no ghosts. Known exception: Kombyne iso surfaces and slices keep
+  faint lines at block faces (`docs/in-situ-backends.md`, Rendering).
 * **Numerical equivalence.** 1 rank matches N ranks within 1e-12 relative
   (the fields themselves should match bitwise; only reductions differ by
-  order). *Today:* true with `noise = 0`; with noise on, each rank seeds its
-  own generator from `std::random_device`, so no two runs match. *Made true
-  with noise in phase 2* (#14, enforced by #15); extended to CPU vs GPU in
-  phase 4 (#33).
+  order). *Today:* true, noise included: the noise is a pure function of
+  (seed, step, global position) (phase 2, #14, enforced by #15). Extended to
+  CPU vs GPU in phase 4 (#33).
 * **Four hybrid modes.** Simulation on GPU or CPU, visualization on GPU or
   CPU, with data moved only when a backend on the other side asks.
   *Today:* no GPU code. *Phase 4* (#31, #34). ParaView-Catalyst stays CPU
