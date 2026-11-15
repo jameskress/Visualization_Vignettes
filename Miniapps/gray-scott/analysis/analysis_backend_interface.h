@@ -14,12 +14,17 @@
 // Minor page faults of this process so far (all threads). The readers
 // record the count per phase of a step as counters: a field-sized buffer
 // that is touched for the first time costs one fault per 4 KiB page, which
-// is time no timer names.
+// is time no timer names. Without ENABLE_TIMERS nothing records the counts,
+// so it costs nothing and returns 0.
 inline double ProcessMinorFaults()
 {
+#ifdef ENABLE_TIMERS
     struct rusage u;
     getrusage(RUSAGE_SELF, &u);
     return static_cast<double>(u.ru_minflt);
+#else
+    return 0.0;
+#endif
 }
 
 // Shared data structures
