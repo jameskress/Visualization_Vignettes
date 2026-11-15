@@ -11,8 +11,13 @@
 # VisIt regression suite on an Ibex node as a batch job (RUNBOOK.md section 5).
 #   cd /ibex/scratch/$USER/<clone>/Testing && sbatch ibex_visit_suite.sbat
 #   TESTS="5 6" sbatch ...   EXTRA="--run-id ibex-cpu-2026-10" sbatch ...   RANKS=8 (default)
+# GPU: VARIANT=gpu records --machine_name ibex-gpu and passes --hw-accel to the vignettes, so
+# ex08 demands a hardware offscreen context (the others ignore the flag). Request the GPU
+# on the command line and stay within its CPU limit (16 on an A100):
+#   sbatch --gres=gpu:1 --constraint=a100 --ntasks=4 --cpus-per-task=4 --mem=90G \
+#     --export=ALL,VARIANT=gpu,RANKS=4 ibex_visit_suite.sbat
 # shellcheck disable=SC1091  # sourced files are site paths that exist only at run time
-# shellcheck disable=SC2086  # $COMMON, $TESTS, $TOL and $EXTRA are split into arguments on purpose
+# shellcheck disable=SC2086  # $COMMON, $TESTS, $TOL, $HW and $EXTRA are split into arguments on purpose
 set -o pipefail
 # Ibex batch shells do not define `module`; a login shell (-l) plus this makes sure it exists.
 source /usr/share/Modules/init/bash                   # the batch shell has `module` as a binary that cannot change this shell's env
@@ -36,7 +41,12 @@ echo "python=$(which python) visit=$(which visit) version=$VISIT_VERSION node=$(
 python Testing/prepare_machine.py --tool VisIt --skip-data-checks || { echo "prepare_machine failed"; exit 1; }
 cd Testing || exit 1
 RANKS=${RANKS:-8}
-COMMON="../ --test_type VisIt --visit_version $VISIT_VERSION --machine_name ibex-cpu --machine ibex --launcher mpirun --nodes 1 --ranks $RANKS --image-tolerance 0.0075 ${EXTRA:---no-metrics} --timeout 1800"
+if [ "${VARIANT:-cpu}" = "gpu" ]; then
+    MACHINE=ibex-gpu; HW="--vignette-arg --hw-accel"
+else
+    MACHINE=ibex-cpu; HW=""
+fi
+COMMON="../ --test_type VisIt --visit_version $VISIT_VERSION --machine_name $MACHINE --machine ibex --launcher mpirun --nodes 1 --ranks $RANKS --image-tolerance 0.0075 $HW ${EXTRA:---no-metrics} --timeout 1800"
 if [ -n "${TESTS:-}" ]; then
     python test_suite.py $COMMON --test_number $TESTS
     echo "suite exit=$? end=$(date)"
