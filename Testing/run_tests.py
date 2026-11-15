@@ -348,6 +348,8 @@ class _PeakRssSampler(object):
         self._io_by_pid = {}
         # A reaped child's last reading, to subtract once (see above).
         self._io_reaped = [0, 0, 0, 0]
+        # Subtractions waiting for their ancestor's next reading.
+        self._io_pending = {}
         # Each process's parent, as a key, from the walk that first saw it.
         self._io_parent = {}
         self._io_seen = set()
@@ -443,7 +445,15 @@ class _PeakRssSampler(object):
         reaping it), so its I/O never reaches the tree and nothing is
         subtracted; the one case left ambiguous is a parent and an orphaned
         child that both exit inside one 0.25 s interval.
+
+        The subtraction waits for the ancestor's next reading: the ancestor
+        may have been read this sample before it reaped the child, and if it
+        then exits unread, its stored counters never included the child.
         """
+        for ancestor in list(self._io_pending):
+            if ancestor in self._io_seen_now:
+                for i, value in enumerate(self._io_pending.pop(ancestor)):
+                    self._io_reaped[i] += value
         vanished = self._io_seen - self._io_seen_now
         for key in vanished:
             if self._still_running(key):
@@ -457,8 +467,9 @@ class _PeakRssSampler(object):
             if ancestor not in self._io_seen_now:
                 ancestor = None
             if ancestor is not None and reading:
+                pending = self._io_pending.setdefault(ancestor, [0, 0, 0, 0])
                 for i in range(4):
-                    self._io_reaped[i] += reading[i]
+                    pending[i] += reading[i]
         self._io_seen = self._io_seen_now
 
     def _sample_once(self, process):

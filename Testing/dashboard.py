@@ -159,21 +159,23 @@ def chart_points(rows, metric):
     a number means is never drawn as a change in the number.
     """
     scope_field = SCOPE_FIELD.get(metric)
-    usable = [
-        (ts, rec)
-        for ts, rec in rows
-        if drift.comparable(metric, rec)
-        and isinstance(rec.get(metric), (int, float))
-        and not isinstance(rec.get(metric), bool)
-    ]
-    if not usable:
+    comparable = [(ts, rec) for ts, rec in rows if drift.comparable(metric, rec)]
+    if not comparable:
         return []
     if scope_field:
-        latest_scope = usable[-1][1].get(scope_field)
-        usable = [
-            (ts, rec) for ts, rec in usable if rec.get(scope_field) == latest_scope
+        # The latest run sets the scope even when it has no value (an srun
+        # run whose accounting was refused): older runs measured another
+        # way must not stand in for it.
+        latest_scope = comparable[-1][1].get(scope_field)
+        comparable = [
+            (ts, rec) for ts, rec in comparable if rec.get(scope_field) == latest_scope
         ]
-    return usable
+    return [
+        (ts, rec)
+        for ts, rec in comparable
+        if isinstance(rec.get(metric), (int, float))
+        and not isinstance(rec.get(metric), bool)
+    ]
 
 
 # ---------------------------------------------------------------------------

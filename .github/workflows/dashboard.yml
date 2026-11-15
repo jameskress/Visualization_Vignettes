@@ -67,19 +67,28 @@ jobs:
       contents: write   # pushes to gh-pages
     steps:
       # A re-run of an older master run would otherwise put an older
-      # dashboard over a newer one. Publish only the current master tip.
-      - name: Is this still the master tip?
+      # dashboard over a newer one. Publish only when no later master commit
+      # touched what the dashboard is built from; such a commit started its
+      # own run. A later commit that touched nothing of it (docs, say)
+      # starts no run, so it must not stop this one.
+      - uses: actions/checkout@v7
+        with:
+          ref: master
+          fetch-depth: 0
+          persist-credentials: false
+          path: tip
+      - name: Is this still the newest dashboard input?
         id: tip
         env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
         run: |
-          TIP=$(gh api "repos/$REPO/commits/master" --jq .sha)
-          if [ "$TIP" = "$SHA" ]; then
+          NEWEST=$(git -C tip log -1 --format=%H master -- \
+            ':(glob)**/performance_metrics_*.json' Testing/dashboard.py \
+            Testing/drift.py .github/workflows/dashboard.yml)
+          if git -C tip merge-base --is-ancestor "$NEWEST" "$SHA"; then
             echo "newest=true" >> "$GITHUB_OUTPUT"
           else
-            echo "master is at $TIP, this run built $SHA: not publishing"
+            echo "master has newer dashboard input ($NEWEST) than $SHA: not publishing"
             echo "newest=false" >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/download-artifact@v7
