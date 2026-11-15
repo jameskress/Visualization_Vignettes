@@ -31,7 +31,7 @@ The reader supports multiple backends for analysis. The desired backend is typic
 
 The default backend, providing a rich feature set for direct visualization and analysis.
 
-- **Data Modes**: `repartition`.
+- **Data Modes**: `repartition`. Every cell is published with `ascent_ghosts` = 0: the pieces share their boundary planes of points but no cells, as with Catalyst. Ascent's ghost field is per cell only, so the shared points cannot be flagged as Catalyst flags them; renders and cell-based filters are unaffected, but a point-based query (a point count, or a histogram of `u` or `v`) counts the shared planes twice.
 
 - **Configuration**: Controlled by Ascent action files (e.g., `ascent_actions.yaml`).
 

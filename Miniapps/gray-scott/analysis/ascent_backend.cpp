@@ -60,6 +60,23 @@ namespace
             domain["fields/v/values"].set_external(const_cast<T *>(buf_v->data()), buf_v->size());
         }
 
+        // Ghosts, mirroring the Catalyst backend: ReadRepartition adds the
+        // neighbour's first plane of points on each shared_high axis, so
+        // pieces share points but every cell belongs to exactly one piece.
+        // Ascent's ghost field (ascent_ghosts) is element associated only:
+        // the shared points cannot be flagged, and no cell is a ghost, so
+        // every cell is 0 (owned). This is the convention the simulation's
+        // Ascent backend publishes. A point-based query in Ascent still
+        // counts the shared planes twice (analysis/README.md).
+        const size_t cx = nx > 1 ? nx - 1 : 1;
+        const size_t cy = ny > 1 ? ny - 1 : 1;
+        const size_t cz = nz > 1 ? nz - 1 : 1;
+        domain["fields/ascent_ghosts/association"] = "element";
+        domain["fields/ascent_ghosts/topology"] = "mesh";
+        domain["fields/ascent_ghosts/values"].set(conduit::DataType::int32(static_cast<conduit::index_t>(cx * cy * cz)));
+        conduit::int32_array ghosts = domain["fields/ascent_ghosts/values"].value();
+        ghosts.fill(0);
+
         conduit::Node multi_mesh(conduit::DataType::list());
         multi_mesh.append().set(domain);
         return multi_mesh;
