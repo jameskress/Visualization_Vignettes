@@ -690,7 +690,10 @@ def parse_sacct_steps(text, job_id, started, ended, slack=2.0, claimed=None):
         if step_id in claimed:
             continue  # an earlier run's
         start_s = _slurm_time(start)
-        if start_s is None or start_s < started - slack or start_s > ended + slack:
+        # The slack lets in a step whose start sacct rounded down to just
+        # before this run's; nothing lets in one that started after the run
+        # ended, which can only be a later operation's.
+        if start_s is None or start_s < started - slack or start_s > math.floor(ended):
             continue
         end_s = _slurm_time(end)
         if end_s is None or state.startswith("RUNNING"):
