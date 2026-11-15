@@ -750,13 +750,17 @@ def svg_version_timeline(tool, rows, slot_of):
                 left - 8, y + 4, esc(config)
             )
         )
+        per_day = {}
         for ts, version in runs:
+            # A second version on the same day sits beside the first.
+            nudge = 6 * per_day.get(short_date(ts), 0)
+            per_day[short_date(ts)] = per_day.get(short_date(ts), 0) + 1
             tip = "{0} | {1} | v{2}".format(config, long_date(ts), version)
             out.append(
                 '<rect class="s{0}" x="{1:.1f}" y="{2:.1f}" width="5" height="{3:.1f}" '
                 'rx="1.5" data-tip="{4}"><title>{4}</title></rect>'.format(
                     slot_of(version),
-                    axis.x(ts) - 2.5,
+                    axis.x(ts) - 2.5 + nudge,
                     y - row_h * 0.35,
                     row_h * 0.7,
                     esc(tip),
@@ -1039,10 +1043,15 @@ def heat_medians(tool, histories, states, cols, vignettes):
             if not rows or states[(c, tool)]["stale"]:
                 continue
             rec = rows[-1][1]
-            if drift.tool_version(rec) == CURRENT_PINS[tool] and is_number(
-                rec.get("execution_time")
+            seconds = rec.get("execution_time")
+            # Positive times only: a zero would make the median zero, and
+            # every ratio against it undefined.
+            if (
+                drift.tool_version(rec) == CURRENT_PINS[tool]
+                and is_number(seconds)
+                and seconds > 0
             ):
-                times.append(float(rec["execution_time"]))
+                times.append(float(seconds))
         if times:
             medians[v] = statistics.median(times)
     return medians
@@ -1262,11 +1271,14 @@ def render_version_timeline(tool, histories, configs):
     for c in configs:
         if (c, tool) not in histories:
             continue
+        # One mark per version seen on a day: a day can hold two builds (a
+        # new one and the reference), and both should show.
         days = {}
         for vrows in histories[(c, tool)].values():
             for ts, rec in vrows:
-                days[short_date(ts)] = (ts, drift.tool_version(rec) or "unknown")
-        rows.append((c, sorted(days.values())))
+                key = (short_date(ts), drift.tool_version(rec) or "unknown")
+                days[key] = max(days.get(key, ts), ts)
+        rows.append((c, sorted((ts, version) for (_, version), ts in days.items())))
     if not rows:
         return ""
     return (
