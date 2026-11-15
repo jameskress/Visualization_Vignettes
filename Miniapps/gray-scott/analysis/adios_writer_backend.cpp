@@ -28,7 +28,8 @@ namespace
     // honour it.
     bool HonoursMemorySelection(adios2::IO &io)
     {
-        if (Lower(io.EngineType()) != "sst")
+        const std::string engine = Lower(io.EngineType());
+        if (engine != "sst" && engine != "effis") // effis is SST under another name
             return true;
         for (const auto &kv : io.Parameters())
             if (Lower(kv.first) == "marshalmethod")
