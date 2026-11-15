@@ -469,9 +469,25 @@ class _PeakRssSampler(object):
                 hops += 1
             if ancestor not in self._io_seen_now:
                 ancestor = None
-            if ancestor is not None and reading and self._reread_io(ancestor):
-                for i in range(4):
-                    self._io_reaped[i] += reading[i]
+            if ancestor is None or not reading:
+                continue
+            # Other children of the ancestor may have been reaped since the
+            # walk read them. List those first, then read the ancestor: its
+            # fresh counters hold every child reaped before the read, so
+            # each of these is settled now and leaves the tree, and none is
+            # counted twice if the run ends before the next sample.
+            gone = [
+                other
+                for other in self._io_seen_now
+                if self._io_parent.get(other) == ancestor
+                and not self._still_running(other)
+            ]
+            if not self._reread_io(ancestor):
+                continue
+            for settled in [key] + gone:
+                for i, value in enumerate(self._io_by_pid.get(settled) or ()):
+                    self._io_reaped[i] += value
+            self._io_seen_now.difference_update(gone)
         self._io_seen = self._io_seen_now
 
     def _reread_io(self, key):
