@@ -403,12 +403,12 @@ class _PeakRssSampler(object):
             reading = None  # reaped since the walk listed it: in its parent
         except psutil.AccessDenied:
             reading = None
-            # The kernel refuses /proc/<pid>/io (EACCES) for a process of
-            # our own user only while it exits: its memory is gone and it
-            # is, or is about to be, a zombie its parent has not reaped. Its
-            # I/O is then in neither, and this sample is simply low. A
-            # process of another user (a setuid helper) is one whose I/O
-            # this harness cannot see, and the total is withheld.
+            # An exiting process of our own user refuses /proc/<pid>/io
+            # (EACCES) once its memory is gone; it is, or is about to be, a
+            # zombie its parent has not reaped, its I/O is in neither, and
+            # this sample is simply low. Any other refusal (another user's
+            # process, or a live non-dumpable one) is I/O this harness
+            # cannot see, and the total is withheld. See _is_own_exiting.
             if not self._is_own_exiting(process):
                 self._io_unreadable = True
         except Exception:  # noqa: BLE001 - no io_counters (macOS) or other
@@ -422,14 +422,36 @@ class _PeakRssSampler(object):
             pass
 
     @staticmethod
-    def _is_own_exiting(process):
-        """True for a process of this user that refused /proc/<pid>/io."""
+    def _is_own_exiting(process, patience_s=0.05):
+        """True when a process that refused /proc/<pid>/io is exiting.
+
+        A process of this user refuses it while it exits (its memory is
+        gone), and becomes a zombie or disappears within moments. A live
+        process of this user also refuses it when it has made itself
+        non-dumpable (PR_SET_DUMPABLE 0), and stays alive. So the refusal
+        counts as an exit only for this user's process, and only once it is
+        seen to be a zombie or gone within `patience_s`. Only reached on a
+        refusal, which is rare, so the wait costs nothing in the usual run.
+        """
         try:
-            return process.uids().real == os.getuid()
+            if process.uids().real != os.getuid():
+                return False
         except psutil.NoSuchProcess:
-            return True  # reaped while we looked: it was exiting
+            return True
         except Exception:  # noqa: BLE001
             return False
+        deadline = time.time() + patience_s
+        while True:
+            try:
+                if process.status() in (psutil.STATUS_ZOMBIE, psutil.STATUS_DEAD):
+                    return True
+            except psutil.NoSuchProcess:
+                return True
+            except Exception:  # noqa: BLE001
+                return False
+            if time.time() >= deadline:
+                return False
+            time.sleep(0.005)
 
     def _sample_once(self, process):
         self._threads_now = 0
