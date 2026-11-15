@@ -94,7 +94,6 @@ void AdiosWriterBackend::Run()
         // buffer holds local_dims, of which the owned box starts at zero, so
         // a memory selection picks it out on any axis (slab or brick).
         const auto &write_dims = read_info.owned_dims;
-        const bool trimmed = read_info.owned_dims != read_info.local_dims;
         size_t owned_count = write_dims.empty() ? 0 : 1;
         for (size_t n : write_dims)
             owned_count *= n;
@@ -112,10 +111,9 @@ void AdiosWriterBackend::Run()
                 var.SetSelection({read_info.local_start, write_dims});
             if (owned_count == 0)
                 continue; // more readers than planes: this one owns nothing
-            if (trimmed)
-                var.SetMemorySelection({adios2::Dims(read_info.local_dims.size(), 0), read_info.local_dims});
-            else
-                var.SetMemorySelection();
+            // The whole buffer box when nothing is trimmed: same as no memory
+            // selection, and ADIOS2 2.9 has no argument-free overload.
+            var.SetMemorySelection({adios2::Dims(read_info.local_dims.size(), 0), read_info.local_dims});
             m_writer.Put(var, (field == &opts.u_var ? u_buf : v_buf).data());
         }
         m_writer.EndStep(); // the Puts are deferred: the buffers live until here
