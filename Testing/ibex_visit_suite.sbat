@@ -42,7 +42,7 @@ python Testing/prepare_machine.py --tool VisIt --skip-data-checks || { echo "pre
 cd Testing || exit 1
 RANKS=${RANKS:-8}
 if [ "${VARIANT:-cpu}" = "gpu" ]; then
-    MACHINE=ibex-gpu; HW="--vignette-arg --hw-accel"
+    MACHINE=ibex-gpu; HW="--vignette-arg=--hw-accel"  # "=": argparse would read a bare --hw-accel as an option
 else
     MACHINE=ibex-cpu; HW=""
 fi
