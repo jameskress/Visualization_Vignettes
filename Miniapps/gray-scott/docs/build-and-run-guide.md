@@ -959,6 +959,8 @@ This runs a 64^3 grid for 100 steps with output every 10 and takes about 10 seco
 
 ### Step 4: Check it
 
+From the miniapp directory (`cd ..` from `run-kombyne`):
+
 ```bash
 ctest --test-dir build/kombyne -R kombyne --output-on-failure
 ```
