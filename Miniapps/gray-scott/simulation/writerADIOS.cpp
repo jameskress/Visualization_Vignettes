@@ -22,7 +22,7 @@ void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, 
     // SST BP5 marshalling also ignored them. effis is SST under another name.
     std::string engine = m_io.EngineType();
     std::transform(engine.begin(), engine.end(), engine.begin(), ::tolower);
-    if (engine == "sst" && settings.adios_span)
+    if ((engine == "sst" || engine == "effis") && settings.adios_span)
     {
         if (rank == 0)
             vtkLog(WARNING, "ADIOS2: adios_span is not supported with SST; using the default write mode");
@@ -63,7 +63,7 @@ void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, 
     // overwrite_last_step closes and reopens the engine at every write. For
     // SST that drops the reader's connection and the reader then waits forever
     // (found in the Paper 2 runs, sites/shaheen/README.md).
-    if (engine == "sst" && settings.overwrite_last_step)
+    if ((engine == "sst" || engine == "effis") && settings.overwrite_last_step)
     {
         if (rank == 0)
             vtkLog(WARNING, "ADIOS2: overwrite_last_step is not supported with SST (it would drop the "

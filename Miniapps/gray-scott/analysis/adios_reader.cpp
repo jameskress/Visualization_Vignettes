@@ -64,7 +64,7 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
     {
         m_io->SetParameter("OpenTimeoutSecs", *xml_timeout);
     }
-    else if (engine != "SST")
+    else if (engine != "SST" && engine != "EFFIS") // EFFIS is SST under another name
     {
         m_io->SetParameter("OpenTimeoutSecs", "5.0");
     }

@@ -1113,8 +1113,6 @@ def check_decomposition_unchanged(output_dir):
 
 def generate_settings_json(exp, output_dir, copied_files, args):
     is_init = exp["workload"] == "initialization"
-    if exp["type"] == "intransit" and not is_init:
-        check_decomposition_unchanged(output_dir)
     init_noise_level = 0.01
     run_noise_level = 0.00001
     steps = exp["total_steps"]
@@ -1843,6 +1841,13 @@ def generate_scripts(args):
                         "time_limit": SCALE_TIME_LIMIT,
                     }
                 )
+
+    # Preflight, before any file is written: a run whose existing settings
+    # use the other decomposition stops the whole generation, so nothing
+    # beside that run's results (adios2.xml included) is rewritten.
+    for exp in EXPERIMENTS:
+        if exp["type"] == "intransit" and exp["workload"] != "initialization":
+            check_decomposition_unchanged(f"{args.results_dir}/{exp['id']}")
 
     for exp in EXPERIMENTS:
         sim_ranks = exp["sim_nodes"] * SYSTEM_CONFIG["mpi_per_node"]
