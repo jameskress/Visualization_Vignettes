@@ -1392,8 +1392,21 @@ schema-6 histories have CPU, memory, I/O and energy at five runs or more.
 adds a child's I/O into its parent's `/proc/<pid>/io` when the parent reaps
 it, so summing each pid's last reading counted it twice. A test process that
 wrote 100 MB with `fsync` and ran a child that wrote 50 MB summed to 200 MB.
-The sampler now subtracts a vanished child's last reading once when its parent
-is still in the tree, and the same test reads 150 MB (twice, identically).
+Subtracting a vanished child's reading from its parent turned out to need ever
+more bookkeeping (a parent and child gone in one interval, orphans, a child
+reaped during the correction), each case found in review. The sampler now
+does something simpler that cannot count twice: each sample sums the readings
+of one walk, root first and every parent before its children. The root holds
+every descendant it has reaped, a live descendant holds its own so far, and a
+descendant reaped between its parent's read and its own is missed by that
+sample rather than counted twice. Each sample's sum is a lower bound, and the
+run records the largest. A process of the user's own that refuses
+`/proc/<pid>/io` is exiting (EACCES once its memory is gone) and is skipped;
+one of another user withholds the total. Five process shapes (a child, a
+grandchild, two children reaped together, a parent exiting after its child, a
+sibling exiting with a parent and grandchild) each read the exact total in six
+runs out of six (150, 50, 100, 150 and 70 MB). An orphan's I/O after it leaves
+the tree is not counted.
 CPU time does not have this problem: psutil reports a process's own CPU
 separately from its children's.
 

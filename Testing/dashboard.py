@@ -533,14 +533,15 @@ def config_summary(vignettes):
     latest = latest_run(vignettes)
     counts = {"pass": 0, "fail": 0, "ran": 0, "unknown": 0}
     drifting = 0
-    last = ""
-    versions = set()
+    last, last_version = "", None
     for _, timestamp, record, drifts in latest:
         counts[status_of(record)[0]] += 1
         drifting += 1 if drifts else 0
-        last = max(last, timestamp)
-        versions.add(drift.tool_version(record))
-    return counts, drifting, last, sorted((v for v in versions if v), key=version_key)
+        if timestamp >= last:
+            # The newest run's version, not the highest: an older build is
+            # often run last on purpose, as the cluster reference.
+            last, last_version = timestamp, drift.tool_version(record)
+    return counts, drifting, last, last_version
 
 
 def render_index(histories, generated):
@@ -562,7 +563,7 @@ def render_index(histories, generated):
             continue
         body.append("<h2>{0}</h2><div class='card scroll'><table>".format(esc(site)))
         body.append(
-            "<tr><th>Configuration</th><th>Tool</th><th>Latest version</th>"
+            "<tr><th>Configuration</th><th>Tool</th><th>Version of last run</th>"
             "<th>Last run</th><th>Latest run per vignette</th>"
             "<th class='num'>Drifting</th></tr>"
         )
@@ -571,7 +572,7 @@ def render_index(histories, generated):
                 vignettes = configs[config].get(tool)
                 if not vignettes:
                     continue
-                counts, drifting, last, versions = config_summary(vignettes)
+                counts, drifting, last, version = config_summary(vignettes)
                 chips = " ".join(
                     status_chip(s) + " " + str(counts[s])
                     for s in ("pass", "fail", "ran", "unknown")
@@ -584,7 +585,7 @@ def render_index(histories, generated):
                         esc(page_name(config)),
                         esc(tool),
                         esc(config),
-                        esc(versions[-1] if versions else ""),
+                        esc(version or ""),
                         esc(short_date(last)),
                         chips,
                         "<span class='drift-flag'>{0}</span>".format(drifting)

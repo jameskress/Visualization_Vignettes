@@ -327,10 +327,15 @@ class _PeakRssSampler(object):
     Unlike CPU time, the kernel adds a reaped child's I/O into its parent's
     counters (wait_task_zombie), so summing the last reading of every pid
     counts a child twice: a test that wrote 100 MB and ran a child writing
-    50 MB summed to 200 MB. When a child vanishes while its parent is still
-    in the tree, the child's last reading is subtracted once from the total.
-    The parent's counter then carries the child's whole I/O, including any
-    after the child's last sample, which the plain sum would have missed.
+    50 MB summed to 200 MB. Each sample therefore sums the readings it took
+    in one walk, root first and every parent before its children: the root
+    already holds every descendant it has reaped, and a live descendant
+    holds what it has done so far. A descendant reaped after its parent was
+    read and before its own read is missed by that sample, and none can be
+    counted twice, so each sample's sum is a lower bound of the true total.
+    The run's figure is the largest sum any sample saw. It misses what the
+    tree did after the last sample, as CPU time does, and an orphan's I/O
+    after it left the tree.
 
     Context switches are not recorded: /proc/<pid>/status counts only the
     main thread's, so they undercount every multithreaded renderer. The
@@ -345,17 +350,12 @@ class _PeakRssSampler(object):
         self.peak_pss_bytes = 0
         self._pss_ok = True
         self._cpu_by_pid = {}
-        self._io_by_pid = {}
-        # A reaped child's last reading, to subtract once (see above).
-        self._io_reaped = [0, 0, 0, 0]
-        # Each process's parent, as a key, from the walk that first saw it.
-        self._io_parent = {}
-        self._io_seen = set()
-        # Set when a reaped child could not be settled: the total is then
-        # unknown, and reported as such rather than possibly counted twice.
-        self._io_ambiguous = False
-        self._io_seen_now = set()
-        self._key_by_pid = {}
+        # The largest one-walk I/O sum seen, and this walk's running sum.
+        self._io_best = None
+        self._io_now = None
+        # Set when a live process's I/O could not be read (permissions,
+        # platform): the total would then be missing a part, so it is None.
+        self._io_unreadable = False
         self.peak_processes = 0
         self.peak_threads = 0
         self._threads_now = 0
@@ -390,25 +390,7 @@ class _PeakRssSampler(object):
         return rss, pss
 
     def _account_io(self, process):
-        """Record one process's cumulative I/O and thread count.
-
-        Best effort: a field this platform or this process does not expose
-        is simply absent, and the totals then report None rather than a
-        partial sum (see io_totals).
-        """
-        try:
-            key = (process.pid, process.create_time())
-        except Exception:  # noqa: BLE001 - exited since the memory read
-            return
-        self._io_seen_now.add(key)
-        self._key_by_pid[process.pid] = key
-        if key not in self._io_parent:
-            # The walk visits a parent before its children, so the parent's
-            # key is already known for this sample when it is in the tree.
-            try:
-                self._io_parent[key] = self._key_by_pid.get(process.ppid())
-            except Exception:  # noqa: BLE001
-                self._io_parent[key] = None
+        """Add one process's cumulative I/O to this walk's sum; count threads."""
         try:
             io = process.io_counters()
             reading = (
@@ -417,126 +399,40 @@ class _PeakRssSampler(object):
                 int(getattr(io, "read_chars", 0)),
                 int(getattr(io, "write_chars", 0)),
             )
-            if key not in self._io_by_pid or sum(reading) >= sum(self._io_by_pid[key]):
-                self._io_by_pid[key] = reading
+        except psutil.NoSuchProcess:
+            reading = None  # reaped since the walk listed it: in its parent
         except Exception:  # noqa: BLE001 - no /proc/<pid>/io (macOS, perms)
-            self._io_by_pid.setdefault(key, None)
+            reading = None
+            # The kernel refuses /proc/<pid>/io (EACCES) for a process of
+            # our own user only while it exits: its memory is gone and it
+            # is, or is about to be, a zombie its parent has not reaped. Its
+            # I/O is then in neither, and this sample is simply low. A
+            # process of another user (a setuid helper) is one whose I/O
+            # this harness cannot see, and the total is withheld.
+            if not self._is_own_exiting(process):
+                self._io_unreadable = True
+        if reading is not None and self._io_now is not None:
+            self._io_now = [a + b for a, b in zip(self._io_now, reading)]
         try:
             self._threads_now += int(process.num_threads())
         except Exception:  # noqa: BLE001
             pass
 
     @staticmethod
-    def _still_running(key):
-        """True when the process `key` names exists, outside the tree now."""
-        pid, created = key
+    def _is_own_exiting(process):
+        """True for a process of this user that refused /proc/<pid>/io."""
         try:
-            return psutil.Process(pid).create_time() == created
-        except Exception:  # noqa: BLE001 - gone, or not ours to read
+            return process.uids().real == os.getuid()
+        except psutil.NoSuchProcess:
+            return True  # reaped while we looked: it was exiting
+        except Exception:  # noqa: BLE001
             return False
-
-    def _settle_reaped(self):
-        """Subtract, once, each vanished child whose I/O a live ancestor now holds.
-
-        A child and its parent can both exit between two samples, the
-        parent reaping the child first and then being reaped itself, so the
-        child's I/O lands in the nearest ancestor still alive. Walk up
-        through ancestors that vanished in the same interval. A child that
-        left the tree still running was orphaned (its parent exited without
-        reaping it), so its I/O never reaches the tree and nothing is
-        subtracted; the one case left ambiguous is a parent and an orphaned
-        child that both exit inside one 0.25 s interval.
-
-        The ancestor may have been read this sample before it reaped the
-        child (the root is read before the walk lists its children), so its
-        counters are read again here, after the child is known to be gone
-        and therefore reaped, and the subtraction is made against that
-        reading. If the ancestor has exited too, whether its last reading
-        held the child cannot be known, and the total is reported as
-        unavailable (io_totals None) rather than possibly counted twice.
-        """
-        vanished = self._io_seen - self._io_seen_now
-        for key in vanished:
-            if self._still_running(key):
-                continue  # left the tree alive (orphaned): nobody reaped it
-            reading = self._io_by_pid.get(key)
-            ancestor = self._io_parent.get(key)
-            hops = 0
-            while ancestor in vanished and hops < 64:
-                if self._still_running(ancestor):
-                    # An orphan still running reaped it: the I/O stays in a
-                    # process outside the tree, not in anything above.
-                    ancestor = None
-                    break
-                ancestor = self._io_parent.get(ancestor)
-                hops += 1
-            if ancestor not in self._io_seen_now:
-                ancestor = None
-            if ancestor is None or not reading:
-                continue
-            # Other children of the ancestor may have been reaped since the
-            # walk read them. List those first, then read the ancestor: its
-            # fresh counters hold every child reaped before the read, so
-            # each of these is settled now and leaves the tree, and none is
-            # counted twice if the run ends before the next sample.
-            gone = self._gone_descendants(ancestor)
-            if not self._reread_io(ancestor):
-                # The ancestor exited too. Its last reading may or may not
-                # hold the child, so no total can be trusted.
-                self._io_ambiguous = True
-                continue
-            for settled in [key] + gone:
-                for i, value in enumerate(self._io_by_pid.get(settled) or ()):
-                    self._io_reaped[i] += value
-            self._io_seen_now.difference_update(gone)
-        self._io_seen = self._io_seen_now
-
-    def _gone_descendants(self, ancestor):
-        """Every sampled process under `ancestor` that has since been reaped.
-
-        Followed through descendants that are gone too: a grandchild reaped
-        by a child that the ancestor then reaped is in the ancestor's
-        counters as well, and once its parent leaves the tree nothing else
-        could settle it.
-        """
-        dead = [
-            key
-            for key in self._io_seen_now
-            if key != ancestor and not self._still_running(key)
-        ]
-        gone, frontier = [], {ancestor}
-        while frontier:
-            layer = [key for key in dead if self._io_parent.get(key) in frontier]
-            dead = [key for key in dead if key not in layer]
-            gone.extend(layer)
-            frontier = set(layer)
-        return gone
-
-    def _reread_io(self, key):
-        """Read process `key`'s I/O again now; False if it has gone."""
-        pid, created = key
-        try:
-            process = psutil.Process(pid)
-            if process.create_time() != created:
-                return False
-            io = process.io_counters()
-        except Exception:  # noqa: BLE001 - exited, or unreadable
-            return False
-        reading = (
-            int(io.read_bytes),
-            int(io.write_bytes),
-            int(getattr(io, "read_chars", 0)),
-            int(getattr(io, "write_chars", 0)),
-        )
-        previous = self._io_by_pid.get(key)
-        if previous is None or sum(reading) >= sum(previous):
-            self._io_by_pid[key] = reading
-        return True
 
     def _sample_once(self, process):
         self._threads_now = 0
-        self._io_seen_now = set()
-        self._key_by_pid = {}
+        self._io_now = [0, 0, 0, 0]
+        # The root first, then children(recursive=True), which lists every
+        # parent before its children: the order the lower bound relies on.
         rss, pss = self._account(process)
         processes = 1
         for child in process.children(recursive=True):
@@ -550,26 +446,22 @@ class _PeakRssSampler(object):
                 pss += child_pss
         self.peak_processes = max(self.peak_processes, processes)
         self.peak_threads = max(self.peak_threads, self._threads_now)
-        self._settle_reaped()
+        if self._io_best is None:
+            self._io_best = self._io_now
+        else:
+            self._io_best = [max(a, b) for a, b in zip(self._io_best, self._io_now)]
         return rss, pss
 
     @property
     def io_totals(self):
         """(read_bytes, write_bytes, rchar, wchar) over the tree, or None.
 
-        None when nothing was read, or when any sampled process's I/O was
+        None when nothing was sampled, or when a live process's I/O was
         unreadable: a total missing a process would look complete and small.
         """
-        if (
-            self._io_ambiguous
-            or not self._io_by_pid
-            or any(v is None for v in self._io_by_pid.values())
-        ):
+        if self._io_best is None or self._io_unreadable:
             return None
-        return tuple(
-            max(0, sum(v[i] for v in self._io_by_pid.values()) - self._io_reaped[i])
-            for i in range(4)
-        )
+        return tuple(self._io_best)
 
     @property
     def cpu_seconds(self):
