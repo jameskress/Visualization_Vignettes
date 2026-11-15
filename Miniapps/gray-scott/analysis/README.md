@@ -186,7 +186,7 @@ To enable timers, set the `ENABLE_TIMERS` CMake option to `ON`:
 cmake -DENABLE_TIMERS=ON ..
 ```
 
-When the reader is built with timers enabled, it writes `reader_timers/steps/rank_NNNNN.jsonl`: one JSON object per step per rank, with the reader's timers (`total_step`, `Blueprint_Time`, `Vis_Time` or `ADIOS_Write_Time`, and the ADIOS2 read timers), memory high-water mark and CPU time. This is the same logger and record format as the simulation; see the [Performance section of the miniapp README](../README.md#performance).
+When the reader is built with timers enabled, it writes `reader_timers/steps/rank_NNNNN.jsonl`: one JSON object per step per rank, with the reader's timers (`total_step`, `Blueprint_Time`, `Vis_Time` or `ADIOS_Write_Time`, the ADIOS2 read timers, and for Catalyst `Mesh_Build`, the Blueprint tree and ghost flags inside `Blueprint_Time`), memory high-water mark and CPU time. This is the same logger and record format as the simulation; see the [Performance section of the miniapp README](../README.md#performance).
 
 The reader does not yet write `metadata.json` or `summary.json`, so `scripts/perf_report.py` does not read its directories. To look at a reader run, load the JSON lines directly, for example with pandas:
 
