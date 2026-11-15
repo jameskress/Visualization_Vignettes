@@ -48,5 +48,40 @@
             "visit_version": "3.5.0"
         },
         "run_id": "ibex-cpu-2026-11-13"
+    },
+    "2026-11-14T21:46:17.803317": {
+        "test_name": "ex10_visitColormapFidelity",
+        "metrics_schema": 5,
+        "execution_time": 4.931199203491211,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 25.717,
+        "cpu_usage_percent": 521.5161452368984,
+        "cpu_user_seconds": 13.575999999999999,
+        "cpu_system_seconds": 12.141,
+        "memory_max_task_mb": 134.47265625,
+        "disk_read_mb": 95.7420883178711,
+        "disk_write_mb": 0.021511077880859375,
+        "slurm_steps": [
+            "55592478.10"
+        ],
+        "memory_usage_mb": 999.404296875,
+        "memory_usage": 1047951360.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.87237,
+        "harness_rss_mb": 189.69921875,
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn511-24",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0"
+        },
+        "run_id": "ibex-cpu-2026-11-14"
     }
 }

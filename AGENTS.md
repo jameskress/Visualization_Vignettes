@@ -98,9 +98,11 @@ Rules that are not negotiable:
   looking at them; a per-machine bless touches nothing else, and numeric, CSV
   and text baselines stay shared.
 * **`metrics_schema` gets bumped whenever a recorded field changes meaning.**
-  It is 4. The performance gate and the plots both refuse to compare across
-  that boundary, which is the only thing stopping a definition change from
-  reading as a regression.
+  It is 6. The performance gate, the drift check, the plots and the
+  dashboard all refuse to compare below `MIN_COMPARABLE_SCHEMA` (5), which is
+  the only thing stopping a definition change from reading as a regression.
+  A schema that only adds fields (6 did) bumps `METRICS_SCHEMA` and leaves
+  `MIN_COMPARABLE_SCHEMA` alone.
 
 ---
 
@@ -115,6 +117,12 @@ measurements in `Testing/LOCAL_VALIDATION.md` §4 and §4b.
   traceback and crashed engine alike. On Ibex it exits 0 instead, equally
   meaningless. The verdict comes from the vignette's
   own results JSON, and only when that file was written after the run started.
+* **CPU and memory come from the process tree, or from Slurm.** The
+  sampled tree is right for CPU (within 1% of the kernel's cgroup count) and
+  memory is summed PSS. Ranks under `srun`, including VisIt's engine off a
+  workstation, are outside the tree, so their numbers come from `sacct` for
+  the run's job steps. `RUSAGE_CHILDREN` misses VisIt's engine and is never
+  used for VisIt. `Testing/LOCAL_VALIDATION.md` §4b.15.
 * **`-noconfig` hides 129 of VisIt's own colour tables**, not just the user's.
   `viridis`, `plasma`, `magma`, `Blues` all ship as `.ct` files that
   `-noconfig` stops loading. VisIt does not refuse an unknown table name: it
@@ -307,6 +315,8 @@ phase makes it true; update the line when that changes)
 | `Testing/prepare_machine.py` | generated fixtures, `--check` as a preflight |
 | `Testing/manage_metrics.py` | inspect and prune the committed history |
 | `Testing/plot_metrics.py` | trend and comparison plots from that history |
+| `Testing/dashboard.py` | the published results dashboard (GitHub Pages) |
+| `Testing/drift.py` | drift warnings: a run far outside its own history |
 | `data/make_topology_datasets.py` | ex09's four mesh topologies |
 | `data/make_time_series.py` | the XML time series with real times |
 | `Miniapps/gray-scott/` | the Gray-Scott miniapp; see its section above and its README |

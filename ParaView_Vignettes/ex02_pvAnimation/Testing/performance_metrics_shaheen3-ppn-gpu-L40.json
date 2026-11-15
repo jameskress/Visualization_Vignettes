@@ -99,5 +99,40 @@
             "visit_version": null
         },
         "run_id": "shaheen3-ppn-gpu-L40-2026-11-13"
+    },
+    "2026-11-14T21:38:01.712838": {
+        "test_name": "ex02_pvAnimation",
+        "metrics_schema": 5,
+        "execution_time": 46.91660476112366,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 48.881,
+        "cpu_usage_percent": 104.18699360040668,
+        "cpu_user_seconds": 47.071,
+        "cpu_system_seconds": 1.81,
+        "memory_max_task_mb": 461.3359375,
+        "disk_read_mb": 6.545555114746094,
+        "disk_write_mb": 101.72028636932373,
+        "slurm_steps": [
+            "15988517.2"
+        ],
+        "memory_usage_mb": 473.337890625,
+        "memory_usage": 496330752.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 46.839811,
+        "harness_rss_mb": 148.9140625,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn13",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "shaheen3-ppn-gpu-L40-2026-11-14"
     }
 }

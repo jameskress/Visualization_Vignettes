@@ -157,5 +157,35 @@
             "visit_version": "3.5.0"
         },
         "run_id": "KW61316-2026-11-13"
+    },
+    "2026-11-14T21:44:53.428561": {
+        "test_name": "ex03_visitIsosurfaceAnimation",
+        "metrics_schema": 5,
+        "execution_time": 16.746365070343018,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 49.85,
+        "cpu_usage_percent": 297.6765393003517,
+        "memory_rss_mb": 4011.141,
+        "cpu_user_seconds": 35.18,
+        "cpu_system_seconds": 14.67,
+        "memory_usage_mb": 3859.92,
+        "memory_usage": 4047419473.92,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 16.61536,
+        "harness_rss_mb": 127.7265625,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0"
+        },
+        "run_id": "KW61316-2026-11-14"
     }
 }

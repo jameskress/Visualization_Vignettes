@@ -259,7 +259,7 @@ not. Passing the flag would downgrade a real ex08 failure to a warning.
 
 ```bash
 srun --gres=gpu:1 --cpus-per-task=12 --ntasks=1 --time=00:40:00 \
-     --mem=100G --pty /bin/bash
+     --mem=90G --pty /bin/bash
 
 source ParaView_Vignettes/MODULES.sh egl          # note the argument
 source $SCRATCH/testing_paraview_env/bin/activate
@@ -299,9 +299,11 @@ A100, 6 on V100). Account `pi-ghanis`.
 They expect `$VV_IBEX_SW` (default `/ibex/scratch/$USER/hpcsaudi`) to hold
 `venvs/vv` and `sw/pv-site`. Fetch ex06's data once per clone (`cd data && bash
 fetchData.sh`, 4.5 GB from the download server, 5.7 GB unpacked) or ex06 is
-skipped and the record is twelve vignettes, not thirteen. A GPU job that runs
-ex06 needs `--mem=100G`: ex06 peaks at 33.5 GB and was OOM-killed at the 32 GB
-that suits the other twelve (25 Oct 2026). And **never run two suites at once
+skipped and the record is twelve vignettes, not thirteen. A job that runs
+ex06 needs `--mem=90G`: ex06 peaked at 54 to 57 GiB in the 13 Nov 2026
+records, and was OOM-killed at the 32 GB that suits the other twelve. Ask for
+no more than 90G on a GPU: it is Ibex's per-GPU ceiling on a V100, and 100G
+draws a warning there. `ibex_pv_suite.sbat` asks for 90G already. And **never run two suites at once
 in one clone**: they share `data/` and every `Testing/` output directory, so
 three concurrent GPU records all lost ex03 ("Contour array is null", missing
 frames) while one job regenerated the time series another was reading. Chain

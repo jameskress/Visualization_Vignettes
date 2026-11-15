@@ -99,5 +99,40 @@
             "visit_version": "3.5.0"
         },
         "run_id": "shaheen3-cpu-2026-11-13"
+    },
+    "2026-11-14T21:59:58.650815": {
+        "test_name": "ex04_visitStreamlineAnimation",
+        "metrics_schema": 5,
+        "execution_time": 43.31109601020813,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 369.21200000000005,
+        "cpu_usage_percent": 852.4651509926678,
+        "cpu_user_seconds": 355.084,
+        "cpu_system_seconds": 14.127,
+        "memory_max_task_mb": 543.7421875,
+        "disk_read_mb": 39.90322399139404,
+        "disk_write_mb": 8.392333984375e-05,
+        "slurm_steps": [
+            "15988521.4"
+        ],
+        "memory_usage_mb": 3916.298828125,
+        "memory_usage": 4106536960.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 43.235852,
+        "harness_rss_mb": 123.76953125,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00026",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0"
+        },
+        "run_id": "shaheen3-cpu-2026-11-14"
     }
 }
