@@ -1175,7 +1175,12 @@ env | grep -E '^(SLURM_|OMP_|OSPRAY_|GALLIUM_|VTK_|TBB_|MALLOC_|FI_|CM_|MPICH_|S
 for b in "$EXE_SIM" "$EXE_STAGE"; do echo "== $b"; ldd "$b" 2>&1; done > $TEL/ldd.txt
 (cat "{repo_path}/SOURCE.txt" 2>/dev/null; git -C "{repo_path}" describe --always --dirty 2>/dev/null) > $TEL/source.txt
 scontrol show job $SLURM_JOB_ID > $TEL/job.txt 2>&1
-srun --overlap --nodes=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
+# No Slingshot VNI and no MPI wire-up for the sampler: it uses neither, and
+# with the defaults the step took network resources that MPI_Init in the
+# run's step then could not get (fi_getinfo "No data available") on some
+# nodes: both 1920 + 128 sweep runs and one 64 + 4 run failed that way.
+srun --overlap --network=no_vni --mpi=none \\
+    --nodes=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
     --output=$TEL/sampler.log --error=$TEL/sampler.log \\
     {repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/node_sampler.sh $TEL/nodes 1 &
 TEL_PID=$!
