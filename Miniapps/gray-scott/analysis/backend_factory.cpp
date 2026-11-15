@@ -1,6 +1,7 @@
 #include "analysis_backend_interface.h"
 #include "ascent_backend.h"
 #include "adios_writer_backend.h"
+#include "readonly_backend.h"
 #ifdef USE_CATALYST
 #include "catalyst_backend.h"
 #endif
@@ -18,6 +19,10 @@ std::unique_ptr<AnalysisBackend> CreateBackend(const std::string &name, const Ba
     else if (name == "adios_writer")
     {
         return std::make_unique<AdiosWriterBackend>(opts);
+    }
+    else if (name == "readonly")
+    {
+        return std::make_unique<ReadOnlyBackend>(opts);
     }
 #ifdef USE_CATALYST
     else if (name == "catalyst" || name == "catalyst_insitu" || name == "catalyst_io")
