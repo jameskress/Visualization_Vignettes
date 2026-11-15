@@ -277,8 +277,15 @@ phase makes it true; update the line when that changes)
   true for Ascent, Catalyst, Kombyne and PVTI from one ownership rule in
   `simulation/mesh_blueprint.h`, checked by the ghost volume and render
   tests (phase 3, #20, #21, #23, #24). ADIOS2 stores each point once and
-  needs no ghosts. Known exception: Kombyne iso surfaces and slices keep
-  faint lines at block faces (`docs/in-situ-backends.md`, Rendering).
+  needs no ghosts. Kombyne exports (`__ghostCells`, 1 = real) and Ascent
+  extracts (`ascent_ghosts`, 0 = owned) keep the halo cells; readers must
+  apply the mask before counting or integrating, and ParaView does not
+  apply `__ghostCells` on its own. Known exceptions: a slice exactly on a
+  grid plane two ranks share is cut by both, and the cutter output has no
+  ghost flags, so its area doubles (Catalyst at x = 3.2 on 2 ranks); place
+  slices between grid planes or deduplicate. Kombyne iso surfaces and
+  slices keep faint lines at block faces (`docs/in-situ-backends.md`,
+  Catalyst and Rendering).
 * **Numerical equivalence.** 1 rank matches N ranks within 1e-12 relative
   (the fields themselves should match bitwise; only reductions differ by
   order). *Today:* true, noise included: the noise is a pure function of

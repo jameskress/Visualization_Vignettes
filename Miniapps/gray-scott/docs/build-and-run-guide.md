@@ -962,10 +962,10 @@ This runs a 64^3 grid for 100 steps with output every 10 and takes about 10 seco
 From the miniapp directory (`cd ..` from `run-kombyne`):
 
 ```bash
-ctest --test-dir build/kombyne -R kombyne --output-on-failure
+ctest --test-dir build/kombyne -R kombyne --no-tests=error --output-on-failure
 ```
 
-`gs_render_kombyne` renders an isosurface on 1 and 4 ranks and compares the images; `gs_ghost_volume_kombyne` (needs `GS_PVPYTHON`) reads the `kombyne-save-data.yaml` export on 1, 2, 4 and 8 ranks and counts cells. Kombyne's export writes its ghost mask as `__ghostCells` (1 = real), not `vtkGhostType`, so apply it before measuring anything in ParaView (`docs/in-situ-backends.md`, Kombyne-lite).
+Both tests should run; `--no-tests=error` makes the command fail if CMake registered neither. `gs_render_kombyne` (needs Python 3 with NumPy and Pillow) renders an isosurface on 1 and 4 ranks and compares the images; `gs_ghost_volume_kombyne` (needs `GS_PVPYTHON`) reads the `kombyne-save-data.yaml` export on 1, 2, 4 and 8 ranks and counts cells. Kombyne's export writes its ghost mask as `__ghostCells` (1 = real), not `vtkGhostType`, so apply it before measuring anything in ParaView (`docs/in-situ-backends.md`, Kombyne-lite).
 
 <details>
 <summary>Sample console output (4 ranks)</summary>
