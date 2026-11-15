@@ -62,9 +62,10 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
 try:
-    from metrics import METRICS_SCHEMA
+    from metrics import METRICS_SCHEMA, MIN_COMPARABLE_SCHEMA
 except ImportError:  # pragma: no cover - plotting standalone
-    METRICS_SCHEMA = 5
+    METRICS_SCHEMA = 6
+    MIN_COMPARABLE_SCHEMA = 5
 
 
 MARKER_SHAPES = ["o", "s", "^", "D", "P", "X", "*", "v", "<", ">"]
@@ -129,7 +130,9 @@ def load_history(testing_dir):
             record = dict(payload[timestamp])
             record["timestamp"] = timestamp
             record["version"] = _version_of(record)
-            record["legacy"] = int(record.get("metrics_schema") or 0) < METRICS_SCHEMA
+            record["legacy"] = (
+                int(record.get("metrics_schema") or 0) < MIN_COMPARABLE_SCHEMA
+            )
             rows.append(record)
         if rows:
             for metric, field in MEASUREMENT_SCOPE.items():
@@ -328,7 +331,7 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
         subtitle += (
             "\nshaded: recorded before metrics_schema {0} or under another "
             "measurement scope, so the number measured something "
-            "else".format(METRICS_SCHEMA)
+            "else".format(MIN_COMPARABLE_SCHEMA)
         )
     fig.suptitle(
         "{0} - {1}\n{2}".format(ylabel, vignette, subtitle),
@@ -446,7 +449,7 @@ def _latest_figure(history, metric, ylabel, vignette, path):
         note = (
             "\nruns older than metrics_schema {0} or under another"
             "\nmeasurement scope are omitted"
-            "\n(that number measured something else)".format(METRICS_SCHEMA)
+            "\n(that number measured something else)".format(MIN_COMPARABLE_SCHEMA)
         )
     axis.set_title(
         "{0} - {1}\nmost recent run per configuration and tool version{2}".format(

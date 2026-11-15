@@ -440,9 +440,11 @@ record. It is not a log of everything that was run. The rule:
   `version_comparisons` in the summary report, and the run does not fail.
   Seeing that 3.4.1 costs 2.6x the memory of 3.4.2 on ex02 is a result, not a
   false alarm, and the latest record is often deliberately the *older* build.
-* **`metrics_schema` marks where a measurement's meaning changed.** It is 5
-  now, since memory became summed PSS (§4b.15); the 2024 records predate the
-  field. That one the gate refuses outright,
+* **`metrics_schema` marks where a measurement's meaning changed.** It is 6
+  now. Memory became summed PSS at 5 (§4b.15); 6 only added fields (§4b.16),
+  so `MIN_COMPARABLE_SCHEMA` stays 5 and the gate compares 5 with 6. The 2024
+  records predate the field. Rows below `MIN_COMPARABLE_SCHEMA` the gate
+  refuses outright,
   because those rows measured a different quantity and comparing them says
   nothing about either version (§4.9, §4b.10). This is the only case where
   numbers are withheld rather than labelled.
@@ -1346,6 +1348,127 @@ Things to know about it:
   can read a little high when ranks peak at different times. The local
   sampler gives the peak of the sum. The two are different scopes and are
   never compared.
+
+### 4b.16 Drift warnings, a dashboard, and what else a run records, `Testing/drift.py`
+
+The gate compares the last two runs at 10%. It cannot say that a run is
+unusual for its history, and nothing could be read without running
+`plot_metrics.py` by hand. Three additions, all warnings or context, none a
+new failure.
+
+**Drift thresholds, chosen from the committed history.** `drift.py` judges
+each run against the earlier runs of the same vignette, configuration, tool
+version, comparable schema and measurement scope (README, "Drift warnings").
+Run over every committed record (985, as of 15 Nov 2026), only execution time had
+histories long enough to judge (3 or more earlier runs of one version), at 94
+points; CPU and memory at schema 5 have at most one earlier run each so far.
+
+| Rule alone | Execution-time points flagged, of 94 |
+| :--- | ---: |
+| beyond 4 robust sigma (1.4826 x MAD) | 29 |
+| moved 10% from the median | 40 |
+| moved 25% from the median | 18 |
+| moved 50% from the median | 8 |
+| **all of: 4 sigma, 25%, 2 s** | **7** |
+
+The median move was 8.9% and the 90th percentile 46%. Sigma alone flags a
+third of the points, because a three-run history of a quiet vignette has a
+MAD of a few hundredths of a second; the relative floor is what makes it
+usable. The seven that remain are all step changes with a known cause or a
+clear before and after:
+
+* VisIt ex06 on KW61316, 58 s to 209 s on 21 Sep 2026: the commit that
+  fixed and re-blessed the vignettes after the first end-to-end run (a4fdc7c).
+  Every later run stays near 209 s.
+* ParaView ex06 on KW61316, 517 s to 198 s and 205 s in Oct 2024, the week
+  the suite was first committed (d732aa5).
+* ParaView ex00 on ibex-cpu and ibex-egl-p6000, about 4.5 s to 1.8 s on
+  21 to 22 Oct 2024, and ex05 on ibex-egl-rtx2080ti, 4.7 s to 7.1 s: the
+  same first week of Ibex runs.
+
+That is the behaviour wanted: nothing from ordinary noise, every step change
+found on the run that made it. The thresholds are set again from data once
+schema-6 histories have CPU, memory, I/O and energy at five runs or more.
+
+**I/O from the process tree double counted reaped children.** The kernel
+adds a child's I/O into its parent's `/proc/<pid>/io` when the parent reaps
+it, so summing each pid's last reading counted it twice. A test process that
+wrote 100 MB with `fsync` and ran a child that wrote 50 MB summed to 200 MB.
+Subtracting a vanished child's reading from its parent turned out to need ever
+more bookkeeping (a parent and child gone in one interval, orphans, a child
+reaped during the correction), each case found in review. The sampler now
+does something simpler that cannot count twice: each sample sums the readings
+of one walk, root first and every parent before its children. The root holds
+every descendant it has reaped, a live descendant holds its own so far, and a
+descendant reaped between its parent's read and its own is missed by that
+sample rather than counted twice. Each sample's sum is a lower bound, and the
+run records the largest. A process of the user's own that refuses
+`/proc/<pid>/io` is exiting (EACCES once its memory is gone) and is skipped;
+one of another user withholds the total. Five process shapes (a child, a
+grandchild, two children reaped together, a parent exiting after its child, a
+sibling exiting with a parent and grandchild) each read the exact total in six
+runs out of six (150, 50, 100, 150 and 70 MB). An orphan's I/O after it leaves
+the tree is not counted. Real processes cannot choose when the kernel reaps a child,
+so `Testing/test_io_sampler.py` (`python3 -m unittest
+Testing/test_io_sampler.py`) drives the sampler with scripted fake processes
+and fixes each order: a child reaped between its parent's read and its own,
+read before its reap, gone by its read with the parent read too early (low for
+one sample, right at the next), a grandchild reaped through a reaped parent, a
+zombie, a live non-dumpable process, another user's process, and a platform
+without `io_counters`. A ninth, Linux only, starts a real child that calls `prctl(PR_SET_DUMPABLE, 0)` and stays alive, and requires the total to be withheld; it fails under the earlier same-user-means-exiting rule. All nine pass.
+CPU time does not have this problem: psutil reports a process's own CPU
+separately from its children's.
+
+**Context switches are left out.** `/proc/<pid>/status` reports the main
+thread's switches only, so a multithreaded pvbatch would undercount by its
+thread count. Summing `/proc/<pid>/task/*/status` would cost one read per
+thread per sample. The load average at start is recorded instead, as
+context, and the most processes and threads the tree had at once.
+
+**Energy is recorded only where it is the run's alone.** Shaheen's Slurm
+gathers energy through `acct_gather_energy/pm_counters`, so `sacct`'s
+`ConsumedEnergyRaw` is per step (job 15988521: 39 J to 23,369 J across its
+twelve steps). `/sys/cray/pm_counters` on a compute node reads node, CPU and
+memory energy in whole joules at about 10 Hz without privilege. Both count the
+whole node, and Shaheen's `shared` and `ppn` partitions place several jobs on
+one node; `OverSubscribe=NO` is set on every partition, including those two,
+so it cannot tell them apart. The harness instead compares
+`SLURM_JOB_CPUS_PER_NODE` with the node's CPU count: on a whole debug node
+both read 384. Energy is recorded only when they match on every node.
+`AveCPUFreq` was considered and left out: it read 19.2 GHz for steps on the
+same job.
+
+**Checked on Shaheen, 15 Nov 2026.** ParaView 6.2.1 (mesa) ex00, ex01 and ex03
+on a whole debug node (`shaheen_pv_suite.sbat`, throwaway clone and
+throwaway `--machine_name`, so nothing reached the committed history), once
+under `srun` (job 15997926) and once with `--launcher none` (job 15997927):
+
+| | srun time | srun CPU s | srun energy | local time | local CPU s | local energy (node / CPU / memory) | local storage read |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ex00 | 73.3 s | 3.7 | 23,721 J | 10.6 s | 3.9 | 3,412 / 1,785 / 1,053 J | 200 MB |
+| ex01 | 92.0 s | 5.0 | 29,952 J | 8.1 s | 6.2 | 2,568 / 1,356 / 792 J | 31 MB |
+| ex03 | 61.1 s | 64.3 | 18,223 J | 27.1 s | 435.8 | 9,868 / 5,403 / 2,836 J | 22 MB |
+
+* Both energy paths recorded, and only because the job owned the node
+  (`job_owns_its_nodes: true`, 384 of 384 CPUs).
+* The build id was the same in both jobs, `a6ce8012af70`, although each job
+  wrote its own pvbatch wrapper directory: the id follows the wrapper's
+  `exec` to the module's pvbatch.
+* ex00 recorded `passed: true, gpu_exempt: true`. The first version recorded
+  the raw text gate as a failure: ex00's legacy text baseline names the GPU's
+  OpenGL vendor, which every CPU node fails and the summary has always
+  exempted. `passed` now follows the summary.
+* **The new fields explain a swing on their first outing.** The committed
+  shaheen3-cpu history has ex00 and ex01 at 2 to 2.5 s. Under `srun` they
+  took 73 and 92 s, all of it inside the Slurm step (sacct elapsed 69 and
+  88 s) on under 5 CPU seconds: the process was waiting, not working, while
+  the node drew about 340 W. Run locally on the same node shortly after,
+  ex00 took 10.6 s and read 200 MB from storage against 5.7 MB of read
+  calls, so it was paging in shared libraries from a cold cache. Slurm's
+  `fs/disk` counter saw 5.7 MB, so it does not count those page-ins.
+  What held the `srun` steps for a minute was not established. ex03 under
+  `srun` used 64 CPU s against 436 locally, the binding effect §4b.15
+  describes.
 
 ## 5. Known issue: ex06 image stability
 

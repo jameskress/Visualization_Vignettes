@@ -51,6 +51,7 @@ import argparse
 import atexit
 import datetime
 import glob
+import hashlib
 import io
 import json
 import os
@@ -66,6 +67,7 @@ import uuid
 
 import pandas as pd
 
+import drift
 import verify
 from metrics import child_rusage_snapshot, detect_significant_changes, gather_metrics
 from plot_metrics import generate_individual_graphs
@@ -321,6 +323,7 @@ def log_performance(
         "paraview_version": paraview_version,
         "visit_version": visit_version,
     }
+    machine_details.update(host_hardware())
 
     metrics = dict(metrics)
     metrics["machine_info"] = machine_details
@@ -359,11 +362,221 @@ def log_performance(
     # The trailing newline matches the 112 history files already committed.
     # Without it every append rewrites the last line as "\ No newline at end
     # of file" and the diff is noise on top of the one added record.
+    APPENDED_HISTORIES[os.path.realpath(log_file)] = timestamp
     temp_file = log_file + ".tmp"
     with open(temp_file, "w") as handle:
         json.dump(data, handle, indent=4)
         handle.write("\n")
     os.replace(temp_file, log_file)
+
+
+# ---------------------------------------------------------------------------
+# Record context (schema 6): what produced a number, beside the number
+#
+# Each record now names the build and the baselines it ran against and the
+# verdicts its comparisons reached, so the dashboard can show a pass/fail
+# history and say which build a swing belongs to. None of it is a
+# measurement. Paths are never recorded: on the clusters they are module
+# paths, which stay out of the public repository, so a build is named by a
+# hash of its executable's resolved path instead. Two records with the same
+# id ran the same install.
+# ---------------------------------------------------------------------------
+_HOST_HARDWARE = None
+# The history files this invocation appended to, so the summary judges
+# drift on this run's records only, not on a vignette it did not run.
+APPENDED_HISTORIES = {}  # history file -> timestamp of the record appended
+TOOL_EXECUTABLES = ("pvbatch", "pvpython", "visit")
+
+
+def host_hardware():
+    """CPU model, logical CPU count and memory size of this host, once."""
+    global _HOST_HARDWARE
+    if _HOST_HARDWARE is None:
+        info = {"logical_cpus": os.cpu_count()}
+        try:
+            with open("/proc/cpuinfo", "r") as handle:
+                for line in handle:
+                    if line.startswith("model name"):
+                        info["cpu_model"] = line.split(":", 1)[1].strip()
+                        break
+        except OSError:
+            pass
+        try:
+            with open("/proc/meminfo", "r") as handle:
+                for line in handle:
+                    if line.startswith("MemTotal:"):
+                        info["memory_total_gb"] = round(
+                            int(line.split()[1]) / 2.0**20, 1
+                        )
+                        break
+        except (OSError, ValueError, IndexError):
+            pass
+        _HOST_HARDWARE = info
+    return dict(_HOST_HARDWARE)
+
+
+def _git(*args):
+    """Output of a git command in this repository, or None."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", REPO_ROOT] + list(args),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            universal_newlines=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def repo_state():
+    """{"commit": short sha, "dirty": bool} for the checkout, as it is now.
+
+    Taken just before each vignette launches, so a checkout edited during
+    a suite run is recorded as it was for each vignette. Dirty counts
+    tracked files only, and not the history files, which every recorded run
+    changes.
+    """
+    state = {"commit": _git("rev-parse", "--short=12", "HEAD")}
+    status = _git("status", "--porcelain", "--untracked-files=no")
+    if status is not None:
+        state["dirty"] = any(
+            "performance_metrics_" not in line for line in status.splitlines()
+        )
+    return state
+
+
+def resolve_wrapper(path, depth=3):
+    """The program a small wrapper script hands over to, else `path` itself.
+
+    The Shaheen suites reach pvbatch through a wrapper written into a fresh
+    per-job directory (shaheen_pv_suite.sbat), so hashing the wrapper's path
+    would give every job a new build id. A script under 4 KB whose last
+    `exec` names an existing executable is followed, up to `depth` levels.
+    Anything else (a binary, VisIt's own launcher script, an exec through a
+    variable) is the build itself.
+    """
+    resolved = os.path.realpath(path)
+    for _ in range(depth):
+        try:
+            if os.path.getsize(resolved) > 4096:
+                break
+            with open(resolved, "rb") as handle:
+                text = handle.read().decode("utf-8", "replace")
+        except OSError:
+            break
+        if not text.startswith("#!"):
+            break
+        target = None
+        for line in text.splitlines():
+            words = line.strip().split()
+            if len(words) >= 2 and words[0] == "exec":
+                target = words[1].strip("\"'")
+        if not target or not os.path.isfile(target) or not os.access(target, os.X_OK):
+            break
+        resolved = os.path.realpath(target)
+    return resolved
+
+
+def build_identity(run_result, args):
+    """The tool, version, renderer and an install fingerprint for a run."""
+    command = (run_result or {}).get("command") or []
+    executable = next(
+        (part for part in command if os.path.basename(str(part)) in TOOL_EXECUTABLES),
+        None,
+    )
+    # The suite being run names the tool; a version flag is optional.
+    tool = (
+        "visit"
+        if str(getattr(args, "test_type", "")).lower() == "visit"
+        else "paraview"
+    )
+    build = {
+        "tool": tool,
+        "version": args.visit_version if tool == "visit" else args.paraview_version,
+        "launcher": os.path.basename(str(command[0])) if command else None,
+        "ranks": getattr(args, "ranks", None),
+    }
+    if executable:
+        resolved = resolve_wrapper(str(executable))
+        build["id"] = hashlib.sha256(resolved.encode("utf-8")).hexdigest()[:12]
+    if (run_result or {}).get("opengl_window"):
+        build["opengl_window"] = run_result["opengl_window"]
+    return build
+
+
+def baseline_identity(test_dir, comparison_results):
+    """Which baselines a run was judged against.
+
+    `ref` is --baseline-ref (null: the working tree), `commit` the last
+    commit that touched this vignette's Testing/Baseline/ at that ref, and
+    `image_sources` how many images came from the shared set and how many
+    from this machine's own directory.
+    """
+    relative = os.path.join(
+        os.path.relpath(os.path.realpath(test_dir), REPO_ROOT), "Testing", "Baseline"
+    )
+    commit = _git(
+        "log", "-1", "--format=%h", BASELINE_REF_COMMIT or "HEAD", "--", relative
+    )
+    sources = {}
+    for result in comparison_results or []:
+        source = result.get("baseline") or (
+            None if result.get("status") == verify.STATUS_UNBASELINED else "shared"
+        )
+        if source:
+            sources[source] = sources.get(source, 0) + 1
+    return {"ref": BASELINE_REF_NAME, "commit": commit, "image_sources": sources}
+
+
+def comparison_verdicts(
+    run_result, comparison_results, numeric, csv_results, text_match, gpu_exempt=False
+):
+    """The verdict each gate reached on this run, as recorded with it.
+
+    Each gate's entry is raw, what the comparison found. `passed` is the
+    verdict of the comparison gates (run, image, numeric, CSV, text) as the
+    summary report judges them: a vignette that needs a GPU
+    (is_gpu_test_allowed_to_fail) on a --non_gpu_machine is exempt from
+    every gate, and `gpu_exempt` says so. The performance gate is not part
+    of it: it compares this record with the history after the record is
+    written, and its verdict lives in the summary report (and drift on the
+    dashboard). Without that, ex00 on every CPU node
+    would read as a failure: its legacy text baseline names the GPU's OpenGL
+    vendor.
+    """
+    images = {}
+    for result in comparison_results or []:
+        status = result.get("status", "UNKNOWN")
+        images[status] = images.get(status, 0) + 1
+    image_failed = any(verify.is_image_failure(status) for status in images)
+    verdicts = {
+        "run": bool((run_result or {}).get("succeeded", False)),
+        "image": None if not images else ("FAIL" if image_failed else "PASS"),
+        "image_statuses": images,
+        "numeric": (numeric or {}).get("status"),
+        "csv": None,
+        "text": text_match,
+    }
+    if csv_results:
+        bad = any(
+            item.get("status") not in ("PASS", None)
+            or item.get("mismatches")
+            or item.get("row_count_delta")
+            for item in csv_results
+        )
+        verdicts["csv"] = "FAIL" if bad else "PASS"
+    gates = [
+        verdicts["image"] != "FAIL",
+        verdicts["numeric"] in (None, "PASS"),
+        verdicts["csv"] != "FAIL",
+        text_match is not False,
+    ]
+    verdicts["passed"] = bool(gpu_exempt) or (verdicts["run"] and all(gates))
+    if gpu_exempt:
+        verdicts["gpu_exempt"] = True
+    return verdicts
 
 
 # ---------------------------------------------------------------------------
@@ -373,6 +586,8 @@ def log_performance(
 # of the repository as it was at a git ref, at its repository-relative path.
 BASELINE_REF_ROOT = None
 BASELINE_REF_NAME = None
+# The full commit that ref resolved to, for git commands; NAME is a label.
+BASELINE_REF_COMMIT = None
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 
@@ -389,7 +604,7 @@ def use_baseline_ref(ref):
     lookup. The working tree is not touched. Only the baselines move: a
     vignette that changed since `ref` runs as it is now.
     """
-    global BASELINE_REF_ROOT, BASELINE_REF_NAME
+    global BASELINE_REF_ROOT, BASELINE_REF_NAME, BASELINE_REF_COMMIT
     try:
         commit = subprocess.check_output(
             ["git", "-C", REPO_ROOT, "rev-parse", "--verify", ref + "^{commit}"],
@@ -430,6 +645,7 @@ def use_baseline_ref(ref):
         tar.extractall(root, members=members)
     BASELINE_REF_ROOT = root
     BASELINE_REF_NAME = "{0} ({1})".format(ref, commit[:12])
+    BASELINE_REF_COMMIT = commit
     print(
         "Baselines from {0} ({1}), {2} file(s); the working tree's are "
         "ignored.".format(ref, commit[:12], sum(1 for m in members if m.isfile()))
@@ -1003,6 +1219,10 @@ def create_summary_report(
         # than failures. Kept separate from the list above so a deliberate
         # version comparison never reads as a regression.
         "version_comparisons": [],
+        # Runs whose time, CPU, memory, I/O or energy moved well outside
+        # that vignette's own history on this configuration and build
+        # (drift.py). Warnings: they never set any_tests_failed.
+        "drift_warnings": [],
         # Vignettes that declared their input absent by design. Not failures,
         # but not passes either: a reader has to be able to see that the run
         # covered less than the whole suite.
@@ -1201,10 +1421,35 @@ def create_summary_report(
                         summary_report["version_comparisons"].append(
                             {subdir: significant_changes["version_comparison"]}
                         )
+
+                # Only a record this invocation appended is judged: a vignette
+                # outside --test_number, or a --generate-metrics pass, would
+                # otherwise report an earlier run's drift as this run's.
+                # The record itself, by its timestamp: another invocation may
+                # have appended to the same file since.
+                appended = APPENDED_HISTORIES.get(os.path.realpath(performance_file))
+                warnings = (
+                    drift.check_latest(performance_data, appended) if appended else []
+                )
+                if warnings:
+                    test_status["drift"] = warnings
+                    summary_report["drift_warnings"].append({subdir: warnings})
+                    for warning in warnings:
+                        print("\t\tDRIFT (warning): " + drift.describe(warning))
         else:
             print("\n\tPerformance file not found: {0}".format(performance_file))
 
         summary_report["test_results"][subdir] = test_status
+
+    if summary_report["drift_warnings"]:
+        print(
+            "\nDrift warnings (not failures; see Testing/README.md, "
+            '"Drift warnings"):'
+        )
+        for entry in summary_report["drift_warnings"]:
+            for subdir, warnings in entry.items():
+                for warning in warnings:
+                    print("\t{0}: {1}".format(subdir, drift.describe(warning)))
 
     report_name = test_type + "_" + machine_name + "_summary_report.json"
     summary_report_path = os.path.join(os.path.dirname(__file__), report_name)
@@ -1314,6 +1559,8 @@ def run_test(test_dir, dir_name, args):
             )
         return
 
+    pending_record = None
+    run_result = None
     if not args.generate_metrics:
         # Start from an empty output/ every time.
         #
@@ -1330,6 +1577,7 @@ def run_test(test_dir, dir_name, args):
         # has not produced any yet.
         clear_output_directory(test_dir)
         print("Running {0} locally.".format(dir_name))
+        repo_before = repo_state()
         rusage_before = child_rusage_snapshot()
         start_time = time.time()
         run_result = run_local_test(test_dir, args)
@@ -1350,15 +1598,9 @@ def run_test(test_dir, dir_name, args):
                 )
             )
         elif args.write_metrics:
-            log_performance(
-                dir_name,
-                metrics,
-                test_dir,
-                args.machine_name,
-                paraview_version=args.paraview_version,
-                visit_version=args.visit_version,
-                run_id=getattr(args, "run_id", None),
-            )
+            # Appended after the comparisons below, so the record carries
+            # their verdicts and the baselines they used.
+            pending_record = metrics
         else:
             print(
                 "  --no-metrics: ran in {0:.2f}s, {1:.1f} MB peak; nothing "
@@ -1430,6 +1672,7 @@ def run_test(test_dir, dir_name, args):
             json.dump(csv_results, handle, indent=4)
 
     # -- legacy text comparison -------------------------------------------
+    text_comparison_result = None
     output_log_path = os.path.join(testing_dir, "output.log")
     if os.path.exists(output_log_path):
         known_good_value_file = os.path.join(baseline_dir, "known_good_value.txt")
@@ -1451,6 +1694,32 @@ def run_test(test_dir, dir_name, args):
             )
     else:
         print("Cannot find output.log file @ path: {0}".format(output_log_path))
+
+    if pending_record is not None:
+        record = dict(pending_record)
+        record["verdicts"] = comparison_verdicts(
+            run_result,
+            comparison_results,
+            numeric,
+            csv_results,
+            text_comparison_result,
+            gpu_exempt=bool(
+                is_gpu_test_allowed_to_fail(testing_dir)
+                and getattr(args, "non_gpu_machine", False)
+            ),
+        )
+        record["build"] = build_identity(run_result, args)
+        record["baseline"] = baseline_identity(test_dir, comparison_results)
+        record["repo"] = repo_before
+        log_performance(
+            dir_name,
+            record,
+            test_dir,
+            args.machine_name,
+            paraview_version=args.paraview_version,
+            visit_version=args.visit_version,
+            run_id=getattr(args, "run_id", None),
+        )
 
     print("Generating metrics and graphs for {0}.".format(dir_name))
     generate_individual_graphs(test_dir, dir_name)
