@@ -12,7 +12,11 @@ sacct.txt), and writes per-run totals:
 * CPU: per-node mean utilisation from /proc/stat differences.
 * NIC: bytes sent and received, and the NACK and retry counter increases.
 * Slurm: each numbered step's elapsed time, CPU seconds, peak task memory
-  and ConsumedEnergyRaw, as sacct reported them.
+  and ConsumedEnergyRaw, as sacct reported them, plus the sampled energy,
+  mean power and CPU use of that step's nodes. An in transit run is one
+  heterogeneous step: 1+0 is the simulation, 1+1 the reader. Shaheen's
+  accounting reports no CPU or energy for the reader component (measured
+  15 Nov 2026), so its nodes' sampled figures are the only ones.
 
 Counters that go backwards (a reset) are treated as missing for that node.
 Only the standard library is used, so it runs in any Python 3.
@@ -22,6 +26,7 @@ import csv
 import glob
 import json
 import os
+import re
 import sys
 
 ENERGY_KEYS = ("pm_energy", "pm_cpu_energy", "pm_memory_energy")
@@ -81,6 +86,28 @@ def summarize_node(path):
     return node
 
 
+def expand_nodelist(text):
+    """'nid[04513-04515,04597]' -> ['nid04513', 'nid04514', 'nid04515', 'nid04597']."""
+    names = []
+    for prefix, ranges, single in re.findall(
+        r"([A-Za-z_-]+)\[([^\]]*)\]|([^,\[\]]+)", text or ""
+    ):
+        if single:
+            names.append(single.strip())
+            continue
+        for part in ranges.split(","):
+            if "-" in part:
+                lo, hi = part.split("-", 1)
+                width = len(lo)
+                names.extend(
+                    "{0}{1:0{2}d}".format(prefix, i, width)
+                    for i in range(int(lo), int(hi) + 1)
+                )
+            elif part:
+                names.append(prefix + part)
+    return names
+
+
 def read_sacct(path):
     """Numbered steps from `sacct -P` output with a header line."""
     if not os.path.exists(path):
@@ -90,8 +117,9 @@ def read_sacct(path):
         steps = []
         for row in reader:
             step = row.get("JobIDRaw", "")
-            if "." not in step or not step.split(".", 1)[1].isdigit():
-                continue
+            suffix = step.split(".", 1)[1] if "." in step else ""
+            if not re.fullmatch(r"\d+(\+\d+)?", suffix):
+                continue  # the job itself, .batch, .extern
             steps.append(
                 {
                     "step": step,
@@ -104,6 +132,7 @@ def read_sacct(path):
                     "max_rss": row.get("MaxRSS"),
                     "consumed_energy_j": _num(row.get("ConsumedEnergyRaw")),
                     "ave_cpu_freq": row.get("AveCPUFreq"),
+                    "node_list": row.get("NodeList"),
                 }
             )
         return steps
@@ -132,9 +161,32 @@ def main(argv):
     for key in nic_keys:
         values = [n.get(key) for n in nodes]
         totals[key] = sum(values) if all(v is not None for v in values) else None
+    steps = read_sacct(os.path.join(tel_dir, "sacct.txt"))
+    by_name = {n["node"]: n for n in nodes}
+    for step in steps:
+        mine = [
+            by_name[h] for h in expand_nodelist(step.get("node_list")) if h in by_name
+        ]
+        step["nodes_sampled"] = len(mine)
+        energies = [n.get("energy_j") for n in mine]
+        step["sampled_energy_j"] = (
+            sum(energies) if mine and all(e is not None for e in energies) else None
+        )
+        powers = [n["power_mean_w"] for n in mine if "power_mean_w" in n]
+        step["sampled_power_mean_w"] = (
+            round(sum(powers) / len(powers), 1) if powers else None
+        )
+        busy = [
+            n["cpu_busy_fraction"]
+            for n in mine
+            if n.get("cpu_busy_fraction") is not None
+        ]
+        step["sampled_cpu_busy_fraction"] = (
+            round(sum(busy) / len(busy), 4) if busy else None
+        )
     summary = {
         "totals": totals,
-        "slurm_steps": read_sacct(os.path.join(tel_dir, "sacct.txt")),
+        "slurm_steps": steps,
         "nodes": nodes,
     }
     with open(out_path, "w") as handle:

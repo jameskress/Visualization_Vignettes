@@ -311,6 +311,34 @@ one-sided communication and is fast, but with ADIOS2 created on a split
 communicator (not `MPI_COMM_WORLD`) the writers and readers never see each
 other and the job hangs.
 
+**Telemetry.** `generate_experiments.py --telemetry` (off by default)
+records, for every run:
+
+* `node_sampler.sh`, one task per node started with `srun --overlap` just
+  before the run: Cray `pm_counters` (node, CPU and memory power and
+  cumulative energy, CPU temperatures), `/proc` CPU ticks, available memory
+  and load, and the Slingshot NIC's sent and received bytes and its NACK
+  and retry counters, at 1 Hz, in `telemetry/nodes/<host>.csv`. All of it is
+  readable without privileges. Shaheen's CPU nodes have one NIC each
+  (`cxi0`). On 2 nodes, a step using every core ran no slower with the
+  sampler beside it (2.725 s per task alone, 2.75 s with it, 2.745 s alone
+  again) and started without waiting.
+* An environment snapshot: the job's settings variables, `module list`,
+  `ldd` of both binaries, the source revision and `scontrol show job`.
+* `SLURM_ACCTG_FREQ=task=30,energy=30`, so steps get memory and energy
+  figures (Shaheen samples every 600 s by default).
+
+The reduction job then saves `sacct` for every step (`<id>_sacct.txt`),
+writes `<id>_telemetry.json` (energy per run and per step's nodes, mean
+power, CPU use, NIC bytes and retries) and archives the per-node samples.
+An in transit run is one heterogeneous step: `.1+0` is the simulation and
+`.1+1` the reader. Slurm reports no CPU or energy for the reader component,
+so the sampled figures are the only ones for its nodes. On the 64 + 4 node
+f128 Ascent run the simulation's nodes sampled 1.47 MJ against sacct's
+1.54 MJ (its window is slightly longer), and the reader's 4 nodes 72.7 kJ
+against sacct's 0. CPU use is a fraction of all hardware threads, including
+the second thread of each core that the jobs leave idle.
+
 **glibc mmap threshold.** Every generated job exports
 `MALLOC_MMAP_THRESHOLD_=33554432`. That fixes the size at which glibc serves
 an allocation with mmap at its 32 MiB maximum, where by default it moves as
