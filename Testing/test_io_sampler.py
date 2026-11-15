@@ -17,6 +17,7 @@
 #
 import collections
 import os
+import subprocess
 import sys
 import unittest
 
@@ -93,9 +94,9 @@ def sample(*roots):
 
 
 class TreeIoSum(unittest.TestCase):
-    def test_child_reaped_between_parent_and_child_reads_counts_once(self):
-        # The parent was read after reaping the child (150 MB, child's 50
-        # included); the walk had listed the child, whose read now fails.
+    def test_child_reaped_before_parent_read_counts_once(self):
+        # The child was reaped before the parent's read (150 MB, the child's
+        # 50 included); the walk had listed the child, whose read now fails.
         child = FakeProcess(2, 50, io_error=psutil.NoSuchProcess(2))
         root = FakeProcess(1, 150, [child])
         self.assertEqual(sample(root), 150)
@@ -144,6 +145,43 @@ class TreeIoSum(unittest.TestCase):
     def test_platform_without_io_counters_withholds_the_total(self):
         root = FakeProcess(1, 100, io_error=AttributeError("io_counters"))
         self.assertIsNone(sample(root))
+
+
+NON_DUMPABLE_CHILD = """
+import ctypes, sys, time
+if ctypes.CDLL(None, use_errno=True).prctl(4, 0, 0, 0, 0) != 0:  # PR_SET_DUMPABLE
+    sys.exit(3)
+print("ready", flush=True)
+time.sleep(30)
+"""
+
+
+@unittest.skipUnless(sys.platform.startswith("linux"), "PR_SET_DUMPABLE is Linux")
+class RealNonDumpableChild(unittest.TestCase):
+    def test_live_non_dumpable_child_withholds_the_total(self):
+        # A real process of this user that made itself non-dumpable refuses
+        # /proc/<pid>/io and stays alive: the total must be None, not low.
+        parent = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "import subprocess, sys; "
+                "subprocess.run([sys.executable, '-c', sys.argv[1]])",
+                NON_DUMPABLE_CHILD,
+            ],
+            stdout=subprocess.PIPE,
+            universal_newlines=True,
+        )
+        try:
+            self.assertEqual(parent.stdout.readline().strip(), "ready")
+            sampler = run_tests._PeakRssSampler(parent.pid)
+            sampler._sample_once(psutil.Process(parent.pid))
+            self.assertIsNone(sampler.io_totals)
+        finally:
+            for child in psutil.Process(parent.pid).children(recursive=True):
+                child.kill()
+            parent.kill()
+            parent.wait(timeout=10)
 
 
 if __name__ == "__main__":

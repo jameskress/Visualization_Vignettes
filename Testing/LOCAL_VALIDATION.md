@@ -1415,7 +1415,7 @@ and fixes each order: a child reaped between its parent's read and its own,
 read before its reap, gone by its read with the parent read too early (low for
 one sample, right at the next), a grandchild reaped through a reaped parent, a
 zombie, a live non-dumpable process, another user's process, and a platform
-without `io_counters`. All eight pass.
+without `io_counters`. A ninth, Linux only, starts a real child that calls `prctl(PR_SET_DUMPABLE, 0)` and stays alive, and requires the total to be withheld; it fails under the earlier same-user-means-exiting rule. All nine pass.
 CPU time does not have this problem: psutil reports a process's own CPU
 separately from its children's.
 
