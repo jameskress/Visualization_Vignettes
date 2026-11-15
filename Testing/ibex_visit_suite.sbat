@@ -42,11 +42,15 @@ python Testing/prepare_machine.py --tool VisIt --skip-data-checks || { echo "pre
 cd Testing || exit 1
 RANKS=${RANKS:-8}
 if [ "${VARIANT:-cpu}" = "gpu" ]; then
-    MACHINE=ibex-gpu; HW="--vignette-arg=--hw-accel"  # "=": argparse would read a bare --hw-accel as an option
+    # "=": argparse would read a bare --hw-accel as an option. A GPU run matches the
+    # GPU-blessed baselines at the default tolerance (0.001): the 15 Nov 2026 record's
+    # worst image differed by 0.0005% (ex06 aside, which disables its own image gate
+    # off 8 ranks). The CPU line renders in software and keeps 0.0075.
+    MACHINE=ibex-gpu; HW="--vignette-arg=--hw-accel"; TOL=""
 else
-    MACHINE=ibex-cpu; HW=""
+    MACHINE=ibex-cpu; HW=""; TOL="--image-tolerance 0.0075"
 fi
-COMMON="../ --test_type VisIt --visit_version $VISIT_VERSION --machine_name $MACHINE --machine ibex --launcher mpirun --nodes 1 --ranks $RANKS --image-tolerance 0.0075 $HW ${EXTRA:---no-metrics} --timeout 1800"
+COMMON="../ --test_type VisIt --visit_version $VISIT_VERSION --machine_name $MACHINE --machine ibex --launcher mpirun --nodes 1 --ranks $RANKS $TOL $HW ${EXTRA:---no-metrics} --timeout 1800"
 if [ -n "${TESTS:-}" ]; then
     python test_suite.py $COMMON --test_number $TESTS
     echo "suite exit=$? end=$(date)"
