@@ -965,7 +965,7 @@ From the miniapp directory (`cd ..` from `run-kombyne`):
 ctest --test-dir build/kombyne -R kombyne --no-tests=error --output-on-failure
 ```
 
-Both tests should run; `--no-tests=error` makes the command fail if CMake registered neither. `gs_render_kombyne` (needs Python 3 with NumPy and Pillow) renders an isosurface on 1 and 4 ranks and compares the images; `gs_ghost_volume_kombyne` (needs `GS_PVPYTHON`) reads the `kombyne-save-data.yaml` export on 1, 2, 4 and 8 ranks and counts cells. Kombyne's export writes its ghost mask as `__ghostCells` (1 = real), not `vtkGhostType`, so apply it before measuring anything in ParaView (`docs/in-situ-backends.md`, Kombyne-lite).
+`gs_render_kombyne` (registered when CMake finds Python 3 with NumPy and Pillow) renders an isosurface on 1 and 4 ranks and compares the images; `gs_ghost_volume_kombyne` (registered only when `GS_PVPYTHON` is set, either from a `pvpython` on `PATH` at configure time or from `-DGS_PVPYTHON=<pvpython>` in Step 1) reads the `kombyne-save-data.yaml` export on 1, 2, 4 and 8 ranks and counts cells. Check that the CTest summary lists both; `--no-tests=error` fails the command only when neither is registered. Kombyne's export writes its ghost mask as `__ghostCells` (1 = real), not `vtkGhostType`, so apply it before measuring anything in ParaView (`docs/in-situ-backends.md`, Kombyne-lite).
 
 <details>
 <summary>Sample console output (4 ranks)</summary>
