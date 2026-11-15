@@ -339,8 +339,11 @@ An in transit run is one heterogeneous step: `.1+0` is the simulation and
 so the sampled figures are the only ones for its nodes. On the 64 + 4 node
 f128 Ascent run the simulation's nodes sampled 1.47 MJ against sacct's
 1.54 MJ (its window is slightly longer), and the reader's 4 nodes 72.7 kJ
-against sacct's 0. CPU use is a fraction of all hardware threads, including
-the second thread of each core that the jobs leave idle.
+against sacct's 0. Prefer the sampled energy: sacct polls energy every 30 s
+here, and on the 256 + 16 node `readonly` sweep run it gave the simulation
+step 9.66 MJ against 13.06 MJ sampled, and the sampler's own step 0. CPU use
+is a fraction of all hardware threads, including the second thread of each
+core that the jobs leave idle.
 
 **glibc mmap threshold.** Every generated job exports
 `MALLOC_MMAP_THRESHOLD_=33554432`. That fixes the size at which glibc serves
