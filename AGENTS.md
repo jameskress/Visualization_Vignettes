@@ -115,6 +115,12 @@ measurements in `Testing/LOCAL_VALIDATION.md` §4 and §4b.
   traceback and crashed engine alike. On Ibex it exits 0 instead, equally
   meaningless. The verdict comes from the vignette's
   own results JSON, and only when that file was written after the run started.
+* **CPU and memory come from the process tree, or from Slurm.** The
+  sampled tree is right for CPU (within 1% of the kernel's cgroup count) and
+  memory is summed PSS. Ranks under `srun`, including VisIt's engine off a
+  workstation, are outside the tree, so their numbers come from `sacct` for
+  the run's job steps. `RUSAGE_CHILDREN` misses VisIt's engine and is never
+  used for VisIt. `Testing/LOCAL_VALIDATION.md` §4b.15.
 * **`-noconfig` hides 129 of VisIt's own colour tables**, not just the user's.
   `viridis`, `plasma`, `magma`, `Blues` all ship as `.ct` files that
   `-noconfig` stops loading. VisIt does not refuse an unknown table name: it

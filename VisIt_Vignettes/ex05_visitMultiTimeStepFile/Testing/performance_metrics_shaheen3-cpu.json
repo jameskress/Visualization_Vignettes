@@ -99,5 +99,40 @@
             "visit_version": "3.5.0"
         },
         "run_id": "shaheen3-cpu-2026-11-13"
+    },
+    "2026-11-14T22:01:00.168329": {
+        "test_name": "ex05_visitMultiTimeStepFile",
+        "metrics_schema": 5,
+        "execution_time": 13.571504627227782,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 93.04799999999999,
+        "cpu_usage_percent": 685.6129998535519,
+        "cpu_user_seconds": 91.473,
+        "cpu_system_seconds": 1.575,
+        "memory_max_task_mb": 350.15234375,
+        "disk_read_mb": 215.02141189575195,
+        "disk_write_mb": 8.392333984375e-05,
+        "slurm_steps": [
+            "15988521.5"
+        ],
+        "memory_usage_mb": 2209.1337890625,
+        "memory_usage": 2316444672.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 13.488106,
+        "harness_rss_mb": 146.359375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00026",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0"
+        },
+        "run_id": "shaheen3-cpu-2026-11-14"
     }
 }

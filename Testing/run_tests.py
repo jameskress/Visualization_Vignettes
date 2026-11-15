@@ -41,12 +41,14 @@
 #
 import argparse
 import json
+import math
 import os
 import shutil
 import subprocess
 import sys
 import threading
 import time
+import uuid
 
 try:
     import psutil  # pyright: ignore[reportMissingModuleSource]
@@ -296,11 +298,22 @@ class _PeakRssSampler(object):
     seconds while its engine held 33 GB resident, which is not a number
     anybody should carry to Shaheen and compare against.
 
-    Process CPU time is cumulative, so the maximum ever seen for a pid is its
-    final total; summing those maxima recovers the tree's CPU even for
-    processes that exited between samples. A process that both starts and
-    ends inside one 0.25s interval is missed, which for a suite whose
-    shortest vignette is 1.7 seconds is noise.
+    Process CPU time is cumulative, so summing the last value seen for each
+    pid recovers the tree's CPU even for processes that exited between
+    samples. What a process uses after its last sample is lost, and so is a
+    process that starts and ends inside one 0.25s interval. Measured against
+    the cgroup's own cpu.stat on a workstation (LOCAL_VALIDATION 4b.15), the
+    sum came within 1% on every vignette tried, serial and 4-rank, ParaView
+    and VisIt.
+
+    MEMORY IS PSS, NOT RSS
+
+    RSS counts a shared page once per process that maps it, so summing RSS
+    over a tree counts the shared libraries once per rank: 3350 MB for a
+    4-rank ParaView ex03 whose cgroup held 1878 MB. PSS divides each shared
+    page among the processes that share it, so the sum is the tree's real
+    footprint (2191 MB there). RSS is still recorded for comparison with
+    history, and used when PSS cannot be read.
     """
 
     INTERVAL_S = 0.25
@@ -308,39 +321,73 @@ class _PeakRssSampler(object):
     def __init__(self, pid):
         self.pid = pid
         self.peak_bytes = 0
+        self.peak_pss_bytes = 0
+        self._pss_ok = True
         self._cpu_by_pid = {}
         self._stop = threading.Event()
         self._thread = None
 
     def _account(self, process):
-        """Record one process's RSS, and its CPU time if it is higher than
-        anything seen for that pid before. Returns the RSS."""
+        """Record one process's CPU time and return its (RSS, PSS)."""
         rss = process.memory_info().rss
+        pss = None
+        if self._pss_ok:
+            try:
+                pss = process.memory_full_info().pss
+            except psutil.NoSuchProcess:
+                raise
+            except Exception:  # noqa: BLE001 - no PSS on this platform
+                self._pss_ok = False
         try:
             times = process.cpu_times()
-            seconds = float(times.user) + float(times.system)
+            user, system = float(times.user), float(times.system)
             key = (process.pid, process.create_time())
-            if seconds > self._cpu_by_pid.get(key, 0.0):
-                self._cpu_by_pid[key] = seconds
+            # Store the first reading even when it is zero: a process seen at
+            # 0.00 s (a short-lived srun client) was measured, and leaving it
+            # out made its tree look unsampled.
+            if key not in self._cpu_by_pid or user + system > sum(
+                self._cpu_by_pid[key]
+            ):
+                self._cpu_by_pid[key] = (user, system)
         except Exception:  # noqa: BLE001 - CPU times are best effort
             pass
-        return rss
+        return rss, pss
 
     def _sample_once(self, process):
-        total = self._account(process)
+        rss, pss = self._account(process)
         for child in process.children(recursive=True):
             try:
-                total += self._account(child)
+                child_rss, child_pss = self._account(child)
             except Exception:  # noqa: BLE001 - a child may exit mid-walk
-                pass
-        return total
+                continue
+            rss += child_rss
+            if pss is not None and child_pss is not None:
+                pss += child_pss
+        return rss, pss
 
     @property
     def cpu_seconds(self):
         """CPU time across the whole tree, or None when nothing was sampled."""
         if not self._cpu_by_pid:
             return None
-        return sum(self._cpu_by_pid.values())
+        return sum(sum(pair) for pair in self._cpu_by_pid.values())
+
+    @property
+    def cpu_split(self):
+        """(user, system) seconds across the tree, or None."""
+        if not self._cpu_by_pid:
+            return None
+        return (
+            sum(pair[0] for pair in self._cpu_by_pid.values()),
+            sum(pair[1] for pair in self._cpu_by_pid.values()),
+        )
+
+    @property
+    def peak_pss(self):
+        """Peak summed PSS in bytes, or None when PSS was not readable."""
+        if not self._pss_ok or not self.peak_pss_bytes:
+            return None
+        return self.peak_pss_bytes
 
     def _run(self):
         try:
@@ -349,9 +396,12 @@ class _PeakRssSampler(object):
             return
         while not self._stop.is_set():
             try:
-                self.peak_bytes = max(self.peak_bytes, self._sample_once(process))
+                rss, pss = self._sample_once(process)
             except Exception:  # noqa: BLE001 - the tree exits under us
                 break
+            self.peak_bytes = max(self.peak_bytes, rss)
+            if pss is not None:
+                self.peak_pss_bytes = max(self.peak_pss_bytes, pss)
             self._stop.wait(self.INTERVAL_S)
 
     def start(self):
@@ -371,18 +421,41 @@ class _PeakRssSampler(object):
 
 def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     """Run a vignette, tee its streams to disk, and report the outcome."""
-    print("Executing: {0}".format(" ".join(str(part) for part in cmd)))
-    sys.stdout.flush()
 
     stdout_path = os.path.join(output_dir, "output.log")
     stderr_path = os.path.join(output_dir, "error.log")
+
+    # Inside an allocation, ask Slurm to sample every task once a second.
+    # Shaheen's default is every 600 s, so a step shorter than ten minutes
+    # recorded no memory at all. srun reads this from the environment, which
+    # also reaches the srun VisIt runs for its compute engine.
+    if os.environ.get("SLURM_JOB_ID") and not env.get("SLURM_ACCTG_FREQ"):
+        env = dict(env)
+        env["SLURM_ACCTG_FREQ"] = "task=1"
+
+    # Name this run's job steps, so its Slurm accounting can be told from any
+    # other step in the allocation by name, not only by time and count.
+    # Inside an allocation srun ignores SLURM_JOB_NAME (measured on Shaheen:
+    # steps were named after the executable), so the name goes on the
+    # command line: on the harness's own srun here, and through
+    # VV_SLURM_STEP_NAME to vignette_common, which passes it to VisIt as
+    # `-n`, which VisIt's srun launcher turns into `-J`.
+    step_name = None
+    if os.environ.get("SLURM_JOB_ID"):
+        step_name = "vv-" + uuid.uuid4().hex[:12]
+        env = dict(env)
+        env["VV_SLURM_STEP_NAME"] = step_name
+        if os.path.basename(str(cmd[0])) == "srun":
+            cmd = [cmd[0], "--job-name=" + step_name] + list(cmd[1:])
+
+    print("Executing: {0}".format(" ".join(str(part) for part in cmd)))
+    sys.stdout.flush()
 
     started = time.time()
     timed_out = False
     returncode = None
 
-    peak_rss_bytes = None
-    tree_cpu_seconds = None
+    sampler = None
     try:
         with open(stdout_path, "w") as stdout_file, open(
             stderr_path, "w"
@@ -397,13 +470,11 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
             try:
                 returncode = process.wait(timeout=timeout)
             finally:
-                peak_rss_bytes = sampler.stop()
-                tree_cpu_seconds = sampler.cpu_seconds
+                sampler.stop()
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait()
-        peak_rss_bytes = sampler.stop()
-        tree_cpu_seconds = sampler.cpu_seconds
+        sampler.stop()
         timed_out = True
         returncode = 124  # conventional timeout status
         with open(stderr_path, "a") as stderr_file:
@@ -416,7 +487,8 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
         with open(stderr_path, "a") as stderr_file:
             stderr_file.write("\n[run_tests] Could not launch: {0}\n".format(exc))
 
-    duration = time.time() - started
+    ended = time.time()
+    duration = ended - started
 
     payload = {
         "command": [str(part) for part in cmd],
@@ -433,25 +505,50 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     # so in its results JSON. Record that instead of the client's CPU and
     # memory as the vignette's.
     ranks_outside_tree = os.path.basename(str(cmd[0])) == "srun"
+    # How many job steps the run made, when that is known: one srun, or one
+    # per compute engine the VisIt vignette opened.
+    expected_steps = 1 if ranks_outside_tree else None
     if not ranks_outside_tree:
         document = _fresh_results_document(output_dir, started)
         if document is not None:
             ranks_outside_tree = bool(document.get("engine_outside_tree"))
+            if document.get("engines_launched"):
+                expected_steps = int(document["engines_launched"])
         else:
             # No results JSON (a crash or a timeout), so the vignette never
             # said. Judge from the command: VisIt off a workstation may have
             # had its engine running when it died.
             ranks_outside_tree = _visit_engine_may_be_remote(cmd)
+    tree = _tree_sample(sampler)
     if ranks_outside_tree:
+        # The local tree is only the launcher side (the srun client, or
+        # VisIt's CLI, viewer and mdserver). Keep it under its own name and
+        # take the ranks from Slurm's accounting of the steps this run made.
         payload["ranks_outside_tree"] = True
-        peak_rss_bytes = tree_cpu_seconds = None
-    if peak_rss_bytes:
-        payload["peak_rss_bytes"] = int(peak_rss_bytes)
-        payload["peak_rss_mb"] = round(peak_rss_bytes / (1024.0 * 1024.0), 3)
-    if tree_cpu_seconds:
-        payload["tree_cpu_seconds"] = round(tree_cpu_seconds, 3)
-        if duration > 0:
-            payload["tree_cpu_percent"] = round(100.0 * tree_cpu_seconds / duration, 1)
+        if tree:
+            payload["local_tree"] = tree
+        if expected_steps is None:
+            # No results JSON, so nobody said how many engines started. sacct
+            # can show that an answer is stable but not that it is complete,
+            # and a partial list would total to a small number that looks
+            # real. Record no figures instead.
+            print("Step count unknown (no results JSON); no step accounting")
+        else:
+            asked = time.time()
+            steps = slurm_step_usage(
+                started, ended, expected=expected_steps, step_name=step_name
+            )
+            # Waiting for the accounting database is not the vignette's time;
+            # metrics.py takes this back out of the execution time.
+            payload["accounting_wait_s"] = round(time.time() - asked, 3)
+            if steps is not None:
+                payload["slurm_steps"] = steps
+    elif tree:
+        payload.update(tree)
+        if duration > 0 and tree.get("tree_cpu_seconds") is not None:
+            payload["tree_cpu_percent"] = round(
+                100.0 * tree["tree_cpu_seconds"] / duration, 1
+            )
 
     # A vignette that found its input missing declares itself skipped and
     # exits cleanly, so the exit code alone cannot tell the two apart. The
@@ -487,6 +584,274 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
             )
         )
     return payload
+
+
+def _tree_sample(sampler):
+    """What the process-tree sampler measured, as payload fields, or {}."""
+    if sampler is None:
+        return {}
+    sample = {}
+    if sampler.peak_bytes:
+        sample["peak_rss_bytes"] = int(sampler.peak_bytes)
+        sample["peak_rss_mb"] = round(sampler.peak_bytes / 2.0**20, 3)
+    if sampler.peak_pss is not None:
+        sample["peak_pss_bytes"] = int(sampler.peak_pss)
+        sample["peak_pss_mb"] = round(sampler.peak_pss / 2.0**20, 3)
+    if sampler.cpu_seconds is not None:
+        user, system = sampler.cpu_split
+        sample["tree_cpu_seconds"] = round(sampler.cpu_seconds, 3)
+        sample["tree_cpu_user_seconds"] = round(user, 3)
+        sample["tree_cpu_system_seconds"] = round(system, 3)
+    return sample
+
+
+# ---------------------------------------------------------------------------
+# Slurm step accounting
+# ---------------------------------------------------------------------------
+# A rank started by srun is a Slurm job step, run by slurmstepd, so nothing
+# this harness launched is its parent. Slurm accounts for each step itself:
+# TotalCPU is summed from each task's rusage when it exits, so it is exact,
+# and TRESUsageInTot mem is the sum over tasks of each task's peak memory.
+# Measured on Shaheen ex06 (LOCAL_VALIDATION 4b.15): 4804 CPU seconds and
+# 56.9 GiB, where the process tree had seen the srun client's 0.01 s and 19 MB.
+
+# JobIDRaw, not JobID: an array element whose SLURM_JOB_ID is 37 is shown
+# by JobID as 36_1, and its steps would never match.
+SACCT_FIELDS = (
+    "JobIDRaw,Start,End,State,NTasks,TotalCPU,UserCPU,SystemCPU,MaxRSS,"
+    "TRESUsageInTot,TRESUsageOutTot,JobName"
+)
+_MEMORY_UNITS = {
+    "": 1,
+    "K": 2**10,
+    "M": 2**20,
+    "G": 2**30,
+    "T": 2**40,
+    "P": 2**50,
+}
+
+
+def parse_slurm_duration(text):
+    """Seconds in a sacct duration: [DD-][HH:]MM:SS[.mmm]. None if blank."""
+    text = (text or "").strip()
+    if not text or text in ("INVALID", "Unknown"):
+        return None
+    # Anything else sacct prints is unreadable, not fatal: one odd value
+    # must not lose the run's result, as parse_slurm_size() also treats it.
+    try:
+        days = 0
+        if "-" in text:
+            day_text, text = text.split("-", 1)
+            days = int(day_text)
+        parts = [float(part) for part in text.split(":")]
+        while len(parts) < 3:
+            parts.insert(0, 0.0)
+        hours, minutes, seconds = parts
+    except ValueError:
+        return None
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
+def parse_slurm_size(text):
+    """Bytes in a sacct size such as 59617968K or 5.5G. None if blank."""
+    text = (text or "").strip()
+    if not text:
+        return None
+    unit = text[-1].upper() if text[-1].isalpha() else ""
+    number = text[:-1] if unit else text
+    if unit not in _MEMORY_UNITS:
+        return None
+    try:
+        return int(float(number) * _MEMORY_UNITS[unit])
+    except ValueError:
+        return None
+
+
+def parse_tres(text):
+    """{'cpu': '00:08:06', 'mem': '39022448K', 'fs/disk': '29785...'}."""
+    fields = {}
+    for item in (text or "").split(","):
+        if "=" in item:
+            key, value = item.split("=", 1)
+            fields[key.strip()] = value.strip()
+    return fields
+
+
+def _slurm_time(text):
+    try:
+        return time.mktime(time.strptime(text, "%Y-%m-%dT%H:%M:%S"))
+    except (TypeError, ValueError):
+        return None
+
+
+# Steps already attributed to an earlier run of this harness process. Slurm
+# numbers a job's steps in order and never reuses a number, so a step listed
+# here can never belong to a later run.
+_CLAIMED_STEPS = set()
+
+
+def parse_sacct_steps(
+    text, job_id, started, ended, slack=2.0, claimed=None, step_name=None
+):
+    """The numbered steps of `job_id` that ran inside [started, ended].
+
+    Returns (steps, pending, ambiguous). pending is True when a matching step
+    has not been finalised in the accounting database yet, so the caller
+    should ask again. ambiguous is True when an unclaimed step ended in the
+    second this run started: sacct prints whole seconds, so it could be this
+    run's or the previous one's, and the caller should not guess. With
+    `step_name`, only steps with that name (the JobName column) count: the
+    harness names every step a run makes, so another operation's step in
+    the same allocation and time window is never taken for this run's.
+    """
+    claimed = _CLAIMED_STEPS if claimed is None else claimed
+    steps = []
+    pending = False
+    ambiguous = False
+    for line in text.splitlines():
+        fields = line.split("|")
+        if len(fields) < 11:
+            continue
+        step_id, start, end, state = fields[0], fields[1], fields[2], fields[3]
+        prefix, _, number = step_id.partition(".")
+        if prefix != str(job_id) or not number.isdigit():
+            continue  # the job itself, .batch, .extern
+        if step_id in claimed:
+            continue  # an earlier run's
+        if step_name is not None and (len(fields) < 12 or fields[11] != step_name):
+            continue  # another operation's step
+        start_s = _slurm_time(start)
+        # The slack lets in a step whose start sacct rounded down to just
+        # before this run's; nothing lets in one that started after the run
+        # ended, which can only be a later operation's.
+        if start_s is None or start_s < started - slack or start_s > math.floor(ended):
+            continue
+        end_s = _slurm_time(end)
+        if end_s is None or state.startswith("RUNNING"):
+            pending = True
+            continue
+        # A step that ended before this run started belongs to the run
+        # before it (the start slack could otherwise let it in). sacct
+        # prints whole seconds, so compare with the start rounded down. A
+        # step that started earlier and ended in that very second is not
+        # ours; one that started and ended in it could be either.
+        started_s = math.floor(started)
+        if end_s < started_s or (end_s == started_s and start_s < started_s):
+            continue
+        if end_s == started_s and step_name is None:
+            # Without a name it could be the previous run's; with one, the
+            # name already says it is this run's.
+            ambiguous = True
+            continue
+        tres_in = parse_tres(fields[9])
+        tres_out = parse_tres(fields[10])
+        steps.append(
+            {
+                "step": step_id,
+                "state": state,
+                "ntasks": int(fields[4]) if fields[4].isdigit() else None,
+                "elapsed_s": end_s - start_s,
+                "cpu_seconds": parse_slurm_duration(fields[5]),
+                "cpu_user_seconds": parse_slurm_duration(fields[6]),
+                "cpu_system_seconds": parse_slurm_duration(fields[7]),
+                "max_task_mem_bytes": parse_slurm_size(fields[8]),
+                "total_mem_bytes": parse_slurm_size(tres_in.get("mem")),
+                "disk_read_bytes": parse_slurm_size(tres_in.get("fs/disk")),
+                "disk_write_bytes": parse_slurm_size(tres_out.get("fs/disk")),
+            }
+        )
+    return steps, pending, ambiguous
+
+
+def slurm_step_usage(
+    started,
+    ended,
+    job_id=None,
+    expected=None,
+    patience_s=120.0,
+    wait_s=5.0,
+    step_name=None,
+):
+    """Accounting for the job steps this run made, or None if unavailable.
+
+    The database lags the step: on Shaheen a finished step showed as still
+    running for up to 57 s (it is flushed about once a minute). A step can
+    also be missing from one answer and present in the next. When the
+    caller knows how many steps the run made (`expected`), this asks until
+    exactly that many are finalised, and gives up at once if there are more; otherwise until two answers in a row list the
+    same finalised steps, which shows the answer is stable but cannot show
+    it is complete. Either way, for up to `patience_s`. None means there is no
+    allocation, no sacct, sacct failed, a step whose owner cannot be told
+    from its whole-second times, or no stable answer within `patience_s`.
+    With `step_name`, only steps of that name count (see parse_sacct_steps).
+    With `expected` unset, an empty list means sacct answered twice that no
+    step matched. The harness itself always passes `expected`, and records
+    nothing when it cannot.
+    """
+    job_id = job_id or os.environ.get("SLURM_JOB_ID")
+    sacct = shutil.which("sacct")
+    if not job_id or not sacct:
+        return None
+    # SLURM_TIME_FORMAT changes how sacct prints Start and End, and a format
+    # _slurm_time() cannot read would silently match no step at all.
+    env = dict(os.environ)
+    env.pop("SLURM_TIME_FORMAT", None)
+    steps = []
+    previous = None
+    deadline = time.time() + patience_s
+    while True:
+        try:
+            text = subprocess.run(
+                [sacct, "-j", str(job_id), "-n", "-P", "-o", SACCT_FIELDS],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,
+                timeout=60,
+                env=env,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            print("sacct could not be run ({0}); no step accounting".format(exc))
+            return None
+        if text.returncode != 0:
+            print(
+                "sacct exited {0}: {1}; no step accounting".format(
+                    text.returncode, text.stderr.strip()[:200]
+                )
+            )
+            return None
+        steps, pending, ambiguous = parse_sacct_steps(
+            text.stdout, job_id, started, ended, step_name=step_name
+        )
+        if ambiguous:
+            print(
+                "a step ended in the second this run started, so it could be "
+                "the previous run's; no step accounting"
+            )
+            return None
+        current = [step["step"] for step in steps]
+        if expected is not None and len(current) > expected:
+            # More steps in the run's window than it made: another step ran
+            # in the same allocation, and which rows are this run's cannot
+            # be told apart. Totalling them all would over-count.
+            print(
+                "{0} steps in this run's window but it made {1}; "
+                "no step accounting".format(len(current), expected)
+            )
+            return None
+        if not pending and (
+            (expected is not None and len(current) == expected)
+            or (expected is None and current == previous)
+        ):
+            _CLAIMED_STEPS.update(current)
+            return steps
+        previous = None if pending else current
+        if time.time() + wait_s > deadline:
+            # A step still pending, or two answers that never agreed: what
+            # is known is a subset, and a subset totals to a smaller number
+            # that looks complete. Report nothing instead.
+            print("sacct never gave a stable, finalised answer; no step accounting")
+            return None
+        time.sleep(wait_s)
 
 
 def _launch_failure(output_dir, message):

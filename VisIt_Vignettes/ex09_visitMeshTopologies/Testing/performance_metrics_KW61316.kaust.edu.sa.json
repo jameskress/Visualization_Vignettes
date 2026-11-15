@@ -106,5 +106,35 @@
             "visit_version": "3.5.0"
         },
         "run_id": "KW61316-2026-11-13"
+    },
+    "2026-11-14T21:50:39.999553": {
+        "test_name": "ex09_visitMeshTopologies",
+        "metrics_schema": 5,
+        "execution_time": 4.6668174266815186,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 11.84,
+        "cpu_usage_percent": 253.7060895570365,
+        "memory_rss_mb": 624.742,
+        "cpu_user_seconds": 3.74,
+        "cpu_system_seconds": 8.1,
+        "memory_usage_mb": 483.562,
+        "memory_usage": 507051507.712,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.524873,
+        "harness_rss_mb": 180.046875,
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0"
+        },
+        "run_id": "KW61316-2026-11-14"
     }
 }
