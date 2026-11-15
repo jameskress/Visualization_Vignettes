@@ -516,7 +516,7 @@ def config_summary(vignettes):
         drifting += 1 if drifts else 0
         last = max(last, timestamp)
         versions.add(drift.tool_version(record))
-    return counts, drifting, last, sorted(v for v in versions if v)
+    return counts, drifting, last, sorted((v for v in versions if v), key=version_key)
 
 
 def render_index(histories, generated):

@@ -189,8 +189,10 @@ jobs:
           echo '{"schemaVersion":1,"label":"docker image","message":"'"$TAG"'","color":"blue"}' > badges/docker-latest.json
 
       - name: Publish badge to GitHub Pages
+        id: badge
         uses: peaceiris/actions-gh-pages@v4
         if: ${{ steps.tip.outputs.newest == 'true' }}
+        continue-on-error: true
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
@@ -198,6 +200,17 @@ jobs:
           # Keep the rest of gh-pages: the results dashboard lives in
           # dashboard/ (dashboard.yml). force_orphan replaced the whole
           # branch with the badge and deleted it on every master push.
+          keep_files: true
+      # dashboard.yml pushes to the same branch and the action neither
+      # rebases nor retries, so a push that lands in between is rejected.
+      # Try once more from the new tip.
+      - name: Publish badge again if the branch moved
+        uses: peaceiris/actions-gh-pages@v4
+        if: ${{ steps.tip.outputs.newest == 'true' && steps.badge.outcome == 'failure' }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: badges
           keep_files: true
 
       - name: Prune Docker System

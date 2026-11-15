@@ -351,6 +351,9 @@ class _PeakRssSampler(object):
         # Each process's parent, as a key, from the walk that first saw it.
         self._io_parent = {}
         self._io_seen = set()
+        # Set when a reaped child could not be settled: the total is then
+        # unknown, and reported as such rather than possibly counted twice.
+        self._io_ambiguous = False
         self._io_seen_now = set()
         self._key_by_pid = {}
         self.peak_processes = 0
@@ -449,8 +452,8 @@ class _PeakRssSampler(object):
         counters are read again here, after the child is known to be gone
         and therefore reaped, and the subtraction is made against that
         reading. If the ancestor has exited too, whether its last reading
-        held the child cannot be known, and nothing is subtracted: the
-        child's own reading then stands for it.
+        held the child cannot be known, and the total is reported as
+        unavailable (io_totals None) rather than possibly counted twice.
         """
         vanished = self._io_seen - self._io_seen_now
         for key in vanished:
@@ -483,6 +486,9 @@ class _PeakRssSampler(object):
                 and not self._still_running(other)
             ]
             if not self._reread_io(ancestor):
+                # The ancestor exited too. Its last reading may or may not
+                # hold the child, so no total can be trusted.
+                self._io_ambiguous = True
                 continue
             for settled in [key] + gone:
                 for i, value in enumerate(self._io_by_pid.get(settled) or ()):
@@ -538,7 +544,11 @@ class _PeakRssSampler(object):
         None when nothing was read, or when any sampled process's I/O was
         unreadable: a total missing a process would look complete and small.
         """
-        if not self._io_by_pid or any(v is None for v in self._io_by_pid.values()):
+        if (
+            self._io_ambiguous
+            or not self._io_by_pid
+            or any(v is None for v in self._io_by_pid.values())
+        ):
             return None
         return tuple(
             max(0, sum(v[i] for v in self._io_by_pid.values()) - self._io_reaped[i])

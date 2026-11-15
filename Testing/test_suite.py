@@ -362,6 +362,7 @@ def log_performance(
     # The trailing newline matches the 112 history files already committed.
     # Without it every append rewrites the last line as "\ No newline at end
     # of file" and the diff is noise on top of the one added record.
+    APPENDED_HISTORIES.add(os.path.realpath(log_file))
     temp_file = log_file + ".tmp"
     with open(temp_file, "w") as handle:
         json.dump(data, handle, indent=4)
@@ -381,7 +382,9 @@ def log_performance(
 # id ran the same install.
 # ---------------------------------------------------------------------------
 _HOST_HARDWARE = None
-_REPO_STATE = None
+# The history files this invocation appended to, so the summary judges
+# drift on this run's records only, not on a vignette it did not run.
+APPENDED_HISTORIES = set()
 TOOL_EXECUTABLES = ("pvbatch", "pvpython", "visit")
 
 
@@ -428,24 +431,20 @@ def _git(*args):
 
 
 def repo_state():
-    """{"commit": short sha, "dirty": bool} for the checkout that ran, once.
+    """{"commit": short sha, "dirty": bool} for the checkout, as it is now.
 
-    Dirty counts tracked files only: the run itself writes untracked output.
+    Taken just before each vignette launches, so a checkout edited during
+    a suite run is recorded as it was for each vignette. Dirty counts
+    tracked files only, and not the history files, which every recorded run
+    changes.
     """
-    global _REPO_STATE
-    if _REPO_STATE is None:
-        commit = _git("rev-parse", "--short=12", "HEAD")
-        status = _git("status", "--porcelain", "--untracked-files=no")
-        _REPO_STATE = {"commit": commit}
-        if status is not None:
-            # The history files themselves change on every recorded run.
-            changed = [
-                line
-                for line in status.splitlines()
-                if "performance_metrics_" not in line
-            ]
-            _REPO_STATE["dirty"] = bool(changed)
-    return dict(_REPO_STATE)
+    state = {"commit": _git("rev-parse", "--short=12", "HEAD")}
+    status = _git("status", "--porcelain", "--untracked-files=no")
+    if status is not None:
+        state["dirty"] = any(
+            "performance_metrics_" not in line for line in status.splitlines()
+        )
+    return state
 
 
 def resolve_wrapper(path, depth=3):
@@ -1423,7 +1422,11 @@ def create_summary_report(
                             {subdir: significant_changes["version_comparison"]}
                         )
 
-                warnings = drift.check_latest(performance_data)
+                # Only a record this invocation appended is judged: a vignette
+                # outside --test_number, or a --generate-metrics pass, would
+                # otherwise report an earlier run's drift as this run's.
+                appended = os.path.realpath(performance_file) in APPENDED_HISTORIES
+                warnings = drift.check_latest(performance_data) if appended else []
                 if warnings:
                     test_status["drift"] = warnings
                     summary_report["drift_warnings"].append({subdir: warnings})
@@ -1570,6 +1573,7 @@ def run_test(test_dir, dir_name, args):
         # has not produced any yet.
         clear_output_directory(test_dir)
         print("Running {0} locally.".format(dir_name))
+        repo_before = repo_state()
         rusage_before = child_rusage_snapshot()
         start_time = time.time()
         run_result = run_local_test(test_dir, args)
@@ -1702,7 +1706,7 @@ def run_test(test_dir, dir_name, args):
         )
         record["build"] = build_identity(run_result, args)
         record["baseline"] = baseline_identity(test_dir, comparison_results)
-        record["repo"] = repo_state()
+        record["repo"] = repo_before
         log_performance(
             dir_name,
             record,
