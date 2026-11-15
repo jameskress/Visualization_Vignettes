@@ -9,8 +9,11 @@ results directories (a run is any <id>_job.sbat). Each row holds:
   steps, reader decomposition, memory selection, ADIOS2 version, build;
 * headline numbers: mean simulation step times over every simulation step
   from 1 up (most steps write nothing, so writer_write_step_s is small),
+  the writer's io (BeginStep, Put and EndStep; the data moves at EndStep),
   mean reader step times over its steps from 1 up (step 0 includes
-  start-up), the reader's EndStep, build and vis times,
+  start-up), the reader's wait for a step (BeginStep), EndStep, build and
+  vis times (these need a _reader.csv reduced by the current
+  reduce_timers.py; older ones leave them empty),
   sampled energy and node power, and Darshan's bytes read and written
   (with the number of logs and how many parsed; the bytes are empty unless
   every log parsed);
@@ -30,8 +33,14 @@ import os
 import re
 import sys
 
-READER_KEYS = ("total_step", "ADIOS_EndStep", "Blueprint_Time", "Vis_Time")
-WRITER_KEYS = ("total_step", "compute_step", "write_step")
+READER_KEYS = (
+    "total_step",
+    "ADIOS_Wait",
+    "ADIOS_EndStep",
+    "Blueprint_Time",
+    "Vis_Time",
+)
+WRITER_KEYS = ("total_step", "compute_step", "write_step", "io")
 DARSHAN_KEYS = (
     "total_POSIX_BYTES_READ",
     "total_POSIX_BYTES_WRITTEN",
