@@ -440,8 +440,11 @@ record. It is not a log of everything that was run. The rule:
   `version_comparisons` in the summary report, and the run does not fail.
   Seeing that 3.4.1 costs 2.6x the memory of 3.4.2 on ex02 is a result, not a
   false alarm, and the latest record is often deliberately the *older* build.
-* **`metrics_schema` marks where a measurement's meaning changed.** It is 4
-  now; the 2024 records predate the field. That one the gate refuses outright,
+* **`metrics_schema` marks where a measurement's meaning changed.** It is 6
+  now. Memory became summed PSS at 5 (§4b.15); 6 only added fields (§4b.16),
+  so `MIN_COMPARABLE_SCHEMA` stays 5 and the gate compares 5 with 6. The 2024
+  records predate the field. Rows below `MIN_COMPARABLE_SCHEMA` the gate
+  refuses outright,
   because those rows measured a different quantity and comparing them says
   nothing about either version (§4.9, §4b.10). This is the only case where
   numbers are withheld rather than labelled.
@@ -986,8 +989,8 @@ seconds, and ex06 said 19 MB where it needs about 62 GB. A run launched by
 off a workstation is the same case: it starts its compute engine with
 `srun` (or `sbatch/srun` from a login node), so the vignette writes
 `engine_outside_tree` into its results JSON and gets the same scope.
-Only a `--machine local` run keeps the engine in the measured tree. Slurm's
-own accounting (`sacct`) would be the source if those numbers are wanted.
+Only a `--machine local` run keeps the engine in the measured tree. §4b.15
+replaces that gap with Slurm's own accounting.
 
 ### 4b.11 VisIt 3.4.2 loses the times of a `.visit` series, a defect in the tool
 
@@ -1246,6 +1249,226 @@ code, as everything else that drives VisIt does, and checks for the two files
 it asked for. `--force` deletes them first, so their presence afterwards
 means a rebuild actually happened rather than an old pair surviving a failed
 one.
+
+### 4b.15 Checking the CPU and memory numbers against the kernel, `Testing/run_tests.py`
+
+§4b.10 and the srun gap raised the obvious question: are the numbers that
+remain any good? Each vignette below ran on KW61316 inside its own cgroup
+(`systemd-run --user --scope`), which counts every process ever placed in it,
+re-parented ones included, up to the moment each exits. Its `cpu.stat` is
+exact, and its anonymous plus shared memory, sampled every 0.1 s, is the
+footprint with each page counted once. The harness's own figures were taken
+in the same run.
+
+| Run | cgroup CPU s | process tree | `RUSAGE_CHILDREN` | cgroup MB | summed RSS | summed PSS |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| ParaView ex03, 1 rank | 68.0 | 67.7 | 67.9 | 1,210 | 1,664 | |
+| ParaView ex03, 4 ranks | 104.8 | 104.1 | 104.8 | 1,878 | 3,350 | 2,191 |
+| VisIt ex02, 1 rank | 176.7 | 176.2 | 107.5 | 3,698 | 4,050 | |
+| VisIt ex02, 4 ranks | 307.3 | 304.7 | 107.6 | 4,420 | 5,083 | 4,698 |
+| ParaView ex06, 1 rank | 3,733 | 3,733 | 3,733 | 55,259 | 55,705 | |
+| VisIt ex06, 1 rank | 224.8 | 224.3 | **5.2** | 33,978 | 34,159 | |
+
+* **The process tree's CPU is right**, within 1% everywhere. That also covers
+  Ibex ParaView, which runs under `mpirun` inside the job as the 4-rank rows do.
+* **Summed RSS over-counted memory** by 40 to 80% on small and multi-rank
+  runs: each rank's RSS includes the same shared libraries. Summed PSS splits
+  each shared page among the processes that share it and lands close to the
+  cgroup. Memory is now summed PSS, scope `child-tree-pss`, with RSS kept
+  alongside as `memory_rss_mb`. That changes what `memory_usage_mb` means, so
+  `metrics_schema` is now **5**; the gate needs two schema-5 runs of a
+  configuration before it compares anything again.
+* **`RUSAGE_CHILDREN` misses VisIt's engine** (5.2 of 224.8 s). It is no
+  longer a fallback for VisIt; a VisIt run with no tree sample records CPU as
+  unavailable.
+
+**Under srun the numbers come from Slurm.** Each rank is a job step, and
+Slurm accounts for each step itself. `TotalCPU` is summed from every task's
+rusage when it exits, so it is exact; `TRESUsageInTot` `mem` is the sum over
+tasks of each task's peak. After a run whose ranks were outside the tree,
+`run_tests.py` asks `sacct` for the numbered steps of the current job that
+started during the run, and `metrics.py` records their CPU and memory plus
+the local tree's (the `srun` client, or VisIt's CLI and viewer), scope
+`slurm-steps-plus-local-tree`. The user/system split, the largest single
+task, and disk read and write come along as detail. From the 13 Nov records:
+
+| Step | CPU s | memory | process tree had said |
+| :--- | ---: | ---: | :--- |
+| Shaheen ParaView ex06, 1 task | 4,804 | 56.9 GiB | 0.01 s, 19 MB |
+| Shaheen VisIt ex06 engine, 8 tasks | 518 | 37.2 GiB | engine missing |
+| Ibex VisIt ex06 engine, 8 tasks | 578 | 43.4 GiB | engine missing |
+
+Things to know about it:
+
+* **Shaheen samples tasks every 600 s** (`JobAcctGatherFrequency=task=600`,
+  `jobacct_gather/linux`), so a step shorter than ten minutes reported 0
+  memory. `run_tests.py` sets `SLURM_ACCTG_FREQ=task=1` inside an allocation,
+  which both its own `srun` and VisIt's read. A step that still reports 0
+  memory records CPU only. Ibex gathers through cgroups every 30 s and reports
+  memory even for two-second steps.
+* **The accounting database lags.** On Shaheen a finished step showed as
+  running for up to 57 s; it is flushed about once a minute. `run_tests.py`
+  waits up to two minutes until as many finalised steps as the run made are
+  listed (one `srun`, or the `engines_launched` the VisIt results JSON
+  reports), which costs about half a minute per `srun` vignette there. The
+  wait is recorded as `accounting_wait_s` and kept out of the execution time.
+  A run that left no results JSON has no known step count, so it records no
+  Slurm figures rather than a total that might be partial.
+* **Each run names its own steps, and only those are counted.** Inside an
+  allocation the harness gives every run a unique step name (`vv-` and 12
+  hex digits): `--job-name` on its own `srun`, and `-n` to VisIt, whose
+  `srun` launcher turns it into `-J`. `SLURM_JOB_NAME` would not do: srun
+  ignores it inside an allocation, and the steps were named after the
+  executable. sacct's `JobName` column then picks out the run's steps.
+  Checked on Shaheen (jobs 15998005 and 15998006) with an unrelated `srun
+  --overlap` step started every 4 s beside the suite: 138 and 82 such steps
+  ran, and ParaView ex03 and ex06 and VisIt ex02 and ex06 each recorded
+  exactly their own one step.
+* **Steps are also matched by time, in whole seconds.** A step an earlier
+  run already took is never counted again. Without a name (outside the
+  harness), a step that started and ended in the second this run started
+  could be either run's, so that run records no Slurm figures instead of
+  guessing; a named step is the run's own. More named steps in the window than
+  the run made also records no Slurm figures.
+* **Checked against the local sampler on Shaheen.** The same vignettes run
+  on a workq node with `--launcher none`, so the sampled tree saw them:
+
+  | ParaView | tree PSS | Slurm memory | tree CPU s | Slurm CPU s |
+  | :--- | ---: | ---: | ---: | ---: |
+  | ex03 | 0.64 GiB | 0.53 GiB | 439 | 63.5 |
+  | ex06 | 57.6 GiB | 56.8 GiB | 20,980 | 4,774 |
+
+  Memory agrees within 1 to 17%; sampling once a second misses the top of a
+  short peak. CPU differs because the runs did: under `srun` pvbatch is bound
+  to its 24 cores, without it every thread pool spans the allocation's 192,
+  and the wall time was the same (19 against 18 s, 293 against 340 s). CPU
+  seconds measure the cores a vignette was given as much as the work it
+  did, so compare CPU only between runs launched the same way.
+* **The memory is a sum of per-task peaks**, not the peak of the sum, so it
+  can read a little high when ranks peak at different times. The local
+  sampler gives the peak of the sum. The two are different scopes and are
+  never compared.
+
+### 4b.16 Drift warnings, a dashboard, and what else a run records, `Testing/drift.py`
+
+The gate compares the last two runs at 10%. It cannot say that a run is
+unusual for its history, and nothing could be read without running
+`plot_metrics.py` by hand. Three additions, all warnings or context, none a
+new failure.
+
+**Drift thresholds, chosen from the committed history.** `drift.py` judges
+each run against the earlier runs of the same vignette, configuration, tool
+version, comparable schema and measurement scope (README, "Drift warnings").
+Run over every committed record (985, as of 15 Nov 2026), only execution time had
+histories long enough to judge (3 or more earlier runs of one version), at 94
+points; CPU and memory at schema 5 have at most one earlier run each so far.
+
+| Rule alone | Execution-time points flagged, of 94 |
+| :--- | ---: |
+| beyond 4 robust sigma (1.4826 x MAD) | 29 |
+| moved 10% from the median | 40 |
+| moved 25% from the median | 18 |
+| moved 50% from the median | 8 |
+| **all of: 4 sigma, 25%, 2 s** | **7** |
+
+The median move was 8.9% and the 90th percentile 46%. Sigma alone flags a
+third of the points, because a three-run history of a quiet vignette has a
+MAD of a few hundredths of a second; the relative floor is what makes it
+usable. The seven that remain are all step changes with a known cause or a
+clear before and after:
+
+* VisIt ex06 on KW61316, 58 s to 209 s on 21 Sep 2026: the commit that
+  fixed and re-blessed the vignettes after the first end-to-end run (a4fdc7c).
+  Every later run stays near 209 s.
+* ParaView ex06 on KW61316, 517 s to 198 s and 205 s in Oct 2024, the week
+  the suite was first committed (d732aa5).
+* ParaView ex00 on ibex-cpu and ibex-egl-p6000, about 4.5 s to 1.8 s on
+  21 to 22 Oct 2024, and ex05 on ibex-egl-rtx2080ti, 4.7 s to 7.1 s: the
+  same first week of Ibex runs.
+
+That is the behaviour wanted: nothing from ordinary noise, every step change
+found on the run that made it. The thresholds are set again from data once
+schema-6 histories have CPU, memory, I/O and energy at five runs or more.
+
+**I/O from the process tree double counted reaped children.** The kernel
+adds a child's I/O into its parent's `/proc/<pid>/io` when the parent reaps
+it, so summing each pid's last reading counted it twice. A test process that
+wrote 100 MB with `fsync` and ran a child that wrote 50 MB summed to 200 MB.
+Subtracting a vanished child's reading from its parent turned out to need ever
+more bookkeeping (a parent and child gone in one interval, orphans, a child
+reaped during the correction), each case found in review. The sampler now
+does something simpler that cannot count twice: each sample sums the readings
+of one walk, root first and every parent before its children. The root holds
+every descendant it has reaped, a live descendant holds its own so far, and a
+descendant reaped between its parent's read and its own is missed by that
+sample rather than counted twice. Each sample's sum is a lower bound, and the
+run records the largest. A process of the user's own that refuses
+`/proc/<pid>/io` is exiting (EACCES once its memory is gone) and is skipped;
+one of another user withholds the total. Five process shapes (a child, a
+grandchild, two children reaped together, a parent exiting after its child, a
+sibling exiting with a parent and grandchild) each read the exact total in six
+runs out of six (150, 50, 100, 150 and 70 MB). An orphan's I/O after it leaves
+the tree is not counted. Real processes cannot choose when the kernel reaps a child,
+so `Testing/test_io_sampler.py` (`python3 -m unittest
+Testing/test_io_sampler.py`) drives the sampler with scripted fake processes
+and fixes each order: a child reaped between its parent's read and its own,
+read before its reap, gone by its read with the parent read too early (low for
+one sample, right at the next), a grandchild reaped through a reaped parent, a
+zombie, a live non-dumpable process, another user's process, and a platform
+without `io_counters`. A ninth, Linux only, starts a real child that calls `prctl(PR_SET_DUMPABLE, 0)` and stays alive, and requires the total to be withheld; it fails under the earlier same-user-means-exiting rule. All nine pass.
+CPU time does not have this problem: psutil reports a process's own CPU
+separately from its children's.
+
+**Context switches are left out.** `/proc/<pid>/status` reports the main
+thread's switches only, so a multithreaded pvbatch would undercount by its
+thread count. Summing `/proc/<pid>/task/*/status` would cost one read per
+thread per sample. The load average at start is recorded instead, as
+context, and the most processes and threads the tree had at once.
+
+**Energy is recorded only where it is the run's alone.** Shaheen's Slurm
+gathers energy through `acct_gather_energy/pm_counters`, so `sacct`'s
+`ConsumedEnergyRaw` is per step (job 15988521: 39 J to 23,369 J across its
+twelve steps). `/sys/cray/pm_counters` on a compute node reads node, CPU and
+memory energy in whole joules at about 10 Hz without privilege. Both count the
+whole node, and Shaheen's `shared` and `ppn` partitions place several jobs on
+one node; `OverSubscribe=NO` is set on every partition, including those two,
+so it cannot tell them apart. The harness instead compares
+`SLURM_JOB_CPUS_PER_NODE` with the node's CPU count: on a whole debug node
+both read 384. Energy is recorded only when they match on every node.
+`AveCPUFreq` was considered and left out: it read 19.2 GHz for steps on the
+same job.
+
+**Checked on Shaheen, 15 Nov 2026.** ParaView 6.2.1 (mesa) ex00, ex01 and ex03
+on a whole debug node (`shaheen_pv_suite.sbat`, throwaway clone and
+throwaway `--machine_name`, so nothing reached the committed history), once
+under `srun` (job 15997926) and once with `--launcher none` (job 15997927):
+
+| | srun time | srun CPU s | srun energy | local time | local CPU s | local energy (node / CPU / memory) | local storage read |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ex00 | 73.3 s | 3.7 | 23,721 J | 10.6 s | 3.9 | 3,412 / 1,785 / 1,053 J | 200 MB |
+| ex01 | 92.0 s | 5.0 | 29,952 J | 8.1 s | 6.2 | 2,568 / 1,356 / 792 J | 31 MB |
+| ex03 | 61.1 s | 64.3 | 18,223 J | 27.1 s | 435.8 | 9,868 / 5,403 / 2,836 J | 22 MB |
+
+* Both energy paths recorded, and only because the job owned the node
+  (`job_owns_its_nodes: true`, 384 of 384 CPUs).
+* The build id was the same in both jobs, `a6ce8012af70`, although each job
+  wrote its own pvbatch wrapper directory: the id follows the wrapper's
+  `exec` to the module's pvbatch.
+* ex00 recorded `passed: true, gpu_exempt: true`. The first version recorded
+  the raw text gate as a failure: ex00's legacy text baseline names the GPU's
+  OpenGL vendor, which every CPU node fails and the summary has always
+  exempted. `passed` now follows the summary.
+* **The new fields explain a swing on their first outing.** The committed
+  shaheen3-cpu history has ex00 and ex01 at 2 to 2.5 s. Under `srun` they
+  took 73 and 92 s, all of it inside the Slurm step (sacct elapsed 69 and
+  88 s) on under 5 CPU seconds: the process was waiting, not working, while
+  the node drew about 340 W. Run locally on the same node shortly after,
+  ex00 took 10.6 s and read 200 MB from storage against 5.7 MB of read
+  calls, so it was paging in shared libraries from a cold cache. Slurm's
+  `fs/disk` counter saw 5.7 MB, so it does not count those page-ins.
+  What held the `srun` steps for a minute was not established. ex03 under
+  `srun` used 64 CPU s against 436 locally, the binding effect §4b.15
+  describes.
 
 ## 5. Known issue: ex06 image stability
 

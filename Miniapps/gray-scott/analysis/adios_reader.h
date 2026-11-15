@@ -36,6 +36,9 @@ public:
     // Accessors
     const BackendOptions& GetOptions() const;
     MPI_Comm GetComm() const;
+    // Minor page faults taken while sizing the read buffers since the last
+    // call (ReadRepartition's Read_Alloc), then reset.
+    double TakeAllocFaults();
 
 private:
     void ReadFidesAttributes();
@@ -49,4 +52,5 @@ private:
     std::unique_ptr<adios2::IO> m_io;
     std::unique_ptr<adios2::Engine> m_engine;
     bool m_attributes_after_first_step = false;
+    double m_alloc_faults = 0.0;
 };

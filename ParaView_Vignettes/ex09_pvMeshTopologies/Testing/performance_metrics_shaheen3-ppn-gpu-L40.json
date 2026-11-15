@@ -48,5 +48,40 @@
             "visit_version": null
         },
         "run_id": "shaheen3-ppn-gpu-L40-2026-11-13"
+    },
+    "2026-11-14T21:48:58.294092": {
+        "test_name": "ex09_pvMeshTopologies",
+        "metrics_schema": 5,
+        "execution_time": 2.7432779178619384,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 4.615,
+        "cpu_usage_percent": 168.2294006724936,
+        "cpu_user_seconds": 3.789,
+        "cpu_system_seconds": 0.826,
+        "memory_max_task_mb": 484.37109375,
+        "disk_read_mb": 34.19470691680908,
+        "disk_write_mb": 0.2723722457885742,
+        "slurm_steps": [
+            "15988517.9"
+        ],
+        "memory_usage_mb": 494.361328125,
+        "memory_usage": 518375424.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.670732,
+        "harness_rss_mb": 177.171875,
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn13",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "shaheen3-ppn-gpu-L40-2026-11-14"
     }
 }

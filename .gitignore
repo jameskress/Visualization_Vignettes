@@ -80,3 +80,6 @@ Miniapps/gray-scott/shaheenDownload/
 
 # CMake user presets hold machine-local paths (see Miniapps/gray-scott/CMakeUserPresets.json.example).
 CMakeUserPresets.json
+
+# Written by Testing/dashboard.py; published by .github/workflows/dashboard.yml.
+_site/

@@ -52,5 +52,35 @@
             "visit_version": null
         },
         "run_id": "ibex-egl-rtx2080ti-2026-11-13"
+    },
+    "2026-11-14T22:17:56.227250": {
+        "test_name": "ex07_pvScaling",
+        "metrics_schema": 5,
+        "execution_time": 4.0035560131073,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 3.6,
+        "cpu_usage_percent": 89.920060771322,
+        "memory_rss_mb": 448.363,
+        "cpu_user_seconds": 2.92,
+        "cpu_system_seconds": 0.68,
+        "memory_usage_mb": 323.72,
+        "memory_usage": 339445022.72,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.874383,
+        "harness_rss_mb": 182.3125,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-12",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-egl-rtx2080ti-2026-11-14"
     }
 }

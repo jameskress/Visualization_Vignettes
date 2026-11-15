@@ -5,13 +5,14 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=8
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=100G
+#SBATCH --mem=90G
 #SBATCH --time=02:00:00
 #SBATCH --output=vv-pv-suite.%j.out
 # ParaView regression suite on an Ibex node as a batch job (RUNBOOK.md section 5).
 #   cd /ibex/scratch/$USER/<clone>/Testing && sbatch ibex_pv_suite.sbat             # CPU, mesa
 #   sbatch --gres=gpu:1 --constraint=a100 --ntasks=4 --cpus-per-task=4 --export=ALL,VARIANT=egl,GPU=a100 ibex_pv_suite.sbat
 #   (no --partition for a GPU job: Ibex refuses it; at most 16 CPUs per A100, RUNBOOK section 5)
+#   90G, not more: ex06 peaks near 57 GiB, and 90 GB per GPU is Ibex's ceiling on a V100
 #   TESTS="5 6" sbatch ibex_pv_suite.sbat             # a subset
 #   EXTRA="--run-id ibex-cpu-2026-10" sbatch ...      # the one recorded run; default is --no-metrics
 #   RANKS=4 sbatch ...                                # MPI ranks per vignette (default 1)

@@ -103,5 +103,35 @@
             "visit_version": null
         },
         "run_id": "ibex-egl-gtx1080ti-2026-11-13"
+    },
+    "2026-11-14T21:36:05.097555": {
+        "test_name": "ex00_pvQuery",
+        "metrics_schema": 5,
+        "execution_time": 3.753171920776367,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 1.65,
+        "cpu_usage_percent": 43.962814249625076,
+        "memory_rss_mb": 352.242,
+        "cpu_user_seconds": 1.33,
+        "cpu_system_seconds": 0.32,
+        "memory_usage_mb": 303.083,
+        "memory_usage": 317805559.808,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.673733,
+        "harness_rss_mb": 102.37109375,
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu502-11",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null
+        },
+        "run_id": "ibex-egl-gtx1080ti-2026-11-14"
     }
 }
