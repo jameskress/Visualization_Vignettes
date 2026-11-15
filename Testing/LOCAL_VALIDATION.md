@@ -1323,9 +1323,10 @@ Things to know about it:
   ran, and ParaView ex03 and ex06 and VisIt ex02 and ex06 each recorded
   exactly their own one step.
 * **Steps are also matched by time, in whole seconds.** A step an earlier
-  run already took is never counted again. A step that started and ended in
-  the second this run started could be either run's, so that run records no
-  Slurm figures instead of guessing. More named steps in the window than
+  run already took is never counted again. Without a name (outside the
+  harness), a step that started and ended in the second this run started
+  could be either run's, so that run records no Slurm figures instead of
+  guessing; a named step is the run's own. More named steps in the window than
   the run made also records no Slurm figures.
 * **Checked against the local sampler on Shaheen.** The same vignettes run
   on a workq node with `--launcher none`, so the sampled tree saw them:
