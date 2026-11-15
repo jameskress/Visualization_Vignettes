@@ -1,29 +1,29 @@
 {
-    "2026-11-15T19:19:32.695771": {
+    "2026-11-15T22:14:13.623235": {
         "test_name": "ex10_visitColormapFidelity",
         "metrics_schema": 6,
-        "execution_time": 6.245357707977295,
+        "execution_time": 6.7578901805877685,
         "memory_measurement_scope": "slurm-steps-plus-local-tree",
         "cpu_measurement_scope": "slurm-steps-plus-local-tree",
-        "cpu_seconds": 15.501,
-        "cpu_usage_percent": 248.20035496446144,
-        "cpu_user_seconds": 8.32,
-        "cpu_system_seconds": 7.180000000000001,
-        "memory_max_task_mb": 133.34765625,
-        "disk_read_mb": 71.03375434875488,
-        "disk_write_mb": 0.010769844055175781,
+        "cpu_seconds": 36.896,
+        "cpu_usage_percent": 545.9692154510709,
+        "cpu_user_seconds": 17.807000000000002,
+        "cpu_system_seconds": 19.088,
+        "memory_max_task_mb": 135.40625,
+        "disk_read_mb": 141.86300945281982,
+        "disk_write_mb": 0.021559715270996094,
         "slurm_steps": [
-            "55625516.10"
+            "55627890.10"
         ],
-        "memory_usage_mb": 629.7412109375,
-        "memory_usage": 660331520.0,
+        "memory_usage_mb": 998.525390625,
+        "memory_usage": 1047029760.0,
         "returncode": 0,
         "timed_out": false,
         "run_succeeded": true,
-        "subprocess_time": 6.135914,
-        "load_1m_at_start": 41.58,
+        "subprocess_time": 6.673525,
+        "load_1m_at_start": 15.14,
         "job_owns_its_nodes": false,
-        "harness_rss_mb": 177.06640625,
+        "harness_rss_mb": 198.92578125,
         "verdicts": {
             "run": true,
             "image": "PASS",
@@ -39,7 +39,7 @@
             "tool": "visit",
             "version": "3.5.0",
             "launcher": "visit",
-            "ranks": 4,
+            "ranks": 8,
             "id": "e6351a500560"
         },
         "baseline": {
@@ -50,12 +50,12 @@
             }
         },
         "repo": {
-            "commit": "22abc1a3813f",
+            "commit": "1c8b26b1420d",
             "dirty": false
         },
         "machine_info": {
             "system": "Linux",
-            "node": "gpu101-09-r",
+            "node": "gpu101-02-r",
             "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
             "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
             "machine": "x86_64",
@@ -64,8 +64,8 @@
             "visit_version": "3.5.0",
             "logical_cpus": 64,
             "cpu_model": "AMD EPYC 7713P 64-Core Processor",
-            "memory_total_gb": 503.7
+            "memory_total_gb": 503.6
         },
-        "run_id": "ibex-gpu-2026-11-15"
+        "run_id": "ibex-gpu-2026-11-15b"
     }
 }
