@@ -24,13 +24,16 @@ namespace
 
     // SST with a marshalling other than BP5 (FFS) ignores a memory selection
     // and sends the first values of the buffer as if they were contiguous
-    // (ADIOS2 2.11, SstWriter.tcc). BP5 files and SST's BP5 marshalling
-    // honour it.
+    // (ADIOS2 2.11, SstWriter.tcc). Before ADIOS2 2.10 its BP5 marshalling
+    // did the same. BP5 files honour it.
     bool HonoursMemorySelection(adios2::IO &io)
     {
         const std::string engine = Lower(io.EngineType());
         if (engine != "sst" && engine != "effis") // effis is SST under another name
             return true;
+#if !defined(ADIOS2_VERSION) || ADIOS2_VERSION < 21000
+        return false;
+#endif
         for (const auto &kv : io.Parameters())
             if (Lower(kv.first) == "marshalmethod")
                 return Lower(kv.second) == "bp5";
@@ -58,8 +61,8 @@ AdiosWriterBackend::AdiosWriterBackend(const BackendOptions &opts)
     // marshalling were bitwise identical. Refuse the combination.
     if (m_opts.read_decomposition == "brick" && !HonoursMemorySelection(m_io_out))
         throw std::runtime_error(
-            "AnalysisOutput: SST with MarshalMethod other than BP5 cannot carry a "
-            "brick decomposition; use MarshalMethod=BP5, a BP5 file, or -D slab");
+            "AnalysisOutput: SST cannot carry a brick decomposition with this ADIOS2 "
+            "(it needs MarshalMethod=BP5 and ADIOS2 2.10 or later); use a BP5 file or -D slab");
     m_writer = m_io_out.Open(m_opts.adios_output_file, adios2::Mode::Write);
     m_writer_open = true;
 }

@@ -18,7 +18,8 @@ void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, 
     // identical to a BP5 file written without it, for slab and brick readers
     // (L = 65, 8 writers, 3 to 8 readers). The older FFS marshalling is
     // reported to ignore memory selections and is not tested here, so with
-    // MarshalMethod=FFS it stays off.
+    // MarshalMethod=FFS it stays off, as it does before ADIOS2 2.10, whose
+    // SST BP5 marshalling also ignored them. effis is SST under another name.
     std::string engine = m_io.EngineType();
     std::transform(engine.begin(), engine.end(), engine.begin(), ::tolower);
     if (engine == "sst" && settings.adios_span)
@@ -27,7 +28,7 @@ void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, 
             vtkLog(WARNING, "ADIOS2: adios_span is not supported with SST; using the default write mode");
         settings.adios_span = false;
     }
-    if (engine == "sst" && settings.adios_memory_selection)
+    if ((engine == "sst" || engine == "effis") && settings.adios_memory_selection)
     {
         std::string marshal = "bp5";
         for (const auto &kv : m_io.Parameters())
@@ -40,6 +41,9 @@ void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, 
                 std::transform(marshal.begin(), marshal.end(), marshal.begin(), ::tolower);
             }
         }
+#if !defined(ADIOS2_VERSION) || ADIOS2_VERSION < 21000
+        marshal += " with ADIOS2 before 2.10";
+#endif
         if (marshal != "bp5")
         {
             if (rank == 0)
