@@ -328,10 +328,24 @@ records, for every run:
   `ldd` of both binaries, the source revision and `scontrol show job`.
 * `SLURM_ACCTG_FREQ=task=30,energy=30`, so steps get memory and energy
   figures (Shaheen samples every 600 s by default).
+* Darshan 3.4.7 (`build-darshan.sh <software dir>`; Shaheen has no Darshan
+  module), preloaded only into the run's own `srun` commands: every file
+  read and write, through POSIX, MPI-IO and STDIO, with Lustre striping, in
+  `telemetry/<job id>/darshan/`. It does not see SST's network transfers,
+  which the NIC counters cover. On the 64 + 4 node f128 Ascent run it logged
+  the 2048^3 checkpoint restart (137 GB read, about 37000 opens) and the
+  images and logs (200 MB written), and reader steps took 4.75 and 5.44 s
+  with it against 5.28 s without. `--no-darshan` leaves it out.
+* Cray MPICH's NIC counter summary for the run's MPI traffic
+  (`MPICH_OFI_CXI_COUNTER_REPORT=2`): minimum, mean and maximum over the
+  job's NICs of traffic, pauses, NACKs and cache behaviour, printed when MPI
+  finalizes and saved by the reduction.
 
 The run's job passes its ID to the reduction job (`RUN_JOB_ID`; to rerun a
 reduction by hand, `sbatch --export=ALL,RUN_JOB_ID=<run job> reduce.sbat`),
-which then saves `sacct` for every step (`<id>_sacct.txt`),
+which then saves `sacct` for every step (`<id>_sacct.txt`), the Darshan
+logs and their `darshan-parser` totals (`<id>_darshan/`), the MPICH counter
+summary (`<id>_mpich_cxi_summary.txt`),
 writes `<id>_telemetry.json` (energy per run and per step's nodes, mean
 power, CPU use, NIC bytes and retries) and archives the per-node samples.
 An in transit run is one heterogeneous step: `.1+0` is the simulation and
@@ -344,6 +358,16 @@ here, and on the 256 + 16 node `readonly` sweep run it gave the simulation
 step 9.66 MJ against 13.06 MJ sampled, and the sampler's own step 0. CPU use
 is a fraction of all hardware threads, including the second thread of each
 core that the jobs leave idle.
+
+**Corpus index.** `2026-WOIV-scripts/corpus_index.py <out prefix>
+<results dir> ...` writes one row per run (any `<id>_job.sbat`) to
+`<out prefix>.csv` and `.jsonl`: what was run (nodes, ranks, backends,
+grid, decomposition, ADIOS2 version, build), headline numbers (simulation
+and reader step times over steps 1 and up, the reader's EndStep, build and
+vis times, sampled energy and power, Darshan bytes) and the path of every
+artifact. Missing inputs leave their columns empty. The reduction of a
+large run can take a while: 65536 per-rank timer files took over 54
+minutes, so the reduction job's limit is 4 hours.
 
 **glibc mmap threshold.** Every generated job exports
 `MALLOC_MMAP_THRESHOLD_=33554432`. That fixes the size at which glibc serves
