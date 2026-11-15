@@ -636,14 +636,19 @@ def parse_slurm_duration(text):
     text = (text or "").strip()
     if not text or text in ("INVALID", "Unknown"):
         return None
-    days = 0
-    if "-" in text:
-        day_text, text = text.split("-", 1)
-        days = int(day_text)
-    parts = [float(part) for part in text.split(":")]
-    while len(parts) < 3:
-        parts.insert(0, 0.0)
-    hours, minutes, seconds = parts
+    # Anything else sacct prints is unreadable, not fatal: one odd value
+    # must not lose the run's result, as parse_slurm_size() also treats it.
+    try:
+        days = 0
+        if "-" in text:
+            day_text, text = text.split("-", 1)
+            days = int(day_text)
+        parts = [float(part) for part in text.split(":")]
+        while len(parts) < 3:
+            parts.insert(0, 0.0)
+        hours, minutes, seconds = parts
+    except ValueError:
+        return None
     return days * 86400 + hours * 3600 + minutes * 60 + seconds
 
 
