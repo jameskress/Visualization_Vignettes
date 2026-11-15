@@ -67,8 +67,9 @@ def _csv_means(path, keys):
 
 
 def _darshan_totals(directory):
-    totals = {key: 0 for key in DARSHAN_KEYS}
-    found = False
+    """Sum of each counter over a run's logs; None for a counter no log has a
+    valid (non-negative) value for. Darshan writes -1 for unknown."""
+    totals = {key: None for key in DARSHAN_KEYS}
     for path in glob.glob(os.path.join(directory, "*.total.txt")):
         try:
             text = open(path).read()
@@ -76,10 +77,9 @@ def _darshan_totals(directory):
             continue
         for key in DARSHAN_KEYS:
             match = re.search(r"^" + key + r":\s+(-?\d+)", text, re.M)
-            if match:
-                totals[key] += max(0, int(match.group(1)))
-                found = True
-    return totals if found else {key: None for key in DARSHAN_KEYS}
+            if match and int(match.group(1)) >= 0:
+                totals[key] = (totals[key] or 0) + int(match.group(1))
+    return totals
 
 
 def _sbatch_value(text, option):
@@ -98,13 +98,25 @@ def index_run(results_dir, run_id):
     row = {"id": run_id, "results_dir": results_dir}
     match = re.search(r"_N(\d+)(?:_S(\d+))?", run_id)
     row["sim_nodes"] = int(match.group(1)) if match else None
-    row["stage_nodes"] = int(match.group(2)) if match and match.group(2) else 0
+    text = ""
     job = artifact("_job.sbat")
     if job:
-        text = open(job).read()
-        row["job_nodes"] = _sbatch_value(text, "nodes")
-        row["job_ntasks"] = _sbatch_value(text, "ntasks")
-        row["job_time"] = _sbatch_value(text, "time")
+        try:
+            text = open(job).read()
+        except OSError:
+            text = ""
+    row["job_nodes"] = _sbatch_value(text, "nodes")
+    row["job_ntasks"] = _sbatch_value(text, "ntasks")
+    row["job_time"] = _sbatch_value(text, "time")
+    # Staging nodes from the ID's _S part, else the job's nodes minus the
+    # simulation's (paper1_func_N0064_transit_* has 4 and no _S); empty if
+    # neither is known.
+    if match and match.group(2):
+        row["stage_nodes"] = int(match.group(2))
+    elif row["sim_nodes"] is not None and (row["job_nodes"] or "").isdigit():
+        row["stage_nodes"] = int(row["job_nodes"]) - row["sim_nodes"]
+    else:
+        row["stage_nodes"] = None
     settings = _load_json(os.path.join(run_dir, "settings.json")) or {}
     stage = _load_json(os.path.join(run_dir, "settings-stage.json")) or {}
     row["sim_output"] = settings.get("output_type")

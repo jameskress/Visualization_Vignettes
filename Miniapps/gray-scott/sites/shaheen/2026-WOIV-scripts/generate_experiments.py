@@ -1208,8 +1208,12 @@ if [ -f $TEL/job_id ]; then
         for log in $(find $TEL/darshan -name '*.darshan' 2>/dev/null); do
             "{darshan_prefix}/bin/darshan-parser" --total --perf "$log" > "${{log%.darshan}}.total.txt" 2>&1
         done
-        mkdir -p "{results_dir}/{id}_darshan"
-        find $TEL/darshan \\( -name '*.darshan' -o -name '*.total.txt' \\) -exec cp {{}} "{results_dir}/{id}_darshan/" \\;
+        # This job's logs replace an earlier job's of the same experiment,
+        # through a fresh directory, so the index never sums two runs.
+        DX="{results_dir}/{id}_darshan"
+        rm -rf "$DX.tmp" && mkdir -p "$DX.tmp" \\
+            && find $TEL/darshan \\( -name '*.darshan' -o -name '*.total.txt' \\) -exec cp {{}} "$DX.tmp/" \\; \\
+            && rm -rf "$DX" && mv "$DX.tmp" "$DX"
     fi
     # Cray MPICH's NIC counter summary, from the run's job output.
     if [ -f $OUTPUT_DIR/slurm-$RUN_JOB.out ]; then
