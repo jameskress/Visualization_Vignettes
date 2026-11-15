@@ -427,7 +427,11 @@ Rules each backend needs for clean images:
   adaptor marks one ghost layer, on the low side of each block, so without
   it the high face of each block is drawn as an internal surface and
   contour normals there are one-sided. Under a volume, the extra layer
-  cracks the image. Pin colour maps (`AutomaticRescaleRangeMode =
+  cracks the image. For speed on large image data, contour with
+  `FlyingEdges3D` (the `AcceleratedAlgorithms` plugin), not Contour, whose
+  `FastMode` ParaView 6.0 ignores, and give GhostCells only the arrays the
+  pipeline draws (`sites/shaheen/README.md`, "Catalyst reader
+  performance"). Pin colour maps (`AutomaticRescaleRangeMode =
   "Never"`): rescaling to each run's range makes the same data render
   differently per rank count.
 * **Ascent.** Set `samples` on volume plots, about 9 per cell along the
