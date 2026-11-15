@@ -510,13 +510,20 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
         payload["ranks_outside_tree"] = True
         if tree:
             payload["local_tree"] = tree
-        asked = time.time()
-        steps = slurm_step_usage(started, ended, expected=expected_steps)
-        # Waiting for the accounting database is not the vignette's time;
-        # metrics.py takes this back out of the execution time.
-        payload["accounting_wait_s"] = round(time.time() - asked, 3)
-        if steps is not None:
-            payload["slurm_steps"] = steps
+        if expected_steps is None:
+            # No results JSON, so nobody said how many engines started. sacct
+            # can show that an answer is stable but not that it is complete,
+            # and a partial list would total to a small number that looks
+            # real. Record no figures instead.
+            print("Step count unknown (no results JSON); no step accounting")
+        else:
+            asked = time.time()
+            steps = slurm_step_usage(started, ended, expected=expected_steps)
+            # Waiting for the accounting database is not the vignette's time;
+            # metrics.py takes this back out of the execution time.
+            payload["accounting_wait_s"] = round(time.time() - asked, 3)
+            if steps is not None:
+                payload["slurm_steps"] = steps
     elif tree:
         payload.update(tree)
         if duration > 0 and tree.get("tree_cpu_seconds") is not None:
@@ -653,15 +660,25 @@ def _slurm_time(text):
         return None
 
 
-def parse_sacct_steps(text, job_id, started, ended, slack=2.0):
+# Steps already attributed to an earlier run of this harness process. Slurm
+# numbers a job's steps in order and never reuses a number, so a step listed
+# here can never belong to a later run.
+_CLAIMED_STEPS = set()
+
+
+def parse_sacct_steps(text, job_id, started, ended, slack=2.0, claimed=None):
     """The numbered steps of `job_id` that ran inside [started, ended].
 
-    Returns (steps, pending): pending is True when a matching step has not
-    been finalised in the accounting database yet, so the caller should ask
-    again.
+    Returns (steps, pending, ambiguous). pending is True when a matching step
+    has not been finalised in the accounting database yet, so the caller
+    should ask again. ambiguous is True when an unclaimed step ended in the
+    second this run started: sacct prints whole seconds, so it could be this
+    run's or the previous one's, and the caller should not guess.
     """
+    claimed = _CLAIMED_STEPS if claimed is None else claimed
     steps = []
     pending = False
+    ambiguous = False
     for line in text.splitlines():
         fields = line.split("|")
         if len(fields) < 11:
@@ -670,6 +687,8 @@ def parse_sacct_steps(text, job_id, started, ended, slack=2.0):
         prefix, _, number = step_id.partition(".")
         if prefix != str(job_id) or not number.isdigit():
             continue  # the job itself, .batch, .extern
+        if step_id in claimed:
+            continue  # an earlier run's
         start_s = _slurm_time(start)
         if start_s is None or start_s < started - slack or start_s > ended + slack:
             continue
@@ -679,11 +698,14 @@ def parse_sacct_steps(text, job_id, started, ended, slack=2.0):
             continue
         # A step that ended before this run started belongs to the run
         # before it (the start slack could otherwise let it in). sacct
-        # prints whole seconds, so compare with the start rounded down; a
-        # step ending in that very second is ours only if it also started
-        # in it.
+        # prints whole seconds, so compare with the start rounded down. A
+        # step that started earlier and ended in that very second is not
+        # ours; one that started and ended in it could be either.
         started_s = math.floor(started)
         if end_s < started_s or (end_s == started_s and start_s < started_s):
+            continue
+        if end_s == started_s:
+            ambiguous = True
             continue
         tres_in = parse_tres(fields[9])
         tres_out = parse_tres(fields[10])
@@ -702,7 +724,7 @@ def parse_sacct_steps(text, job_id, started, ended, slack=2.0):
                 "disk_write_bytes": parse_slurm_size(tres_out.get("fs/disk")),
             }
         )
-    return steps, pending
+    return steps, pending, ambiguous
 
 
 def slurm_step_usage(
@@ -717,10 +739,11 @@ def slurm_step_usage(
     that many are finalised; otherwise until two answers in a row list the
     same finalised steps, which shows the answer is stable but cannot show
     it is complete. Either way, for up to `patience_s`. None means there is no
-    allocation, no sacct, sacct failed, or no stable answer within
-    `patience_s`. An empty list means sacct answered twice that no step
-    matched, which is what a VisIt engine submitted as a separate job from a
-    login node looks like.
+    allocation, no sacct, sacct failed, a step whose owner cannot be told
+    from its whole-second times, or no stable answer within `patience_s`.
+    With `expected` unset, an empty list means sacct answered twice that no
+    step matched. The harness itself always passes `expected`, and records
+    nothing when it cannot.
     """
     job_id = job_id or os.environ.get("SLURM_JOB_ID")
     sacct = shutil.which("sacct")
@@ -753,13 +776,22 @@ def slurm_step_usage(
                 )
             )
             return None
-        steps, pending = parse_sacct_steps(text.stdout, job_id, started, ended)
+        steps, pending, ambiguous = parse_sacct_steps(
+            text.stdout, job_id, started, ended
+        )
+        if ambiguous:
+            print(
+                "a step ended in the second this run started, so it could be "
+                "the previous run's; no step accounting"
+            )
+            return None
         current = [step["step"] for step in steps]
-        if not pending:
-            if expected is not None and len(current) >= expected:
-                return steps
-            if expected is None and current == previous:
-                return steps
+        if not pending and (
+            (expected is not None and len(current) >= expected)
+            or (expected is None and current == previous)
+        ):
+            _CLAIMED_STEPS.update(current)
+            return steps
         previous = None if pending else current
         if time.time() + wait_s > deadline:
             # A step still pending, or two answers that never agreed: what

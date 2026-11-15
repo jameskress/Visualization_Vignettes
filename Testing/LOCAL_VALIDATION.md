@@ -1296,7 +1296,7 @@ task, and disk read and write come along as detail. From the 13 Nov records:
 | Shaheen VisIt ex06 engine, 8 tasks | 518 | 37.2 GiB | engine missing |
 | Ibex VisIt ex06 engine, 8 tasks | 578 | 43.4 GiB | engine missing |
 
-Two things to know about it:
+Things to know about it:
 
 * **Shaheen samples tasks every 600 s** (`JobAcctGatherFrequency=task=600`,
   `jobacct_gather/linux`), so a step shorter than ten minutes reported 0
@@ -1306,9 +1306,16 @@ Two things to know about it:
   memory even for two-second steps.
 * **The accounting database lags.** On Shaheen a finished step showed as
   running for up to 57 s; it is flushed about once a minute. `run_tests.py`
-  waits up to two minutes for two identical, finalised answers, which costs
-  about half a minute per `srun` vignette there. The wait is recorded as
-  `accounting_wait_s` and kept out of the execution time.
+  waits up to two minutes until as many finalised steps as the run made are
+  listed (one `srun`, or the `engines_launched` the VisIt results JSON
+  reports), which costs about half a minute per `srun` vignette there. The
+  wait is recorded as `accounting_wait_s` and kept out of the execution time.
+  A run that left no results JSON has no known step count, so it records no
+  Slurm figures rather than a total that might be partial.
+* **Steps are matched by time, in whole seconds.** A step an earlier run
+  already took is never counted again. A step that started and ended in the
+  second this run started could be either run's, so that run records no
+  Slurm figures instead of guessing.
 * **Checked against the local sampler on Shaheen.** The same vignettes run
   on a workq node with `--launcher none`, so the sampled tree saw them:
 
