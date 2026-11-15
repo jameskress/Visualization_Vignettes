@@ -281,8 +281,10 @@ before that date had readers on `select()`.
 
 **Reader decomposition.** `--reader-decomposition brick` makes each reader
 read a 3D brick aligned with the simulation's blocks instead of a slab
-along the slowest axis: at 262144 writers and 2048 readers, 128 whole
-writer blocks per reader instead of pieces of at least 4096. Measured on
+along the slowest axis: at 262144 writers and 2048 readers, each reader
+owns 128 writer blocks (4 x 4 x 8) and, with the planes it shares with its
+neighbours, requests parts of 225 (5 x 5 x 9), instead of pieces of at
+least 4096. Measured on
 the 64 + 4 node f128 Ascent job (three runs each, 15 Nov 2026), the two
 take the same time per reader step (7.7 s slab, 7.8 s brick): brick spends
 longer in `EndStep` and less in rendering. The images differ in about 0.1%
@@ -315,9 +317,11 @@ libfabric registration cache (`FI_MR_CACHE_MAX_COUNT`) does not.
 None of that commit's code runs for our reads: each reader's slab covers
 whole writer blocks in the two fast dimensions, so no request has gaps
 and the new per-run table is never built. (A `brick` reader, below, is
-different. Its owned box lines up with writer blocks only when `L` divides
-evenly by both rank counts on each axis: at `L` = 66 four writers split an
-axis at 34 and two readers at 33. Even then, the plane it reads from each
+different. Its owned box lines up with writer blocks when every reader
+boundary falls on a writer boundary. `L` dividing evenly by both rank counts
+is enough but not needed: at `L` = 66 four writers split an axis at 17, 34
+and 50 and two readers at 33 (no match), while at `L` = 67 four writers
+split at 17, 34 and 51 and two readers at 34 (a match). Even then, the plane it reads from each
 neighbour cuts into the next writer blocks in the fast dimensions, so at
 4096^3 with 262144 writers and 2048 readers an interior brick owns 4 x 4 x 8
 blocks but requests parts of 5 x 5 x 9. Its requests can have gaps, and that
