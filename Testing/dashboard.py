@@ -131,6 +131,8 @@ def status_of(record):
     verdicts = record.get("verdicts")
     if isinstance(verdicts, dict):
         if verdicts.get("passed"):
+            if verdicts.get("gpu_exempt"):
+                return "pass", "exempt: needs a GPU, run on a non-GPU machine"
             return "pass", "all gates passed"
         failed = [
             name

@@ -527,13 +527,16 @@ def baseline_identity(test_dir, comparison_results):
 
 
 def comparison_verdicts(
-    run_result, comparison_results, numeric, csv_results, text_match
+    run_result, comparison_results, numeric, csv_results, text_match, gpu_exempt=False
 ):
     """The verdict each gate reached on this run, as recorded with it.
 
-    Raw verdicts, before the summary's GPU exemption: the dashboard shows
-    what each comparison found, and the summary report still decides what
-    fails the suite.
+    Each gate's entry is raw, what the comparison found. `passed` is the
+    suite's verdict: a vignette that needs a GPU (is_gpu_test_allowed_to_fail)
+    on a --non_gpu_machine is exempt from every gate, as in the summary
+    report, and `gpu_exempt` says so. Without that, ex00 on every CPU node
+    would read as a failure: its legacy text baseline names the GPU's OpenGL
+    vendor.
     """
     images = {}
     for result in comparison_results or []:
@@ -562,7 +565,9 @@ def comparison_verdicts(
         verdicts["csv"] != "FAIL",
         text_match is not False,
     ]
-    verdicts["passed"] = verdicts["run"] and all(gates)
+    verdicts["passed"] = bool(gpu_exempt) or (verdicts["run"] and all(gates))
+    if gpu_exempt:
+        verdicts["gpu_exempt"] = True
     return verdicts
 
 
@@ -1673,7 +1678,15 @@ def run_test(test_dir, dir_name, args):
     if pending_record is not None:
         record = dict(pending_record)
         record["verdicts"] = comparison_verdicts(
-            run_result, comparison_results, numeric, csv_results, text_comparison_result
+            run_result,
+            comparison_results,
+            numeric,
+            csv_results,
+            text_comparison_result,
+            gpu_exempt=bool(
+                is_gpu_test_allowed_to_fail(testing_dir)
+                and getattr(args, "non_gpu_machine", False)
+            ),
         )
         record["build"] = build_identity(run_result, args)
         record["baseline"] = baseline_identity(test_dir, comparison_results)

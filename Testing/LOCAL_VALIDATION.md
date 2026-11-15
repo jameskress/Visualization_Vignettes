@@ -1416,6 +1416,38 @@ both read 384. Energy is recorded only when they match on every node.
 `AveCPUFreq` was considered and left out: it read 19.2 GHz for steps on the
 same job.
 
+**Checked on Shaheen, 15 Nov 2026.** ParaView 6.2.1 (mesa) ex00, ex01 and ex03
+on a whole debug node (`shaheen_pv_suite.sbat`, throwaway clone and
+throwaway `--machine_name`, so nothing reached the committed history), once
+under `srun` (job 15997926) and once with `--launcher none` (job 15997927):
+
+| | srun time | srun CPU s | srun energy | local time | local CPU s | local energy (node / CPU / memory) | local storage read |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ex00 | 73.3 s | 3.7 | 23,721 J | 10.6 s | 3.9 | 3,412 / 1,785 / 1,053 J | 200 MB |
+| ex01 | 92.0 s | 5.0 | 29,952 J | 8.1 s | 6.2 | 2,568 / 1,356 / 792 J | 31 MB |
+| ex03 | 61.1 s | 64.3 | 18,223 J | 27.1 s | 435.8 | 9,868 / 5,403 / 2,836 J | 22 MB |
+
+* Both energy paths recorded, and only because the job owned the node
+  (`job_owns_its_nodes: true`, 384 of 384 CPUs).
+* The build id was the same in both jobs, `a6ce8012af70`, although each job
+  wrote its own pvbatch wrapper directory: the id follows the wrapper's
+  `exec` to the module's pvbatch.
+* ex00 recorded `passed: true, gpu_exempt: true`. The first version recorded
+  the raw text gate as a failure: ex00's legacy text baseline names the GPU's
+  OpenGL vendor, which every CPU node fails and the summary has always
+  exempted. `passed` now follows the summary.
+* **The new fields explain a swing on their first outing.** The committed
+  shaheen3-cpu history has ex00 and ex01 at 2 to 2.5 s. Under `srun` they
+  took 73 and 92 s, all of it inside the Slurm step (sacct elapsed 69 and
+  88 s) on under 5 CPU seconds: the process was waiting, not working, while
+  the node drew about 340 W. Run locally on the same node shortly after,
+  ex00 took 10.6 s and read 200 MB from storage against 5.7 MB of read
+  calls, so it was paging in shared libraries from a cold cache. Slurm's
+  `fs/disk` counter saw 5.7 MB, so it does not count those page-ins.
+  What held the `srun` steps for a minute was not established. ex03 under
+  `srun` used 64 CPU s against 436 locally, the binding effect §4b.15
+  describes.
+
 ## 5. Known issue: ex06 image stability
 
 `ex06_pvLargeData` differs **4.13% of pixels between two consecutive runs** on
