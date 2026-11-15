@@ -453,8 +453,9 @@ Catalyst script now writes ParaView's own scoped log to
 `PARAVIEW_LOG_PIPELINE_VERBOSITY` and `PARAVIEW_LOG_RENDERING_VERBOSITY`
 categories (rank 0 also prints them to stderr). The reduction job runs
 `catalyst_timers.py` and writes `<results>/<id>_catalyst.csv`: per step, the
-mean and maximum over ranks of `execute` (`Vis_Time`), `convert` (Blueprint
-to VTK, zero-copy, about 1 ms), `update` (the filters), `render`,
+mean and maximum over ranks of `execute` (`Vis_Time`), `overhead` (the
+Blueprint check and Catalyst's bookkeeping, about 1 ms; the zero-copy
+conversion to VTK runs inside `update`), `update` (the filters), `render`,
 `icet_pass`, `icet_render` (the local OSPRay render), `icet_composite`,
 `capture` and `png_write`. At 256 + 16 nodes the slice step after the fix
 is filters 1.6 to 1.8 s, IceT's composite about 2.5 s (128 ranks at

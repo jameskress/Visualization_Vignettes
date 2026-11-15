@@ -7,7 +7,9 @@ each reader rank writes ParaView's own log to catalyst_timers/rank_<r>.log
 timed scopes in those logs into one row per step:
 
   execute     catalyst_execute_paraview: all of it (the reader's Vis_Time)
-  convert     execute minus co-processing: Blueprint to VTK and its checks
+  overhead    execute minus co-processing: the Blueprint check and Catalyst's
+              bookkeeping. The conversion to VTK is not here: it is zero-copy
+              and runs inside co-processing, as part of update.
   update      RenderView update: the filters (slices, contour) and geometry
   render      RenderView StillRender: the whole render
   icet_pass   IceT's composite pass, which draws the local image inside it
@@ -17,7 +19,12 @@ timed scopes in those logs into one row per step:
   png_write   Save captured image (rank 0 only)
 
 Each timer is reported as its mean and maximum over the ranks that logged
-it. Step numbers are Catalyst's timestep (the reader's output step).
+it. Step numbers are Catalyst's timestep (the reader's output step). The
+log opens while the script is imported, inside the first step and after
+ParaView has logged that step's number, so scopes before the first number in
+the file are counted to the step before it. That first step's row is partial
+(only the scopes that closed after the log opened) and also holds the
+pipeline's start-up; compare steps 1 and up.
 
 usage: catalyst_timers.py LOG_DIR OUTPUT_CSV
 """
@@ -40,7 +47,7 @@ SCOPES = [
 STEP = re.compile(r"'timestep' set to (\d+)")
 TIMERS = [
     "execute",
-    "convert",
+    "overhead",
     "update",
     "render",
     "icet_pass",
@@ -55,25 +62,26 @@ def parse(path):
     """{step: {timer: seconds}} for one rank. Scopes repeated within a step
     (one update per view, say) are summed."""
     steps, step = {}, None
+    pending = {}  # scopes logged before the first step number in the file
     with open(path, errors="replace") as f:
         for line in f:
             line = line.rstrip()
             m = STEP.search(line)
             if m:
                 step = int(m.group(1))
+                if pending and not steps and step > 0:
+                    steps[step - 1] = pending
                 steps.setdefault(step, {})
-                continue
-            if step is None:
                 continue
             for name, pat in SCOPES:
                 m = pat.search(line)
                 if m:
-                    t = steps[step]
+                    t = pending if step is None else steps[step]
                     t[name] = t.get(name, 0.0) + float(m.group(1))
                     break
     for t in steps.values():
         if "execute" in t and "coprocess" in t:
-            t["convert"] = t["execute"] - t["coprocess"]
+            t["overhead"] = t["execute"] - t["coprocess"]
     return steps
 
 

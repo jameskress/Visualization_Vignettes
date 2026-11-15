@@ -250,9 +250,9 @@ ASCENT_ISOSURFACE_TEMPLATE = """
 # --- CATALYST TEMPLATES ---
 # Stage timers for the Paper 2 Catalyst scripts. The reader's Vis_Time is one
 # number for all of catalyst_execute; ParaView logs each stage of it (the
-# Blueprint conversion, the filters, the render, IceT's local render and
+# Blueprint check, the filters, the render, IceT's local render and
 # composite, the PNG write) as timed scopes. With GS_CATALYST_TIMERS=1 and
-# the PARAVIEW_LOG_*_VERBOSITY categories on (READER_ENV and
+# the PARAVIEW_LOG_*_VERBOSITY categories on (CATALYST_READER_ENV and
 # CATALYST_TIMER_ENV), each reader rank writes that log to
 # catalyst_timers/rank_<r>.log, and catalyst_timers.py reduces it.
 # Prepended to each template, so its braces are doubled for str.format.
