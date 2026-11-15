@@ -101,7 +101,7 @@ def main():
         for step, t in parse(log).items():
             for name, v in t.items():
                 per_step.setdefault(step, {}).setdefault(name, []).append(v)
-    if not per_step:
+    if not any(n in t for t in per_step.values() for n in TIMERS):
         sys.exit(
             f"{sys.argv[1]}: no timed steps (were the PARAVIEW_LOG_*_VERBOSITY categories on?)"
         )
