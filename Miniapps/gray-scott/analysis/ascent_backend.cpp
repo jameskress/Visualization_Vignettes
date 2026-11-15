@@ -91,7 +91,9 @@ AscentBackend::AscentBackend(const BackendOptions &opts)
       m_perf_logger("reader_timers",
                     [&]() { int rank; MPI_Comm_rank(opts.comm, &rank); return rank; }(),
                     [&]() { char hostname[256]; gethostname(hostname, sizeof(hostname)); return std::string(hostname); }(),
-                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "Blueprint_Time", "Vis_Time", "total_step"}),
+                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "Blueprint_Time", "Vis_Time", "total_step",
+                     "Read_Setup", "Read_Alloc", "Mesh_Build"},
+                    {"minflt_alloc", "minflt_endstep", "minflt_build", "minflt_vis"}),
       m_reader(opts, m_perf_logger)
 {
     conduit::Node open_opts;
@@ -106,20 +108,37 @@ void AscentBackend::Run()
     {
         m_perf_logger.start("total_step");
         size_t step = m_reader.CurrentStep();
-        conduit::Node mesh_blueprint; std::vector<double> u_buf, v_buf; RepartitionInfo read_info;
+        // The field buffers and the mesh node are members and live across
+        // steps: ReadRepartition resizes a buffer only when its size
+        // changes, so after the first step no step allocates, zero-fills,
+        // page-faults or frees field-sized memory. Fresh buffers each step
+        // cost about 1.2 s per step on 2.2 GB fields (sites/shaheen/README.md).
+        std::vector<double> &u_buf = m_u_buf;
+        std::vector<double> &v_buf = m_v_buf;
+        conduit::Node &mesh_blueprint = m_mesh;
+        RepartitionInfo read_info;
         m_perf_logger.start("Blueprint_Time");
         m_reader.ReadRepartition(m_reader.GetOptions().u_var, u_buf, read_info);
         m_reader.ReadRepartition(m_reader.GetOptions().v_var, v_buf, read_info);
         // The reads are deferred and complete at EndStep(), into buffers the
         // reader owns: end the step now, then use them, so the simulation
         // goes on while we render (#76, #42).
+        double faults = ProcessMinorFaults();
         m_reader.EndStep();
+        m_perf_logger.setCounter("minflt_endstep", ProcessMinorFaults() - faults);
+        m_perf_logger.setCounter("minflt_alloc", m_reader.TakeAllocFaults());
+        m_perf_logger.start("Mesh_Build");
+        faults = ProcessMinorFaults();
         BuildRepartitionedBlueprint(read_info, u_buf, &v_buf, m_cell_ghosts, step, m_reader.GetOptions(), mesh_blueprint);
+        m_perf_logger.setCounter("minflt_build", ProcessMinorFaults() - faults);
+        m_perf_logger.stop("Mesh_Build");
         m_perf_logger.stop("Blueprint_Time");
 
         m_perf_logger.start("Vis_Time");
+        faults = ProcessMinorFaults();
         m_ascent.publish(mesh_blueprint);
         m_ascent.execute(conduit::Node());
+        m_perf_logger.setCounter("minflt_vis", ProcessMinorFaults() - faults);
         m_perf_logger.stop("Vis_Time");
         m_perf_logger.stop("total_step");
         m_perf_logger.logStep(step);

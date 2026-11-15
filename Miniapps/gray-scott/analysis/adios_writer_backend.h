@@ -4,6 +4,7 @@
 #include "adios_reader.h"
 #include "common/perf_logger.hpp"
 #include <adios2.h>
+#include <vector>
 
 // Writes each staged step back to disk with ADIOS2 (#76), so in transit
 // runs can save data from the staging nodes instead of the simulation's.
@@ -24,4 +25,7 @@ private:
     adios2::IO m_io_out;
     adios2::Engine m_writer;
     bool m_writer_open = false;
+    // The step's fields, kept across steps (no field-sized allocation in
+    // the step loop).
+    std::vector<double> m_u_buf, m_v_buf;
 };

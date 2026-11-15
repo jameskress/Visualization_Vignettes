@@ -50,7 +50,9 @@ AdiosWriterBackend::AdiosWriterBackend(const BackendOptions &opts)
       m_perf_logger("reader_timers",
                     [&]() { int rank; MPI_Comm_rank(opts.comm, &rank); return rank; }(),
                     [&]() { char hostname[256]; gethostname(hostname, sizeof(hostname)); return std::string(hostname); }(),
-                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "ADIOS_Write_Time", "total_step"}),
+                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "ADIOS_Write_Time", "total_step",
+                     "Read_Setup", "Read_Alloc"},
+                    {"minflt_alloc", "minflt_endstep"}),
       m_reader(m_opts, m_perf_logger),
       m_adios(MakeAdios(m_reader.GetComm()))
 {
@@ -88,13 +90,19 @@ void AdiosWriterBackend::Run()
         m_perf_logger.start("total_step");
         const size_t step = m_reader.CurrentStep();
 
-        std::vector<double> u_buf, v_buf;
+        // Members, kept across steps: a fresh pair of field-sized buffers
+        // each step is zero-filled and page-faulted in again (ascent_backend.cpp).
+        std::vector<double> &u_buf = m_u_buf;
+        std::vector<double> &v_buf = m_v_buf;
         RepartitionInfo read_info;
         m_reader.ReadRepartition(opts.u_var, u_buf, read_info);
         m_reader.ReadRepartition(opts.v_var, v_buf, read_info);
         // The deferred reads complete at EndStep(); then the simulation can go
         // on while we write (#42).
+        const double faults = ProcessMinorFaults();
         m_reader.EndStep();
+        m_perf_logger.setCounter("minflt_endstep", ProcessMinorFaults() - faults);
+        m_perf_logger.setCounter("minflt_alloc", m_reader.TakeAllocFaults());
 
         // ReadRepartition adds the neighbour's first plane on every axis
         // where this piece is not the last. Write only the owned points: the

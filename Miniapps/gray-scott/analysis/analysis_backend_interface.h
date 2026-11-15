@@ -9,6 +9,18 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <stdexcept>
+#include <sys/resource.h>
+
+// Minor page faults of this process so far (all threads). The readers
+// record the count per phase of a step as counters: a field-sized buffer
+// that is touched for the first time costs one fault per 4 KiB page, which
+// is time no timer names.
+inline double ProcessMinorFaults()
+{
+    struct rusage u;
+    getrusage(RUSAGE_SELF, &u);
+    return static_cast<double>(u.ru_minflt);
+}
 
 // Shared data structures
 struct RepartitionInfo
