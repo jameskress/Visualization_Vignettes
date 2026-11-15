@@ -26,6 +26,21 @@
     </io>
 
     <!--===========================================
+           In transit reader (analysis/adios_reader.cpp)
+        ===========================================-->
+    <!-- The reader declares this IO; parameters set here reach the reader,
+         which otherwise gets only its built-in defaults. The engine type
+         comes from the settings, so the one here does not matter. -->
+    <io name="AnalysisInput">
+        <engine type="BP5">
+            <parameter key="verbose" value="0"/>
+            <!-- SST at scale: a reader with more than 1023 writers hangs
+                 with the default select() control module (ADIOS2 #5272). -->
+            <!-- <parameter key="ControlModule" value="epoll"/> -->
+        </engine>
+    </io>
+
+    <!--===========================================
            In transit reader writing to disk (adios_writer)
         ===========================================-->
     <io name="AnalysisOutput">
@@ -64,7 +79,7 @@
         -->
     </io>
 
-    
+
     <!--================================================
            Configuration for Gray-Scott (checkpointing)
         ================================================-->
@@ -109,19 +124,19 @@
         </engine>
 
         === BP5 ===
-        BP5 is a new file format. 
+        BP5 is a new file format.
         'NumAggregators' parameter controls how many files
-            are created under the output folder. By default, each compute node 
-            writes its own file which is scalable but not the fastest at small scale. 
+            are created under the output folder. By default, each compute node
+            writes its own file which is scalable but not the fastest at small scale.
             The number of substreams should be chosen for the capability of the underlying
             filesystem (e.g. twice the number of OST servers on a Lustre file system).
-        'AggregatorRatio' An alternative option to NumAggregators to pick every 
+        'AggregatorRatio' An alternative option to NumAggregators to pick every
             Nth process as aggregator.
         'OpenTimeoutSecs' parameter specifies how long to wait on a reading Open
             for the file to appear. Useful for streaming when the reader starts up
-            faster than the writer produce any output. 
-        'AsyncWrite': true/false Perform data writing operations asynchronously 
-            after EndStep(). 
+            faster than the writer produce any output.
+        'AsyncWrite': true/false Perform data writing operations asynchronously
+            after EndStep().
         <engine type="BP5">
             <parameter key="SubStreams" value="4"/>
             <parameter key="OpenTimeoutSecs" value="10.0"/>

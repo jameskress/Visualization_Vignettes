@@ -19,9 +19,7 @@ namespace
         const std::vector<double> &buf_u,
         const std::vector<double> *buf_v,
         const BackendOptions &opts,
-        std::vector<std::uint8_t> &point_ghosts,
-        int reader_rank,
-        int reader_size)
+        std::vector<std::uint8_t> &point_ghosts)
     {
         mesh_node["type"] = "uniform";
         std::array<double, 3> global_origin = opts.origin.value_or(std::array<double, 3>{0.0, 0.0, 0.0});
@@ -72,18 +70,24 @@ namespace
             mesh_node["fields/v/values"].set_external(const_cast<double *>(buf_v->data()), buf_v->size());
         }
 
-        // ReadRepartition adds the next slab's first plane on every rank but
-        // the last, so neighbouring pieces share that plane of points (no
-        // cell is duplicated). Flag those points DUPLICATEPOINT
-        // (vtkDataSetAttributes) so point-based analysis in a Catalyst
-        // script does not count the plane twice (#42).
+        // ReadRepartition adds the neighbour's first plane on every axis
+        // where this piece is not the last (shared_high), so neighbouring
+        // pieces share that plane of points (no cell is duplicated). Flag
+        // those points DUPLICATEPOINT (vtkDataSetAttributes) so point-based
+        // analysis in a Catalyst script does not count them twice (#42).
+        // With slabs only z is shared; with bricks any of the three.
         point_ghosts.assign(nx * ny * nz, 0);
-        // The same test as ReadRepartition: every rank but the last reads
-        // the next slab's first plane.
-        const bool has_shared_plane = reader_rank != reader_size - 1;
-        if (has_shared_plane && nz > 0)
-            std::fill(point_ghosts.begin() + static_cast<std::ptrdiff_t>((nz - 1) * nx * ny), point_ghosts.end(),
-                      std::uint8_t{1});
+        const bool shared_z = read_info.shared_high.size() == 3 && read_info.shared_high[0];
+        const bool shared_y = read_info.shared_high.size() == 3 && read_info.shared_high[1];
+        const bool shared_x = read_info.shared_high.size() == 3 && read_info.shared_high[2];
+        if (shared_x || shared_y || shared_z)
+        {
+            for (size_t k = 0; k < nz; ++k)
+                for (size_t j = 0; j < ny; ++j)
+                    for (size_t i = 0; i < nx; ++i)
+                        if ((shared_z && k == nz - 1) || (shared_y && j == ny - 1) || (shared_x && i == nx - 1))
+                            point_ghosts[(k * ny + j) * nx + i] = std::uint8_t{1};
+        }
         mesh_node["fields/vtkGhostType/association"].set_string("vertex");
         mesh_node["fields/vtkGhostType/topology"].set_string("mesh");
         mesh_node["fields/vtkGhostType/values"].set_external(point_ghosts.data(), point_ghosts.size());
@@ -136,10 +140,6 @@ CatalystBackend::~CatalystBackend()
 
 void CatalystBackend::Run()
 {
-    int rank, size;
-    MPI_Comm_rank(m_reader.GetComm(), &rank);
-    MPI_Comm_size(m_reader.GetComm(), &size);
-
     while (m_reader.NextStep())
     {
         m_perf_logger.start("total_step");
@@ -164,7 +164,7 @@ void CatalystBackend::Run()
         m_reader.EndStep();
 
         auto data_node = exec_params["catalyst/channels/grid/data"];
-        BuildRepartitionedCatalystMesh(data_node, read_info, u_buf, &v_buf, current_opts, point_ghosts, rank, size);
+        BuildRepartitionedCatalystMesh(data_node, read_info, u_buf, &v_buf, current_opts, point_ghosts);
         m_perf_logger.stop("Blueprint_Time");
 
         m_perf_logger.start("Vis_Time");

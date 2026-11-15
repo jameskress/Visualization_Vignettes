@@ -1,6 +1,9 @@
 #include "adios_writer_backend.h"
 
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
+#include <stdexcept>
 #include <unistd.h>
 
 namespace
@@ -10,6 +13,35 @@ namespace
         if (std::filesystem::exists("adios2.xml"))
             return adios2::ADIOS("adios2.xml", comm);
         return adios2::ADIOS(comm);
+    }
+
+    std::string Lower(std::string text)
+    {
+        std::transform(text.begin(), text.end(), text.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return text;
+    }
+
+    // SST with a marshalling other than BP5 (FFS) ignores a memory selection
+    // and sends the first values of the buffer as if they were contiguous
+    // (ADIOS2 2.11, SstWriter.tcc). Before ADIOS2 2.9.2 its BP5 marshalling
+    // did the same. BP5 files honour it.
+    bool HonoursMemorySelection(adios2::IO &io)
+    {
+        const std::string engine = Lower(io.EngineType());
+        if (engine != "sst" && engine != "effis") // effis is SST under another name
+            return true;
+#if !defined(ADIOS2_VERSION) || ADIOS2_VERSION < 20902
+        return false;
+#endif
+        // SST reads only the exact key MarshalMethod (ADIOS2 2.11,
+        // SstParamParser.cpp); any other spelling is ignored, so read the
+        // same key the engine does.
+        const auto params = io.Parameters();
+        const auto it = params.find("MarshalMethod");
+        if (it != params.end())
+            return Lower(it->second) == "bp5";
+        return true; // SST marshals with BP5 by default
     }
 } // end anonymous namespace
 
@@ -25,6 +57,16 @@ AdiosWriterBackend::AdiosWriterBackend(const BackendOptions &opts)
     m_io_out = m_adios.DeclareIO("AnalysisOutput");
     if (m_io_out.EngineType().empty())
         m_io_out.SetEngine("BP5");
+    // A slab's owned points are a prefix of its buffer, so an engine that
+    // ignores the memory selection still sends the right values. A brick's
+    // are not. Packing them into a contiguous buffer does not help either:
+    // with ADIOS2 2.11 an 8-reader brick written through SST with FFS read
+    // back wrong even then, while the same packed blocks through BP5
+    // marshalling were bitwise identical. Refuse the combination.
+    if (m_opts.read_decomposition == "brick" && !HonoursMemorySelection(m_io_out))
+        throw std::runtime_error(
+            "AnalysisOutput: SST cannot carry a brick decomposition with this ADIOS2 "
+            "(it needs MarshalMethod=BP5 and ADIOS2 2.9.2 or later); use a BP5 file or -D slab");
     m_writer = m_io_out.Open(m_opts.adios_output_file, adios2::Mode::Write);
     m_writer_open = true;
 }
@@ -40,9 +82,6 @@ AdiosWriterBackend::~AdiosWriterBackend()
 void AdiosWriterBackend::Run()
 {
     const auto &opts = m_reader.GetOptions();
-    int rank, size;
-    MPI_Comm_rank(m_reader.GetComm(), &rank);
-    MPI_Comm_size(m_reader.GetComm(), &size);
 
     while (m_reader.NextStep())
     {
@@ -57,12 +96,14 @@ void AdiosWriterBackend::Run()
         // on while we write (#42).
         m_reader.EndStep();
 
-        // ReadRepartition adds one overlap plane in the slowest dimension on
-        // every rank but the last. The owned planes come first in the
-        // buffer, so writing one plane fewer writes exactly the owned part.
-        auto write_dims = read_info.local_dims;
-        if (rank != size - 1 && !write_dims.empty() && write_dims[0] > 0)
-            write_dims[0] -= 1;
+        // ReadRepartition adds the neighbour's first plane on every axis
+        // where this piece is not the last. Write only the owned points: the
+        // buffer holds local_dims, of which the owned box starts at zero, so
+        // a memory selection picks it out on any axis (slab or brick).
+        const auto &write_dims = read_info.owned_dims;
+        size_t owned_count = write_dims.empty() ? 0 : 1;
+        for (size_t n : write_dims)
+            owned_count *= n;
 
         m_perf_logger.start("ADIOS_Write_Time");
         m_writer.BeginStep();
@@ -75,6 +116,11 @@ void AdiosWriterBackend::Run()
                 var = m_io_out.DefineVariable<double>(*field, read_info.global_dims, read_info.local_start, write_dims);
             else
                 var.SetSelection({read_info.local_start, write_dims});
+            if (owned_count == 0)
+                continue; // more readers than planes: this one owns nothing
+            // The whole buffer box when nothing is trimmed: same as no memory
+            // selection, and ADIOS2 2.9 has no argument-free overload.
+            var.SetMemorySelection({adios2::Dims(read_info.local_dims.size(), 0), read_info.local_dims});
             m_writer.Put(var, (field == &opts.u_var ? u_buf : v_buf).data());
         }
         m_writer.EndStep(); // the Puts are deferred: the buffers live until here

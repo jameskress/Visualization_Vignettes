@@ -12,7 +12,12 @@ This project provides a flexible and extensible **in-transit reader** for simula
 
 - **Multiple Visualization Backends**: Out-of-the-box support for both Ascent and ParaView Catalyst.
 
-- **Data Handling**: The dataset is decomposed and redistributed evenly among the analysis ranks (`repartition`): each rank reads one slab along the slowest dimension, plus the next slab's first plane so the pieces meet. A `preserve` mode (each rank keeps whole writer blocks) is not implemented; the reader stops with an error if it is requested.
+- **Data Handling**: The dataset is decomposed and redistributed evenly among the analysis ranks (`repartition`), in one of two layouts (`read_decomposition` in the settings, or `--decomposition`):
+  - `slab` (default): each rank reads one slab along the slowest dimension.
+  - `brick`: the ranks form a 3D grid from `MPI_Dims_create`, with the axes in the simulation's order, so a brick owns a whole number of writer blocks when every reader boundary falls on a writer boundary (for example when `L` divides evenly by both rank counts on each axis; `sites/shaheen/README.md` has examples). At 262144 writers and 2048 readers a slab spans at least 4096 writers and a brick owns 128 (4 x 4 x 8 blocks). The neighbour planes below make a brick request parts of more blocks (5 x 5 x 9 there), with gaps in the fast dimensions, which a slab's requests never have.
+
+  Either way each piece also reads its neighbour's first plane on every axis where it is not the last, so the pieces meet. Both layouts give bitwise the same data (checked with `L` = 65, 3 to 8 readers). A `preserve` mode (each rank keeps whole writer blocks) is not implemented; the reader stops with an error if it is requested.
+- **ADIOS2 parameters**: the reader loads the simulation's ADIOS2 XML (`adios_config` in the settings) and declares `<io name="AnalysisInput">`, so engine parameters for the reader go there. With SST at scale that must include `ControlModule=epoll`: with the default `select()`, a reader connected to more than 1023 writers hangs (ADIOS2 #5272). The engine type comes from the settings. `OpenTimeoutSecs` set in the XML wins over the built-in default. Rank 0 prints the parameters in use.
 
 - **MxN Parallelism**: Designed to run in an MxN configuration where M simulation ranks write data and N analysis ranks read and process it. The reader handles the parallel data redistribution.
 
@@ -26,7 +31,7 @@ The reader supports multiple backends for analysis. The desired backend is typic
 
 The default backend, providing a rich feature set for direct visualization and analysis.
 
-- **Data Modes**: `repartition`.
+- **Data Modes**: `repartition`. Every cell is published with `ascent_ghosts` = 0: the pieces share their boundary planes of points but no cells, as with Catalyst. Ascent's ghost field is per cell only, so the shared points cannot be flagged as Catalyst flags them; renders and cell-based filters are unaffected, but a point-based query (a point count, or a histogram of `u` or `v`) counts the shared planes twice.
 
 - **Configuration**: Controlled by Ascent action files (e.g., `ascent_actions.yaml`).
 
@@ -34,7 +39,7 @@ The default backend, providing a rich feature set for direct visualization and a
 
 Integrates with the ParaView Catalyst library, allowing you to leverage ParaView's extensive visualization capabilities and Python scripting for analysis pipelines.
 
-- **Data Modes**: `repartition`. The shared plane between neighbouring pieces is flagged `DUPLICATEPOINT` in `vtkGhostType`, so point-based analysis does not count it twice. Pin colour ranges in Catalyst scripts: each rank sees only its own slab, so a range taken from the data differs per rank and the image changes with the rank count.
+- **Data Modes**: `repartition`. The shared planes between neighbouring pieces (one axis for slabs, up to three for bricks) are flagged `DUPLICATEPOINT` in `vtkGhostType`, so point-based analysis does not count them twice: a point count below a threshold matched the global count exactly for 1 to 8 readers in both layouts, and over-counted by 27% with the flags ignored. Pin colour ranges in Catalyst scripts: each rank sees only its own piece, so a range taken from the data differs per rank and the image changes with the rank count.
 
 - **Configuration**: Requires a Catalyst Python script to define the analysis pipeline. The path to this script must be specified in the settings JSON file.
 
@@ -42,7 +47,7 @@ Integrates with the ParaView Catalyst library, allowing you to leverage ParaView
 
 Writes every staged step back to disk with ADIOS2, so an in transit run saves data from the staging nodes and the simulation only pays for the hand-off.
 
-- **Data Modes**: Repartition only. Each rank writes the slab it owns; the overlap plane the reader adds is not written, so the file holds the global `u` and `v` arrays once, as the simulation's own BP5 output does.
+- **Data Modes**: Repartition only. Each rank writes the piece it owns; the shared planes the reader adds are not written (a memory selection picks the owned box out of the buffer), so the file holds the global `u` and `v` arrays once, as the simulation's own BP5 output does. An `AnalysisOutput` of SST with `MarshalMethod=FFS`, or any SST with ADIOS2 older than 2.9.2, ignores memory selections; a slab's owned points are a prefix of its buffer, so it still writes the right values, but a brick's are not, and the reader refuses that combination at startup. Packing the owned box into a contiguous buffer did not fix it: with ADIOS2 2.11 an 8-reader brick read back wrong through FFS even then, and bitwise identical through BP5 marshalling.
 - **Output**: `<output_file_name>.bp` from the settings file, or `staged_output.bp`.
 - **Configuration**: the `AnalysisOutput` IO of `adios2.xml` in the working directory, if that file exists; otherwise BP5 with ADIOS2's defaults. At scale, one aggregator per staging node (`NumAggregators`) is a good start.
 - **Timers**: `ADIOS_Write_Time` as well as the read timers and `total_step`.
@@ -65,6 +70,7 @@ The reader's behavior is controlled by several command-line arguments:
 | `-c`, `--mpi-split-color` | Color for `MPI_Comm_split` in MPMD mode. Crucial for in-transit runs. |
 | `-e`, `--engine` | Override the ADIOS2 engine (e.g., `SST`, `BP4`, `BP5`). |
 | `-b`, `--block-mode` | Data handling: `repartition` (the default and the only mode implemented). |
+| `-D`, `--decomposition` | How `repartition` splits the domain: `slab` (default) or `brick`. Overrides `read_decomposition` in the settings file. |
 | `-w`, `--sst-wait-mode` | SST wait mode: `block` (default) or `timeout`. |
 | `-t`, `--sst-timeout` | Timeout in seconds when `sst-wait-mode` is `timeout`. |
 | `-V`, `--adios-verbose` | Set ADIOS2 engine verbose level (`0-5`). |

@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cmath>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <chrono>
 #include <thread>
@@ -12,12 +13,43 @@
 AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
     : m_opts(opts), m_logger(logger), m_comm(opts.comm)
 {
-    m_adios = std::make_unique<adios2::ADIOS>(m_comm);
-    m_io = std::make_unique<adios2::IO>(m_adios->DeclareIO("AnalysisIO"));
+    // With the simulation's XML, the reader's engine parameters come from its
+    // <io name="AnalysisInput"> block. Without it the reader had no way to get
+    // any: ControlModule=epoll was set for the writer only, and a reader with
+    // more than 1023 writers stays on select() and hangs (ADIOS2 #5272).
+    if (m_opts.adios_config.empty())
+        m_adios = std::make_unique<adios2::ADIOS>(m_comm);
+    else
+        m_adios = std::make_unique<adios2::ADIOS>(m_opts.adios_config, m_comm);
+    m_io = std::make_unique<adios2::IO>(m_adios->DeclareIO("AnalysisInput"));
+
+    // A parameter the XML sets keeps the XML's value. BP5 matches parameter
+    // names case-insensitively but SST matches them exactly (ADIOS2 2.11,
+    // SstParamParser.cpp), so the XML's value is found in any case and
+    // set again under the canonical name, which both engines read.
+    const auto xml_params = m_io->Parameters();
+    auto xml_value = [&xml_params](std::string key) -> std::optional<std::string> {
+        const auto exact = xml_params.find(key);
+        if (exact != xml_params.end())
+            return exact->second;
+        std::transform(key.begin(), key.end(), key.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        for (const auto &kv : xml_params)
+        {
+            std::string k = kv.first;
+            std::transform(k.begin(), k.end(), k.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (k == key)
+                return kv.second;
+        }
+        return std::nullopt;
+    };
 
     if (m_opts.adios_verbose > 0)
         m_io->SetParameter("verbose", std::to_string(m_opts.adios_verbose));
 
+    // The engine comes from the settings (or --engine), which also choose
+    // the writer's, so the two always agree.
     m_io->SetEngine(m_opts.adios_engine);
 
     // Automatically set a short OpenTimeout for non-streaming engines.
@@ -28,7 +60,11 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
     std::string engine = m_opts.adios_engine;
     std::transform(engine.begin(), engine.end(), engine.begin(),
                    [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-    if (engine != "SST")
+    if (const auto xml_timeout = xml_value("OpenTimeoutSecs"))
+    {
+        m_io->SetParameter("OpenTimeoutSecs", *xml_timeout);
+    }
+    else if (engine != "SST" && engine != "EFFIS") // EFFIS is SST under another name
     {
         m_io->SetParameter("OpenTimeoutSecs", "5.0");
     }
@@ -37,6 +73,16 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
         // SST takes whole seconds: round up, at least 1, within int range.
         const double t = std::min(std::max(std::ceil(m_opts.sst_open_timeout_s), 1.0), 2147483647.0);
         m_io->SetParameter("OpenTimeoutSecs", std::to_string(static_cast<int>(t)));
+    }
+
+    int rank = 0;
+    MPI_Comm_rank(m_comm, &rank);
+    if (rank == 0)
+    {
+        std::cout << "ADIOS2 reader parameters (" << engine << "):";
+        for (const auto &kv : m_io->Parameters())
+            std::cout << " " << kv.first << "=" << kv.second;
+        std::cout << std::endl;
     }
 
     m_engine = std::make_unique<adios2::Engine>(m_io->Open(m_opts.adios_file, adios2::Mode::Read));
@@ -221,21 +267,71 @@ void AdiosReader::ReadRepartition(const std::string &var_name, std::vector<T> &b
     const size_t n_dims = read_info.global_dims.size();
     read_info.local_start.assign(n_dims, 0);
     read_info.local_dims = read_info.global_dims;
+    read_info.owned_dims = read_info.global_dims;
+    read_info.shared_high.assign(n_dims, false);
 
+    // Ranks per axis, in ADIOS2's order (slowest first).
+    std::vector<int> parts(n_dims, 1);
     if (n_dims > 0)
     {
-        size_t slab_size = read_info.global_dims[0] / size;
-        size_t remainder = read_info.global_dims[0] % size;
-        read_info.local_start[0] = rank * slab_size + std::min((size_t)rank, remainder);
-        read_info.local_dims[0] = slab_size + (rank < remainder ? 1 : 0);
-
-	// Fetch one extra overlapping point to close the physical gap between ranks.
-        // We do this for everyone EXCEPT the very last rank (which is at the global boundary).
-	if (rank != size - 1)
+        if (m_opts.read_decomposition == "brick" && n_dims == 3)
         {
-            read_info.local_dims[0] += 1;
+            // The simulation's own split: MPI_Dims_create, with dims[0] along
+            // x, the fastest axis (simulation/gray-scott.cpp). Splitting the
+            // readers the same way lines a brick's owned box up with whole
+            // writer blocks when every reader boundary falls on a writer boundary
+            // (for example when L divides evenly by both counts on each axis).
+            // The shared planes still reach into the next blocks.
+            int dims[3] = {0, 0, 0};
+            MPI_Dims_create(size, 3, dims);
+            parts = {dims[2], dims[1], dims[0]}; // z, y, x
+        }
+        else
+        {
+            parts[0] = size; // slabs along the slowest axis
         }
     }
+
+    // This rank's position in that grid, slowest axis first.
+    std::vector<int> coords(n_dims, 0);
+    {
+        int remaining = rank;
+        for (size_t d = n_dims; d-- > 0;)
+        {
+            coords[d] = remaining % parts[d];
+            remaining /= parts[d];
+        }
+    }
+
+    for (size_t d = 0; d < n_dims; ++d)
+    {
+        const size_t n = read_info.global_dims[d];
+        const size_t p = static_cast<size_t>(parts[d]);
+        const size_t c = static_cast<size_t>(coords[d]);
+        const size_t base = n / p;
+        const size_t remainder = n % p;
+        read_info.local_start[d] = c * base + std::min(c, remainder);
+        read_info.owned_dims[d] = base + (c < remainder ? 1 : 0);
+        read_info.local_dims[d] = read_info.owned_dims[d];
+        // Fetch one extra plane to close the physical gap between pieces:
+        // every piece but the last along this axis, and only when it owns
+        // something (more readers than planes leaves some with none).
+        if (c != p - 1 && read_info.owned_dims[d] > 0 && read_info.local_start[d] + read_info.owned_dims[d] < n)
+        {
+            read_info.local_dims[d] += 1;
+            read_info.shared_high[d] = true;
+        }
+    }
+
+    // A rank that owns nothing along some axis reads nothing.
+    for (size_t d = 0; d < n_dims; ++d)
+        if (read_info.owned_dims[d] == 0)
+        {
+            std::fill(read_info.local_dims.begin(), read_info.local_dims.end(), 0);
+            std::fill(read_info.owned_dims.begin(), read_info.owned_dims.end(), 0);
+            std::fill(read_info.shared_high.begin(), read_info.shared_high.end(), false);
+            break;
+        }
 
     size_t local_count = productDims(read_info.local_dims);
     if (local_count > 0)

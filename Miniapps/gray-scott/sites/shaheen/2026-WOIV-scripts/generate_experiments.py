@@ -57,6 +57,11 @@ TRANSIT_SWEEP_CONFIGS = [
 # Ascent volume samples per cell crossed by a ray (a cost/quality knob;
 # --volume-samples-per-cell overrides it).
 VOLUME_SAMPLES_PER_CELL = 9.0
+# How the in transit reader splits the domain among its ranks: "slab" (even
+# slabs along the slowest axis, the original layout) or "brick" (a 3D grid
+# aligned with the simulation's blocks, so each reader reads whole writer
+# blocks from far fewer writers). --reader-decomposition overrides it.
+READ_DECOMPOSITION = "slab"
 
 # #72 step 1: SST transport x reader x launch x fan-in, small and short.
 # Fan-in is in tasks (64 simulation and 8 reader ranks per node):
@@ -103,6 +108,16 @@ ADIOS_XML_TEMPLATE = """<?xml version="1.0"?>
             <parameter key="OpenTimeoutSecs" value="600.0"/>
             <parameter key="AsyncWrite" value="false"/>
             <parameter key="NumAggregators" value="{sim_aggregators}"/>
+        </engine>
+    </io>
+    <io name="AnalysisInput">
+        <!-- The in transit reader's side of SimulationOutput. ControlModule
+             must be epoll here too: with select() a reader connected to more
+             than 1023 writers hangs (ADIOS2 #5272). -->
+        <engine type="{engine_type}">
+            <parameter key="verbose" value="0"/>
+            <parameter key="ControlModule" value="epoll"/>
+            <parameter key="DataTransport" value="{data_transport}"/>
         </engine>
     </io>
     <io name="SimulationCheckpoint">
@@ -1073,6 +1088,29 @@ echo "Simulation exit status: $SIM_RC, reader exit status: $STAGE_RC"
 """
 
 
+def check_decomposition_unchanged(output_dir):
+    """Refuse to regenerate a run with a different reader decomposition.
+
+    The experiment ID does not include the decomposition, so a slab and a
+    brick generation into the same --results-dir share directories, and new
+    settings would sit beside the old run's numbers. Settings written before
+    the option existed are slab runs. Only in transit runs have a reader;
+    the initialisation runs, often shared between results directories,
+    are not checked.
+    """
+    for name in ("settings.json", "settings-stage.json"):
+        path = os.path.join(output_dir, name)
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            old = json.load(f).get("read_decomposition", "slab")
+        if old != READ_DECOMPOSITION:
+            raise SystemExit(
+                f"{path} is a {old} run; generating {READ_DECOMPOSITION} would put its "
+                f"settings beside that run's results. Use another --results-dir."
+            )
+
+
 def generate_settings_json(exp, output_dir, copied_files, args):
     is_init = exp["workload"] == "initialization"
     init_noise_level = 0.01
@@ -1116,6 +1154,7 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         "adios_config": f"{output_dir}/adios2.xml",
         "adios_span": False,
         "adios_memory_selection": True,
+        "read_decomposition": READ_DECOMPOSITION,
         "ascent_options": "",
     }
 
@@ -1803,6 +1842,13 @@ def generate_scripts(args):
                     }
                 )
 
+    # Preflight, before any file is written: a run whose existing settings
+    # use the other decomposition stops the whole generation, so nothing
+    # beside that run's results (adios2.xml included) is rewritten.
+    for exp in EXPERIMENTS:
+        if exp["type"] == "intransit" and exp["workload"] != "initialization":
+            check_decomposition_unchanged(f"{args.results_dir}/{exp['id']}")
+
     for exp in EXPERIMENTS:
         sim_ranks = exp["sim_nodes"] * SYSTEM_CONFIG["mpi_per_node"]
         total_stage_ranks = (
@@ -1906,6 +1952,12 @@ if __name__ == "__main__":
         help="Ascent volume samples per cell along the ray (9 avoids rank-dependent banding; fewer is cheaper)",
     )
     parser.add_argument(
+        "--reader-decomposition",
+        choices=("slab", "brick"),
+        default=READ_DECOMPOSITION,
+        help="How the in transit reader splits the domain: slab (slowest axis) or brick (aligned with writer blocks)",
+    )
+    parser.add_argument(
         "--perf-env",
         default=f"/scratch/{os.environ.get('USER', 'user')}/perf_env",
         help="Python venv with pandas, activated after each run to reduce its timings",
@@ -1926,4 +1978,5 @@ if __name__ == "__main__":
                 "because the path is written unquoted into the generated job scripts"
             )
     VOLUME_SAMPLES_PER_CELL = args.volume_samples_per_cell
+    READ_DECOMPOSITION = args.reader_decomposition
     generate_scripts(args)
