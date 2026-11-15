@@ -322,6 +322,13 @@ writes `reduce-<jobid>.out` and produces:
   with that run's `metadata.json` and `summary.json` copied beside it as
   `<id>_metadata.json` and `<id>_summary.json`;
 * `<results>/<id>_reader.csv`, from `reader_timers/` (in transit runs);
+* both CSVs have per-step mean, min, max, 25th and 75th percentile for
+  every timer and counter the logs hold: the reader's `ADIOS_Wait` (its
+  BeginStep), `ADIOS_EndStep`, `Blueprint_Time` and `Vis_Time`, the
+  writer's `io` (BeginStep, Put and EndStep), `halo` and counters
+  (`c_<name>`). Summaries reduced before this was added hold only the
+  writer's five timers; re-run `reduce_timers.py` on the archived
+  `reader_timers.tar.gz` to get the rest;
 * `<results>/<id>_catalyst.csv`, from `catalyst_timers/` (in transit
   Catalyst runs; see "Catalyst reader performance");
 * `perf/`, `reader_timers/` and `catalyst_timers/` are then compressed to
@@ -468,8 +475,8 @@ core that the jobs leave idle.
 <results dir> ...` writes one row per run (any `<id>_job.sbat`) to
 `<out prefix>.csv` and `.jsonl`: what was run (nodes, ranks, backends,
 grid, decomposition, ADIOS2 version, build), headline numbers (simulation
-and reader step times over steps 1 and up, the reader's EndStep, build and
-vis times, sampled energy and power, Darshan bytes) and the path of every
+and reader step times over steps 1 and up, the writer's io, the reader's
+wait (BeginStep), EndStep, build and vis times, sampled energy and power, Darshan bytes) and the path of every
 artifact. Missing inputs leave their columns empty. The reduction of a
 large run can take a while: 65536 per-rank timer files took over 54
 minutes, so the reduction job's limit is 4 hours.
