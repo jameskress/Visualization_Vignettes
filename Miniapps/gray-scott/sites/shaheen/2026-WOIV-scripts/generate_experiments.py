@@ -263,7 +263,31 @@ ASCENT_ISOSURFACE_TEMPLATE = """
 """
 
 # --- CATALYST TEMPLATES ---
-CATALYST_RENDER_TEMPLATE = """
+# Stage timers for the Paper 2 Catalyst scripts. The reader's Vis_Time is one
+# number for all of catalyst_execute; ParaView logs each stage of it (the
+# Blueprint check, the filters, the render, IceT's local render and
+# composite, the PNG write) as timed scopes. With GS_CATALYST_TIMERS=1 and
+# the PARAVIEW_LOG_*_VERBOSITY categories on (CATALYST_READER_ENV and
+# CATALYST_TIMER_ENV), each reader rank writes that log to
+# catalyst_timers/rank_<r>.log, and catalyst_timers.py reduces it.
+# Prepended to each template, so its braces are doubled for str.format.
+CATALYST_TIMERS_PROLOGUE = """
+import os as _gs_os
+if _gs_os.environ.get("GS_CATALYST_TIMERS") == "1":
+    from vtkmodules.vtkCommonCore import vtkLogger as _gs_vtkLogger
+    from vtkmodules.vtkParallelCore import vtkMultiProcessController as _gs_mpc
+    _gs_rank = _gs_mpc.GetGlobalController().GetLocalProcessId()
+    _gs_os.makedirs("catalyst_timers", exist_ok=True)
+    _gs_vtkLogger.LogToFile(
+        f"catalyst_timers/rank_{{_gs_rank:05d}}.log",
+        _gs_vtkLogger.TRUNCATE,
+        _gs_vtkLogger.VERBOSITY_INFO,
+    )
+"""
+
+CATALYST_RENDER_TEMPLATE = (
+    CATALYST_TIMERS_PROLOGUE
+    + """
 from paraview import catalyst
 from paraview.simple import *
 
@@ -342,8 +366,11 @@ if __name__ == "__main__":
     from paraview.simple import SaveExtractsUsingCatalystOptions
     SaveExtractsUsingCatalystOptions(options)
 """
+)
 
-CATALYST_VOLUME_TEMPLATE = """
+CATALYST_VOLUME_TEMPLATE = (
+    CATALYST_TIMERS_PROLOGUE
+    + """
 # Volume of v over the full grid, comparable with ASCENT_VOLUME_TEMPLATE: the
 # same data (no resampling), image size and colour range (pinned to 0..1).
 # Rendered with OSPRay, the CPU ray tracer, as the slice and isosurface
@@ -403,8 +430,11 @@ if __name__ == "__main__":
     from paraview.simple import SaveExtractsUsingCatalystOptions
     SaveExtractsUsingCatalystOptions(options)
 """
+)
 
-CATALYST_ISOSURFACE_TEMPLATE = """
+CATALYST_ISOSURFACE_TEMPLATE = (
+    CATALYST_TIMERS_PROLOGUE
+    + """
 from paraview import catalyst
 from paraview.simple import *
 
@@ -432,12 +462,28 @@ SetActiveView(renderView1)
 
 producer = TrivialProducer(registrationName="grid")
 
+# Only v (and the reader's ghost flags) goes on: GhostCells copies every array
+# it is given, and u is not drawn. The image is unchanged, bit for bit, and
+# the step 6 s faster at 64 + 4 nodes (sites/shaheen/README.md, "Catalyst
+# reader performance").
+vOnly = PassArrays(registrationName='VOnly', Input=producer)
+vOnly.PointDataArrays = ['v', 'vtkGhostType']
+vOnly.CellDataArrays = []
 # Contour needs ghost cells on every side of a block, or each block's high
 # face gets one-sided normals (docs/in-situ-backends.md, Catalyst).
-ghostCells = GhostCells(registrationName='GhostCells', Input=producer)
-contour = Contour(registrationName='Contour', Input=ghostCells)
+ghostCells = GhostCells(registrationName='GhostCells', Input=vOnly)
+# Flying edges, the multithreaded contour that VTK-m (Ascent) also uses.
+# ParaView's Contour runs serial synchronized templates on image data: its
+# FastMode switch, which would pick flying edges, is not passed on in
+# ParaView 6.0 (vtkPVContourFilter::ContourUsingSuperclass). Same normals and
+# scalars as Contour; the triangulation of ambiguous cells differs, so about
+# 2% of pixels change by a few levels.
+LoadDistributedPlugin('AcceleratedAlgorithms', remote=False, ns=globals())
+contour = FlyingEdges3D(registrationName='Contour', Input=ghostCells)
 contour.ContourBy = ['POINTS', 'v']
 contour.Isosurfaces = [0.1]
+contour.ComputeNormals = 1
+contour.ComputeScalars = 1
 
 isoDisplay = Show(contour, renderView1, 'GeometryRepresentation')
 isoDisplay.SetRepresentationType('Surface')
@@ -470,6 +516,7 @@ if __name__ == "__main__":
     from paraview.simple import SaveExtractsUsingCatalystOptions
     SaveExtractsUsingCatalystOptions(options)
 """
+)
 
 # --- PAPER 1 KOMBYNE TEMPLATES ---
 KOMBYNE_RENDER_TEMPLATE = """
@@ -844,9 +891,13 @@ export LD_LIBRARY_PATH="{paraview_lib_path}:$LD_LIBRARY_PATH"
 unset DISPLAY
 export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
 export GS_CATALYST_BACKEND=osmesa
-#export GALLIUM_DRIVER=softpipe
-#export LP_NUM_THREADS=1
-export GALLIUM_DRIVER=softpipe
+# Mesa's rasteriser for everything OpenGL still draws around OSPRay: the
+# image blit, IceT's buffers, the scalar bar and orientation axes. llvmpipe
+# is Mesa's JIT rasteriser; softpipe, its reference rasteriser, took 6 s per
+# 2048x2048 frame on top of OSPRay (sites/shaheen/README.md, "Catalyst reader
+# performance"). Paper 1 jobs keep softpipe, as they were run. One thread
+# here, where 64 simulation ranks share a node; the reader sets its own.
+export GALLIUM_DRIVER={gallium_driver}
 export LP_NUM_THREADS=1
 
 
@@ -873,7 +924,8 @@ export ADIOS2_LOG_LEVEL=OFF
 
 export MPICH_MAX_THREAD_SAFETY=multiple
 export OMP_NUM_THREADS={omp_threads}
-export OSPRAY_THREADS={omp_threads}
+# No OSPRAY_THREADS: OSPRay 2 does not read it (OSPRAY_NUM_THREADS is its
+# name), and its TBB pool sizes itself from the thread's CPU mask anyway.
 export OMP_PLACES=threads
 export OMP_PROC_BIND=spread
 export PYTHONDONTWRITEBYTECODE=1
@@ -907,7 +959,7 @@ echo "PHASE job_start $SLURM_JOB_START_TIME"
 mkdir -p "{results_dir}" || exit 1
 cp "$0" "{results_dir}/{id}_job.sbat" || exit 1
 # pipefail in a subshell, so a failure anywhere in the pipeline stops the job.
-(set -o pipefail; env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_)' | sort) > "{results_dir}/{id}_env.txt" || exit 1
+(set -o pipefail; env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_|GALLIUM_|LP_)' | sort) > "{results_dir}/{id}_env.txt" || exit 1
 echo "PHASE run_start $(date +%s.%N)"
 
 {command}
@@ -985,7 +1037,7 @@ archive() {{
 # Extract into a temporary directory and move it into place only if tar
 # succeeds, so a failed extraction never looks like a complete one. The
 # archive is kept until the new one replaces it.
-for d in perf reader_timers; do
+for d in perf reader_timers catalyst_timers; do
     if [ ! -d $OUTPUT_DIR/$d ] && [ -f $OUTPUT_DIR/$d.tar.gz ]; then
         echo "Restoring $d/ from $d.tar.gz..."
         rm -rf $OUTPUT_DIR/$d.restore && mkdir $OUTPUT_DIR/$d.restore
@@ -1027,6 +1079,17 @@ if [ -d "$OUTPUT_DIR/reader_timers" ]; then
     fi
 fi
 
+# 4. Catalyst stage timers (in transit Catalyst runs; catalyst_timers.py).
+if [ -d "$OUTPUT_DIR/catalyst_timers" ]; then
+    echo "Reducing catalyst_timers..."
+    if python "$(dirname "$REDUCE")/catalyst_timers.py" "$OUTPUT_DIR/catalyst_timers" "{results_dir}/{id}_catalyst.csv"; then
+        echo "Compressing catalyst_timers..."
+        archive catalyst_timers
+    else
+        echo "Reduction of catalyst_timers failed; catalyst_timers/ kept."
+    fi
+fi
+
 echo "PHASE reduce_end $(date +%s.%N)"
 """
 
@@ -1044,7 +1107,7 @@ CMD_INTRANSIT = """srun --exclusive --propagate=NOFILE --hint=nomultithread --ki
     --settings-file=$OUTPUT_DIR/settings.json \\
     : \\
     --exclusive --nodes={stage_nodes} --ntasks={stage_ranks} --ntasks-per-node=8 --cpus-per-task=24 --mem-bind=v,local --cpu-bind=threads \\
-    env OMP_NUM_THREADS=24 OMP_PLACES=cores OMP_PROC_BIND=close \\
+    env {reader_env} \\
     $EXE_STAGE \\
     --settings $OUTPUT_DIR/settings-stage.json \\
     --file $OUTPUT_DIR/data/grayScott \\
@@ -1065,7 +1128,7 @@ CMD_INTRANSIT_STEPS = """srun --network=job_vni --exclusive --propagate=NOFILE -
 SIM_PID=$!
 srun --network=job_vni --exclusive --propagate=NOFILE --hint=nomultithread \\
     --nodes={stage_nodes} --ntasks={stage_ranks} --ntasks-per-node=8 --cpus-per-task=24 --mem-bind=v,local --cpu-bind=threads \\
-    env OMP_NUM_THREADS=24 OMP_PLACES=cores OMP_PROC_BIND=close \\
+    env {reader_env} \\
     $EXE_STAGE \\
     --settings $OUTPUT_DIR/settings-stage.json \\
     --file $OUTPUT_DIR/data/grayScott \\
@@ -1109,6 +1172,37 @@ def check_decomposition_unchanged(output_dir):
                 f"{path} is a {old} run; generating {READ_DECOMPOSITION} would put its "
                 f"settings beside that run's results. Use another --results-dir."
             )
+
+
+# Threads for the in transit reader: 8 ranks per staging node, 24 cores each.
+# Ascent's VTK-m runs on OpenMP and wants its 24 threads bound one per core:
+# unbound, its slice render took 0.4 s more per step at 64 + 4 nodes. Paper 1
+# jobs keep this binding for every backend, as they were run (#71).
+ASCENT_READER_ENV = "OMP_NUM_THREADS=24 OMP_PLACES=cores OMP_PROC_BIND=close"
+# Catalyst has no OpenMP threads to bind, and the binding hurts it:
+# OMP_PROC_BIND pins the process's main thread to its first place, one core,
+# and every thread that is not OpenMP's inherits that mask. OSPRay's and VTK's
+# TBB pools and llvmpipe's threads all ran on one core of the rank's 24, and
+# the render was single-threaded (sites/shaheen/README.md, "Catalyst reader
+# performance"). Unbound, they spread over the rank's 24 cores, which srun's
+# --cpu-bind gives the whole process. LP_NUM_THREADS sizes llvmpipe's pool.
+CATALYST_READER_ENV = "OMP_NUM_THREADS=24 OMP_PROC_BIND=false LP_NUM_THREADS=24"
+# Catalyst stage timers: each reader rank writes ParaView's scoped log of
+# these categories to catalyst_timers/ (CATALYST_TIMERS_PROLOGUE), and the
+# reduction job turns it into named timers (catalyst_timers.py).
+CATALYST_TIMER_ENV = (
+    "GS_CATALYST_TIMERS=1 PARAVIEW_LOG_CATALYST_VERBOSITY=INFO "
+    "PARAVIEW_LOG_PIPELINE_VERBOSITY=INFO PARAVIEW_LOG_RENDERING_VERBOSITY=INFO"
+)
+
+
+def reader_env(exp):
+    """Environment for an in transit run's reader srun (see above)."""
+    if exp.get("paper") != "paper1" and exp.get("stage_pipeline", "").startswith(
+        "catalyst_"
+    ):
+        return CATALYST_READER_ENV + " " + CATALYST_TIMER_ENV
+    return ASCENT_READER_ENV
 
 
 def generate_settings_json(exp, output_dir, copied_files, args):
@@ -1894,6 +1988,7 @@ def generate_scripts(args):
             else sim_ranks,
             grid_size=exp["grid_size"],
             logging_level=GLOBAL_SETTINGS["logging_level"],
+            reader_env=reader_env(exp),
         )
 
         script_content = SBATCH_TEMPLATE.format(
@@ -1919,6 +2014,7 @@ def generate_scripts(args):
             command=command,
             catalyst_lib_path=CATALYST_LIB_PATH,
             paraview_lib_path=os.path.dirname(CATALYST_LIB_PATH.rstrip("/")),
+            gallium_driver="softpipe" if exp.get("paper") == "paper1" else "llvmpipe",
         )
 
         reduce_content = REDUCE_TEMPLATE.format(
