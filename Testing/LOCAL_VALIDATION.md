@@ -1408,7 +1408,14 @@ one of another user withholds the total. Five process shapes (a child, a
 grandchild, two children reaped together, a parent exiting after its child, a
 sibling exiting with a parent and grandchild) each read the exact total in six
 runs out of six (150, 50, 100, 150 and 70 MB). An orphan's I/O after it leaves
-the tree is not counted.
+the tree is not counted. Real processes cannot choose when the kernel reaps a child,
+so `Testing/test_io_sampler.py` (`python3 -m unittest
+Testing/test_io_sampler.py`) drives the sampler with scripted fake processes
+and fixes each order: a child reaped between its parent's read and its own,
+read before its reap, gone by its read with the parent read too early (low for
+one sample, right at the next), a grandchild reaped through a reaped parent, a
+zombie, a live non-dumpable process, another user's process, and a platform
+without `io_counters`. All eight pass.
 CPU time does not have this problem: psutil reports a process's own CPU
 separately from its children's.
 
