@@ -186,7 +186,9 @@ To enable timers, set the `ENABLE_TIMERS` CMake option to `ON`:
 cmake -DENABLE_TIMERS=ON ..
 ```
 
-When the reader is built with timers enabled, it writes `reader_timers/steps/rank_NNNNN.jsonl`: one JSON object per step per rank, with the reader's timers (`total_step`, `Blueprint_Time`, `Vis_Time` or `ADIOS_Write_Time`, and the ADIOS2 read timers), memory high-water mark and CPU time. This is the same logger and record format as the simulation; see the [Performance section of the miniapp README](../README.md#performance).
+When the reader is built with timers enabled, it writes `reader_timers/steps/rank_NNNNN.jsonl`: one JSON object per step per rank, with the reader's timers (`total_step`, `Blueprint_Time`, `Vis_Time` or `ADIOS_Write_Time`, and the ADIOS2 read timers), memory high-water mark and CPU time.
+
+Inside `Blueprint_Time`, `Read_Setup` times the selection bookkeeping of `ReadRepartition`, `Read_Alloc` the sizing of the field buffers and `Mesh_Build` the Ascent mesh; `ADIOS_EndStep` is in there too. The counters (`c` in each record) are minor page faults per phase: `minflt_alloc`, `minflt_endstep`, and for Ascent `minflt_build` and `minflt_vis`. A field-sized buffer touched for the first time costs one fault per 4 KiB page, time that no timer names. The Ascent and `adios_writer` backends keep their field buffers across steps, so after the first step their `Read_Alloc` and `minflt_alloc` are zero (Catalyst does not record these timers yet); on the 64 + 4 node f128 job a fresh pair of 2.2 GB buffers each step cost 1.1 s (`sites/shaheen/README.md`, "In transit reader costs"). This is the same logger and record format as the simulation; see the [Performance section of the miniapp README](../README.md#performance).
 
 The reader does not yet write `metadata.json` or `summary.json`, so `scripts/perf_report.py` does not read its directories. To look at a reader run, load the JSON lines directly, for example with pandas:
 

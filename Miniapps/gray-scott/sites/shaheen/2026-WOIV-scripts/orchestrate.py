@@ -21,9 +21,9 @@ def main():
 
     parser.add_argument(
         "--paper",
-        choices=["paper1", "paper2", "xport", "scale", "init", "all"],
+        choices=["paper1", "paper2", "xport", "scale", "pipe", "init", "all"],
         default="all",
-        help="Target specific paper ('xport' is the #72 step 1 transport matrix, 'scale' the step 2 scaling runs; 'init' the initialization runs)",
+        help="Target specific paper ('xport' is the #72 step 1 transport matrix, 'scale' the step 2 scaling runs, 'pipe' the reader cost runs; 'init' the initialization runs)",
     )
     parser.add_argument(
         "--nodes",
