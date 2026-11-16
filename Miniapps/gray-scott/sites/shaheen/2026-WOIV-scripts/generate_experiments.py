@@ -1207,7 +1207,7 @@ scontrol show topology > $TEL/topology.txt 2>&1
 # so a node that differs is visible, and the full detail of one node.
 PLATFORM={repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/node_platform.sh
 srun --overlap --network=no_vni --mpi=none \\
-    --nodes=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
+    --nodes=$SLURM_NNODES --ntasks=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
     --output=$TEL/platform_nodes.txt --error=$TEL/platform_nodes.err $PLATFORM line \\
     || echo "platform capture failed (rc $?); the run goes on"
 srun --overlap --network=no_vni --mpi=none --nodes=1 --ntasks=1 --cpus-per-task=1 --mem=1G \\
@@ -1218,7 +1218,7 @@ srun --overlap --network=no_vni --mpi=none --nodes=1 --ntasks=1 --cpus-per-task=
 # run's step then could not get (fi_getinfo "No data available") on some
 # nodes: both 1920 + 128 sweep runs and one 64 + 4 run failed that way.
 srun --overlap --network=no_vni --mpi=none \\
-    --nodes=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
+    --nodes=$SLURM_NNODES --ntasks=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
     --output=$TEL/sampler.log --error=$TEL/sampler.log \\
     {repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/node_sampler.sh $TEL/nodes 1 &
 TEL_PID=$!
@@ -1330,14 +1330,15 @@ if [ -f $TEL/job_id ]; then
     if [ ! -d $TEL/nodes ] && [ -f $TEL/nodes.tar.gz ]; then
         tar -xzf $TEL/nodes.tar.gz -C $TEL || {{ echo "Could not restore telemetry/nodes; summary kept."; rm -rf $TEL/nodes; }}
     fi
+    # The captures from before the run, whatever the summary below does.
+    # Straight to this experiment's names: reductions of other runs share
+    # the results directory.
+    for f in env modules ldd source topology platform platform_nodes; do
+        [ -f $TEL/$f.txt ] && cp $TEL/$f.txt "{results_dir}/{id}_tel_$f.txt"
+    done
     SUMMARY="{results_dir}/{id}_telemetry.json"
     if [ -d $TEL/nodes ] && python {repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/summarize_telemetry.py $TEL "$SUMMARY.tmp"; then
         mv "$SUMMARY.tmp" "$SUMMARY"
-        # Straight to this experiment's names: reductions of other runs share
-        # the results directory.
-        for f in env modules ldd source topology platform platform_nodes; do
-            [ -f $TEL/$f.txt ] && cp $TEL/$f.txt "{results_dir}/{id}_tel_$f.txt"
-        done
         (cd $TEL && tar -czf nodes.tar.gz.tmp nodes/ && mv nodes.tar.gz.tmp nodes.tar.gz && rm -rf nodes/)
     else
         rm -f "$SUMMARY.tmp"

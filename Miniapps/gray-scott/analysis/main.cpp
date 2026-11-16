@@ -235,7 +235,11 @@ int main(int argc, char **argv)
             std::cout << "======================================================\n\n";
         }
 
-        // The reader's own run record, as the simulation writes one:
+        auto backend = CreateBackend(opts.output_type, opts);
+        // The reader's own run record, as the simulation writes one, taken
+        // once the backend exists so its libraries (ParaView's Catalyst
+        // implementation, Ascent) are in the list. Every rank constructs a
+        // backend, so every rank reaches this collective:
         // reader_timers/metadata.json beside its timers (build, git commit,
         // hosts, platform, loaded libraries, settings and options).
         {
@@ -275,7 +279,6 @@ int main(int argc, char **argv)
             }
         }
 
-        auto backend = CreateBackend(opts.output_type, opts);
         backend->Run();
         // Run() has written every output and the timings. Bound the rest:
         // destroying the backend (SST close, catalyst_finalize) and
