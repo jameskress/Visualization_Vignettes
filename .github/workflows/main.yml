@@ -2,9 +2,10 @@ name: CI Pipeline
 
 # The full pipeline runs on the shared self-hosted runner, so it runs once
 # per change: on pull requests, and on pushes to master (which publish the
-# image). Any other branch can be run by hand from the Actions tab
-# (workflow_dispatch); such runs build and test but publish nothing. A weekly
-# run on master builds both platforms and moves `latest` (see "What runs").
+# image). Any branch can be run by hand from the Actions tab
+# (workflow_dispatch); a manual run on master builds both platforms and
+# publishes like the weekly run (the way to move `latest` sooner), and on any
+# other branch it builds and tests but publishes nothing.
 on:
   push:
     branches: [ master ]
@@ -16,8 +17,8 @@ on:
 
 # A newer push to the same pull request replaces the run still in progress.
 # The event name keeps manual runs apart from master pushes: GitHub replaces
-# a pending run with a newer one in the same group, and a manual run does not
-# publish, so it must never displace a pending master push.
+# a pending run with a newer one in the same group, and a manual run (often
+# on another branch) must never displace a pending master push.
 # Master pushes run one at a time and are never cancelled. If several land
 # while one is running, only the newest waits; the ones in between are
 # skipped on purpose (one shared runner), and the newest is compared with the
@@ -173,7 +174,7 @@ jobs:
           else
             echo "cache_to=" >> "$GITHUB_OUTPUT"
           fi
-      # Master pushes and the weekly run publish. `latest`, the `master` tag
+      # Master pushes, the weekly run and manual runs on master publish. `latest`, the `master` tag
       # and the badge move only from master's current tip, so a run for an
       # older commit can never overwrite a newer one's, and only with a
       # two-platform build, so they never lose arm64.
@@ -186,7 +187,9 @@ jobs:
         run: |
           TIP=$(git ls-remote origin refs/heads/master | cut -f1)
           PUBLISH=false
-          if { [ "$EVENT" = "push" ] || [ "$EVENT" = "schedule" ]; } && [ "$REF" = "refs/heads/master" ]; then PUBLISH=true; fi
+          case "$EVENT" in push | schedule | workflow_dispatch)
+            [ "$REF" = "refs/heads/master" ] && PUBLISH=true ;;
+          esac
           NEWEST=false
           if [ "$PUBLISH" = true ] && [ "$ARM64" = true ] && [ "$TIP" = "${{ github.sha }}" ]; then NEWEST=true; fi
           echo "master tip $TIP, this run ${{ github.sha }}, publish=$PUBLISH, newest=$NEWEST"
