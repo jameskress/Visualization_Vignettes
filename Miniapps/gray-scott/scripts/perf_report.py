@@ -2,7 +2,7 @@
 """Turn Gray-Scott run directories into tables and plots.
 
 Each run directory is what the miniapp writes under settings.perf_dir
-(metadata.json, summary.json and, with timers on, steps/rank_*.jsonl; see
+(metadata.json, summary.json and, with timers on, steps/node_*.jsonl; see
 README.md, Performance). Pass run directories or any directories above
 them:
 
@@ -28,7 +28,7 @@ from pathlib import Path
 
 # Performance log versions this report reads: 2 added the allocation counters
 # (#25); 3 added problem.restart_read_s and backend.overwrite_last_step.
-SCHEMA_VERSIONS = {1, 2, 3}
+SCHEMA_VERSIONS = {1, 2, 3, 4}
 
 # Phases stacked in the bar chart, bottom to top. "other" is total_step minus
 # their sum: barriers, logging and anything not yet timed.

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
+import os
 from pathlib import Path
 import argparse
 import json
@@ -10,7 +11,8 @@ import sys
 #  * runs made before #26 (the 2026 WOIV runs): writer_timers/rank_<r>.csv,
 #    one row per step, timers in seconds;
 #  * newer runs: a run directory under perf/ (or its steps/ folder) with
-#    steps/rank_<r>.jsonl, one JSON object per step: timers in "t" (seconds),
+#    steps/node_<r>.jsonl (one file per node; steps/rank_<r>.jsonl, one per
+#    rank, before schema 4), one JSON object per step per rank: timers in "t" (seconds),
 #    rss_MB at top level. The new log calls init_writer create_writer.
 # Either way the summary CSV has the same columns, so plot_performance.py
 # reads both. A JSONL log also gets a column for every other timer and
@@ -57,7 +59,7 @@ def load_csv(file_path):
 
 
 def load_jsonl(file_path):
-    """One rank's step records from the structured performance log.
+    """One file's step records (one rank's, or every rank's on a node).
 
     A bad line or a record without rss_MB or total_step stops the reduction:
     dropping a rank would report a summary of the other ranks as complete.
@@ -99,22 +101,31 @@ def reduce_run_data(run_dir, output_csv):
     print(f"Processing directory: {run_dir}...")
 
     # New-format step files first; fall back to the old per-rank CSVs.
-    files = sorted(Path(run_dir).rglob("rank_*.jsonl"))
+    files = sorted(Path(run_dir).rglob("node_*.jsonl")) + sorted(
+        Path(run_dir).rglob("rank_*.jsonl")
+    )
     loader = load_jsonl
     if not files:
         files = list(Path(run_dir).rglob("*.csv"))
         loader = load_csv
     if not files:
-        print(f"No rank_*.jsonl or CSV files found in {run_dir}")
+        print(f"No node_*.jsonl, rank_*.jsonl or CSV files found in {run_dir}")
         sys.exit(1)
 
     print(
-        f"Found {len(files)} rank files ({'JSONL' if loader is load_jsonl else 'CSV'}). Reducing in parallel..."
+        f"Found {len(files)} timer files ({'JSONL' if loader is load_jsonl else 'CSV'}). Reducing in parallel..."
     )
 
     # 1. Read all files in parallel (Max out the node's CPU/Disk IO)
-    with ProcessPoolExecutor() as executor:
-        dfs = list(executor.map(loader, files))
+    # multiprocessing.Pool, in chunks, not ProcessPoolExecutor: submitting
+    # 122880 files one by one to Python 3.10's ProcessPoolExecutor can
+    # deadlock (its wake-up pipe fills while its feeder thread waits), which
+    # stalled a 1920-node reduction for 4 hours twice. Reading is I/O
+    # bound, so a few dozen workers are enough.
+    workers = max(1, min(64, os.cpu_count() or 1, len(files)))
+    chunk = max(1, len(files) // (workers * 8))
+    with multiprocessing.Pool(workers) as pool:
+        dfs = list(pool.imap(loader, files, chunksize=chunk))
 
     # Filter out any empty dataframes caused by read errors
     dfs = [df for df in dfs if not df.empty]

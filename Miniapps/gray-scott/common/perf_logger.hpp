@@ -4,7 +4,13 @@
 //
 // A run directory holds
 //   metadata.json            what ran, where, built how (rank 0)
-//   steps/rank_NNNNN.jsonl   one JSON object per step per rank (timers on only)
+//   steps/node_NNNNN.jsonl   one JSON object per step per rank, one file per
+//                            node, named after the node's lowest rank
+//                            (timers on only; schema 4). A logger with no
+//                            communicator (the readers), one that never
+//                            reaches finalize() with MPI, and a node whose
+//                            lines exceed 256 MB write steps/rank_NNNNN.jsonl
+//                            instead, as schema 3 did
 //   summary.json             per-timer min/mean/max/imbalance across ranks,
 //                            fractions of the step, loop wall time (rank 0)
 //
@@ -33,7 +39,7 @@ public:
     // 2: allocation counters (#25) added to step and summary records.
     // 2: allocation counters (#25). 3: metadata problem.restart_read_s (#78)
     // and backend.overwrite_last_step, the setting in effect (#85).
-    static constexpr int kSchemaVersion = 3;
+    static constexpr int kSchemaVersion = 4;
 
     // run_dir: directory for this run's files (created if missing).
     // timers: per-step timer names, in record order.
@@ -105,7 +111,9 @@ private:
     };
 
     int timerIndex(const std::string &name) const;
+    std::string stepLines() const;
     void writeStepFile() const;
+    void writeNodeStepFile() const;
 
     int rank_;
     std::string hostname_;
