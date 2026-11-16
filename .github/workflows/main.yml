@@ -286,9 +286,13 @@ jobs:
       contents: read
       packages: write
     env:
-      # QEMU user-mode emulation segfaulted in libc-bin's postinst
-      # (ldconfig) with tonistiigi/binfmt:latest (QEMU 10.2.3) on
-      # 2026-11-16. Pinned so an upstream change cannot break the build
+      # The arm64 build segfaulted in libc-bin's postinst (ldconfig) on
+      # 2026-11-16. A probe on this runner (the same apt step in an arm64
+      # ubuntu:22.04, one emulator at a time, registrations reset) passed
+      # with QEMU 10.2.3, 9.2.2 and 7.0.0 and failed only with 8.1.5, with
+      # the same exit 100. So the crash was most likely an older emulator
+      # left registered on the runner, which reset: true (below) now
+      # replaces. Pinned so an upstream change cannot break the build
       # unannounced; a manual run can try another (input qemu_image).
       QEMU_IMAGE: ${{ inputs.qemu_image || 'docker.io/tonistiigi/binfmt:qemu-v10.2.3-68' }}
     steps:
@@ -436,46 +440,6 @@ jobs:
           publish_branch: gh-pages
           publish_dir: badges
           keep_files: true
-
-  # TEMPORARY (remove before merge): which QEMU image survives the step that
-  # crashed on 2026-11-16 (libc-bin's postinst, ldconfig, under arm64
-  # emulation of ubuntu:22.04). One image at a time: binfmt is host-wide.
-  qemu-probe:
-    name: QEMU probe
-    needs: changes
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: self-hosted
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        image:
-          - docker.io/tonistiigi/binfmt:qemu-v10.2.3-68
-          - docker.io/tonistiigi/binfmt:qemu-v9.2.2-52
-          - docker.io/tonistiigi/binfmt:qemu-v8.1.5-43
-          - docker.io/tonistiigi/binfmt:qemu-v7.0.0-28
-    steps:
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-        with:
-          image: ${{ matrix.image }}
-          platforms: arm64
-          reset: true
-      - name: Show the registered arm64 emulator
-        run: |
-          cat /proc/sys/fs/binfmt_misc/qemu-aarch64 || true
-          docker run --rm --privileged ${{ matrix.image }} --version
-      - name: apt-get with libc-bin under arm64 emulation
-        run: |
-          docker run --rm --platform linux/arm64 ubuntu:22.04 bash -c '
-            set -e
-            export DEBIAN_FRONTEND=noninteractive
-            apt-get update -qq
-            apt-get install -y -qq --reinstall libc-bin >/dev/null
-            apt-get install -y -qq build-essential cmake git libopenmpi-dev python3-dev >/dev/null
-            ldconfig
-            echo "PROBE OK: $(uname -m), $(ldd --version | head -1)"'
 
   gray-scott-test:
     name: Gray-Scott Miniapp Tests
