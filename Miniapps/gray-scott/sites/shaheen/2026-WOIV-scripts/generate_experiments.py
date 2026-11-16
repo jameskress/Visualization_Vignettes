@@ -57,11 +57,15 @@ TRANSIT_SWEEP_CONFIGS = [
 # Ascent volume samples per cell crossed by a ray (a cost/quality knob;
 # --volume-samples-per-cell overrides it).
 VOLUME_SAMPLES_PER_CELL = 9.0
-# How the in transit reader splits the domain among its ranks: "slab" (even
-# slabs along the slowest axis, the original layout) or "brick" (a 3D grid
-# aligned with the simulation's blocks, so each reader reads whole writer
-# blocks from far fewer writers). --reader-decomposition overrides it.
-READ_DECOMPOSITION = "slab"
+# How the in transit reader splits the domain among its ranks: "brick" (a 3D
+# grid aligned with the simulation's blocks, so each reader reads whole
+# writer blocks from far fewer writers; the default since 16 Nov 2026) or
+# "slab" (even slabs along the slowest axis, the original layout of every
+# earlier run). With the shared planes exchanged, brick was faster at every
+# size and pipeline measured, for both backends, and fits the Catalyst
+# isosurface at 512 + 32 that runs out of memory with slabs (sites/shaheen/
+# README.md, "Reader decomposition"). --reader-decomposition overrides it.
+READ_DECOMPOSITION = "brick"
 # How each reader piece gets the plane it shares with the next piece:
 # "exchange" (read only the owned box, take the plane from the neighbouring
 # reader over MPI) or "read" (read it from the writers, as before; on a brick
@@ -1371,7 +1375,7 @@ echo "Simulation exit status: $SIM_RC, reader exit status: $STAGE_RC"
 """
 
 
-def check_decomposition_unchanged(output_dir):
+def check_decomposition_unchanged(output_dir, exp):
     """Refuse to regenerate a run with a different reader decomposition.
 
     The experiment ID does not include the decomposition, so a slab and a
@@ -1389,9 +1393,10 @@ def check_decomposition_unchanged(output_dir):
             settings = json.load(f)
         # Settings written before an option existed hold its old behaviour:
         # slab, and shared planes read from the writers.
+        decomposition, planes = reader_decomposition(exp)
         for key, legacy, current in (
-            ("read_decomposition", "slab", READ_DECOMPOSITION),
-            ("reader_shared_planes", "read", READER_SHARED_PLANES),
+            ("read_decomposition", "slab", decomposition),
+            ("reader_shared_planes", "read", planes),
         ):
             old = settings.get(key, legacy)
             if old != current:
@@ -1421,6 +1426,18 @@ CATALYST_TIMER_ENV = (
     "GS_CATALYST_TIMERS=1 PARAVIEW_LOG_CATALYST_VERBOSITY=INFO "
     "PARAVIEW_LOG_PIPELINE_VERBOSITY=INFO PARAVIEW_LOG_RENDERING_VERBOSITY=INFO"
 )
+
+
+def reader_decomposition(exp):
+    """The reader's decomposition and shared-plane setting for a run.
+
+    Paper 1 jobs keep the slab layout with planes read from the writers,
+    as they were run (#71); every other run gets READ_DECOMPOSITION and
+    READER_SHARED_PLANES.
+    """
+    if exp.get("paper") == "paper1":
+        return "slab", "read"
+    return READ_DECOMPOSITION, READER_SHARED_PLANES
 
 
 def reader_smt(exp):
@@ -1495,8 +1512,8 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         "adios_config": f"{output_dir}/adios2.xml",
         "adios_span": False,
         "adios_memory_selection": True,
-        "read_decomposition": READ_DECOMPOSITION,
-        "reader_shared_planes": READER_SHARED_PLANES,
+        "read_decomposition": reader_decomposition(exp)[0],
+        "reader_shared_planes": reader_decomposition(exp)[1],
         "ascent_options": "",
     }
 
@@ -2250,7 +2267,7 @@ def generate_scripts(args):
     # beside that run's results (adios2.xml included) is rewritten.
     for exp in EXPERIMENTS:
         if exp["type"] == "intransit" and exp["workload"] != "initialization":
-            check_decomposition_unchanged(f"{args.results_dir}/{exp['id']}")
+            check_decomposition_unchanged(f"{args.results_dir}/{exp['id']}", exp)
 
     for exp in EXPERIMENTS:
         sim_ranks = exp["sim_nodes"] * SYSTEM_CONFIG["mpi_per_node"]
@@ -2404,7 +2421,8 @@ if __name__ == "__main__":
         "--reader-decomposition",
         choices=("slab", "brick"),
         default=READ_DECOMPOSITION,
-        help="How the in transit reader splits the domain: slab (slowest axis) or brick (aligned with writer blocks)",
+        help="How the in transit reader splits the domain: brick (aligned with writer blocks; the default) or "
+        "slab (slowest axis, the layout of runs before 16 Nov 2026). Paper 1 jobs always use slab, as run",
     )
     parser.add_argument(
         "--reader-shared-planes",

@@ -13,8 +13,10 @@ This project provides a flexible and extensible **in-transit reader** for simula
 - **Multiple Visualization Backends**: Out-of-the-box support for both Ascent and ParaView Catalyst.
 
 - **Data Handling**: The dataset is decomposed and redistributed evenly among the analysis ranks (`repartition`), in one of two layouts (`read_decomposition` in the settings, or `--decomposition`):
-  - `slab` (default): each rank reads one slab along the slowest dimension.
+  - `slab` (the reader's default): each rank reads one slab along the slowest dimension.
   - `brick`: the ranks form a 3D grid from `MPI_Dims_create`, with the axes in the simulation's order, so a brick owns a whole number of writer blocks when every reader boundary falls on a writer boundary (for example when `L` divides evenly by both rank counts on each axis; `sites/shaheen/README.md` has examples). At 262144 writers and 2048 readers a slab spans at least 4096 writers and a brick owns 128 (4 x 4 x 8 blocks). The neighbour planes below make a brick request parts of more blocks (5 x 5 x 9 there), with gaps in the fast dimensions, which a slab's requests never have.
+
+  The Shaheen experiment generator uses `brick` for every run but Paper 1's since 16 Nov 2026: with the shared planes exchanged (below) it was faster than `slab` at every size and pipeline measured, for both backends (`sites/shaheen/README.md`, "Reader decomposition").
 
   Either way each piece also holds its neighbour's first plane on every axis where it is not the last, so the pieces meet. How it gets that plane is `reader_shared_planes` in the settings:
   - `exchange` (default): the piece reads only its owned box from the writers and takes the plane from the neighbouring reader over MPI after `EndStep` (timer `Halo_Exchange`). The axes go one at a time, so edge and corner points arrive through the other neighbours. On a brick the owned box is read through a memory selection, which SST honours only with BP5 marshalling (the default) from ADIOS2 2.9.2; with SST and `MarshalMethod` set to anything else in the reader's XML, or an older ADIOS2, the whole run uses `read` and rank 0 says so.

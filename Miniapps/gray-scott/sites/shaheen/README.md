@@ -401,43 +401,80 @@ has an `AnalysisInput` block with `ControlModule=epoll` and the data plane,
 which the reader loads; its rank 0 prints the parameters in use. Runs
 before that date had readers on `select()`.
 
-**Reader decomposition.** `--reader-decomposition brick` makes each reader
-read a 3D brick aligned with the simulation's blocks instead of a slab
-along the slowest axis: at 262144 writers and 2048 readers, each reader
-owns 128 writer blocks (4 x 4 x 8) and, with the planes it shares with its
-neighbours, requests parts of 225 (5 x 5 x 9), instead of pieces of at
-least 4096. Measured on
-the 64 + 4 node f128 Ascent job (three runs each, 15 Nov 2026), the two
-take the same time per reader step (7.7 s slab, 7.8 s brick): brick spends
-longer in `EndStep` and less in rendering. The images differ in about 0.1%
-of pixels, nearly all by two levels or less, with no seams. The default
-stays `slab`. The experiment IDs do not include the decomposition, so
-generate slab and brick runs into different `--results-dir`s; the
-generator refuses to regenerate an in transit run with the other one.
-Those brick runs read each shared plane from the writers. On the x and y
-faces that plane is strided in the writer blocks, and those planes were the
-whole extra cost. The reader now takes the shared planes from its
-neighbouring readers instead (`--reader-shared-planes exchange`, the
-default; `read` is the old way, for comparison). Measured at 64 + 4 nodes
-(f128, 2 runs per arm in one shuffled batch, 16 Nov 2026), seconds per
-reader step:
+**Reader decomposition: brick is the default (16 Nov 2026).** Each in
+transit reader reads a 3D brick aligned with the simulation's blocks
+(`--reader-decomposition brick`, now the default) instead of a slab along
+the slowest axis (`--reader-decomposition slab`, the old default and the
+layout of every earlier run). At 262144 writers and 2048 readers a brick
+owns 128 writer blocks (4 x 4 x 8); a slab takes pieces of at least 4096.
+Each piece also holds its neighbour's first plane on every axis where it is
+not the last, so the pieces meet; the reader now takes those planes from
+the neighbouring readers over MPI (`--reader-shared-planes exchange`, the
+default) instead of from the writers (`read`, the old way).
 
-| Reader | Planes | Step | `EndStep` | `Halo_Exchange` |
-|---|---|---|---|---|
-| readonly, slab | read | 2.08 | 2.08 | 0 |
-| readonly, slab | exchange | 2.06 | 2.04 | 0.018 |
-| readonly, brick | read | 2.80 | 2.80 | 0 |
-| readonly, brick | exchange | 2.09 | 2.06 | 0.026 |
-| Ascent slices, slab | read | 3.09 | 2.06 | 0 |
-| Ascent slices, slab | exchange | 3.03 | 2.03 | 0.041 |
-| Ascent slices, brick | read | 3.48 | 2.89 | 0 |
-| Ascent slices, brick | exchange | 2.77 | 2.17 | 0.029 |
+How it got here, all on the f128 and Paper 2 jobs:
 
-With the exchange, a brick reads as fast as a slab and keeps its faster
-rendering (0.57 s against 0.96 s for slices), so brick slices are 0.3 s
-(10%) faster per step than slab. The renders with and without the exchange
-differ by no more than two runs of the same setting do. Settings written
-before the option are `read` runs, so generate into a new `--results-dir`.
+1. *Brick looked no better (15 Nov, planes read from the writers).* At
+   64 + 4 nodes the two took the same time per Ascent step (7.7 s slab,
+   7.8 s brick): brick rendered faster but spent longer in `EndStep`.
+2. *The read was the cost.* With the readonly reader (no visualization) at
+   64 + 4, `EndStep` was 2.08 s slab and 2.80 s brick: 0.73 s per step of
+   pure transport. A brick's shared planes on the x and y faces are strided
+   in the writer blocks; a slab's are contiguous.
+3. *Exchanging the planes removes it.* Reading only the owned box and
+   taking the planes from the neighbouring readers (16 Nov, 2 runs per arm,
+   one shuffled batch), seconds per reader step:
+
+   | Reader | Planes | Step | `EndStep` | `Halo_Exchange` |
+   |---|---|---|---|---|
+   | readonly, slab | read | 2.08 | 2.08 | 0 |
+   | readonly, slab | exchange | 2.06 | 2.04 | 0.018 |
+   | readonly, brick | read | 2.80 | 2.80 | 0 |
+   | readonly, brick | exchange | 2.09 | 2.06 | 0.026 |
+   | Ascent slices, slab | read | 3.09 | 2.06 | 0 |
+   | Ascent slices, slab | exchange | 3.03 | 2.03 | 0.041 |
+   | Ascent slices, brick | read | 3.48 | 2.89 | 0 |
+   | Ascent slices, brick | exchange | 2.77 | 2.17 | 0.029 |
+
+4. *Brick then wins at every size, on every pipeline, for both backends.*
+   Both with exchange (16 Nov; 512 + 32: 2 runs per arm, concurrent;
+   1024 + 64: 1 run per arm), total seconds per reader step, slab -> brick:
+
+   | Nodes | Backend | Slices | Volume | Isosurface |
+   |---|---|---|---|---|
+   | 512 + 32 | Ascent | 4.10 -> 2.85 | 2.98 -> 2.86 | 7.91 -> 6.69 |
+   | 512 + 32 | Catalyst | 6.21 -> 3.09 | 2.91 -> 2.85 | out of memory -> 20.35 |
+   | 1024 + 64 | Ascent | 2.95 -> 1.57 | 1.78 -> 1.66 | 4.71 -> 3.90 |
+   | 1024 + 64 | Catalyst | 5.18 -> 1.79 | 2.05 -> 1.61 | not run |
+
+   `EndStep` is now the same for both (2.18-2.27 s at 512 + 32, 1.09-1.17 s
+   at 1024 + 64). `Halo_Exchange` is 0.016-0.03 s for a brick and
+   0.07-0.24 s for a slab, whose shared plane is a whole 4096^2 plane.
+   Against planes read from the writers, a brick's `EndStep` at 1024 + 64
+   drops from 1.47-1.54 s to 1.13-1.17 s. The Catalyst isosurface at
+   512 + 32, out of memory with slabs (33-34 GB per rank peak, both runs),
+   fits with bricks, so every cell of the matrix runs for both backends.
+
+The images: brick with exchange and brick with planes read are identical
+(0 to 12 pixels). Slab and brick differ only in the speckle of Ascent's
+volume rendering (where the rays sample), with no seams; brick volume
+images are stable across node counts (32 pixels between 512 + 32 and
+1024 + 64), slab images are not (6768 pixels).
+
+What this shows: how the readers divide the data matters as much as how
+fast the transport is. A brick lines each reader up with whole writer
+blocks, so each reader talks to fewer writers and renders a compact
+piece, but only once nothing forces the transport to fetch scattered
+data. A single plane per face, read from the writers, cost more than the
+whole rendering gain; moved to a reader-to-reader exchange it costs
+about 0.03 s, and brick becomes the faster layout everywhere we measured
+(up to 2.9 times faster for Catalyst slices at 1024 + 64), with less
+memory per reader.
+
+The experiment IDs do not include the decomposition or the plane setting,
+so generate each combination into its own `--results-dir`; the generator
+refuses to regenerate an in transit run with different settings, and
+settings written before an option existed count as slab and `read`.
 
 **Other engines and transports.** SST over WAN (TCP) needs
 `ControlModule=select`; with `epoll` it aborts at once. SSC uses MPI
