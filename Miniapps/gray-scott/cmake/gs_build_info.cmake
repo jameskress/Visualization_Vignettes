@@ -30,6 +30,26 @@ if(GIT_FOUND)
   endif()
 endif()
 
+# Not a git checkout (a tree exported with git archive, as the Shaheen
+# builds are): take the commit from cmake/git_archive_commit.txt, which
+# git archive fills in (export-subst in .gitattributes), or from the
+# GS_SOURCE_COMMIT environment variable, for trees copied another way.
+# The tree is then marked "archive", not dirty: it is exactly that commit
+# as exported (or as the variable says).
+if(GS_GIT_DIRTY STREQUAL "-1")
+  set(_archived "")
+  if(EXISTS "${SRC_DIR}/cmake/git_archive_commit.txt")
+    file(STRINGS "${SRC_DIR}/cmake/git_archive_commit.txt" _archived LIMIT_COUNT 1)
+  endif()
+  if(_archived MATCHES "^[0-9a-f]+$")
+    set(GS_GIT_COMMIT "${_archived}")
+    set(GS_GIT_DESCRIBE "archive")
+  elseif(DEFINED ENV{GS_SOURCE_COMMIT} AND NOT "$ENV{GS_SOURCE_COMMIT}" STREQUAL "")
+    set(GS_GIT_COMMIT "$ENV{GS_SOURCE_COMMIT}")
+    set(GS_GIT_DESCRIBE "GS_SOURCE_COMMIT")
+  endif()
+endif()
+
 # Flags go into a C string literal: escape backslashes first, then quotes,
 # so a flag such as -DFOO=\"bar\" stays one valid literal.
 string(REPLACE "\\" "\\\\" GS_CXX_FLAGS "${GS_CXX_FLAGS}")

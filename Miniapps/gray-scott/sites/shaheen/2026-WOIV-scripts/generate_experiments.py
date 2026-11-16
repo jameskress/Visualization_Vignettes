@@ -1151,6 +1151,10 @@ fi
 
 # 3. Reader timings (in transit runs).
 if [ -d "$OUTPUT_DIR/reader_timers" ]; then
+    # The reader's own run record (build, commit, platform, libraries), beside
+    # the simulation's {id}_metadata.json, before the directory is archived.
+    [ -f "$OUTPUT_DIR/reader_timers/metadata.json" ] \\
+        && cp "$OUTPUT_DIR/reader_timers/metadata.json" "{results_dir}/{id}_reader_metadata.json"
     echo "Reducing reader_timers..."
     if python "$REDUCE" "$OUTPUT_DIR/reader_timers" "{results_dir}/{id}_reader.csv"; then
         echo "Compressing reader_timers..."
@@ -1194,6 +1198,21 @@ env | grep -E '^(SLURM_|OMP_|OSPRAY_|GALLIUM_|VTK_|TBB_|MALLOC_|FI_|CM_|MPICH_|S
 for b in "$EXE_SIM" "$EXE_STAGE"; do echo "== $b"; ldd "$b" 2>&1; done > $TEL/ldd.txt
 (cat "{repo_path}/SOURCE.txt" 2>/dev/null; git -C "{repo_path}" describe --always --dirty 2>/dev/null) > $TEL/source.txt
 scontrol show job $SLURM_JOB_ID > $TEL/job.txt 2>&1
+# Where the nodes sit on the network (Slurm's tree: leaf switch of 16
+# nodes, then the 256-node dragonfly group); corpus_index.py turns it and
+# the node lists into placement columns.
+scontrol show topology > $TEL/topology.txt 2>&1
+# The platform before the run: one line per node (kernel, CPU frequency
+# driver, governor and boost, memory, NUMA nodes, NIC firmware and link),
+# so a node that differs is visible, and the full detail of one node.
+PLATFORM={repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/node_platform.sh
+srun --overlap --network=no_vni --mpi=none \\
+    --nodes=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
+    --output=$TEL/platform_nodes.txt --error=$TEL/platform_nodes.err $PLATFORM line \\
+    || echo "platform capture failed (rc $?); the run goes on"
+srun --overlap --network=no_vni --mpi=none --nodes=1 --ntasks=1 --cpus-per-task=1 --mem=1G \\
+    --output=$TEL/platform.txt --error=$TEL/platform.txt $PLATFORM full \\
+    || echo "platform capture failed (rc $?); the run goes on"
 # No Slingshot VNI and no MPI wire-up for the sampler: it uses neither, and
 # with the defaults the step took network resources that MPI_Init in the
 # run's step then could not get (fi_getinfo "No data available") on some
@@ -1245,7 +1264,9 @@ if [ -f $TEL/job_id ]; then
         rm -rf "{results_dir}/{id}_sacct.txt" "{results_dir}/{id}_telemetry.json" \\
             "{results_dir}/{id}_darshan" "{results_dir}/{id}_mpich_cxi_summary.txt" \\
             "{results_dir}/{id}_tel_env.txt" "{results_dir}/{id}_tel_modules.txt" \\
-            "{results_dir}/{id}_tel_ldd.txt" "{results_dir}/{id}_tel_source.txt"
+            "{results_dir}/{id}_tel_ldd.txt" "{results_dir}/{id}_tel_source.txt" \\
+            "{results_dir}/{id}_tel_topology.txt" "{results_dir}/{id}_tel_platform.txt" \\
+            "{results_dir}/{id}_tel_platform_nodes.txt"
         echo "$RUN_JOB" > "$TJ"
     fi
     # Accounting counts only once sacct answers, lists the run's numbered
@@ -1314,7 +1335,7 @@ if [ -f $TEL/job_id ]; then
         mv "$SUMMARY.tmp" "$SUMMARY"
         # Straight to this experiment's names: reductions of other runs share
         # the results directory.
-        for f in env modules ldd source; do
+        for f in env modules ldd source topology platform platform_nodes; do
             [ -f $TEL/$f.txt ] && cp $TEL/$f.txt "{results_dir}/{id}_tel_$f.txt"
         done
         (cd $TEL && tar -czf nodes.tar.gz.tmp nodes/ && mv nodes.tar.gz.tmp nodes.tar.gz && rm -rf nodes/)

@@ -1,5 +1,10 @@
 #include "run_metadata.hpp"
+#include "run_metadata_string.hpp"
 
+#include <sys/utsname.h>
+
+#include <cctype>
+#include <cstdlib>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
@@ -82,6 +87,87 @@ std::vector<std::string> gpu_models()
     return out;
 }
 
+// First line of a small sysfs or /proc file, or "" if it cannot be read.
+std::string first_line(const std::string &path)
+{
+    std::ifstream in(path);
+    std::string line;
+    std::getline(in, line);
+    return trim(line);
+}
+
+// The node's platform, as the run saw it on rank 0's node: what could
+// change between nodes or between run days and move the timings.
+nlohmann::json platform()
+{
+    nlohmann::json p;
+    struct utsname u;
+    if (uname(&u) == 0)
+        p["kernel"] = std::string(u.release) + " " + u.version;
+    std::string os = field("/etc/os-release", "PRETTY_NAME");
+    if (os.empty())
+    {
+        // os-release is key=value, not key: value
+        std::ifstream in("/etc/os-release");
+        std::string line;
+        while (std::getline(in, line))
+            if (line.compare(0, 12, "PRETTY_NAME=") == 0)
+                os = line.substr(12);
+    }
+    if (os.size() >= 2 && os.front() == '"' && os.back() == '"')
+        os = os.substr(1, os.size() - 2);
+    p["os"] = os;
+    const std::string cpu = "/sys/devices/system/cpu/cpu0/cpufreq/";
+    p["cpu_freq_driver"] = first_line(cpu + "scaling_driver");
+    p["cpu_governor"] = first_line(cpu + "scaling_governor");
+    p["cpu_max_khz"] = first_line(cpu + "cpuinfo_max_freq");
+    p["cpu_boost"] = first_line("/sys/devices/system/cpu/cpufreq/boost");
+    int numa = 0;
+    std::error_code ec;
+    for (const auto &e : std::filesystem::directory_iterator("/sys/devices/system/node", ec))
+    {
+        const std::string n = e.path().filename().string();
+        if (n.size() > 4 && n.compare(0, 4, "node") == 0 && std::isdigit(static_cast<unsigned char>(n[4])))
+            numa++;
+    }
+    p["numa_nodes"] = numa;
+    // "263748908 kB" -> 263748908
+    const std::string mem = field("/proc/meminfo", "MemTotal");
+    p["mem_total_kB"] = mem.empty() ? 0LL : std::atoll(mem.c_str());
+    return p;
+}
+
+// The shared libraries this process loaded that decide its behaviour
+// (MPI, libfabric, ADIOS2, the visualization stacks), by their real paths:
+// an install directory names the exact build (for example ADIOS2's commit).
+std::vector<std::string> key_libraries()
+{
+    static const char *keys[] = {"adios2", "mpi", "fabric", "ascent", "conduit", "catalyst",
+                                 "vtk",    "viskores", "ospray", "kombyne", "darshan"};
+    std::set<std::string> out;
+    std::ifstream in("/proc/self/maps");
+    std::string line;
+    while (std::getline(in, line))
+    {
+        const auto slash = line.find('/');
+        if (slash == std::string::npos)
+            continue;
+        const std::string path = line.substr(slash);
+        const std::string name = std::filesystem::path(path).filename().string();
+        if (name.find(".so") == std::string::npos)
+            continue;
+        for (const char *k : keys)
+            if (name.find(k) != std::string::npos)
+            {
+                std::error_code e2;
+                const auto real = std::filesystem::canonical(path, e2);
+                out.insert(e2 ? path : real.string());
+                break;
+            }
+    }
+    return std::vector<std::string>(out.begin(), out.end());
+}
+
 std::string mpi_library_version()
 {
     char buf[MPI_MAX_LIBRARY_VERSION_STRING];
@@ -136,7 +222,14 @@ nlohmann::json collect_run_metadata(MPI_Comm comm)
                  {"nodes", hosts.size()},
                  {"cpu_model", cpu_model()},
                  {"cpus_on_rank0_node", cpu_count()},
-                 {"gpu_models", gpu_models()}};
+                 {"gpu_models", gpu_models()},
+                 {"platform", platform()}};
+    m["libraries"] = key_libraries();
     m["mpi"] = {{"library_version", mpi_library_version()}, {"ranks", procs}};
     return m;
+}
+
+std::string collect_run_metadata_string(MPI_Comm comm)
+{
+    return collect_run_metadata(comm).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }

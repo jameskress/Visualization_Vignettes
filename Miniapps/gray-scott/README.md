@@ -365,10 +365,11 @@ closed, so a shutdown that hangs (ADIOS2 SST over RDMA can) cannot lose it
 | `summary.json` | always, rank 0 | loop wall time and ms/step; with timers on, per-timer totals across ranks |
 | `steps/node_NNNNN.jsonl` | timers on, one per node (named after its lowest rank) | one JSON object per step per rank on that node; `steps/rank_NNNNN.jsonl`, one per rank, before version 4 or when a node's records exceed 256 MB; readers (`reader_timers/`) always write one file per rank |
 
-`metadata.json` records:
+The in transit reader writes the same record (build, host, platform, libraries) as `reader_timers/metadata.json`, with its options and settings. `metadata.json` records:
 
-* **Build:** git commit, `git describe` and dirty state (tracked files only), compiler and version, flags, build type, enabled backends.
-* **Host:** hostnames and node count, CPU model, CPU count, NVIDIA GPU models.
+* **Build:** git commit, `git describe` and dirty state (tracked files only), compiler and version, flags, build type, enabled backends. A tree exported with `git archive` has no `.git`; its commit comes from `cmake/git_archive_commit.txt` (filled in by `git archive`, `describe` "archive"), or from the `GS_SOURCE_COMMIT` environment variable at build time.
+* **Host:** hostnames and node count, CPU model, CPU count, NVIDIA GPU models, and `platform` for rank 0's node: kernel, OS, CPU frequency driver, governor, boost and maximum, NUMA nodes, memory.
+* **Libraries:** the real paths of the loaded MPI, libfabric, ADIOS2 and visualization libraries (an install directory names the exact build).
 * **MPI:** library version, rank count, 3D decomposition, rank 0's local block size.
 * **Problem:** `L`, steps, plotgap, F, k, Du, Dv, dt, noise, seed, the restart step, and `restart_read_s` (slowest rank's checkpoint read, seconds).
 * **Inputs:** the settings file path and its full contents, the command line.

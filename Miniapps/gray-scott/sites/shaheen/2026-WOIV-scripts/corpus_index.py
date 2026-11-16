@@ -1,6 +1,10 @@
 """Index Gray-Scott runs into one table for the telemetry corpus.
 
-Usage: corpus_index.py <out_prefix> <results_dir> [<results_dir> ...]
+Usage: corpus_index.py [--topology FILE] <out_prefix> <results_dir> [<results_dir> ...]
+
+--topology: a saved `scontrol show topology`, for runs that did not save
+their own (runs before the topology capture); placement columns stay empty
+without one.
 
 Writes <out_prefix>.csv and <out_prefix>.jsonl, one row per run found in the
 results directories (a run is any <id>_job.sbat). Each row holds:
@@ -110,12 +114,115 @@ def _darshan_totals(directory):
     return totals
 
 
+def _expand_hostlist(spec):
+    """Slurm's compressed host list ("nid[00089-00090,00262],login1") as names."""
+    parts, depth, cur = [], 0, ""
+    for ch in spec:
+        if ch == "," and depth == 0:
+            parts.append(cur)
+            cur = ""
+            continue
+        depth += ch == "["
+        depth -= ch == "]"
+        cur += ch
+    if cur:
+        parts.append(cur)
+    names = []
+    for part in parts:
+        m = re.match(r"^([^\[]+)\[([^\]]*)\]$", part)
+        if not m:
+            names.append(part)
+            continue
+        prefix, ranges = m.groups()
+        for r in ranges.split(","):
+            if "-" in r:
+                a, b = r.split("-", 1)
+                names += [
+                    "%s%0*d" % (prefix, len(a), n) for n in range(int(a), int(b) + 1)
+                ]
+            else:
+                names.append(prefix + r)
+    return names
+
+
+def _topology(path):
+    """Node -> (leaf switch, level-1 switch) from `scontrol show topology`.
+
+    On Shaheen III the leaf switches serve 16 nodes each (x1005c0r3) and the
+    level-1 entries are the 256-node dragonfly groups (group4)."""
+    leaf, group = {}, {}
+    try:
+        with open(path) as handle:
+            text = handle.read()
+    except OSError:
+        return None
+    for line in text.splitlines():
+        name = re.search(r"SwitchName=(\S+)", line)
+        level = re.search(r"Level=(\d+)", line)
+        nodes = re.search(r"\bNodes=(\S+)", line)
+        if not (name and level and nodes):
+            continue
+        target = (
+            leaf if level.group(1) == "0" else group if level.group(1) == "1" else None
+        )
+        if target is not None:
+            for node in _expand_hostlist(nodes.group(1)):
+                target[node] = name.group(1)
+    return (leaf, group) if leaf else None
+
+
+def _placement(job_nodes, sim_nodes, topo):
+    """Groups and leaf switches the simulation and the readers span."""
+    out = {
+        "placement_job_groups": None,
+        "placement_sim_groups": None,
+        "placement_stage_groups": None,
+        "placement_shared_groups": None,
+        "placement_sim_switches": None,
+        "placement_stage_switches": None,
+        "placement_unknown_nodes": None,
+    }
+    if not topo or not job_nodes:
+        return out
+    leaf, group = topo
+    sim = [n for n in job_nodes if n in sim_nodes] if sim_nodes else []
+    stage = [n for n in job_nodes if n not in sim_nodes] if sim_nodes else []
+    out["placement_unknown_nodes"] = sum(1 for n in job_nodes if n not in leaf)
+    out["placement_job_groups"] = len({group[n] for n in job_nodes if n in group})
+    if sim_nodes:
+        sim_g = {group[n] for n in sim if n in group}
+        stage_g = {group[n] for n in stage if n in group}
+        out["placement_sim_groups"] = len(sim_g)
+        out["placement_stage_groups"] = len(stage_g)
+        out["placement_shared_groups"] = len(sim_g & stage_g)
+        out["placement_sim_switches"] = len({leaf[n] for n in sim if n in leaf})
+        out["placement_stage_switches"] = len({leaf[n] for n in stage if n in leaf})
+    return out
+
+
+def _platform_nodes(path):
+    """Per-node platform lines (node_platform.sh line): how many nodes, how
+    many distinct platforms among them, and the NIC firmware versions."""
+    try:
+        with open(path) as handle:
+            lines = [ln.split() for ln in handle if ln.startswith("host=")]
+    except OSError:
+        return None, None, None
+    variants, firmware = set(), set()
+    for fields in lines:
+        kv = dict(f.split("=", 1) for f in fields if "=" in f)
+        kv.pop("host", None)
+        variants.add(tuple(sorted(kv.items())))
+        firmware.add(kv.get("nic_fw", "na"))
+    return len(lines), len(variants), ";".join(sorted(firmware))
+
+
 def _sbatch_value(text, option):
     match = re.search(r"^#SBATCH --" + option + r"=(\S+)", text, re.M)
     return match.group(1) if match else None
 
 
-def index_run(results_dir, run_id):
+def index_run(results_dir, run_id, fallback_topology=None):
     base = os.path.join(results_dir, run_id)
     run_dir = base  # the run's own directory (settings, data, telemetry)
 
@@ -166,6 +273,26 @@ def index_run(results_dir, run_id):
         or None
     )
     row["build_type"] = build.get("build_type")
+    # Provenance: the commits that built the two programs (from a git
+    # checkout, or the archive file in builds from git archive), the ADIOS2
+    # library actually loaded, and rank 0's node platform.
+    git = meta.get("git") or {}
+    row["sim_git_commit"] = git.get("commit")
+    row["sim_git_describe"] = git.get("describe")
+    rmeta = _load_json(base + "_reader_metadata.json") or {}
+    row["reader_git_commit"] = (rmeta.get("git") or {}).get("commit")
+    libs = meta.get("libraries") or []
+    row["adios2_library"] = next((lib for lib in libs if "libadios2_core" in lib), None)
+    plat = (meta.get("host") or {}).get("platform") or {}
+    for key in (
+        "kernel",
+        "os",
+        "cpu_governor",
+        "cpu_boost",
+        "numa_nodes",
+        "mem_total_kB",
+    ):
+        row["platform_" + key] = plat.get(key)
     for key, value in _csv_means(base + "_writer.csv", WRITER_KEYS).items():
         row["writer_" + key + "_s"] = value
     for key, value in _csv_means(base + "_reader.csv", READER_KEYS).items():
@@ -173,6 +300,25 @@ def index_run(results_dir, run_id):
     tel = _load_json(base + "_telemetry.json") or {}
     totals = tel.get("totals") or {}
     row["job_id"] = tel.get("job_id")
+    # Placement: the job's nodes (Slurm's job record), the simulation's (its
+    # metadata), the rest are the readers', against the network topology the
+    # run saved, or the --topology fallback.
+    job_nodes = []
+    job_txt = os.path.join(run_dir, "telemetry", str(row["job_id"]), "job.txt")
+    try:
+        with open(job_txt) as handle:
+            m = re.search(r"^\s*NodeList=(\S+)", handle.read(), re.M)
+        if m and m.group(1) != "(null)":
+            job_nodes = _expand_hostlist(m.group(1))
+    except OSError:
+        pass
+    sim_nodes = set((meta.get("host") or {}).get("hostnames") or [])
+    topo = _topology(base + "_tel_topology.txt") or fallback_topology
+    row.update(_placement(job_nodes, sim_nodes, topo))
+    n, variants, firmware = _platform_nodes(base + "_tel_platform_nodes.txt")
+    row["platform_nodes_listed"] = n
+    row["platform_variants"] = variants
+    row["platform_nic_fw"] = firmware
     row["energy_j"] = totals.get("energy_j")
     row["node_power_mean_w"] = totals.get("node_power_mean_w")
     row["nodes_sampled"] = totals.get("nodes_sampled")
@@ -199,6 +345,10 @@ def index_run(results_dir, run_id):
         ("tel_job", "_tel_job.txt"),
         ("darshan_dir", "_darshan"),
         ("mpich_cxi_summary", "_mpich_cxi_summary.txt"),
+        ("reader_metadata", "_reader_metadata.json"),
+        ("tel_topology", "_tel_topology.txt"),
+        ("tel_platform", "_tel_platform.txt"),
+        ("tel_platform_nodes", "_tel_platform_nodes.txt"),
     ):
         row["path_" + name] = artifact(suffix)
     row["path_run_dir"] = run_dir if os.path.isdir(run_dir) else ""
@@ -206,6 +356,14 @@ def index_run(results_dir, run_id):
 
 
 def main(argv):
+    argv = list(argv)
+    fallback = None
+    if len(argv) > 2 and argv[1] == "--topology":
+        fallback = _topology(argv[2])
+        if fallback is None:
+            print("corpus_index: cannot read a topology from " + argv[2])
+            return 2
+        del argv[1:3]
     if len(argv) < 3:
         print(__doc__.strip().splitlines()[2])
         return 2
@@ -214,7 +372,7 @@ def main(argv):
     for results_dir in argv[2:]:
         for job in sorted(glob.glob(os.path.join(results_dir, "*_job.sbat"))):
             run_id = os.path.basename(job)[: -len("_job.sbat")]
-            rows.append(index_run(os.path.abspath(results_dir), run_id))
+            rows.append(index_run(os.path.abspath(results_dir), run_id, fallback))
     if not rows:
         print("corpus_index: no runs (no *_job.sbat) found")
         return 1
