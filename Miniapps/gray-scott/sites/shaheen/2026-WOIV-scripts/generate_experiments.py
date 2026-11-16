@@ -129,11 +129,12 @@ PIPE_TIME_LIMIT = "0:45:00"
 ASCENT_TIMINGS = False
 
 # Run the in transit reader on both hardware threads of its 24 cores (48
-# OpenMP threads) instead of one. Ascent at f128: isosurface -0.54 s/step,
-# volume -0.12, slices -0.05 (sites/shaheen/README.md, "In transit reader
-# costs"). Off by default: it changes every backend's reader, so it waits
-# for Catalyst to be measured with it too. --reader-smt turns it on.
-READER_SMT = False
+# OpenMP threads) instead of one. At f128, Ascent: isosurface -0.54 s/step,
+# volume -0.12, slices -0.05; Catalyst: isosurface -0.52, slices -0.05,
+# volume -0.03, frames bit-identical (sites/shaheen/README.md, "In transit
+# reader costs"). On by default for testing (James, 16 Nov 2026);
+# --no-reader-smt turns it off. Paper 1 jobs never get it (reader_smt).
+READER_SMT = True
 
 # The in transit reader's allocator: never mmap, never trim. The job-wide
 # MALLOC_MMAP_THRESHOLD_ (32 MiB) makes every larger block an mmap that is
@@ -2436,11 +2437,20 @@ if __name__ == "__main__":
         action="store_true",
         help="Turn on Ascent's per-filter timings (ascent_options.yaml `timings`)",
     )
+    # Python 3.6 on the login nodes has no BooleanOptionalAction.
     parser.add_argument(
         "--reader-smt",
+        dest="reader_smt",
         action="store_true",
-        help="Run the in transit reader with 48 threads on both hardware threads of its 24 cores",
+        help="Run the in transit reader with 48 threads on both hardware threads of its 24 cores (the default)",
     )
+    parser.add_argument(
+        "--no-reader-smt",
+        dest="reader_smt",
+        action="store_false",
+        help="Run the in transit reader with 24 threads, one per core",
+    )
+    parser.set_defaults(reader_smt=READER_SMT)
     parser.add_argument(
         "--perf-env",
         default=f"/scratch/{os.environ.get('USER', 'user')}/perf_env",
