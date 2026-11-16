@@ -36,6 +36,9 @@ public:
         double wrap_s = 0.0;    // building the backend's data description
         double execute_s = 0.0; // the backend's pipeline, actions or engine
         double io_s = 0.0;      // writing files or moving data out
+        // Waiting in a barrier before the engine's step end (ADIOS2 with
+        // adios_endstep_barrier); not part of io_s.
+        double barrier_s = 0.0;
         bool split = false;
         // Heap allocations made while wrapping (#25); 0 unless the build
         // has GS_COUNT_ALLOCATIONS.

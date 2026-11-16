@@ -11,6 +11,7 @@ WriterADIOS::~WriterADIOS() = default;
 void WriterADIOS::CreateWriter(const Settings &_settings, const GrayScott &sim, MPI_Comm comm, int rank)
 {
     settings = _settings;
+    m_comm = comm;
 
     // Span is checked with BP5 only; SST has no span Put(), so it is off for
     // SST. Memory selection works with SST when SST marshals with BP5, its
@@ -155,9 +156,33 @@ void WriterADIOS::open(const std::string &fname, bool append, int rank)
     const std::vector<std::string> associations = {"points", "points"};
     m_io.DefineAttribute<std::string>("Fides_Variable_Associations", associations.data(), associations.size());
 
+    // Rank 0's wall-clock time entering EndStep() (a global single value),
+    // for the reader's Step_Latency timer (ADIOS2 #5272).
+    m_var_endstep_wall = m_io.DefineVariable<double>("gs_endstep_wall");
+
     // --- OPEN THE ADIOS ENGINE ---
     const adios2::Mode mode = append ? adios2::Mode::Append : adios2::Mode::Write;
     m_engine = m_io.Open(fname, mode);
+}
+
+double WriterADIOS::EndStepTimed(int rank)
+{
+    double barrier_s = 0.0;
+    if (settings.adios_endstep_barrier && m_comm != MPI_COMM_NULL)
+    {
+        const auto a = std::chrono::steady_clock::now();
+        MPI_Barrier(m_comm);
+        barrier_s = std::chrono::duration<double>(std::chrono::steady_clock::now() - a).count();
+    }
+    if (rank == 0)
+    {
+        // Deferred Put: m_endstep_wall is a member, alive past EndStep().
+        m_endstep_wall =
+            std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
+        m_engine.Put(m_var_endstep_wall, &m_endstep_wall);
+    }
+    m_engine.EndStep();
+    return barrier_s;
 }
 
 void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
@@ -195,7 +220,7 @@ void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
     //  * step: the by-value parameter, alive for the whole call
     const double *u_before = sim.u_ghost().data();
     const double *v_before = sim.v_ghost().data();
-    double wrap_s = 0.0, put_s = 0.0, end_s = 0.0;
+    double wrap_s = 0.0, put_s = 0.0, end_s = 0.0, barrier_s = 0.0;
 
     if (settings.adios_memory_selection)
     {
@@ -208,10 +233,10 @@ void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
         m_engine.Put(m_var_v, sim.v_ghost().data());
         m_engine.Put(m_var_step, &step);
         const auto b = clock::now();
-        m_engine.EndStep();
+        barrier_s = EndStepTimed(rank);
         const auto c = clock::now();
         put_s = std::chrono::duration<double>(b - a).count();
-        end_s = std::chrono::duration<double>(c - b).count();
+        end_s = std::chrono::duration<double>(c - b).count() - barrier_s;
     }
     else if (settings.adios_span)
     {
@@ -228,11 +253,11 @@ void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
         phases.wrap_allocs = wrap_alloc.delta_calls();
         phases.wrap_alloc_bytes = wrap_alloc.delta_bytes();
         const auto c = clock::now();
-        m_engine.EndStep();
+        barrier_s = EndStepTimed(rank);
         const auto d = clock::now();
         put_s = std::chrono::duration<double>(b - a).count();
         wrap_s = std::chrono::duration<double>(c - b).count();
-        end_s = std::chrono::duration<double>(d - c).count();
+        end_s = std::chrono::duration<double>(d - c).count() - barrier_s;
     }
     else
     {
@@ -250,11 +275,11 @@ void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
         m_engine.Put(m_var_v, v_data.data());
         m_engine.Put(m_var_step, &step);
         const auto c = clock::now();
-        m_engine.EndStep(); // u_data and v_data are still alive here
+        barrier_s = EndStepTimed(rank); // u_data and v_data are still alive here
         const auto d = clock::now();
         wrap_s = std::chrono::duration<double>(b - a).count();
         put_s = std::chrono::duration<double>(c - b).count();
-        end_s = std::chrono::duration<double>(d - c).count();
+        end_s = std::chrono::duration<double>(d - c).count() - barrier_s;
     }
 
     if (sim.u_ghost().data() != u_before || sim.v_ghost().data() != v_before)
@@ -263,6 +288,7 @@ void WriterADIOS::write(int step, const GrayScott &sim, int rank, int numRanks)
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
+    phases.barrier_s = barrier_s;
     phases.wrap_s = wrap_s;
     phases.execute_s = put_s; // Put() calls: registering the data
     phases.io_s = end_s + std::chrono::duration<double>(t_reopen - t0).count(); // EndStep moves the data

@@ -50,7 +50,7 @@ AdiosWriterBackend::AdiosWriterBackend(const BackendOptions &opts)
       m_perf_logger("reader_timers",
                     [&]() { int rank; MPI_Comm_rank(opts.comm, &rank); return rank; }(),
                     [&]() { char hostname[256]; gethostname(hostname, sizeof(hostname)); return std::string(hostname); }(),
-                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "Halo_Exchange", "ADIOS_Write_Time", "total_step",
+                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "Halo_Exchange", "Step_Latency", "ADIOS_Write_Time", "total_step",
                      "Read_Setup", "Read_Alloc"},
                     {"minflt_alloc", "minflt_endstep"}),
       m_reader(m_opts, m_perf_logger),

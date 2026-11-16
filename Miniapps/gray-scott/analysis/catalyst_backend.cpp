@@ -132,7 +132,7 @@ CatalystBackend::CatalystBackend(const BackendOptions &opts)
       m_perf_logger("reader_timers",
                     [&]() { int rank; MPI_Comm_rank(opts.comm, &rank); return rank; }(),
                     [&]() { char hostname[256]; gethostname(hostname, sizeof(hostname)); return std::string(hostname); }(),
-                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "Halo_Exchange", "Blueprint_Time", "Vis_Time", "total_step",
+                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "Halo_Exchange", "Step_Latency", "Blueprint_Time", "Vis_Time", "total_step",
                      "Mesh_Build"}),
       m_reader(opts, m_perf_logger)
 {

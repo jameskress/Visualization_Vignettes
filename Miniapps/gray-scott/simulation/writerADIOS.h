@@ -28,6 +28,14 @@ private:
     adios2::Variable<double> m_var_u;
     adios2::Variable<double> m_var_v;
     adios2::Variable<int> m_var_step;
+    // Rank 0's wall-clock time (seconds since the epoch) as it enters
+    // EndStep(), so a reader can time the step's delivery (Step_Latency).
+    adios2::Variable<double> m_var_endstep_wall;
+    double m_endstep_wall = 0.0;
+    MPI_Comm m_comm = MPI_COMM_NULL;
+    // Barrier (with adios_endstep_barrier), the wall-clock stamp and
+    // EndStep(); returns the seconds spent in the barrier.
+    double EndStepTimed(int rank);
     bool m_is_first_step = true;
 };
 

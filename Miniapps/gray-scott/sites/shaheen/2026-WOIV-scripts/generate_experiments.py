@@ -72,6 +72,13 @@ READ_DECOMPOSITION = "brick"
 # ADIOS2 then sends a whole writer block for each strided plane).
 # --reader-shared-planes overrides it.
 READER_SHARED_PLANES = "exchange"
+# Diagnostics for the SST write path (ADIOS2 #5272), both off by default:
+# --adios-endstep-barrier puts an MPI_Barrier before each EndStep, timed as
+# the writer's endstep_barrier, so its io timer is the engine's own time;
+# --adios-queue-full-policy Discard lets the writer drop steps instead of
+# blocking on a full queue, to take the readers out of its EndStep.
+ADIOS_ENDSTEP_BARRIER = False
+QUEUE_FULL_POLICY = "Block"
 
 # #72 step 1: SST transport x reader x launch x fan-in, small and short.
 # Fan-in is in tasks (64 simulation and 8 reader ranks per node):
@@ -173,7 +180,7 @@ ADIOS_XML_TEMPLATE = """<?xml version="1.0"?>
             <parameter key="verbose" value="0"/>
             <parameter key="RendezvousReaderCount" value="{rendezvous}"/>
             <parameter key="QueueLimit" value="{queue_limit}"/>
-            <parameter key="QueueFullPolicy" value="Block"/>
+            <parameter key="QueueFullPolicy" value="{queue_full_policy}"/>
             <parameter key="DataTransport" value="{data_transport}"/>
             <parameter key="ControlModule" value="epoll"/>
             <parameter key="OpenTimeoutSecs" value="600.0"/>
@@ -1513,6 +1520,7 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         "adios_config": f"{output_dir}/adios2.xml",
         "adios_span": False,
         "adios_memory_selection": True,
+        "adios_endstep_barrier": ADIOS_ENDSTEP_BARRIER,
         "read_decomposition": reader_decomposition(exp)[0],
         "reader_shared_planes": reader_decomposition(exp)[1],
         "ascent_options": "",
@@ -1601,6 +1609,7 @@ def generate_adios_xml(exp, output_dir):
         sim_aggregators=sim_aggregators,
         stage_aggregators=stage_aggregators,
         queue_limit=exp.get("queue_limit", 1),
+        queue_full_policy=QUEUE_FULL_POLICY,
     )
     with open(f"{output_dir}/adios2.xml", "w") as f:
         f.write(xml_content)
@@ -2426,6 +2435,17 @@ if __name__ == "__main__":
         "slab (slowest axis, the layout of runs before 16 Nov 2026). Paper 1 jobs always use slab, as run",
     )
     parser.add_argument(
+        "--adios-endstep-barrier",
+        action="store_true",
+        help="Diagnostic: MPI_Barrier before each SST EndStep, timed as endstep_barrier (ADIOS2 #5272)",
+    )
+    parser.add_argument(
+        "--adios-queue-full-policy",
+        choices=("Block", "Discard"),
+        default=QUEUE_FULL_POLICY,
+        help="SST QueueFullPolicy for the simulation's output (Discard: the writer never waits for readers)",
+    )
+    parser.add_argument(
         "--reader-shared-planes",
         choices=("exchange", "read"),
         default=READER_SHARED_PLANES,
@@ -2481,6 +2501,8 @@ if __name__ == "__main__":
     VOLUME_SAMPLES_PER_CELL = args.volume_samples_per_cell
     READ_DECOMPOSITION = args.reader_decomposition
     READER_SHARED_PLANES = args.reader_shared_planes
+    ADIOS_ENDSTEP_BARRIER = args.adios_endstep_barrier
+    QUEUE_FULL_POLICY = args.adios_queue_full_policy
     ASCENT_TIMINGS = args.ascent_timings
     READER_SMT = args.reader_smt
     generate_scripts(args)
