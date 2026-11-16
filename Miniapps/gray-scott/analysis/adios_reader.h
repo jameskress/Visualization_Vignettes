@@ -23,7 +23,10 @@ public:
     // stream. A step that is not ready yet (the timeout wait mode) is waited
     // for again, not taken as the end; an ADIOS2 error throws (#42).
     bool NextStep();
-    // Ends the step; the deferred reads of ReadRepartition complete here.
+    // Ends the step; the deferred reads of ReadRepartition complete here,
+    // and with reader_shared_planes "exchange" the shared planes are then
+    // taken from the neighbouring readers (collective over the reader
+    // communicator: every reader must call it, as every backend does).
     void EndStep();
     size_t CurrentStep() const;
 
@@ -44,6 +47,27 @@ private:
     void ReadFidesAttributes();
 
     template <typename Vec> static size_t productDims(const Vec &v);
+    // Fills the shared planes of the step's ReadRepartition buffers from the
+    // neighbouring readers.
+    void ExchangeSharedPlanes();
+
+    // A ReadRepartition buffer whose shared planes come from the neighbours.
+    struct PendingPlanes
+    {
+        char *data;
+        size_t elem_size;
+        std::vector<size_t> local_dims; // the buffer's extent
+        std::vector<size_t> owned_dims;
+        std::vector<bool> shared_high;
+    };
+    std::vector<PendingPlanes> m_pending_planes;
+    // The packed planes, kept across steps so they are not reallocated.
+    std::vector<char> m_send_planes;
+    std::vector<char> m_recv_planes;
+    // This rank's piece in the reader grid, slowest axis first (set by
+    // ReadRepartition).
+    std::vector<int> m_parts;
+    std::vector<int> m_coords;
 
     BackendOptions m_opts; // A mutable copy for internal use
     PerfLogger &m_logger;

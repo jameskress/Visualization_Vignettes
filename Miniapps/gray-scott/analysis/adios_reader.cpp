@@ -7,7 +7,10 @@
 #include <iostream>
 #include <optional>
 #include <stdexcept>
+#include <array>
 #include <chrono>
+#include <climits>
+#include <cstring>
 #include <thread>
 
 AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
@@ -22,6 +25,9 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
     else
         m_adios = std::make_unique<adios2::ADIOS>(m_opts.adios_config, m_comm);
     m_io = std::make_unique<adios2::IO>(m_adios->DeclareIO("AnalysisInput"));
+    if (m_opts.reader_shared_planes != "exchange" && m_opts.reader_shared_planes != "read")
+        throw std::runtime_error("reader_shared_planes must be \"exchange\" or \"read\", not \"" +
+                                 m_opts.reader_shared_planes + "\"");
 
     // A parameter the XML sets keeps the XML's value. BP5 matches parameter
     // names case-insensitively but SST matches them exactly (ADIOS2 2.11,
@@ -85,6 +91,48 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
         std::cout << std::endl;
     }
 
+    // A brick exchange reads the owned box through a memory selection.
+    // SST honours that only with BP5 marshalling from ADIOS2 2.9.2 (the
+    // FFS path and older BP5 put the values contiguously, at the wrong
+    // places). Where that cannot be relied on, the whole run reads the
+    // planes from the writers instead: it must be every reader or none,
+    // or a neighbour would wait for a plane that is never sent. A slab
+    // needs no memory selection.
+    if (m_opts.reader_shared_planes == "exchange" && m_opts.read_decomposition == "brick" &&
+        (engine == "SST" || engine == "EFFIS"))
+    {
+        bool honoured = true;
+#if !defined(ADIOS2_VERSION) || ADIOS2_VERSION < 20902
+        honoured = false;
+#endif
+        auto is_bp5 = [](std::string m) {
+            std::transform(m.begin(), m.end(), m.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return m == "bp5";
+        };
+        if (const auto marshal = xml_value("MarshalMethod"))
+            honoured = honoured && is_bp5(*marshal);
+        // SST takes the read path from the writer's marshalling, which the
+        // simulation sets in its <io name="SimulationOutput"> block of the
+        // same XML; SST reads only the exact key (writerADIOS.cpp), and
+        // without it marshals with BP5.
+        if (!m_opts.adios_config.empty())
+        {
+            const auto writer_params = m_adios->DeclareIO("SimulationOutput").Parameters();
+            const auto it = writer_params.find("MarshalMethod");
+            if (it != writer_params.end())
+                honoured = honoured && is_bp5(it->second);
+        }
+        if (!honoured)
+        {
+            m_opts.reader_shared_planes = "read";
+            if (rank == 0)
+                std::cout << "reader_shared_planes: exchange needs SST with BP5 marshalling and ADIOS2 2.9.2 "
+                             "or later for a brick; reading the shared planes from the writers instead"
+                          << std::endl;
+        }
+    }
+
     m_engine = std::make_unique<adios2::Engine>(m_io->Open(m_opts.adios_file, adios2::Mode::Read));
 
     ReadFidesAttributes(); // Read attributes and potentially update m_opts
@@ -139,6 +187,114 @@ void AdiosReader::EndStep()
     m_logger.start("ADIOS_EndStep");
     m_engine->EndStep();
     m_logger.stop("ADIOS_EndStep");
+    if (m_opts.reader_shared_planes == "exchange")
+    {
+        m_logger.start("Halo_Exchange");
+        ExchangeSharedPlanes();
+        m_logger.stop("Halo_Exchange");
+    }
+    m_pending_planes.clear();
+}
+
+// Each piece sends the first plane of its box along an axis to the piece
+// before it on that axis, which stores it as its shared high plane. The axes
+// go one at a time, slowest first, and each plane spans the extent already
+// complete on the axes done so far, so a piece's corner and edge points
+// arrive by way of its other neighbours. Neighbours along an axis have the
+// same extents on every other axis, so both sides agree on every plane's
+// size without asking. Empty pieces (more readers than planes) are the last
+// along an axis and neither send nor receive.
+void AdiosReader::ExchangeSharedPlanes()
+{
+    const size_t nd = m_parts.size();
+    if (nd == 0 || nd > 3)
+        return;
+    const bool owns = !m_pending_planes.empty();
+    const size_t off = 3 - nd;
+
+    // One axis of a pending buffer's box for the plane along axis d:
+    // complete on the axes already done, owned on the rest.
+    auto extent = [&](const PendingPlanes &p, size_t d, size_t a) {
+        return a == d ? size_t{1} : (a < d ? p.local_dims[a] : p.owned_dims[a]);
+    };
+    auto plane_bytes = [&](const PendingPlanes &p, size_t d) {
+        size_t n = p.elem_size;
+        for (size_t a = 0; a < nd; ++a)
+            n *= extent(p, d, a);
+        return n;
+    };
+    // Copies the plane at index `at` along axis d between the buffer and a
+    // packed array, one run along the fastest axis at a time.
+    auto copy_plane = [&](const PendingPlanes &p, size_t d, size_t at, char *flat, bool pack) {
+        std::array<size_t, 3> L{1, 1, 1}, e{1, 1, 1}, lo{0, 0, 0};
+        for (size_t a = 0; a < nd; ++a)
+        {
+            L[off + a] = p.local_dims[a];
+            e[off + a] = extent(p, d, a);
+        }
+        lo[off + d] = at;
+        const size_t run = e[2] * p.elem_size;
+        for (size_t k = 0; k < e[0]; ++k)
+            for (size_t j = 0; j < e[1]; ++j)
+            {
+                char *row = p.data + (((lo[0] + k) * L[1] + (lo[1] + j)) * L[2] + lo[2]) * p.elem_size;
+                if (pack)
+                    std::memcpy(flat, row, run);
+                else
+                    std::memcpy(row, flat, run);
+                flat += run;
+            }
+    };
+    auto rank_of = [&](size_t d, int delta) {
+        int r = 0;
+        for (size_t a = 0; a < nd; ++a)
+            r = r * m_parts[a] + m_coords[a] + (a == d ? delta : 0);
+        return r;
+    };
+
+    std::vector<char> &send_buf = m_send_planes, &recv_buf = m_recv_planes; // kept across steps
+    for (size_t d = 0; d < nd; ++d)
+    {
+        const bool send = owns && m_coords[d] > 0;
+        const bool recv = owns && m_pending_planes.front().shared_high[d];
+        if (!send && !recv)
+            continue;
+        size_t total = 0;
+        for (const PendingPlanes &p : m_pending_planes)
+            total += plane_bytes(p, d);
+        if (total > static_cast<size_t>(INT_MAX))
+            throw std::runtime_error("shared plane exchange: a plane of " + std::to_string(total) +
+                                     " bytes is too large for one MPI message; use reader_shared_planes \"read\"");
+        const int tag = 7100 + static_cast<int>(d);
+        MPI_Request reqs[2];
+        int nreq = 0;
+        if (recv)
+        {
+            recv_buf.resize(total);
+            MPI_Irecv(recv_buf.data(), static_cast<int>(total), MPI_BYTE, rank_of(d, +1), tag, m_comm, &reqs[nreq++]);
+        }
+        if (send)
+        {
+            send_buf.resize(total);
+            char *flat = send_buf.data();
+            for (const PendingPlanes &p : m_pending_planes)
+            {
+                copy_plane(p, d, 0, flat, true);
+                flat += plane_bytes(p, d);
+            }
+            MPI_Isend(send_buf.data(), static_cast<int>(total), MPI_BYTE, rank_of(d, -1), tag, m_comm, &reqs[nreq++]);
+        }
+        MPI_Waitall(nreq, reqs, MPI_STATUSES_IGNORE);
+        if (recv)
+        {
+            char *flat = recv_buf.data();
+            for (const PendingPlanes &p : m_pending_planes)
+            {
+                copy_plane(p, d, p.owned_dims[d], flat, false);
+                flat += plane_bytes(p, d);
+            }
+        }
+    }
 }
 
 size_t AdiosReader::CurrentStep() const
@@ -313,6 +469,8 @@ void AdiosReader::ReadRepartition(const std::string &var_name, std::vector<T> &b
             remaining /= parts[d];
         }
     }
+    m_parts = parts;
+    m_coords = coords;
 
     for (size_t d = 0; d < n_dims; ++d)
     {
@@ -347,7 +505,27 @@ void AdiosReader::ReadRepartition(const std::string &var_name, std::vector<T> &b
     size_t local_count = productDims(read_info.local_dims);
     if (local_count > 0)
     {
-        var.SetSelection({read_info.local_start, read_info.local_dims});
+        // Every piece with points takes part in the exchange, the last along
+        // an axis too: it has no shared plane, but sends its first plane to
+        // the piece before it.
+        const bool exchange = m_opts.reader_shared_planes == "exchange" && n_dims <= 3;
+        if (exchange)
+        {
+            // Read only the owned box from the writers, placed at the start
+            // of the buffer; the shared planes come from the neighbours at
+            // EndStep. With only the slowest axis shared (a slab) the owned
+            // box is already a contiguous prefix of the buffer.
+            var.SetSelection({read_info.local_start, read_info.owned_dims});
+            bool prefix = true;
+            for (size_t d = 1; d < n_dims; ++d)
+                prefix = prefix && !read_info.shared_high[d];
+            if (!prefix)
+                var.SetMemorySelection({adios2::Dims(n_dims, 0), read_info.local_dims});
+        }
+        else
+        {
+            var.SetSelection({read_info.local_start, read_info.local_dims});
+        }
         m_logger.stop("Read_Setup");
         m_logger.start("Read_Alloc");
         const double faults0 = ProcessMinorFaults();
@@ -364,6 +542,9 @@ void AdiosReader::ReadRepartition(const std::string &var_name, std::vector<T> &b
         m_logger.start(timer_name);
         m_engine->Get(var, buffer.data(), adios2::Mode::Deferred);
         m_logger.stop(timer_name);
+        if (exchange)
+            m_pending_planes.push_back({reinterpret_cast<char *>(buffer.data()), sizeof(T), read_info.local_dims,
+                                        read_info.owned_dims, read_info.shared_high});
     }
     else
     {
