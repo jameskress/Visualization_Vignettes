@@ -28,7 +28,7 @@ from pathlib import Path
 
 # Performance log versions this report reads: 2 added the allocation counters
 # (#25); 3 added problem.restart_read_s and backend.overwrite_last_step.
-SCHEMA_VERSIONS = {1, 2, 3}
+SCHEMA_VERSIONS = {1, 2, 3, 4}
 
 # Phases stacked in the bar chart, bottom to top. "other" is total_step minus
 # their sum: barriers, logging and anything not yet timed.
