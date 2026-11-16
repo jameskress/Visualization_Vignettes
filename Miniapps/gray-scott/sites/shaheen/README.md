@@ -415,12 +415,29 @@ stays `slab`. The experiment IDs do not include the decomposition, so
 generate slab and brick runs into different `--results-dir`s; the
 generator refuses to regenerate an in transit run with the other one.
 Those brick runs read each shared plane from the writers. On the x and y
-faces that plane is strided in the writer blocks, and as far as we know ADIOS2 sends whole
-blocks for it, which would explain the extra `EndStep` time (to be confirmed with the readonly reader). The reader now takes
-the shared planes from its neighbouring readers instead
-(`--reader-shared-planes exchange`, the default; `read` is the old way, for
-comparison). The same rule applies: settings written before the option
-are `read` runs, so generate into a new `--results-dir`.
+faces that plane is strided in the writer blocks, and those planes were the
+whole extra cost. The reader now takes the shared planes from its
+neighbouring readers instead (`--reader-shared-planes exchange`, the
+default; `read` is the old way, for comparison). Measured at 64 + 4 nodes
+(f128, 2 runs per arm in one shuffled batch, 16 Nov 2026), seconds per
+reader step:
+
+| Reader | Planes | Step | `EndStep` | `Halo_Exchange` |
+|---|---|---|---|---|
+| readonly, slab | read | 2.08 | 2.08 | 0 |
+| readonly, slab | exchange | 2.06 | 2.04 | 0.018 |
+| readonly, brick | read | 2.80 | 2.80 | 0 |
+| readonly, brick | exchange | 2.09 | 2.06 | 0.026 |
+| Ascent slices, slab | read | 3.09 | 2.06 | 0 |
+| Ascent slices, slab | exchange | 3.03 | 2.03 | 0.041 |
+| Ascent slices, brick | read | 3.48 | 2.89 | 0 |
+| Ascent slices, brick | exchange | 2.77 | 2.17 | 0.029 |
+
+With the exchange, a brick reads as fast as a slab and keeps its faster
+rendering (0.57 s against 0.96 s for slices), so brick slices are 0.3 s
+(10%) faster per step than slab. The renders with and without the exchange
+differ by no more than two runs of the same setting do. Settings written
+before the option are `read` runs, so generate into a new `--results-dir`.
 
 **Other engines and transports.** SST over WAN (TCP) needs
 `ControlModule=select`; with `epoll` it aborts at once. SSC uses MPI
