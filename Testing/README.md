@@ -744,17 +744,31 @@ configurations, latest passes and failures, drift warnings) and a short
 * *Did everything pass?* A heatmap per tool of vignette by configuration,
   grouped by site: the latest result of each vignette there.
 * *Speed by tool version.* One small panel per machine, all on the tool's
-  shared scale: the minutes to run the vignettes that every version ran
-  everywhere (ParaView ex00 to ex06, VisIt ex00 to ex05 today), summed from
-  each vignette's median successful run at that version. The vignettes were
-  revised over the same years, so a step can come from the vignette as well
-  as the tool.
+  shared scale: how long each earlier version took against the machine's
+  newest, the geometric mean over vignettes of the median-time ratio, with
+  the number of vignettes compared beside each point.
 * *What changed in the last upgrade?* Per vignette and machine, the median
   time at the machine's newest version over its median at the version before,
   as a percentage on a diverging scale (blue faster, red slower, grey within
-  10%), with a one-line summary of how many pairs moved.
+  10%), with a one-line summary of how many pairs moved. A pair whose vignette
+  changed between the two versions shows &ne; and is not compared.
 * *Which machine is fastest?* Each vignette's latest time on every active
   configuration at the pinned version, on a log scale, coloured by site.
+
+**Only runs of the same vignette revision are compared.** The vignettes
+change too: ex00 to ex06 were rewritten on 17 September 2026 and several
+have changed since, so a 2024 run of ParaView 5.13.1 measured a different
+test from a 6.2.1 run today. `dashboard.py` reads from git which revision of
+each vignette every record ran: the revision at the record's `repo.commit`
+(schema 6), or else the one committed last before its timestamp. A revision
+is a change to the vignette's own Python files that changes their code
+(compared as syntax trees, so comments, docstrings and layout do not count).
+Generated data fixtures (`data/*.py`) are not followed. Both summary charts
+compare within one revision; on a configuration page the runs of older
+revisions are drawn faded and left out of the median bars, and drift is
+judged within a revision. Each run's revision is in its table and in
+`records.json` (`vignette_revision`). The build needs the git history; in a
+copy without it every run is compared, and the build says so.
 
 Then the table of active configurations (last run, version, latest results,
 drift count) and the table of retired ones.
@@ -778,6 +792,7 @@ How to read the results:
 | unknown | the oldest records, which say neither |
 | drift n/a | no vignette there has the three earlier comparable runs the drift rule needs |
 | stale | no run for 30 days, or the last run used an older version than the suite pins (`CURRENT_PINS` in `dashboard.py`; move it with the pinned builds) |
+| &ne; | the vignette's code changed between the two versions' runs: different tests, not compared |
 | retired | listed in `Testing/retired_configurations.json`: never stale, left out of the summary charts, history and page kept |
 
 Nodes and GPU types come and go while the vignettes stay. When one leaves the
@@ -797,8 +812,8 @@ python3 -m http.server --directory _site      # look at it
 
 `.github/workflows/dashboard.yml` builds it on a GitHub-hosted runner and
 publishes it to <https://jameskress.github.io/Visualization_Vignettes/dashboard/>
-on every master push that changes a history file, the generator or the
-retired list; a pull
+on every master push that changes a history file, the generator, the
+retired list or a vignette script; a pull
 request builds it and attaches the site as an artifact. Pages serves the
 `gh-pages` branch, which also holds the Docker badge at its root; each
 workflow replaces only its own files there.

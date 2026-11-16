@@ -23,6 +23,10 @@
 # runs on a handful of days a year, and a date axis left most of each chart
 # blank. Dates are in the tooltips and the tables.
 #
+# Times are compared only between runs of the same revision of a vignette,
+# read from git (see VignetteRevisions): the vignettes changed over the
+# years too, so an old run of an old version may have measured another test.
+#
 # Testing/retired_configurations.json lists configurations whose hardware
 # left the suite. They keep their pages, but drop out of the summary charts
 # and are never reported stale.
@@ -44,6 +48,7 @@
 # Author: James Kress, <james@jameskress.com>
 #
 import argparse
+import ast
 import datetime
 import glob
 import hashlib
@@ -53,6 +58,7 @@ import math
 import os
 import re
 import statistics
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -70,6 +76,9 @@ SITES = ("Workstation", "Ibex", "Shaheen", "Other")
 CURRENT_PINS = {"ParaView": "6.2.1", "VisIt": "3.5.0"}
 # A configuration with no run for this long is marked stale too.
 STALE_DAYS = 30
+# Record timestamps are the sites' local clock, all in Saudi Arabia; commit
+# times are compared on the same clock, so a build anywhere agrees.
+SITE_TZ = datetime.timezone(datetime.timedelta(hours=3))
 # Configurations whose hardware left the suite (see load_retired).
 RETIRED_FILE = os.path.join("Testing", "retired_configurations.json")
 
@@ -233,6 +242,147 @@ def load_retired(repo_root=REPO_ROOT):
 
 
 # ---------------------------------------------------------------------------
+# Which revision of a vignette each record ran
+# ---------------------------------------------------------------------------
+# A vignette's time across tool versions means something only when the
+# vignette itself did not change in between: ex00 to ex06 were rewritten in
+# September 2026, so every older run measured a different test. A revision
+# is a change to the vignette's own Python files that changes their code:
+# comments, docstrings and formatting are ignored (the files are compared as
+# syntax trees). Generated data fixtures (data/*.py) are not followed.
+def _git(repo_root, *args):
+    try:
+        result = subprocess.run(
+            ["git", "-C", repo_root] + list(args),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout if result.returncode == 0 else None
+
+
+def code_digest(sources):
+    """A digest of Python sources that ignores comments, docstrings and layout."""
+    digest = hashlib.sha256()
+    for source in sources:
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            digest.update(source.encode("utf-8"))
+            continue
+        for node in ast.walk(tree):
+            body = getattr(node, "body", None)
+            if (
+                isinstance(body, list)
+                and body
+                and isinstance(body[0], ast.Expr)
+                and isinstance(body[0].value, ast.Constant)
+                and isinstance(body[0].value.value, str)
+            ):
+                node.body = body[1:] or [ast.Pass()]
+        digest.update(ast.dump(tree).encode("utf-8"))
+    return digest.hexdigest()
+
+
+class VignetteRevisions(object):
+    """The revision of each vignette a record ran, from the git history.
+
+    A record carrying the commit it ran from (`repo.commit`, metrics schema
+    6) gets the revision at that commit. An older record gets the revision
+    committed last before its timestamp: runs made just before their
+    script was committed can land one revision early, which only ever splits
+    a comparison, never joins two different tests. Without a git history
+    (a bare copy of the files) every record is revision 0 and `available`
+    is False, and build_site says so on stderr.
+    """
+
+    def __init__(self, repo_root):
+        self.repo_root = repo_root
+        self.available = _git(repo_root, "rev-parse", "--git-dir") is not None
+        self._eras = {}
+        self._at_commit = {}
+        self._touched = {}
+
+    def eras(self, vignette_dir):
+        """[(commit time, short sha)] where the vignette's code changed, oldest first."""
+        if vignette_dir in self._eras:
+            return self._eras[vignette_dir]
+        eras, sha_era, last = [], {}, None
+        pathspec = ":(glob){0}/*.py".format(vignette_dir)
+        log = _git(
+            self.repo_root, "log", "--reverse", "--format=%H %cI", "--", pathspec
+        )
+        for line in (log or "").splitlines():
+            sha, when = line.split()
+            names = _git(
+                self.repo_root, "ls-tree", "--name-only", sha, vignette_dir + "/"
+            )
+            files = sorted(n for n in (names or "").split() if n.endswith(".py"))
+            sources = [_git(self.repo_root, "show", sha + ":" + n) or "" for n in files]
+            digest = code_digest(sources)
+            if digest != last:
+                when = datetime.datetime.fromisoformat(when)
+                eras.append((when.astimezone(SITE_TZ).replace(tzinfo=None), sha[:7]))
+                last = digest
+            sha_era[sha] = len(eras) - 1
+        self._eras[vignette_dir] = eras
+        self._at_commit[vignette_dir] = sha_era
+        return eras
+
+    def of(self, vignette_dir, timestamp, record):
+        """(index, label) of the revision this record ran, or (0, "") unknown."""
+        if not self.available:
+            return 0, ""
+        eras = self.eras(vignette_dir)
+        if not eras:
+            return 0, ""
+        index = None
+        commit = (record.get("repo") or {}).get("commit")
+        if commit and (commit, vignette_dir) in self._touched:
+            touched = self._touched[(commit, vignette_dir)]
+        elif commit:
+            touched = _git(
+                self.repo_root,
+                "log",
+                "-1",
+                "--format=%H",
+                commit,
+                "--",
+                ":(glob){0}/*.py".format(vignette_dir),
+            )
+            self._touched[(commit, vignette_dir)] = touched
+        if commit:
+            if touched and touched.strip():
+                index = self._at_commit[vignette_dir].get(touched.strip())
+        if index is None:
+            moment = parse_ts(timestamp)
+            index = 0
+            for n, (when, _) in enumerate(eras):
+                if when <= moment:
+                    index = n
+        when, sha = eras[index]
+        return index, "{0} ({1})".format(sha, when.strftime("%d %b %Y"))
+
+
+def tag_revisions(histories, repo_root=REPO_ROOT):
+    """Write each record's vignette revision into it as _rev and _rev_label.
+
+    Returns the VignetteRevisions used, so callers can tell whether the
+    history was available.
+    """
+    revisions = VignetteRevisions(repo_root)
+    dirs = dict(SUITES)
+    for (config, tool), vignettes in histories.items():
+        for vignette, rows in vignettes.items():
+            vignette_dir = "{0}/{1}".format(dirs[tool], vignette)
+            for ts, rec in rows:
+                rec["_rev"], rec["_rev_label"] = revisions.of(vignette_dir, ts, rec)
+    return revisions
+
+
+# ---------------------------------------------------------------------------
 # What each record says
 # ---------------------------------------------------------------------------
 # pass / fail: schema 6 records every gate's verdict. ran_ok / run_failed:
@@ -275,11 +425,13 @@ def status_of(record):
 
 
 def comparable_rows(rows, metric):
-    """[(ts, record, value, same)] for every row that has `metric`.
+    """[(ts, record, value, why)] for every row that has `metric`.
 
-    `same` is the rule drift.py and plot_metrics.py use: a comparable
-    schema, under the latest run's measurement scope. Rows that are not the
-    same are drawn faded, so a change in what a number means is never read
+    why is "" for a row comparable with the latest run: the rule drift.py
+    and plot_metrics.py use (a comparable schema, under the latest run's
+    measurement scope), and the same vignette revision as the latest run.
+    Otherwise it says why not. Rows that are not comparable are drawn faded,
+    so a change in what a number means, or in the test itself, is never read
     as a change in the number.
     """
     scope_field = SCOPE_FIELD.get(metric)
@@ -288,15 +440,23 @@ def comparable_rows(rows, metric):
     if scope_field and current:
         # The latest run sets the scope even when it has no value.
         latest_scope = current[-1][1].get(scope_field)
+    latest_rev = rows[-1][1].get("_rev", 0) if rows else 0
     out = []
     for ts, rec in rows:
         value = rec.get(metric)
         if not is_number(value):
             continue
-        same = drift.comparable(metric, rec) and (
-            not scope_field or rec.get(scope_field) == latest_scope
-        )
-        out.append((ts, rec, float(value), same))
+        if rec.get("_rev", 0) != latest_rev:
+            why = "an older revision of the vignette, {0}".format(
+                rec.get("_rev_label") or "?"
+            )
+        elif not drift.comparable(metric, rec) or (
+            scope_field and rec.get(scope_field) != latest_scope
+        ):
+            why = "measured differently (an older schema or scope)"
+        else:
+            why = ""
+        out.append((ts, rec, float(value), why))
     return out
 
 
@@ -309,27 +469,59 @@ def run_ok(record):
 
 
 def version_times(rows):
-    """{version: [seconds]} over one vignette's successful, timed runs."""
+    """{(version, revision): [seconds]} over one vignette's successful, timed runs."""
     out = {}
     for _, rec in rows:
         seconds = rec.get("execution_time")
         if run_ok(rec) and is_number(seconds) and seconds > 0:
-            version = drift.tool_version(rec) or "unknown"
-            out.setdefault(version, []).append(float(seconds))
+            key = (drift.tool_version(rec) or "unknown", rec.get("_rev", 0))
+            out.setdefault(key, []).append(float(seconds))
     return out
+
+
+def versions_timed(rows):
+    """The known versions one vignette has a successful timed run at.
+
+    A record with no tool version is left out: "unknown" would sort after
+    every release and be read as the newest.
+    """
+    return {version for version, _ in version_times(rows) if version != "unknown"}
+
+
+def like_for_like(rows, new, old):
+    """(old times, new times, revision label) of one vignette at two versions.
+
+    Only runs of the same vignette revision are compared, the latest
+    revision both versions ran. None when they share none: the test changed
+    in between, so the two times measure different work.
+    """
+    times = version_times(rows)
+    common = {r for v, r in times if v == new} & {r for v, r in times if v == old}
+    if not common:
+        return None
+    rev = max(common)
+    label = next(
+        (rec.get("_rev_label") for _, rec in rows if rec.get("_rev", 0) == rev), ""
+    )
+    return times[(old, rev)], times[(new, rev)], label or ""
 
 
 def drift_by_record(rows):
     """{timestamp: (drift results, judged)} for one vignette's history.
 
     judged is False when every metric lacked the history drift.py needs, so
-    a reader can tell "no drift" from "too little history to say".
+    a reader can tell "no drift" from "too little history to say". Each vignette revision is judged against its own runs only: a run of a
+    changed vignette is not drift.
     """
+    by_rev = {}
+    for ts, rec in rows:
+        by_rev.setdefault(rec.get("_rev", 0), []).append((ts, rec))
     out = {}
-    for ts, results in drift.check_history(rows).items():
-        drifted = [r for r in results if r["verdict"] == "drift"]
-        judged = any(r["verdict"] != "insufficient" for r in results)
-        out[ts] = (drifted, judged)
+    for group in by_rev.values():
+        for ts, results in drift.check_history(group).items():
+            drifted = [r for r in results if r["verdict"] == "drift"]
+            judged = any(r["verdict"] != "insufficient" for r in results)
+            out[ts] = (drifted, judged)
     return out
 
 
@@ -608,9 +800,10 @@ def status_legend():
 def svg_metric_chart(title, unit, points, slot_of, drifted):
     """One metric with the tool version as the x axis.
 
-    points: [(ts, version, value, same)]. Each version is a band holding its
-    runs in date order; a bar across the band marks the median of its runs
-    measured like the latest. Runs measured differently are faded.
+    points: [(ts, version, value, why)], why as comparable_rows gives it.
+    Each version is a band holding its runs in date order; a bar across the
+    band marks the median of its runs comparable with the latest. The rest
+    are faded, their tooltip saying why.
     """
     width, height = 380, 196
     left, right, top, bottom = 54, 14, 12, 26
@@ -627,8 +820,8 @@ def svg_metric_chart(title, unit, points, slot_of, drifted):
     out.append(svg_version_bands(axis, top, bottom_y, height - 8))
     out.append(svg_y_grid(ticks, y_max, left, width - right, top, bottom_y))
     by_version = {}
-    for ts, version, value, same in points:
-        if same:
+    for ts, version, value, why in points:
+        if not why:
             by_version.setdefault(version, []).append(value)
     for version, values in by_version.items():
         if len(values) > 1:
@@ -647,17 +840,17 @@ def svg_metric_chart(title, unit, points, slot_of, drifted):
                     ),
                 )
             )
-    for ts, version, value, same in points:
+    for ts, version, value, why in points:
         note = drifted.get(ts)
         tip = "{0} | v{1} | {2:,.3g} {3}{4}{5}".format(
             long_date(ts),
             version,
             value * factor,
             unit_shown,
-            "" if same else " | measured differently from the latest run",
+            " | not comparable with the latest run: " + why if why else "",
             " | DRIFT: " + note if note else "",
         )
-        extra = ("" if same else " faded") + (" drift" if note else "")
+        extra = (" faded" if why else "") + (" drift" if note else "")
         out.append(
             svg_dot(
                 slot_of(version),
@@ -672,90 +865,89 @@ def svg_metric_chart(title, unit, points, slot_of, drifted):
     return "".join(out), unit_shown
 
 
-def common_vignettes(tool, histories, states):
-    """Vignettes with a timed, successful run at every version on every
-    active configuration of `tool`: the set a per-version total can be
-    compared over."""
-    sets = []
-    for (config, t), vignettes in histories.items():
-        if t != tool or states[(config, t)]["retired"]:
-            continue
-        per_version = {}
-        for vignette, rows in vignettes.items():
-            for version in version_times(rows):
-                per_version.setdefault(version, set()).add(vignette)
-        sets.extend(per_version.values())
-    if not sets:
-        return []
-    return sorted(set.intersection(*sets), key=vignette_number)
+def relative_by_version(vignettes):
+    """[(version, ratio, vignettes compared)] for one configuration.
 
-
-def describe_vignettes(names):
-    """ "ex00 to ex06" for a run of numbers, else the numbers listed."""
-    numbers = [vignette_number(n) for n in names]
-    if numbers and numbers == list(range(numbers[0], numbers[-1] + 1)):
-        return "ex{0:02d} to ex{1:02d}".format(numbers[0], numbers[-1])
-    return ", ".join("ex{0:02d}".format(n) for n in numbers)
-
-
-def suite_by_version(vignettes, common):
-    """[(version, minutes, fewest runs, most runs)] for one configuration.
-
-    minutes: the sum over `common` of each vignette's median time at that
-    version. A version missing any of them is left out, so every total
-    covers the same work.
+    ratio: how long an earlier version took against the configuration's
+    newest version, the geometric mean over vignettes of median time there
+    over median time at the newest. Each vignette counts only through runs
+    of one revision of it (like_for_like), so a version that ran only older
+    revisions of the vignettes is absent rather than compared with a
+    different test. The newest version is (newest, 1.0, vignettes timed).
     """
-    per_version = {}
-    for vignette in common:
-        for version, times in version_times(vignettes.get(vignette, [])).items():
-            per_version.setdefault(version, {})[vignette] = times
+    versions = sorted(
+        {v for rows in vignettes.values() for v in versions_timed(rows)},
+        key=version_key,
+    )
+    if not versions:
+        return []
+    newest = versions[-1]
     out = []
-    for version in sorted(per_version, key=version_key):
-        times = per_version[version]
-        if len(times) == len(common):
-            counts = [len(t) for t in times.values()]
-            minutes = sum(statistics.median(t) for t in times.values()) / 60.0
-            out.append((version, minutes, min(counts), max(counts)))
+    for version in versions[:-1]:
+        logs = []
+        for rows in vignettes.values():
+            pair = like_for_like(rows, newest, version)
+            if pair:
+                old, new, _ = pair
+                logs.append(math.log(statistics.median(old) / statistics.median(new)))
+        if logs:
+            out.append((version, math.exp(sum(logs) / len(logs)), len(logs)))
+    timed = sum(1 for rows in vignettes.values() if newest in versions_timed(rows))
+    out.append((newest, 1.0, timed))
     return out
 
 
-def svg_suite_panel(config, series, ticks, slot_of):
-    """One configuration's per-version total, on the tool's shared scale."""
+def svg_relative_panel(config, series, ticks, slot_of):
+    """One configuration's earlier versions against its newest, shared scale."""
     width, height = 260, 150
     left, right, top, bottom = 34, 10, 16, 24
     y_max = ticks[-1]
     bottom_y = height - bottom
-    axis = VersionAxis([(v, v) for v, _, _, _ in series], left, width - right)
+    axis = VersionAxis([(v, v) for v, _, _ in series], left, width - right)
 
-    def sy(minutes):
-        return top + (bottom_y - top) * (1 - minutes / y_max)
+    def sy(ratio):
+        return top + (bottom_y - top) * (1 - ratio / y_max)
 
-    out = [svg_open(width, height, "{0}: minutes by tool version".format(config))]
+    out = [
+        svg_open(width, height, "{0}: time against the newest version".format(config))
+    ]
     out.append(svg_version_bands(axis, top, bottom_y, height - 8))
     out.append(svg_y_grid(ticks, y_max, left, width - right, top, bottom_y))
+    out.append(
+        '<line class="ref" x1="{0}" x2="{1}" y1="{2:.1f}" y2="{2:.1f}"/>'.format(
+            left, width - right, sy(1.0)
+        )
+    )
     if len(series) > 1:
         out.append(
             '<path class="trend" d="{0}"/>'.format(
                 " ".join(
                     "{0}{1:.1f},{2:.1f}".format(
-                        "M" if n == 0 else "L", axis.x(v, v), sy(minutes)
+                        "M" if n == 0 else "L", axis.x(v, v), sy(ratio)
                     )
-                    for n, (v, minutes, _, _) in enumerate(series)
+                    for n, (v, ratio, _) in enumerate(series)
                 )
             )
         )
-    for n, (version, minutes, fewest, most) in enumerate(series):
-        x, y = axis.x(version, version), sy(minutes)
-        runs = str(fewest) if fewest == most else "{0} to {1}".format(fewest, most)
-        tip = "{0} | v{1} | {2:.1f} min (median of {3} runs per vignette)".format(
-            config, version, minutes, runs
-        )
-        out.append(svg_dot(slot_of(version), x, y, tip, r=5))
-        if n in (0, len(series) - 1):  # label the first and the newest only
-            out.append(
-                '<text class="vallabel" x="{0:.1f}" y="{1:.1f}" '
-                'text-anchor="middle">{2:.1f}</text>'.format(x, y - 9, minutes)
+    newest = series[-1][0]
+    for version, ratio, count in series:
+        x, y = axis.x(version, version), sy(ratio)
+        if version == newest:
+            tip = "{0} | v{1} | the newest version here, {2} vignettes timed".format(
+                config, version, count
             )
+            label = "1"
+        else:
+            tip = (
+                "{0} | v{1} | {2:.2f}x the time of v{3}, over the {4} vignettes "
+                "both ran unchanged".format(config, version, ratio, newest, count)
+            )
+            label = "{0:.2f}x ({1})".format(ratio, count)
+        out.append(svg_dot(slot_of(version), x, y, tip, r=5))
+        out.append(
+            '<text class="vallabel" x="{0:.1f}" y="{1:.1f}" '
+            'text-anchor="middle">{2}</text>'.format(x, y - 9, esc(label))
+        )
     out.append("</svg>")
     return "".join(out)
 
@@ -892,6 +1084,7 @@ svg .band{fill:var(--na);opacity:.7}
 svg .blabel{fill:var(--ink2);font-size:10px}
 svg .med{stroke:var(--ink2);stroke-width:2;stroke-linecap:round}
 svg .trend{fill:none;stroke:var(--axis);stroke-width:2}
+svg .ref{stroke:var(--ink2);stroke-width:1;stroke-dasharray:4 3}
 svg .vallabel{fill:var(--ink2);font-size:10px;font-variant-numeric:tabular-nums}
 svg .line{fill:none;stroke-width:2}
 svg .dot{stroke:var(--surface);stroke-width:2}
@@ -928,6 +1121,9 @@ font-size:12px}
 .r3{background:var(--r3)}.cell.none{background:transparent;color:var(--muted)}
 .r-3,.r3{color:#fff}.r-2,.r-1,.r0,.r1,.r2{color:var(--ink)}
 table.heat td.chg{min-width:44px}
+.cell.changed{background:transparent;color:var(--ink2);outline:1px dashed var(--axis);
+outline-offset:-2px}
+.note.empty{margin:24px 8px;color:var(--muted)}
 table.heat td.chg .cell{width:42px;font-size:11px;font-variant-numeric:tabular-nums}
 table.heat th.from{font-size:10px;font-weight:400;color:var(--muted);text-align:center;
 padding:2px}
@@ -1006,8 +1202,13 @@ HOW_TO_READ = (
     ("colour", "the tool version, the same on every chart and page."),
     (
         "faded dot",
-        "measured differently from the latest run (older schema or "
-        "scope): context, not a comparison.",
+        "not comparable with the latest run: an older revision of the "
+        "vignette, or measured differently (older schema or scope).",
+    ),
+    (
+        "revision",
+        "a change to a vignette's code. Times are compared only between "
+        "runs of the same revision.",
     ),
     ("ring, outline", "a drift warning: the run moved well outside its own history."),
     (
@@ -1104,11 +1305,12 @@ def render_index(histories, states, generated):
         body.append(render_heatmap(tool, histories, states, configs))
 
     body.append(
-        "<h2>Speed by tool version</h2><p class='note'>Minutes to run the vignettes "
-        "that every version ran, summed from each vignette's median run at that "
-        "version. One panel per machine, the same scale in each; lower is faster. "
-        "The vignettes were revised over the same years, so a step can come from "
-        "the vignette as well as the tool.</p>"
+        "<h2>Speed by tool version</h2><p class='note'>How long each earlier "
+        "version took against the machine's newest (1), over the vignettes both "
+        "ran unchanged; the count is in brackets. Above 1, the earlier version was "
+        "slower. A version that ran only older revisions of the vignettes, as every "
+        "run before the September 2026 rewrite did, measured different tests and "
+        "is left out.</p>"
     )
     for tool in TOOLS:
         body.append(render_suite_versions(tool, histories, states, configs))
@@ -1116,8 +1318,9 @@ def render_index(histories, states, generated):
     body.append(
         "<h2>What changed in the last upgrade?</h2><p class='note'>Each vignette's "
         "median time at its machine's newest version against the version before it "
-        "there. Blue is faster, red slower, grey within 10%. One or two runs per "
-        "version is common, so read single cells as a lead, not a verdict.</p>"
+        "there, from runs of the same vignette code. Blue is faster, red slower, "
+        "grey within 10%. One or two runs per version is common, so read single "
+        "cells as a lead, not a verdict.</p>"
     )
     for tool in TOOLS:
         body.append(render_change_matrix(tool, histories, states, configs))
@@ -1237,53 +1440,49 @@ def render_heatmap(tool, histories, states, configs):
 
 
 def render_suite_versions(tool, histories, states, configs):
-    common = common_vignettes(tool, histories, states)
-    if not common:
-        return ""
     slot_of, _ = tool_slot_map(histories, tool)
     panels = []
     for c in active_configs(states, configs, tool):
         if (c, tool) in histories:
-            series = suite_by_version(histories[(c, tool)], common)
+            series = relative_by_version(histories[(c, tool)])
             if series:
                 panels.append((c, series))
     if not panels:
         return ""
-    ticks = nice_ticks(max(m for _, s in panels for _, m, _, _ in s))
-    versions = sorted({v for _, s in panels for v, _, _, _ in s}, key=version_key)
+    ticks = nice_ticks(max(1.5, max(r for _, s in panels for _, r, _ in s)))
+    versions = sorted({v for _, s in panels for v, _, _ in s}, key=version_key)
     rows = "".join(
-        "<tr><td>{0}</td><td>v{1}</td><td class='num'>{2:.1f}</td>"
-        "<td class='num'>{3}</td></tr>".format(
-            esc(c),
-            esc(v),
-            minutes,
-            fewest if fewest == most else "{0} to {1}".format(fewest, most),
-        )
+        "<tr><td>{0}</td><td>v{1}</td><td class='num'>{2:.2f}</td>"
+        "<td class='num'>{3}</td></tr>".format(esc(c), esc(v), ratio, count)
         for c, series in panels
-        for v, minutes, fewest, most in series
+        for v, ratio, count in series
     )
+    cards = []
+    for c, series in panels:
+        if len(series) > 1:
+            chart = svg_relative_panel(c, series, ticks, slot_of)
+        else:
+            chart = (
+                "<p class='note empty'>Only v{0} has run the current vignettes "
+                "here, so there is nothing to compare yet.</p>".format(
+                    esc(series[0][0])
+                )
+            )
+        cards.append(
+            "<div class='panel'><h4><a href='{0}#{1}'>{2}</a> <span class='unit'>"
+            "{3}</span></h4>{4}</div>".format(
+                esc(page_name(c)), esc(tool), esc(c), esc(site_of(c)), chart
+            )
+        )
     return (
-        "<div class='card'><h3>{0} <span class='unit'>minutes for {1} "
-        "({2} vignettes)</span></h3>{3}<div class='multiples'>{4}</div>"
+        "<div class='card'><h3>{0}</h3>{1}<div class='multiples'>{2}</div>"
         "<details><summary>table</summary><div class='scroll tall'><table><thead><tr>"
-        "<th>Configuration</th><th>Version</th><th class='num'>Minutes</th>"
-        "<th class='num'>Runs per vignette</th></tr></thead><tbody>{5}</tbody>"
+        "<th>Configuration</th><th>Version</th><th class='num'>Time against the newest"
+        "</th><th class='num'>Vignettes compared</th></tr></thead><tbody>{3}</tbody>"
         "</table></div></details></div>".format(
             esc(tool),
-            esc(describe_vignettes(common)),
-            len(common),
             legend([(slot_of(v), "v" + v) for v in versions]),
-            "".join(
-                "<div class='panel'><h4><a href='{0}#{1}'>{2}</a> <span class='unit'>"
-                "{3}</span></h4>{4}</div>".format(
-                    esc(page_name(c)),
-                    esc(tool),
-                    esc(c),
-                    esc(site_of(c)),
-                    svg_suite_panel(c, series, ticks, slot_of),
-                )
-                for c, series in panels
-            ),
+            "".join(cards),
             rows,
         )
     )
@@ -1292,7 +1491,7 @@ def render_suite_versions(tool, histories, states, configs):
 def last_upgrade(vignettes):
     """(newest version, the version before) a configuration has times for."""
     versions = sorted(
-        {v for rows in vignettes.values() for v in version_times(rows)},
+        {v for rows in vignettes.values() for v in versions_timed(rows)},
         key=version_key,
     )
     return (versions[-1], versions[-2]) if len(versions) > 1 else (None, None)
@@ -1323,14 +1522,30 @@ def render_change_matrix(tool, histories, states, configs):
             for c in cols
         )
     )
-    body, ratios = [], []
+    body, ratios, changed = [], [], 0
     for v in vignettes:
         body.append("<tr><td class='rowh'>{0}</td>".format(esc(v)))
         for c in cols:
             new, old = upgrades[c]
-            times = version_times(histories[(c, tool)].get(v, []))
-            if new not in times or old not in times:
-                missing = new if new not in times else old
+            rows = histories[(c, tool)].get(v, [])
+            timed = versions_timed(rows)
+            pair = like_for_like(rows, new, old)
+            if pair is None and new in timed and old in timed:
+                changed += 1
+                body.append(
+                    "<td class='hm chg' data-tip='{0}'><span class='cell changed'>"
+                    "&ne;</span></td>".format(
+                        esc(
+                            "{0} | {1} | the vignette changed between the v{2} and "
+                            "v{3} runs: different tests, not compared".format(
+                                v, c, old, new
+                            )
+                        )
+                    )
+                )
+                continue
+            if pair is None:
+                missing = new if new not in timed else old
                 body.append(
                     "<td class='hm chg' data-tip='{0}'><span class='cell none'>&middot;"
                     "</span></td>".format(
@@ -1342,23 +1557,25 @@ def render_change_matrix(tool, histories, states, configs):
                     )
                 )
                 continue
-            before = statistics.median(times[old])
-            after = statistics.median(times[new])
+            before_runs, after_runs, rev = pair
+            before = statistics.median(before_runs)
+            after = statistics.median(after_runs)
             ratio = after / before
             ratios.append(ratio)
             cls, text = change_bin(ratio)
             tip = (
                 "{0} | {1} | v{2} {3:.3g} s ({4} runs) to v{5} {6:.3g} s ({7} runs) "
-                "| {8}".format(
+                "| {8} | vignette revision {9}".format(
                     v,
                     c,
                     old,
                     before,
-                    len(times[old]),
+                    len(before_runs),
                     new,
                     after,
-                    len(times[new]),
+                    len(after_runs),
                     text,
+                    rev or "unknown",
                 )
             )
             body.append(
@@ -1366,15 +1583,20 @@ def render_change_matrix(tool, histories, states, configs):
                 "</span></td>".format(esc(tip), cls, (ratio - 1) * 100)
             )
         body.append("</tr>")
-    if not ratios:
+    if not ratios and not changed:
         return ""
-    slower = sum(1 for r in ratios if r > 1.1)
-    faster = sum(1 for r in ratios if r < 1 / 1.1)
     summary = (
-        "{0} vignette and machine pairs: median change {1:+.0f}%; {2} slower by "
-        "more than 10%, {3} faster by more than 10%.".format(
-            len(ratios), (statistics.median(ratios) - 1) * 100, slower, faster
+        "{0} vignette and machine pairs ran the same vignette code at both "
+        "versions".format(len(ratios))
+    )
+    if ratios:
+        summary += ": median change {0:+.0f}%; {1} slower by more than 10%, {2} faster by more than 10%".format(
+            (statistics.median(ratios) - 1) * 100,
+            sum(1 for r in ratios if r > 1.1),
+            sum(1 for r in ratios if r < 1 / 1.1),
         )
+    summary += ". {0} more are not compared because the vignette changed in between (&ne;).".format(
+        changed
     )
     keys = "".join(
         "<span class='key'><span class='cell {0}'></span>{1}</span>".format(
@@ -1387,7 +1609,7 @@ def render_change_matrix(tool, histories, states, configs):
         "<div class='legend'>{2}</div><div class='scroll tall'><table class='heat'>"
         "{3}<tbody>{4}</tbody></table></div></div>".format(
             esc(tool),
-            esc(summary),
+            summary,
             keys,
             heat_head(cols, tool, states, from_row),
             "".join(body),
@@ -1622,8 +1844,8 @@ def render_vignette_card(tool, vignette, rows, slot_of):
             if r["metric"] == metric
         }
         points = [
-            (ts, drift.tool_version(rec) or "unknown", value, same)
-            for ts, rec, value, same in series
+            (ts, drift.tool_version(rec) or "unknown", value, why)
+            for ts, rec, value, why in series
         ]
         versions_seen.update(p[1] for p in points)
         svg, unit_shown = svg_metric_chart(title, unit, points, slot_of, drifted)
@@ -1640,8 +1862,9 @@ def render_vignette_card(tool, vignette, rows, slot_of):
         out.append("<div class='grid-charts'>{0}</div>".format("".join(charts)))
         out.append(
             "<div class='note'>One band per tool version, its runs in date order "
-            "(hover for the date); the bar is the version's median. Faded: measured "
-            "differently from the latest run.{0}</div>".format(
+            "(hover for the date); the bar is the median of the runs comparable with "
+            "the latest. Faded: an older revision of the vignette, or measured "
+            "differently.{0}</div>".format(
                 " Not charted, every value under 1 unit: {0}.".format(
                     esc(", ".join(hidden))
                 )
@@ -1656,7 +1879,8 @@ def render_vignette_card(tool, vignette, rows, slot_of):
         "<th class='num'>Time (s)</th><th class='num'>CPU (s)</th>"
         "<th class='num'>Memory (MB)</th><th class='num'>Read (MB)</th>"
         "<th class='num'>Write (MB)</th><th class='num'>Energy (J)</th>"
-        "<th class='num'>Load</th><th>Build</th><th>Baseline</th>"
+        "<th class='num'>Load</th><th>Vignette revision</th><th>Build</th>"
+        "<th>Baseline</th>"
         "<th>Schema</th><th>Scope (CPU / memory)</th></tr></thead><tbody>".format(
             len(rows)
         )
@@ -1678,7 +1902,7 @@ def render_vignette_card(tool, vignette, rows, slot_of):
             "<td class='num'>{4}</td><td class='num'>{5}</td><td class='num'>{6}</td>"
             "<td class='num'>{7}</td><td class='num'>{8}</td><td class='num'>{9}</td>"
             "<td class='num'>{10}</td><td>{11}</td><td>{12}</td><td>{13}</td>"
-            "<td>{14}</td></tr>".format(
+            "<td>{14}</td><td>{15}</td></tr>".format(
                 esc(str(ts)[:19].replace("T", " ")),
                 esc(record.get("run_id") or ""),
                 esc(drift.tool_version(record)),
@@ -1690,6 +1914,7 @@ def render_vignette_card(tool, vignette, rows, slot_of):
                 fmt(write),
                 fmt(record.get("energy_joules"), 0),
                 fmt(record.get("load_1m_at_start")),
+                esc(record.get("_rev_label") or ""),
                 build_text(record),
                 baseline_text(record),
                 esc(record.get("metrics_schema") or ""),
@@ -1798,6 +2023,10 @@ def render_config(config, tools, states, slot_maps, generated):
 def public_record(config, tool, vignette, timestamp, record):
     """A record as published in records.json: everything but the host name."""
     record = dict(record)
+    record.pop("_rev", None)
+    revision = record.pop("_rev_label", None)
+    if revision:
+        record["vignette_revision"] = revision
     info = dict(record.get("machine_info") or {})
     info.pop("node", None)
     record["machine_info"] = info
@@ -1813,6 +2042,13 @@ def public_record(config, tool, vignette, timestamp, record):
 
 def build_site(out_dir, repo_root=REPO_ROOT, generated=None, now=None):
     histories = load_histories(repo_root)
+    revisions = tag_revisions(histories, repo_root)
+    if not revisions.available:
+        print(
+            "no git history at {0}: vignette revisions unknown, every run is "
+            "compared".format(repo_root),
+            file=sys.stderr,
+        )
     now = now or datetime.datetime.now()
     generated = generated or now.strftime("%Y-%m-%d %H:%M")
     os.makedirs(out_dir, exist_ok=True)

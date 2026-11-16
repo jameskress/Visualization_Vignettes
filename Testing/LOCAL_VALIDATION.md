@@ -1506,18 +1506,31 @@ showed only the last two runs. What changed in `Testing/dashboard.py`:
 * **The x axis is the tool version.** Each version is a band holding its runs
   in date order, at least 46 px wide so its label fits, the rest shared out by
   run count. A bar marks the median of the runs measured like the latest.
-* **Speed by tool version** replaces suite time over dates. A per-version
-  total is comparable only over the same work, and the vignette set grew from
-  ex00 to ex06 in 2024 to ex00 to ex12, so the panels sum each vignette's
-  median over the vignettes every version ran on every active configuration:
-  ex00 to ex06 for ParaView, ex00 to ex05 for VisIt (ibex-cpu's VisIt 3.4.2
-  record has no successful ex06). Failed runs are left out of every time.
+* **Only like runs are compared.** The vignettes changed as well as the
+  tools: `d3be2be` (17 Sep 2026) rewrote ex00 to ex06 in both suites, about
+  1,400 changed lines, and `a4fdc7c`, `fdbd943` (ex06, 21 Oct) and `f0d42c7`
+  (ex03, ex05 and ex09, 3 Nov) changed them again. Every ParaView 5.13.1 and
+  VisIt 3.4.1 run before the rewrite, and Shaheen's ParaView 6.0.1 runs,
+  measured older tests. `dashboard.py` now tags each record with the
+  vignette revision it ran (from `repo.commit` when the record has it, else
+  the last code change committed before its timestamp, on the sites' +03
+  clock; comments, docstrings and layout are ignored by comparing syntax
+  trees) and compares only within a revision. Tagging the whole history
+  takes about 3.5 s; the dashboard workflow now checks out full history and
+  rebuilds when a vignette script changes.
+* **Speed by tool version** replaces suite time over dates: per machine, how
+  long each earlier version took against the newest, the geometric mean of
+  per-vignette median ratios over the vignettes both ran at the same
+  revision. Today only 2026 versions qualify; no 5.13.1 or 3.4.1 run is
+  comparable with a current one. Two outliers to look at: Ibex GTX 1080 Ti
+  and RTX 2080 Ti took 4.3x and 5.1x as long on 6.0.1 as on 6.2.1, over nine
+  vignettes each.
 * **What changed in the last upgrade** replaces "time vs median", which
-  mixed versions and needed a key to decode. Today's data: ParaView, 124
-  pairs, median change -5%, 14 slower and 60 faster by more than 10%; VisIt,
-  57 pairs, median -2%, 3 slower and 21 faster. The large Ibex EGL speedups
-  from 6.0.1 compare against a single 6.0.1 run per vignette, hence the
-  caption's "a lead, not a verdict".
+  mixed versions and needed a key to decode. Today, comparing like with
+  like: ParaView, 93 pairs, median change -6%, 10 slower and 45 faster by
+  more than 10%, 31 not compared because the vignette changed; VisIt, 41
+  pairs, median +2%, 2 slower and 10 faster, 16 not compared. One or two
+  runs per version is common, hence the caption's "a lead, not a verdict".
 * **Retired configurations.** `Testing/retired_configurations.json` lists
   hardware that left the suite; `ibex-egl-p6000` (last run 23 Oct 2024,
   ParaView 5.13.1) is the first. A retired configuration keeps its page,
@@ -1528,8 +1541,10 @@ showed only the last two runs. What changed in `Testing/dashboard.py`:
   key in place of a paragraph per chart.
 
 Checked by building the site from master's records and reading every index
-section and two configuration pages (ibex-cpu, the retired ibex-egl-p6000) at
-1300 px in the dark theme, and the index at phone width in the light one.
+section and three configuration pages (ibex-cpu, shaheen3-cpu, the retired
+ibex-egl-p6000) at 1300 px in both themes, and the index at phone width. A
+build from a copy without `.git` falls back to comparing every run and says
+so on stderr.
 
 ## 5. Known issue: ex06 image stability
 

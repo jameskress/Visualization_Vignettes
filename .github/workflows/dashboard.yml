@@ -19,6 +19,8 @@ on:
       - '**/performance_metrics_*.json'
       - 'Testing/dashboard.py'
       - 'Testing/retired_configurations.json'
+      - 'ParaView_Vignettes/*/*.py'
+      - 'VisIt_Vignettes/*/*.py'
       - 'Testing/drift.py'
       - '.github/workflows/dashboard.yml'
   pull_request:
@@ -27,6 +29,8 @@ on:
       - '**/performance_metrics_*.json'
       - 'Testing/dashboard.py'
       - 'Testing/retired_configurations.json'
+      - 'ParaView_Vignettes/*/*.py'
+      - 'VisIt_Vignettes/*/*.py'
       - 'Testing/drift.py'
       - '.github/workflows/dashboard.yml'
   workflow_dispatch:
@@ -48,6 +52,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+          # The whole history: dashboard.py reads which revision of each
+          # vignette every record ran from git, and compares only like runs.
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
@@ -87,6 +94,7 @@ jobs:
           NEWEST=$(git -C tip log -1 --format=%H master -- \
             ':(glob)**/performance_metrics_*.json' Testing/dashboard.py \
             Testing/retired_configurations.json Testing/drift.py \
+            ':(glob)ParaView_Vignettes/*/*.py' ':(glob)VisIt_Vignettes/*/*.py' \
             .github/workflows/dashboard.yml)
           if git -C tip merge-base --is-ancestor "$NEWEST" "$SHA"; then
             echo "newest=true" >> "$GITHUB_OUTPUT"
