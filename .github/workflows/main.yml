@@ -20,8 +20,10 @@ on:
 # publish, so it must never displace a pending master push.
 # Master pushes run one at a time and are never cancelled. If several land
 # while one is running, only the newest waits; the ones in between are
-# skipped on purpose (one shared runner). The "newest" check below keeps an
-# older commit from moving `latest` or the badge after a newer one.
+# skipped on purpose (one shared runner), and the newest is compared with the
+# last master commit that had a successful run, so their changes still count.
+# The "newest" check below keeps an older commit from moving `latest` or the
+# badge after a newer one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -31,7 +33,8 @@ permissions:
   contents: read
 
 # What runs (#69). The "changes" job compares a pull request with its base,
-# or a master push with the commit before it, and decides:
+# or a master push with the last master commit that had a successful run,
+# and decides:
 #   * docs only (Markdown, docs/ folders, LICENSE): nothing else runs;
 #   * Miniapps/gray-scott/ only: the ParaView and VisIt suites are skipped
 #     (they test the vignettes with their own downloads, not the miniapp);
@@ -48,6 +51,9 @@ jobs:
   changes:
     name: Decide what to run
     runs-on: ubuntu-latest   # a git diff only; keeps it off the shared runner
+    permissions:
+      contents: read
+      actions: read          # to find the last successful master run
     timeout-minutes: 10
     outputs:
       code: ${{ steps.diff.outputs.code }}
@@ -65,8 +71,9 @@ jobs:
           REF: ${{ github.ref }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
-          BEFORE: ${{ github.event.before }}
           SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           everything() {
             echo "$1: run everything"
@@ -82,10 +89,17 @@ jobs:
           case "$EVENT" in
             pull_request) RANGE="$PR_BASE...$PR_HEAD" ;;  # three-dot: only the PR's own changes
             push)
-              if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-                everything "no previous commit"
-              fi
-              RANGE="$BEFORE..$SHA" ;;
+              # Against the last master commit with a successful run, not
+              # the commit before: a newer push replaces a pending one, so
+              # the commits in between may never have had a run of their own.
+              LAST=$(gh api "repos/$REPO/actions/workflows/main.yml/runs?branch=master&status=success&per_page=20" \
+                       --jq '[.workflow_runs[] | select(.event == "push" or .event == "schedule")][0].head_sha // empty') \
+                || everything "cannot list earlier runs"
+              [ -n "$LAST" ] || everything "no earlier successful master run"
+              git cat-file -e "$LAST^{commit}" 2>/dev/null || everything "last successful run's commit $LAST not found"
+              git merge-base --is-ancestor "$LAST" "$SHA" || everything "$LAST is not an ancestor of $SHA"
+              echo "last successful master run: $LAST"
+              RANGE="$LAST..$SHA" ;;
             *) everything "$EVENT" ;;
           esac
           # --no-renames lists both paths of a move, so a file moved into a
