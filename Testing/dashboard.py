@@ -631,8 +631,12 @@ def config_state(tool, vignettes, now, retired=None):
     counts = dict.fromkeys(STATUS_ORDER, 0)
     for entry in latest:
         counts[status_of(entry[2])[0]] += 1
+    # Version and freshness come from runs of the newest version only: a
+    # vignette that has run nothing newer than an old build keeps that run
+    # as its result, but does not speak for the configuration.
+    current = [e for e in latest if drift.tool_version(e[2]) == newest] or latest
     last_ts, last_version = max(
-        (entry[1], drift.tool_version(entry[2]) or "") for entry in latest
+        (entry[1], drift.tool_version(entry[2]) or "") for entry in current
     )
     judged_any = any(entry[4] for entry in latest)
     drifting = sum(1 for entry in latest if entry[3]) if judged_any else None
@@ -1757,7 +1761,11 @@ def render_dot_plot(tool, histories, states):
             if not hist:
                 continue
             rec = latest_at(hist, pin)[1]
-            if drift.tool_version(rec) == pin and is_number(rec.get("execution_time")):
+            if (
+                drift.tool_version(rec) == pin
+                and run_ok(rec)
+                and is_number(rec.get("execution_time"))
+            ):
                 dots.append((c, float(rec["execution_time"]), rec.get("_rev", 0)))
         # One revision per vignette: machines that ran different code are
         # not set side by side. The newest known revision wins; uncertain
