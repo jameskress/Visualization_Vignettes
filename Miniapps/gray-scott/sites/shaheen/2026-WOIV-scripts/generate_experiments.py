@@ -1,6 +1,7 @@
 import math
 import os
 import re
+import xml.etree.ElementTree as ET
 import argparse
 import json
 import shutil
@@ -1383,46 +1384,55 @@ echo "Simulation exit status: $SIM_RC, reader exit status: $STAGE_RC"
 """
 
 
-def check_decomposition_unchanged(output_dir, exp):
-    """Refuse to regenerate a run with a different reader decomposition.
+def check_settings_unchanged(output_dir, exp):
+    """Refuse to regenerate a run with different recorded settings.
 
-    The experiment ID does not include the decomposition, so a slab and a
-    brick generation into the same --results-dir share directories, and new
-    settings would sit beside the old run's numbers. Settings written before
-    the option existed are slab runs. Only in transit runs have a reader;
-    the initialisation runs, often shared between results directories,
-    are not checked.
+    The experiment ID includes neither the reader decomposition and
+    shared-plane setting (in transit runs) nor the SST EndStep barrier and
+    queue policy (every run), so generations with other values into the
+    same --results-dir share directories, and new settings would sit beside
+    the old run's numbers. Files written before an option existed hold its
+    old behaviour: slab, planes read, no barrier, Block. The initialisation
+    runs, often shared between results directories, are not checked.
     """
+    decomposition, planes = reader_decomposition(exp)
+    checks = [("adios_endstep_barrier", False, ADIOS_ENDSTEP_BARRIER)]
+    if exp["type"] == "intransit":
+        checks += [
+            ("read_decomposition", "slab", decomposition),
+            ("reader_shared_planes", "read", planes),
+        ]
     for name in ("settings.json", "settings-stage.json"):
         path = os.path.join(output_dir, name)
         if not os.path.exists(path):
             continue
         with open(path) as f:
             settings = json.load(f)
-        # Settings written before an option existed hold its old behaviour:
-        # slab, and shared planes read from the writers.
-        decomposition, planes = reader_decomposition(exp)
-        for key, legacy, current in (
-            ("read_decomposition", "slab", decomposition),
-            ("reader_shared_planes", "read", planes),
-            ("adios_endstep_barrier", False, ADIOS_ENDSTEP_BARRIER),
-        ):
+        for key, legacy, current in checks:
             old = settings.get(key, legacy)
             if old != current:
                 raise SystemExit(
                     f"{path} has {key} {old}; generating {current} would put its "
                     f"settings beside that run's results. Use another --results-dir."
                 )
-    # The SST queue policy lives in the run's adios2.xml; files written
-    # before the option count as Block.
-    xml = os.path.join(output_dir, "adios2.xml")
-    if os.path.exists(xml):
-        with open(xml) as f:
-            match = re.search(r'key="QueueFullPolicy" value="([^"]*)"', f.read())
-        old = match.group(1) if match else "Block"
+    # The SST queue policy lives in the run's adios2.xml; a file without it
+    # (or written before the option) counts as Block.
+    xml_path = os.path.join(output_dir, "adios2.xml")
+    if os.path.exists(xml_path):
+        old = "Block"
+        try:
+            root = ET.parse(xml_path).getroot()
+        except ET.ParseError as err:
+            raise SystemExit(
+                f"{xml_path} cannot be parsed ({err}); not overwriting it."
+            )
+        io = root.find("./io[@name='SimulationOutput']")
+        for param in io.iter("parameter") if io is not None else []:
+            if param.get("key") == "QueueFullPolicy":
+                old = param.get("value", "Block")
         if old != QUEUE_FULL_POLICY:
             raise SystemExit(
-                f"{xml} has QueueFullPolicy {old}; generating {QUEUE_FULL_POLICY} would put it "
+                f"{xml_path} has QueueFullPolicy {old}; generating {QUEUE_FULL_POLICY} would put it "
                 f"beside that run's results. Use another --results-dir."
             )
 
@@ -2286,11 +2296,11 @@ def generate_scripts(args):
                 )
 
     # Preflight, before any file is written: a run whose existing settings
-    # use the other decomposition stops the whole generation, so nothing
-    # beside that run's results (adios2.xml included) is rewritten.
+    # differ (check_settings_unchanged) stops the whole generation, so
+    # nothing beside that run's results (adios2.xml included) is rewritten.
     for exp in EXPERIMENTS:
-        if exp["type"] == "intransit" and exp["workload"] != "initialization":
-            check_decomposition_unchanged(f"{args.results_dir}/{exp['id']}", exp)
+        if exp["workload"] != "initialization":
+            check_settings_unchanged(f"{args.results_dir}/{exp['id']}", exp)
 
     for exp in EXPERIMENTS:
         sim_ranks = exp["sim_nodes"] * SYSTEM_CONFIG["mpi_per_node"]

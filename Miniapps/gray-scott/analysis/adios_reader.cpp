@@ -11,6 +11,7 @@
 #include <chrono>
 #include <climits>
 #include <cstring>
+#include <limits>
 #include <thread>
 
 AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
@@ -201,8 +202,10 @@ void AdiosReader::EndStep()
     m_logger.start("ADIOS_EndStep");
     m_engine->EndStep();
     m_logger.stop("ADIOS_EndStep");
-    if (m_have_endstep_wall)
-        m_logger.add("Step_Latency", m_begin_wall - m_writer_endstep_wall);
+    // NaN when the stream carries no gs_endstep_wall (an older simulation),
+    // so a missing measurement never reads as zero latency.
+    m_logger.add("Step_Latency", m_have_endstep_wall ? m_begin_wall - m_writer_endstep_wall
+                                                     : std::numeric_limits<double>::quiet_NaN());
     m_have_endstep_wall = false;
     if (m_opts.reader_shared_planes == "exchange")
     {

@@ -83,7 +83,9 @@ def load_jsonl(file_path):
                 }
                 for name, value in t.items():
                     if name not in row and name != "create_writer":
-                        row[name] = float(value)
+                        # null is a value that was not measured (NaN in the
+                        # log, e.g. Step_Latency without the writer's stamp)
+                        row[name] = float("nan") if value is None else float(value)
                 for name, value in (r.get("c") or {}).items():
                     row["c_" + name] = float(value)
                 for name in ("sys_s", "user_s"):
