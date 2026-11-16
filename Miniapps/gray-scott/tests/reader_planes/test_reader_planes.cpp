@@ -122,15 +122,45 @@ long read_file(MPI_Comm comm, const std::string &file, const std::string &decomp
             std::fprintf(stderr, "reader %d step %d: buffer extents or sizes are wrong\n", rank, s);
             ++bad;
         }
-        // Together the owned boxes cover the array exactly once.
-        unsigned long long owned_all = 0, mine = owned;
-        MPI_Allreduce(&mine, &owned_all, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
-        if (owned_all != Z * Y * X)
+        // Together the owned boxes cover the array exactly once: they lie
+        // inside it, no two overlap, and their volumes add up to it.
+        int size;
+        MPI_Comm_size(comm, &size);
+        unsigned long long box[6] = {0, 0, 0, 0, 0, 0};
+        if (meta_ok && !n.empty())
+            for (size_t d = 0; d < 3; ++d)
+            {
+                box[d] = st[d];
+                box[3 + d] = iu.owned_dims[d];
+            }
+        std::vector<unsigned long long> boxes(6 * static_cast<size_t>(size));
+        MPI_Allgather(box, 6, MPI_UNSIGNED_LONG_LONG, boxes.data(), 6, MPI_UNSIGNED_LONG_LONG, comm);
+        const unsigned long long G[3] = {Z, Y, X};
+        unsigned long long volume = 0;
+        bool partition_ok = true;
+        for (int a = 0; a < size; ++a)
+        {
+            const unsigned long long *A = &boxes[6 * a];
+            const unsigned long long va = A[3] * A[4] * A[5];
+            volume += va;
+            for (size_t d = 0; d < 3; ++d)
+                partition_ok = partition_ok && A[d] + A[3 + d] <= G[d];
+            for (int b = a + 1; b < size && va > 0; ++b)
+            {
+                const unsigned long long *B = &boxes[6 * b];
+                bool overlap = B[3] * B[4] * B[5] > 0;
+                for (size_t d = 0; d < 3; ++d)
+                    overlap = overlap && A[d] < B[d] + B[3 + d] && B[d] < A[d] + A[3 + d];
+                partition_ok = partition_ok && !overlap;
+            }
+        }
+        if (!partition_ok || volume != Z * Y * X)
         {
             if (rank == 0)
-                std::fprintf(stderr, "step %d: the owned boxes hold %llu points, not %zu\n", s, owned_all, Z * Y * X);
+                std::fprintf(stderr, "step %d: the owned boxes do not cover the array exactly once\n", s);
             ++bad;
         }
+        (void)owned;
         if (!meta_ok)
         {
             ++steps;
@@ -152,6 +182,11 @@ long read_file(MPI_Comm comm, const std::string &file, const std::string &decomp
                     }
                 }
         ++steps;
+    }
+    if (steps != kSteps)
+    {
+        std::fprintf(stderr, "reader %d: %d steps, not %d\n", rank, steps, kSteps);
+        ++bad;
     }
     return bad;
 }

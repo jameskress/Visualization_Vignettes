@@ -91,6 +91,37 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
         std::cout << std::endl;
     }
 
+    // A brick exchange reads the owned box through a memory selection.
+    // SST honours that only with BP5 marshalling from ADIOS2 2.9.2 (the
+    // FFS path and older BP5 put the values contiguously, at the wrong
+    // places). Where that cannot be relied on, the whole run reads the
+    // planes from the writers instead: it must be every reader or none,
+    // or a neighbour would wait for a plane that is never sent. A slab
+    // needs no memory selection.
+    if (m_opts.reader_shared_planes == "exchange" && m_opts.read_decomposition == "brick" &&
+        (engine == "SST" || engine == "EFFIS"))
+    {
+        bool honoured = true;
+#if !defined(ADIOS2_VERSION) || ADIOS2_VERSION < 20902
+        honoured = false;
+#endif
+        if (const auto marshal = xml_value("MarshalMethod"))
+        {
+            std::string m = *marshal;
+            std::transform(m.begin(), m.end(), m.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            honoured = honoured && m == "bp5";
+        }
+        if (!honoured)
+        {
+            m_opts.reader_shared_planes = "read";
+            if (rank == 0)
+                std::cout << "reader_shared_planes: exchange needs SST with BP5 marshalling and ADIOS2 2.9.2 "
+                             "or later for a brick; reading the shared planes from the writers instead"
+                          << std::endl;
+        }
+    }
+
     m_engine = std::make_unique<adios2::Engine>(m_io->Open(m_opts.adios_file, adios2::Mode::Read));
 
     ReadFidesAttributes(); // Read attributes and potentially update m_opts
