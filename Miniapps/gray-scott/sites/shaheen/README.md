@@ -722,7 +722,9 @@ a step (102, "pipeline failed to initialize" or "failed to execute"), and
 skips that pipeline on every later step. The reader and the simulation used
 to ignore the status, so a broken script logged a near-zero `Vis_Time` (or
 `execute` time) for steps that drew nothing, and looked like a very fast
-run. Both now stop: the reader throws (every rank prints the step and status,
-then `MPI_Abort`, and `--kill-on-bad-exit` stops the simulation), and the
-simulation's in situ Catalyst writer calls `MPI_Abort`. The Python traceback
-is above the error in the job's stderr.
+run. Both now stop at once: every rank prints the step and status and calls
+`MPI_Abort` where the error is seen, before any teardown (an SST close could
+wait for its peers), and `--kill-on-bad-exit` ends the other program of an
+in transit job. The Python traceback is above the error in the job's
+stderr. A failed run keeps no per-step timings: they are written at the end
+of the run.
