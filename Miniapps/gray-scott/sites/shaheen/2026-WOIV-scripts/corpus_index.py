@@ -313,12 +313,22 @@ def index_run(results_dir, run_id, fallback_topology=None):
     tel = _load_json(base + "_telemetry.json") or {}
     totals = tel.get("totals") or {}
     row["job_id"] = tel.get("job_id")
+    if row["job_id"] is None:
+        # The summary can fail while the run's captures are still exported;
+        # the job is then named by the reduction's <id>_tel_job.txt.
+        try:
+            with open(base + "_tel_job.txt") as handle:
+                row["job_id"] = handle.read().strip() or None
+        except OSError:
+            pass
     # Placement: the job's nodes (Slurm's job record), the simulation's (its
     # metadata), the rest are the readers', against the network topology the
     # run saved, or the --topology fallback.
     job_nodes = []
     job_txt = os.path.join(run_dir, "telemetry", str(row["job_id"]), "job.txt")
     try:
+        if row["job_id"] is None:
+            raise OSError("no job")
         with open(job_txt) as handle:
             m = re.search(r"^\s*NodeList=(\S+)", handle.read(), re.M)
         if m and m.group(1) != "(null)":

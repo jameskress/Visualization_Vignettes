@@ -1136,6 +1136,9 @@ done
 # 2. Simulation timings: the newest run directory under perf/ (README.md,
 #    Performance). Keep its metadata.json and summary.json beside the CSV.
 SIM_PERF=$(ls -dt $OUTPUT_DIR/perf/*/ 2>/dev/null | head -1)
+# An earlier job's run record must not stay beside this job's results (its
+# hostnames would be taken for this job's simulation nodes).
+rm -f "{results_dir}/{id}_metadata.json"
 if [ -n "$SIM_PERF" ]; then
     echo "Reducing $SIM_PERF..."
     cp "$SIM_PERF/metadata.json" "{results_dir}/{id}_metadata.json" 2>/dev/null

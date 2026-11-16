@@ -1,4 +1,5 @@
 #include "analysis_backend_interface.h"
+#include "adios_reader.h"
 #include <mpi.h>
 #include <getopt.h>
 #include <nlohmann/json.hpp>
@@ -267,7 +268,10 @@ int main(int argc, char **argv)
                                    {"adios_config", opts.adios_config},
                                    {"block_mode", opts.block_mode},
                                    {"read_decomposition", opts.read_decomposition},
-                                   {"reader_shared_planes", opts.reader_shared_planes},
+                                   // what the reader runs, after any fallback
+                                   {"reader_shared_planes", AdiosReader::EffectiveSharedPlanes().empty()
+                                                                ? opts.reader_shared_planes
+                                                                : AdiosReader::EffectiveSharedPlanes()},
                                    {"sst_wait_mode", opts.sst_wait_mode}};
                 meta["command_line"] = std::vector<std::string>(argv, argv + argc);
                 std::error_code ec;
