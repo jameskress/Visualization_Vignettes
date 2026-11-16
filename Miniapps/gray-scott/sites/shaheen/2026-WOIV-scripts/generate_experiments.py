@@ -1150,6 +1150,9 @@ if [ -n "$SIM_PERF" ]; then
 fi
 
 # 3. Reader timings (in transit runs).
+# A reader record from an earlier job of this experiment must not stay
+# beside this job's results, whether or not this job wrote one.
+rm -f "{results_dir}/{id}_reader_metadata.json"
 if [ -d "$OUTPUT_DIR/reader_timers" ]; then
     # The reader's own run record (build, commit, platform, libraries), beside
     # the simulation's {id}_metadata.json, before the directory is archived.

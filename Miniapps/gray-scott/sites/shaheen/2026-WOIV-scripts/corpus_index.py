@@ -187,16 +187,29 @@ def _placement(job_nodes, sim_nodes, topo):
     leaf, group = topo
     sim = [n for n in job_nodes if n in sim_nodes] if sim_nodes else []
     stage = [n for n in job_nodes if n not in sim_nodes] if sim_nodes else []
-    out["placement_unknown_nodes"] = sum(1 for n in job_nodes if n not in leaf)
-    out["placement_job_groups"] = len({group[n] for n in job_nodes if n in group})
+    out["placement_unknown_nodes"] = sum(
+        1 for n in job_nodes if n not in leaf or n not in group
+    )
+
+    # A count only when every node it covers is in the map; otherwise it is
+    # unknown (empty), not zero.
+    def count(nodes, table):
+        if not all(n in table for n in nodes):
+            return None
+        return len({table[n] for n in nodes})
+
+    out["placement_job_groups"] = count(job_nodes, group)
     if sim_nodes:
-        sim_g = {group[n] for n in sim if n in group}
-        stage_g = {group[n] for n in stage if n in group}
-        out["placement_sim_groups"] = len(sim_g)
-        out["placement_stage_groups"] = len(stage_g)
-        out["placement_shared_groups"] = len(sim_g & stage_g)
-        out["placement_sim_switches"] = len({leaf[n] for n in sim if n in leaf})
-        out["placement_stage_switches"] = len({leaf[n] for n in stage if n in leaf})
+        sim_g = count(sim, group)
+        stage_g = count(stage, group)
+        out["placement_sim_groups"] = sim_g
+        out["placement_stage_groups"] = stage_g
+        if sim_g is not None and stage_g is not None:
+            out["placement_shared_groups"] = len(
+                {group[n] for n in sim} & {group[n] for n in stage}
+            )
+        out["placement_sim_switches"] = count(sim, leaf)
+        out["placement_stage_switches"] = count(stage, leaf)
     return out
 
 
