@@ -2,6 +2,8 @@
 #include <catalyst.hpp>
 #include <array>
 #include <cstdint>
+#include <stdexcept>
+#include <string>
 #include <filesystem>
 #include <iostream>
 #include <unistd.h>
@@ -140,7 +142,10 @@ CatalystBackend::CatalystBackend(const BackendOptions &opts)
     init_params["catalyst_load/implementation"] = "paraview";
     if (!current_opts.catalyst_lib_path.empty())
         init_params["catalyst_load/search_paths/paraview"] = current_opts.catalyst_lib_path;
-    catalyst_initialize(conduit_cpp::c_node(&init_params));
+    const catalyst_status err = catalyst_initialize(conduit_cpp::c_node(&init_params));
+    if (err != catalyst_status_ok)
+        throw std::runtime_error("catalyst_initialize failed (catalyst_status " + std::to_string(err) +
+                                 "); check catalyst_lib_path and the Catalyst script");
 }
 
 CatalystBackend::~CatalystBackend()
@@ -183,8 +188,20 @@ void CatalystBackend::Run()
         m_perf_logger.stop("Blueprint_Time");
 
         m_perf_logger.start("Vis_Time");
-        catalyst_execute(conduit_cpp::c_node(&exec_params));
+        const catalyst_status err = catalyst_execute(conduit_cpp::c_node(&exec_params));
         m_perf_logger.stop("Vis_Time");
+        // Stop the run on a failed execute. ParaView reports a script that
+        // fails to load or a pipeline that raises with this status (102 for
+        // both) and then skips the pipeline on every later step, so carrying
+        // on would log a near-zero Vis_Time for steps that drew nothing: a
+        // broken script looked like a fast one. Every reader rank runs the
+        // same script, so every rank throws; main() prints the error and
+        // calls MPI_Abort, and srun's --kill-on-bad-exit stops the simulation.
+        if (err != catalyst_status_ok)
+            throw std::runtime_error("catalyst_execute failed at step " + std::to_string(step) +
+                                     " (catalyst_status " + std::to_string(err) +
+                                     "): the Catalyst script or pipeline failed; see ParaView's error "
+                                     "and any Python traceback above");
         m_perf_logger.stop("total_step");
         m_perf_logger.logStep(step);
     }
