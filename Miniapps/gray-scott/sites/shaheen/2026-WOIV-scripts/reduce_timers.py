@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
+import os
 from pathlib import Path
 import argparse
 import json
@@ -116,8 +117,15 @@ def reduce_run_data(run_dir, output_csv):
     )
 
     # 1. Read all files in parallel (Max out the node's CPU/Disk IO)
-    with ProcessPoolExecutor() as executor:
-        dfs = list(executor.map(loader, files))
+    # multiprocessing.Pool, in chunks, not ProcessPoolExecutor: submitting
+    # 122880 files one by one to Python 3.10's ProcessPoolExecutor can
+    # deadlock (its wake-up pipe fills while its feeder thread waits), which
+    # stalled a 1920-node reduction for 4 hours twice. Reading is I/O
+    # bound, so a few dozen workers are enough.
+    workers = max(1, min(64, os.cpu_count() or 1, len(files)))
+    chunk = max(1, len(files) // (workers * 8))
+    with multiprocessing.Pool(workers) as pool:
+        dfs = list(pool.imap(loader, files, chunksize=chunk))
 
     # Filter out any empty dataframes caused by read errors
     dfs = [df for df in dfs if not df.empty]

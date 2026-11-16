@@ -6,9 +6,11 @@
 //   metadata.json            what ran, where, built how (rank 0)
 //   steps/node_NNNNN.jsonl   one JSON object per step per rank, one file per
 //                            node, named after the node's lowest rank
-//                            (timers on only; schema 4). A logger that never
-//                            reaches finalize() with MPI writes
-//                            steps/rank_NNNNN.jsonl instead, as schema 3 did
+//                            (timers on only; schema 4). A logger with no
+//                            communicator (the readers), one that never
+//                            reaches finalize() with MPI, and a node whose
+//                            lines exceed 256 MB write steps/rank_NNNNN.jsonl
+//                            instead, as schema 3 did
 //   summary.json             per-timer min/mean/max/imbalance across ranks,
 //                            fractions of the step, loop wall time (rank 0)
 //

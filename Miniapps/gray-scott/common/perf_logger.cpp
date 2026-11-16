@@ -312,8 +312,8 @@ void PerfLogger::writeNodeStepFile() const
     std::vector<long long> sizes(node_rank == 0 ? node_size : 0);
     MPI_Gather(&mine, 1, MPI_LONG_LONG, sizes.data(), 1, MPI_LONG_LONG, 0, node);
 
-    // MPI counts are ints: a node whose lines would not fit falls back to
-    // one file per rank, decided together so no rank waits in a gather.
+    // A node whose lines are too big falls back to one file per rank,
+    // decided together so no rank waits in a gather.
     int fits = 1;
     std::vector<int> counts, displs;
     if (node_rank == 0)
@@ -321,7 +321,12 @@ void PerfLogger::writeNodeStepFile() const
         long long total = 0;
         for (long long n : sizes)
             total += n;
-        fits = total <= static_cast<long long>(std::numeric_limits<int>::max()) ? 1 : 0;
+        // MPI counts are ints, and the leader must hold the whole node's
+        // lines at once: past 256 MB (a few MB is typical) each rank
+        // writes its own file instead.
+        constexpr long long kNodeBudget = 256LL << 20;
+        static_assert(kNodeBudget <= std::numeric_limits<int>::max(), "MPI counts are ints");
+        fits = total <= kNodeBudget ? 1 : 0;
         if (fits)
         {
             counts.resize(node_size);
@@ -365,6 +370,9 @@ void PerfLogger::finalize()
         writeStepFile();
         return;
     }
+    // The high-water mark before the node's lines are gathered, so the
+    // leader's gather buffer does not count as the run's memory.
+    const double rss_high_water_MB = usage_now().rss_MB;
 #ifdef ENABLE_TIMERS
     writeNodeStepFile();
 #endif
@@ -382,7 +390,7 @@ void PerfLogger::finalize()
         for (size_t i = 0; i < nc; i++)
             local[nt + i] += r.c[i];
     }
-    local[nt + nc] = usage_now().rss_MB;
+    local[nt + nc] = rss_high_water_MB;
     const int n = static_cast<int>(local.size());
     std::vector<double> mn(n), mx(n), sum(n);
     MPI_Reduce(local.data(), mn.data(), n, MPI_DOUBLE, MPI_MIN, 0, comm_);

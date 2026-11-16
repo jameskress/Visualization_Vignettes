@@ -1003,7 +1003,7 @@ The miniapp's own performance record (run directory, metadata, per-step timers, 
 `ENABLE_TIMERS` switch and `scripts/perf_report.py` for tables and plots) is described in the
 [Performance section of the README](../README.md#performance). It replaced the per-rank
 `writer_timers/*.csv` files and `visualize-performance-metrics.py` in #26. The analysis reader
-uses the same logger and writes `reader_timers/steps/node_*.jsonl` (one file per node).
+uses the same logger and writes `reader_timers/steps/rank_*.jsonl`.
 
 The sections below cover the backends' own timing tools.
 

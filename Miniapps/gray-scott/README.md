@@ -362,7 +362,7 @@ closed, so a shutdown that hangs (ADIOS2 SST over RDMA can) cannot lose it
 | :--- | :--- | :--- |
 | `metadata.json` | always, rank 0 | what ran, where and how it was built (below) |
 | `summary.json` | always, rank 0 | loop wall time and ms/step; with timers on, per-timer totals across ranks |
-| `steps/node_NNNNN.jsonl` | timers on, one per node (named after its lowest rank) | one JSON object per step per rank on that node; `steps/rank_NNNNN.jsonl`, one per rank, before version 4 or when a node's records exceed 2 GB |
+| `steps/node_NNNNN.jsonl` | timers on, one per node (named after its lowest rank) | one JSON object per step per rank on that node; `steps/rank_NNNNN.jsonl`, one per rank, before version 4 or when a node's records exceed 256 MB; readers (`reader_timers/`) always write one file per rank |
 
 `metadata.json` records:
 
