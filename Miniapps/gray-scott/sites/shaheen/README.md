@@ -92,7 +92,8 @@ pip install pandas numpy matplotlib
 ```bash
 # reduce_timers.py reads either format: the per-rank writer_timers/*.csv files
 # of runs made before #26 (the 2026 WOIV runs), or a newer run's perf/<run>
-# directory (steps/rank_*.jsonl). The summary CSV is the same, so
+# directory (steps/node_*.jsonl, or steps/rank_*.jsonl before schema 4).
+# The summary CSV is the same, so
 # plot_performance.py works on both. scripts/perf_report.py (README.md,
 # Performance) also reads new runs.
 python3 reduce_timers.py paper1_func_N0064_baseline/writer_timers summary_baseline.csv

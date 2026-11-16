@@ -7,6 +7,7 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <stdexcept>
 
 #include "simulation/json.hpp"
@@ -253,16 +254,9 @@ void PerfLogger::setRunTotals(double loop_wall_s, int steps_run)
     steps_run_ = steps_run;
 }
 
-void PerfLogger::writeStepFile() const
+std::string PerfLogger::stepLines() const
 {
-    if (records_.empty())
-        return;
-    std::error_code ec;
-    fs::create_directories(run_dir_ + "/steps", ec);
-    char name[40];
-    std::snprintf(name, sizeof name, "/steps/rank_%05d.jsonl", rank_);
-    const std::string path = run_dir_ + name;
-    std::ofstream out(path);
+    std::string lines;
     for (const Record &r : records_)
     {
         nlohmann::json t = nlohmann::json::object(), c = nlohmann::json::object();
@@ -273,10 +267,91 @@ void PerfLogger::writeStepFile() const
         nlohmann::json j = {{"step", r.step},     {"rank", rank_},     {"host", hostname_},
                             {"rss_MB", r.rss_MB}, {"user_s", r.user_s}, {"sys_s", r.sys_s},
                             {"t", t},             {"c", c}};
-        out << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+        lines += j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+        lines += "\n";
     }
+    return lines;
+}
+
+static void write_lines(const std::string &dir, const char *pattern, int number,
+                        const std::string &lines)
+{
+    std::error_code ec;
+    fs::create_directories(dir + "/steps", ec);
+    char name[48];
+    std::snprintf(name, sizeof name, pattern, number);
+    const std::string path = dir + name;
+    std::ofstream out(path, std::ios::binary);
+    out.write(lines.data(), static_cast<std::streamsize>(lines.size()));
     out.close();
     report_write(out, path);
+}
+
+void PerfLogger::writeStepFile() const
+{
+    if (records_.empty())
+        return;
+    write_lines(run_dir_, "/steps/rank_%05d.jsonl", rank_, stepLines());
+}
+
+void PerfLogger::writeNodeStepFile() const
+{
+    // One file per node instead of one per rank: at 122880 ranks, as many
+    // files created at once in one directory are slow to write and slower
+    // to read back. The ranks of a node send their lines to the node's
+    // lowest rank, which writes steps/node_<its rank>.jsonl in rank order.
+    // The lines are the same as in a per-rank file (each carries its rank).
+    MPI_Comm node = MPI_COMM_NULL;
+    MPI_Comm_split_type(comm_, MPI_COMM_TYPE_SHARED, rank_, MPI_INFO_NULL, &node);
+    int node_rank = 0, node_size = 1;
+    MPI_Comm_rank(node, &node_rank);
+    MPI_Comm_size(node, &node_size);
+
+    const std::string lines = stepLines();
+    long long mine = static_cast<long long>(lines.size());
+    std::vector<long long> sizes(node_rank == 0 ? node_size : 0);
+    MPI_Gather(&mine, 1, MPI_LONG_LONG, sizes.data(), 1, MPI_LONG_LONG, 0, node);
+
+    // MPI counts are ints: a node whose lines would not fit falls back to
+    // one file per rank, decided together so no rank waits in a gather.
+    int fits = 1;
+    std::vector<int> counts, displs;
+    if (node_rank == 0)
+    {
+        long long total = 0;
+        for (long long n : sizes)
+            total += n;
+        fits = total <= static_cast<long long>(std::numeric_limits<int>::max()) ? 1 : 0;
+        if (fits)
+        {
+            counts.resize(node_size);
+            displs.resize(node_size);
+            int at = 0;
+            for (int i = 0; i < node_size; i++)
+            {
+                counts[i] = static_cast<int>(sizes[i]);
+                displs[i] = at;
+                at += counts[i];
+            }
+        }
+    }
+    MPI_Bcast(&fits, 1, MPI_INT, 0, node);
+    if (!fits)
+    {
+        if (!records_.empty())
+            write_lines(run_dir_, "/steps/rank_%05d.jsonl", rank_, lines);
+        MPI_Comm_free(&node);
+        return;
+    }
+
+    std::string all;
+    if (node_rank == 0)
+        all.resize(static_cast<size_t>(displs.back()) + counts.back());
+    MPI_Gatherv(lines.data(), static_cast<int>(mine), MPI_CHAR, node_rank == 0 ? &all[0] : nullptr,
+                counts.data(), displs.data(), MPI_CHAR, 0, node);
+    if (node_rank == 0 && !all.empty())
+        write_lines(run_dir_, "/steps/node_%05d.jsonl", rank_, all);
+    MPI_Comm_free(&node);
 }
 
 void PerfLogger::finalize()
@@ -284,10 +359,15 @@ void PerfLogger::finalize()
     if (finalized_)
         return;
     finalized_ = true;
-    writeStepFile();
 
     if (comm_ == MPI_COMM_NULL || !mpi_usable())
+    {
+        writeStepFile();
         return;
+    }
+#ifdef ENABLE_TIMERS
+    writeNodeStepFile();
+#endif
 
     int procs = 1;
     MPI_Comm_size(comm_, &procs);

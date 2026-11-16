@@ -347,10 +347,12 @@ covers Docker, checkpoint and restart, and the in transit reader.
 
 Every run writes a performance record to its own directory,
 `<perf_dir>/<UTC date-time>_<output_type>_np<ranks>/`. The format is
-versioned (`schema_version`, now 3) because the analysis script and papers
+versioned (`schema_version`, now 4) because the analysis script and papers
 depend on it. Change it only by bumping the version and updating this
 section. Version 2 added the allocation counters (#25); version 3 added
-`problem.restart_read_s` (#78) and `backend.overwrite_last_step` (#85).
+`problem.restart_read_s` (#78) and `backend.overwrite_last_step` (#85);
+version 4 writes the step records one file per node instead of one per
+rank (the lines are the same, each carrying its rank).
 
 The record is written once the last step is done and before the output is
 closed, so a shutdown that hangs (ADIOS2 SST over RDMA can) cannot lose it
@@ -360,7 +362,7 @@ closed, so a shutdown that hangs (ADIOS2 SST over RDMA can) cannot lose it
 | :--- | :--- | :--- |
 | `metadata.json` | always, rank 0 | what ran, where and how it was built (below) |
 | `summary.json` | always, rank 0 | loop wall time and ms/step; with timers on, per-timer totals across ranks |
-| `steps/rank_NNNNN.jsonl` | timers on, every rank | one JSON object per step |
+| `steps/node_NNNNN.jsonl` | timers on, one per node (named after its lowest rank) | one JSON object per step per rank on that node; `steps/rank_NNNNN.jsonl`, one per rank, before version 4 or when a node's records exceed 2 GB |
 
 `metadata.json` records:
 

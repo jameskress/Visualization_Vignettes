@@ -2,7 +2,7 @@
 """Turn Gray-Scott run directories into tables and plots.
 
 Each run directory is what the miniapp writes under settings.perf_dir
-(metadata.json, summary.json and, with timers on, steps/rank_*.jsonl; see
+(metadata.json, summary.json and, with timers on, steps/node_*.jsonl; see
 README.md, Performance). Pass run directories or any directories above
 them:
 
