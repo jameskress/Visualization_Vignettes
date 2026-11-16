@@ -70,7 +70,7 @@ void WriterCatalyst::CreateWriter(const Settings &_settings, const GrayScott &si
     if (err != catalyst_status_ok)
     {
         vtkLog(ERROR, "Failed to initialize Catalyst: " << err);
-        
+
         if (err == catalyst_status_error_not_found)
         {
             std::cerr << "=============================================================" << std::endl;
@@ -81,7 +81,7 @@ void WriterCatalyst::CreateWriter(const Settings &_settings, const GrayScott &si
             std::cerr << "  2. Or export CATALYST_IMPLEMENTATION_PATHS=/path/to/paraview/catalyst/" << std::endl;
             std::cerr << "=============================================================" << std::endl;
         }
-        
+
         vtkLog(ERROR, "...checkout error code to find out why... ");
         throw std::exception();
     }
@@ -161,7 +161,18 @@ void WriterCatalyst::write(int step, const GrayScott &sim, int rank, int numRank
     catalyst_status err = catalyst_execute(conduit_cpp::c_node(&exec_params));
     if (err != catalyst_status_ok)
     {
-        vtkLog(ERROR, "Failed to execute Catalyst: " << err);
+        // Stop the run. ParaView reports a script that fails to load or a
+        // pipeline that raises with this status (102 for both) and then
+        // skips the pipeline on every later step, so carrying on would
+        // record near-zero execute times for steps that drew nothing: a
+        // broken script would look like a fast one. Every rank runs the same
+        // script, so every rank fails here; MPI_Abort ends the job.
+        std::cerr << "[gray-scott rank " << rank << "] Catalyst execute failed at step " << step
+                  << " (catalyst_status " << err
+                  << "): the Catalyst script or pipeline failed; see ParaView's error and any Python "
+                     "traceback above. Stopping the run."
+                  << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
     }
     const auto t3 = clock::now();
 
@@ -187,4 +198,3 @@ void WriterCatalyst::printSelf()
 {
     vtkLog(TRACE, "This is writer type Catalyst ");
 }
-

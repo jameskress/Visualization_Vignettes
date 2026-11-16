@@ -2,6 +2,9 @@
 #include <catalyst.hpp>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
+#include <stdexcept>
+#include <string>
 #include <filesystem>
 #include <iostream>
 #include <unistd.h>
@@ -14,6 +17,26 @@ namespace fs = std::filesystem;
 
 namespace
 {
+    // Stop the job at once when Catalyst reports an error. ParaView returns
+    // an error status from catalyst_execute when the script fails to import
+    // or raises in a step (102 for both), then skips that pipeline on every
+    // later step. Carrying on logged a near-zero Vis_Time for steps that drew
+    // nothing, so a broken script looked like a very fast run. Every reader
+    // rank runs the same script, so every rank gets here. MPI_Abort is called
+    // here rather than through an exception: unwinding would first destroy
+    // the ADIOS2 reader (an SST Close that can wait for its peers) and call
+    // catalyst_finalize, neither of which is time-bounded on that path.
+    // srun's --kill-on-bad-exit then stops the simulation.
+    [[noreturn]] void AbortOnCatalystError(const std::string &what, catalyst_status err, const std::string &hint)
+    {
+        int rank = 0;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        std::cerr << "[analysis-reader rank " << rank << "] Fatal error: " << what << " (catalyst_status "
+                  << static_cast<int>(err) << "): " << hint << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
+        std::abort(); // MPI_Abort does not return; this keeps [[noreturn]] honest
+    }
+
     void BuildRepartitionedCatalystMesh(
         conduit_cpp::Node &mesh_node,
         const RepartitionInfo &read_info,
@@ -140,7 +163,10 @@ CatalystBackend::CatalystBackend(const BackendOptions &opts)
     init_params["catalyst_load/implementation"] = "paraview";
     if (!current_opts.catalyst_lib_path.empty())
         init_params["catalyst_load/search_paths/paraview"] = current_opts.catalyst_lib_path;
-    catalyst_initialize(conduit_cpp::c_node(&init_params));
+    const catalyst_status err = catalyst_initialize(conduit_cpp::c_node(&init_params));
+    if (err != catalyst_status_ok)
+        AbortOnCatalystError("catalyst_initialize failed", err,
+                             "check catalyst_lib_path and the Catalyst script");
 }
 
 CatalystBackend::~CatalystBackend()
@@ -183,8 +209,13 @@ void CatalystBackend::Run()
         m_perf_logger.stop("Blueprint_Time");
 
         m_perf_logger.start("Vis_Time");
-        catalyst_execute(conduit_cpp::c_node(&exec_params));
+        const catalyst_status err = catalyst_execute(conduit_cpp::c_node(&exec_params));
         m_perf_logger.stop("Vis_Time");
+        // Stop the run on a failed execute (AbortOnCatalystError).
+        if (err != catalyst_status_ok)
+            AbortOnCatalystError("catalyst_execute failed at step " + std::to_string(step), err,
+                                 "the Catalyst script or pipeline failed; see ParaView's error and any "
+                                 "Python traceback above");
         m_perf_logger.stop("total_step");
         m_perf_logger.logStep(step);
     }

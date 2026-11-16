@@ -776,7 +776,17 @@ conversion to VTK runs inside `update`), `update` (the filters), `render`,
 `icet_pass`, `icet_render` (the local OSPRay render), `icet_composite`,
 `capture` and `png_write`. At 256 + 16 nodes the slice step after the fix
 is filters 1.6 to 1.8 s, IceT's composite about 2.5 s (128 ranks at
-2048 x 2048) and the PNG 0.24 s. A Catalyst script that raises an exception
-does not stop the reader: `Vis_Time` drops to near zero and the run looks
-fast. In `<id>_catalyst.csv` such a step has `execute` but no `update`,
-`render` or `capture`, and the reader's stderr has the Python traceback.
+2048 x 2048) and the PNG 0.24 s.
+
+**A failing Catalyst script stops the run.** ParaView returns an error
+status from `catalyst_execute` when the script fails to import or raises in
+a step (102, "pipeline failed to initialize" or "failed to execute"), and
+skips that pipeline on every later step. The reader and the simulation used
+to ignore the status, so a broken script logged a near-zero `Vis_Time` (or
+`execute` time) for steps that drew nothing, and looked like a very fast
+run. Both now stop at once: every rank prints the step and status and calls
+`MPI_Abort` where the error is seen, before any teardown (an SST close could
+wait for its peers), and `--kill-on-bad-exit` ends the other program of an
+in transit job. The Python traceback is above the error in the job's
+stderr. A failed run keeps no per-step timings: they are written at the end
+of the run.
