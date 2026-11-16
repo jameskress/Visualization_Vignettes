@@ -117,5 +117,75 @@
             "visit_version": "3.5.0"
         },
         "run_id": "shaheen3-ppn-2026-11-14"
+    },
+    "2026-11-15T18:38:59.152259": {
+        "test_name": "ex04_visitStreamlineAnimation",
+        "metrics_schema": 6,
+        "execution_time": 40.308470783233645,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 339.915,
+        "cpu_usage_percent": 843.2842858960257,
+        "cpu_user_seconds": 330.985,
+        "cpu_system_seconds": 8.929,
+        "memory_max_task_mb": 630.7734375,
+        "disk_read_mb": 39.77793598175049,
+        "disk_write_mb": 8.392333984375e-05,
+        "slurm_steps": [
+            "16002210.4"
+        ],
+        "memory_usage_mb": 4657.9091796875,
+        "memory_usage": 4884171776.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 40.229742,
+        "load_1m_at_start": 1.3,
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 163.875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "e10240fd5ab0"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "405bba7",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "e86b14ac9039",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn10",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 256,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 3022.5
+        },
+        "run_id": "shaheen3-ppn-2026-11-15"
     }
 }

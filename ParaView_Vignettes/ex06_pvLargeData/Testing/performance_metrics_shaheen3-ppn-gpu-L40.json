@@ -134,5 +134,76 @@
             "visit_version": null
         },
         "run_id": "shaheen3-ppn-gpu-L40-2026-11-14"
+    },
+    "2026-11-15T18:28:02.572175": {
+        "test_name": "ex06_pvLargeData",
+        "metrics_schema": 6,
+        "execution_time": 207.77697485351564,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 1586.95,
+        "cpu_usage_percent": 763.775678762679,
+        "cpu_user_seconds": 1571.305,
+        "cpu_system_seconds": 15.644,
+        "memory_max_task_mb": 55310.62109375,
+        "disk_read_mb": 25906.14267349243,
+        "disk_write_mb": 1.1500749588012695,
+        "slurm_steps": [
+            "16002209.6"
+        ],
+        "memory_usage_mb": 55320.61328125,
+        "memory_usage": 58007867392.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 207.716535,
+        "load_1m_at_start": 0.23,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 209.0078125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "srun",
+            "ranks": 1,
+            "id": "a6ce8012af70",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "405bba7",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "e86b14ac9039",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn14",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 224,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 754.5
+        },
+        "run_id": "shaheen3-ppn-gpu-L40-2026-11-15"
     }
 }

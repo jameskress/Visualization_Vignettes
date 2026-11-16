@@ -30,7 +30,6 @@
   "message": "",
   "metrics": {
     "engine_side_render_succeeded": true,
-    "hw_accel_requested": false,
     "image_height": 1024,
     "image_width": 1024
   },

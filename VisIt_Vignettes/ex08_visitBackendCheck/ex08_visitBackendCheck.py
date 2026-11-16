@@ -217,7 +217,10 @@ def run(ctx):
     # go to notes, as AGENTS.md says environment-dependent facts must.
     ctx.notes.append("compute_engine_launched={0}".format(bool(engine_launched)))
     ctx.notes.append("engine_is_parallel={0}".format(bool(is_parallel)))
-    ctx.add_metric("hw_accel_requested", bool(ctx.args.hw_accel))
+    # Whether -hw-accel was asked for is a launch fact too: as a metric it
+    # failed every --hw-accel run against the workstation's baseline
+    # (ibex-gpu, 15 Nov 2026).
+    ctx.notes.append("hw_accel_requested={0}".format(bool(ctx.args.hw_accel)))
 
     # Process and node counts are recorded as notes rather than metrics: they
     # are a property of how the job was launched, not of the data, so

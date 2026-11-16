@@ -187,5 +187,77 @@
             "visit_version": "3.5.0"
         },
         "run_id": "KW61316-2026-11-14"
+    },
+    "2026-11-15T18:37:47.304563": {
+        "test_name": "ex03_visitIsosurfaceAnimation",
+        "metrics_schema": 6,
+        "execution_time": 16.626864671707153,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 52.47,
+        "cpu_usage_percent": 315.5736275960961,
+        "memory_rss_mb": 4031.785,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.00390625,
+        "io_write_mb": 15.8125,
+        "io_rchar_mb": 89.79286289215088,
+        "io_wchar_mb": 17.243449211120605,
+        "peak_processes": 10,
+        "peak_threads": 328,
+        "cpu_user_seconds": 38.12,
+        "cpu_system_seconds": 14.35,
+        "memory_usage_mb": 3881.626,
+        "memory_usage": 4070179864.576,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 16.496131,
+        "load_1m_at_start": 9.89,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 155.92578125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 5,
+                "NOT BASELINED": 30
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 1,
+            "id": "844fcc70f92e"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "c9b82d5",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "f0d86d1340ae",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 64,
+            "cpu_model": "AMD Ryzen Threadripper PRO 3975WX 32-Cores",
+            "memory_total_gb": 251.5
+        },
+        "run_id": "KW61316-2026-11-15"
     }
 }

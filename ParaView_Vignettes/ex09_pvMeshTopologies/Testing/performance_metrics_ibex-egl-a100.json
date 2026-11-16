@@ -82,5 +82,78 @@
             "visit_version": null
         },
         "run_id": "ibex-egl-a100-2026-11-14"
+    },
+    "2026-11-15T18:43:44.000180": {
+        "test_name": "ex09_pvMeshTopologies",
+        "metrics_schema": 6,
+        "execution_time": 4.849590301513672,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 4.77,
+        "cpu_usage_percent": 98.35882421884524,
+        "memory_rss_mb": 772.398,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 2.8125,
+        "io_write_mb": 9.375,
+        "io_rchar_mb": 79.34737014770508,
+        "io_wchar_mb": 5.0484161376953125,
+        "peak_processes": 2,
+        "peak_threads": 25,
+        "cpu_user_seconds": 2.45,
+        "cpu_system_seconds": 2.32,
+        "memory_usage_mb": 725.269,
+        "memory_usage": 760499666.944,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.762135,
+        "load_1m_at_start": 103.58,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 170.76953125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "3f00d4a",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "e86b14ac9039",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu102-23",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 128,
+            "cpu_model": "AMD EPYC 7713 64-Core Processor",
+            "memory_total_gb": 1007.7
+        },
+        "run_id": "ibex-egl-a100-2026-11-15"
     }
 }

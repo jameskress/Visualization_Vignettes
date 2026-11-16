@@ -282,6 +282,26 @@ mean with a constraint, or you will not know which one you measured:
 srun --gres=gpu:1 --constraint=a100 ...
 ```
 
+VisIt on a GPU node records `ibex-gpu`, with `--hw-accel` passed to the
+vignettes so ex08 demands a hardware offscreen context (the others ignore it),
+at the default image tolerance. Use 8 ranks (8 tasks of 2 CPUs fits an A100's
+16): ex06's VisIt baseline is blessed at 8 and the vignette disables its own
+image gate at any other rank count. Its images are judged against `ibex-cpu`'s
+per-machine baselines (`--baseline-machine ibex-cpu`, which the script adds):
+VisIt draws ex06 on an Ibex GPU node bit for bit as on a CPU node (15 Nov
+2026), where the workstation's shared baseline differs over 35% of the frame,
+so one Ibex VisIt baseline serves both. Add `EXTRA="--run-id ibex-gpu-<date>"` for
+the one recorded run (section 9):
+
+```bash
+sbatch --gres=gpu:1 --constraint=a100 --ntasks=8 --cpus-per-task=2 --mem=90G \
+  --export=ALL,VARIANT=gpu ibex_visit_suite.sbat
+```
+
+The VisIt suite reads two fixtures that pvbatch builds (`data/topologies`, the
+XML time series), so run the ParaView suite in that clone first, or copy them
+from a clone that did.
+
 No `--image-tolerance` here and no `--non_gpu_machine`: a GPU run should match
 GPU-blessed baselines at the default 0.001, and ex08 asserting hardware is
 exactly what you want to hear about.

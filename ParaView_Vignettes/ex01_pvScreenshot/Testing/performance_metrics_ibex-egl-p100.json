@@ -133,5 +133,78 @@
             "visit_version": null
         },
         "run_id": "ibex-egl-p100-2026-11-14"
+    },
+    "2026-11-15T18:43:29.684381": {
+        "test_name": "ex01_pvScreenshot",
+        "metrics_schema": 6,
+        "execution_time": 2.806173801422119,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 2.18,
+        "cpu_usage_percent": 77.68585106507712,
+        "memory_rss_mb": 452.727,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.2890625,
+        "io_write_mb": 8.14453125,
+        "io_rchar_mb": 31.829252243041992,
+        "io_wchar_mb": 4.105939865112305,
+        "peak_processes": 2,
+        "peak_threads": 17,
+        "cpu_user_seconds": 1.86,
+        "cpu_system_seconds": 0.32,
+        "memory_usage_mb": 327.922,
+        "memory_usage": 343851139.072,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.630382,
+        "load_1m_at_start": 5.36,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 170.04296875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "e86b14ac9039",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "dgpu501-26",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 36,
+            "cpu_model": "Intel(R) Xeon(R) CPU E5-2699 v3 @ 2.30GHz",
+            "memory_total_gb": 251.8
+        },
+        "run_id": "ibex-egl-p100-2026-11-15"
     }
 }

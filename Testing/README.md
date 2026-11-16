@@ -729,15 +729,42 @@ node, and one `git log` per vignette.
 
 ## The results dashboard
 
-`Testing/dashboard.py` turns every committed history file into a static site:
-an index of every configuration by site, and one page per configuration with
-each vignette's pass/fail history, its telemetry over time, its drift
-warnings, and the build and baselines each run used. It also writes
-`records.json`, every record flattened with its configuration, site, tool and
-vignette, for analysis elsewhere. The host name each record carries
-(`machine_info.node`, a compute node on the clusters) is left out of all of
-it, as are executable paths. Configuration names are the history files'
+`Testing/dashboard.py` turns every committed history file into a static site.
+
+The **index** leads with a summary line and tiles (active and stale
+configurations, passes, failures, drift warnings), then:
+
+* a heatmap per tool of vignette by configuration, grouped by site, showing
+  each vignette's latest result there, switchable to its execution time
+  against that vignette's median over the active configurations on the
+  pinned build;
+* total suite time per recorded run, one chart per site and tool, a line per
+  configuration (runs that covered 10 vignettes or more, each vignette once);
+* each vignette's latest time on every active configuration at the pinned
+  version, on a log scale, coloured by site;
+* which tool version each configuration ran over time;
+* a table of every configuration with its last run, its version, its latest
+  results and its drift count.
+
+Each **configuration page** has, per vignette, the run history, a chart per
+metric over real dates (a dashed rule at each version's first run; runs
+measured differently from the latest drawn faded; metrics whose every value is
+under 1 MB or 1 J left out as noise), drift, and every run with its build and
+baselines. `records.json` holds every record flattened with its configuration,
+site, tool and vignette, for analysis elsewhere. The host name each record
+carries (`machine_info.node`, a compute node on the clusters) is left out of
+all of it, as are executable paths. Configuration names are the history files'
 names, already public in the repository, so they are shown as they are.
+
+How to read the results:
+
+| Shown | Meaning |
+| :--- | :--- |
+| pass, fail | every comparison gate's verdict, recorded from metrics schema 6 |
+| ran OK, run failed | an older record: it says only whether the vignette's own run succeeded |
+| unknown | the oldest records, which say neither |
+| drift n/a | no vignette there has the three earlier comparable runs the drift rule needs |
+| stale | no run for 30 days, or the last run used an older version than the suite pins (`CURRENT_PINS` in `dashboard.py`; move it with the pinned builds) |
 
 ```bash
 python3 Testing/dashboard.py --out _site      # standard library only
@@ -750,13 +777,6 @@ on every master push that changes a history file or the generator; a pull
 request builds it and attaches the site as an artifact. Pages serves the
 `gh-pages` branch, which also holds the Docker badge at its root; each
 workflow replaces only its own files there.
-
-Each chart holds one metric and draws only the runs measured the same way as
-the latest one (metrics schema and measurement scope), coloured by tool
-version, one colour per version on every page. x is the run's position in
-that vignette's history, so a year without runs takes no room. Records from
-before schema 6 carry no gate verdicts and show as *ran* rather than pass or
-fail.
 
 ### Harness unit tests
 

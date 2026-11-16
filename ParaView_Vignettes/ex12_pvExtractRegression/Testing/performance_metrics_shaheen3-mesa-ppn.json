@@ -83,5 +83,76 @@
             "visit_version": null
         },
         "run_id": "shaheen3-mesa-ppn-2026-11-14"
+    },
+    "2026-11-15T18:38:00.288969": {
+        "test_name": "ex12_pvExtractRegression",
+        "metrics_schema": 6,
+        "execution_time": 2.055293243408201,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 5.382,
+        "cpu_usage_percent": 261.860443382535,
+        "cpu_user_seconds": 4.611,
+        "cpu_system_seconds": 0.77,
+        "memory_max_task_mb": 241.71484375,
+        "disk_read_mb": 5.622990608215332,
+        "disk_write_mb": 6.961822509765625e-05,
+        "slurm_steps": [
+            "16002208.12"
+        ],
+        "memory_usage_mb": 251.708984375,
+        "memory_usage": 263936000.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 1.99213,
+        "load_1m_at_start": 0.09,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 196.0703125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 3
+            },
+            "numeric": "PASS",
+            "csv": "PASS",
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "srun",
+            "ranks": 1,
+            "id": "a6ce8012af70",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "405bba7",
+            "image_sources": {
+                "shared": 3
+            }
+        },
+        "repo": {
+            "commit": "e86b14ac9039",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn13",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 256,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 754.5
+        },
+        "run_id": "shaheen3-mesa-ppn-2026-11-15"
     }
 }

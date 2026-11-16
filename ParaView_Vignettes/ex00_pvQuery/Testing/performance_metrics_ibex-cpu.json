@@ -252,5 +252,75 @@
             "visit_version": null
         },
         "run_id": "ibex-cpu-2026-11-14"
+    },
+    "2026-11-15T18:23:25.882065": {
+        "test_name": "ex00_pvQuery",
+        "metrics_schema": 6,
+        "execution_time": 1.3052005767822266,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 0.96,
+        "cpu_usage_percent": 73.55191355850715,
+        "memory_rss_mb": 362.273,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.10546875,
+        "io_write_mb": 8.55859375,
+        "io_rchar_mb": 31.289679527282715,
+        "io_wchar_mb": 4.107254981994629,
+        "peak_processes": 2,
+        "peak_threads": 74,
+        "cpu_user_seconds": 0.8,
+        "cpu_system_seconds": 0.16,
+        "memory_usage_mb": 361.997,
+        "memory_usage": 379581366.272,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 1.22535,
+        "load_1m_at_start": 139.47,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 94.5,
+        "verdicts": {
+            "run": true,
+            "image": null,
+            "image_statuses": {},
+            "numeric": "PASS",
+            "csv": null,
+            "text": false,
+            "passed": true,
+            "gpu_exempt": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {}
+        },
+        "repo": {
+            "commit": "e86b14ac9039",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn504-22",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 192,
+            "cpu_model": "AMD EPYC 9655 96-Core Processor",
+            "memory_total_gb": 755.5
+        },
+        "run_id": "ibex-cpu-2026-11-15"
     }
 }

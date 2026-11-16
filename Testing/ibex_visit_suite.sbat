@@ -11,8 +11,17 @@
 # VisIt regression suite on an Ibex node as a batch job (RUNBOOK.md section 5).
 #   cd /ibex/scratch/$USER/<clone>/Testing && sbatch ibex_visit_suite.sbat
 #   TESTS="5 6" sbatch ...   EXTRA="--run-id ibex-cpu-2026-10" sbatch ...   RANKS=8 (default)
+# GPU: VARIANT=gpu records --machine_name ibex-gpu at the default image tolerance and passes
+# --hw-accel to the vignettes, so ex08 demands a hardware offscreen context (the others
+# ignore the flag). Request the GPU on the command line, never --partition, and keep
+# ntasks x cpus-per-task within the GPU's CPU limit (16 on an A100). Use 8 ranks: ex06's
+# baseline is blessed at 8 and it disables its own image gate at any other count.
+#   sbatch --gres=gpu:1 --constraint=a100 --ntasks=8 --cpus-per-task=2 --mem=90G \
+#     --export=ALL,VARIANT=gpu,EXTRA="--run-id ibex-gpu-$(date +%F)" ibex_visit_suite.sbat
+# The clone needs data/topologies and data/varying_series_xml, which pvbatch builds: run the
+# ParaView suite in it first, or copy them from a clone that did (RUNBOOK section 5).
 # shellcheck disable=SC1091  # sourced files are site paths that exist only at run time
-# shellcheck disable=SC2086  # $COMMON, $TESTS, $TOL and $EXTRA are split into arguments on purpose
+# shellcheck disable=SC2086  # $COMMON, $TESTS, $TOL, $HW and $EXTRA are split into arguments on purpose
 set -o pipefail
 # Ibex batch shells do not define `module`; a login shell (-l) plus this makes sure it exists.
 source /usr/share/Modules/init/bash                   # the batch shell has `module` as a binary that cannot change this shell's env
@@ -36,7 +45,18 @@ echo "python=$(which python) visit=$(which visit) version=$VISIT_VERSION node=$(
 python Testing/prepare_machine.py --tool VisIt --skip-data-checks || { echo "prepare_machine failed"; exit 1; }
 cd Testing || exit 1
 RANKS=${RANKS:-8}
-COMMON="../ --test_type VisIt --visit_version $VISIT_VERSION --machine_name ibex-cpu --machine ibex --launcher mpirun --nodes 1 --ranks $RANKS --image-tolerance 0.0075 ${EXTRA:---no-metrics} --timeout 1800"
+if [ "${VARIANT:-cpu}" = "gpu" ]; then
+    # "=": argparse would read a bare --hw-accel as an option. A GPU run matches the
+    # GPU-blessed baselines at the default tolerance (0.001): the 15 Nov 2026 record's
+    # worst image differed by 0.0005% (ex06 aside, which disables its own image gate
+    # off 8 ranks). The CPU line renders in software and keeps 0.0075.
+    # Its images are judged against ibex-cpu's per-machine baselines: VisIt renders
+    # ex06 there bit for bit as on a CPU node (15 Nov 2026), one baseline per renderer.
+    MACHINE=ibex-gpu; HW="--vignette-arg=--hw-accel --baseline-machine ibex-cpu"; TOL=""
+else
+    MACHINE=ibex-cpu; HW=""; TOL="--image-tolerance 0.0075"
+fi
+COMMON="../ --test_type VisIt --visit_version $VISIT_VERSION --machine_name $MACHINE --machine ibex --launcher mpirun --nodes 1 --ranks $RANKS $TOL $HW ${EXTRA:---no-metrics} --timeout 1800"
 if [ -n "${TESTS:-}" ]; then
     python test_suite.py $COMMON --test_number $TESTS
     echo "suite exit=$? end=$(date)"
