@@ -207,6 +207,9 @@ nlohmann::json collect_run_metadata(MPI_Comm comm)
     std::strftime(stamp, sizeof stamp, "%Y-%m-%dT%H:%M:%SZ", std::gmtime(&now));
 
     m["start_time_utc"] = stamp;
+    // The batch job, so a record can be matched to the job that made it.
+    const char *job = std::getenv("SLURM_JOB_ID");
+    m["slurm_job_id"] = job ? std::string(job) : std::string();
     m["git"] = {{"commit", GS_GIT_COMMIT},
                 {"describe", GS_GIT_DESCRIBE},
                 {"dirty", GS_GIT_DIRTY == 1},

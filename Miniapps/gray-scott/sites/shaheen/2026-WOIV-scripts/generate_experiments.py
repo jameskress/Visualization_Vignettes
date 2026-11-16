@@ -1159,8 +1159,14 @@ rm -f "{results_dir}/{id}_reader_metadata.json"
 if [ -d "$OUTPUT_DIR/reader_timers" ]; then
     # The reader's own run record (build, commit, platform, libraries), beside
     # the simulation's {id}_metadata.json, before the directory is archived.
-    [ -f "$OUTPUT_DIR/reader_timers/metadata.json" ] \\
-        && cp "$OUTPUT_DIR/reader_timers/metadata.json" "{results_dir}/{id}_reader_metadata.json"
+    # Only this job's: reader_timers/ may have been restored from an
+    # earlier job's archive (above) if this job wrote none. Without
+    # RUN_JOB_ID (a reduction run by hand) any record is taken.
+    RM="$OUTPUT_DIR/reader_timers/metadata.json"
+    if [ -f "$RM" ] && {{ [ -z "${{RUN_JOB_ID:-}}" ] \\
+        || grep -Eq "slurm_job_id.: ?.${{RUN_JOB_ID}}[^0-9]" "$RM"; }}; then
+        cp "$RM" "{results_dir}/{id}_reader_metadata.json"
+    fi
     echo "Reducing reader_timers..."
     if python "$REDUCE" "$OUTPUT_DIR/reader_timers" "{results_dir}/{id}_reader.csv"; then
         echo "Compressing reader_timers..."
