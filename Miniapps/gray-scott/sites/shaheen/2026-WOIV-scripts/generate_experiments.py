@@ -1141,7 +1141,16 @@ SIM_PERF=$(ls -dt $OUTPUT_DIR/perf/*/ 2>/dev/null | head -1)
 rm -f "{results_dir}/{id}_metadata.json"
 if [ -n "$SIM_PERF" ]; then
     echo "Reducing $SIM_PERF..."
-    cp "$SIM_PERF/metadata.json" "{results_dir}/{id}_metadata.json" 2>/dev/null
+    # Only this job's record: perf/ may have been restored from an earlier
+    # job's archive (above) if this job wrote none; by hand (no RUN_JOB_ID)
+    # any record is taken. Records from before slurm_job_id are taken too.
+    SM="$SIM_PERF/metadata.json"
+    if [ -f "$SM" ] && {{ [ -z "${{RUN_JOB_ID:-}}" ] || ! grep -q slurm_job_id "$SM" \\
+        || grep -Eq "slurm_job_id.: ?.${{RUN_JOB_ID}}[^0-9]" "$SM"; }}; then
+        cp "$SM" "{results_dir}/{id}_metadata.json"
+    else
+        echo "perf/ metadata.json is not job $RUN_JOB_ID's; not exported."
+    fi
     cp "$SIM_PERF/summary.json" "{results_dir}/{id}_summary.json" 2>/dev/null
     # Compress only after a successful reduction, so a failure keeps the raw logs.
     if python "$REDUCE" "$SIM_PERF" "{results_dir}/{id}_writer.csv"; then
