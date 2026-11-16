@@ -95,6 +95,47 @@ long read_file(MPI_Comm comm, const std::string &file, const std::string &decomp
         reader.EndStep();
         const int s = static_cast<int>(reader.CurrentStep());
         const auto &st = iu.local_start, &n = iu.local_dims;
+        // The metadata first, so an empty or truncated buffer cannot pass:
+        // both fields agree, the buffers hold local_dims, and local_dims is
+        // the owned box plus exactly the shared planes a piece must have
+        // (one on every axis where it does not reach the end).
+        size_t owned = 0;
+        bool meta_ok = iv.local_start == iu.local_start && iv.local_dims == iu.local_dims &&
+                       iv.owned_dims == iu.owned_dims && iv.shared_high == iu.shared_high &&
+                       (n.empty() || n.size() == 3);
+        if (meta_ok && !n.empty())
+        {
+            size_t points = 1;
+            owned = 1;
+            for (size_t d = 0; d < 3; ++d)
+            {
+                const bool reaches_end = st[d] + iu.owned_dims[d] >= iu.global_dims[d];
+                meta_ok = meta_ok && iu.shared_high[d] == (!reaches_end && iu.owned_dims[d] > 0) &&
+                          n[d] == iu.owned_dims[d] + (iu.shared_high[d] ? 1 : 0);
+                points *= n[d];
+                owned *= iu.owned_dims[d];
+            }
+            meta_ok = meta_ok && bu.size() == points && bv.size() == points;
+        }
+        if (!meta_ok)
+        {
+            std::fprintf(stderr, "reader %d step %d: buffer extents or sizes are wrong\n", rank, s);
+            ++bad;
+        }
+        // Together the owned boxes cover the array exactly once.
+        unsigned long long owned_all = 0, mine = owned;
+        MPI_Allreduce(&mine, &owned_all, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
+        if (owned_all != Z * Y * X)
+        {
+            if (rank == 0)
+                std::fprintf(stderr, "step %d: the owned boxes hold %llu points, not %zu\n", s, owned_all, Z * Y * X);
+            ++bad;
+        }
+        if (!meta_ok)
+        {
+            ++steps;
+            continue;
+        }
         const size_t nz = n.empty() ? 0 : n[0], ny = nz ? n[1] : 0, nx = nz ? n[2] : 0;
         for (size_t k = 0; k < nz; ++k)
             for (size_t j = 0; j < ny; ++j)
