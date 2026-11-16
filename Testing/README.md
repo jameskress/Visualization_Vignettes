@@ -759,8 +759,13 @@ configurations, latest passes and failures, drift warnings) and a short
 change too: ex00 to ex06 were rewritten on 17 September 2026 and several
 have changed since, so a 2024 run of ParaView 5.13.1 measured a different
 test from a 6.2.1 run today. `dashboard.py` reads from git which revision of
-each vignette every record ran: the revision at the record's `repo.commit`
-(schema 6), or else the one committed last before its timestamp. A revision
+each vignette every record ran. A clean record with a `repo.commit`
+(schema 6) gets the revision at that commit. Any other record, an older one
+or one run from a dirty checkout, is bounded: no earlier than the last change
+committed before it ran, no later than the code current when its record was
+committed (`git blame` of the history file). If the vignette changed inside
+those bounds the record may have run code committed after it, so it gets a
+revision of its own and is never compared. A revision
 is a change to the vignette's own Python files that changes their code
 (compared as syntax trees, so comments, docstrings and layout do not count).
 Generated data fixtures (`data/*.py`) are not followed. Both summary charts

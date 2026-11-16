@@ -1512,12 +1512,17 @@ showed only the last two runs. What changed in `Testing/dashboard.py`:
   (ex03, ex05 and ex09, 3 Nov) changed them again. Every ParaView 5.13.1 and
   VisIt 3.4.1 run before the rewrite, and Shaheen's ParaView 6.0.1 runs,
   measured older tests. `dashboard.py` now tags each record with the
-  vignette revision it ran (from `repo.commit` when the record has it, else
-  the last code change committed before its timestamp, on the sites' +03
-  clock; comments, docstrings and layout are ignored by comparing syntax
-  trees) and compares only within a revision. Tagging the whole history
-  takes about 3.5 s; the dashboard workflow now checks out full history and
-  rebuilds when a vignette script changes.
+  vignette revision it ran and compares only within a revision; comments,
+  docstrings and layout are ignored by comparing syntax trees. A clean
+  record's `repo.commit` proves its revision. Any other record is bounded
+  by when it ran and when its record was committed (`git blame`, on the
+  sites' +03 clock); a vignette change inside that window makes it
+  uncertain, and an uncertain record is never compared. That is 191 of
+  1,172 records today: the October 2024 runs made before the suite's first
+  commit, and a few 2026 runs made the day a script changed. The two dirty
+  schema-6 records are bounded the same way (local CodeRabbit caught both
+  gaps). Tagging the whole history takes about 6 s; the dashboard workflow
+  now checks out full history and rebuilds when a vignette script changes.
 * **Speed by tool version** replaces suite time over dates: per machine, how
   long each earlier version took against the newest, the geometric mean of
   per-vignette median ratios over the vignettes both ran at the same

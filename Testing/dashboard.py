@@ -289,13 +289,19 @@ def code_digest(sources):
 class VignetteRevisions(object):
     """The revision of each vignette a record ran, from the git history.
 
-    A record carrying the commit it ran from (`repo.commit`, metrics schema
-    6) gets the revision at that commit. An older record gets the revision
-    committed last before its timestamp: runs made just before their
-    script was committed can land one revision early, which only ever splits
-    a comparison, never joins two different tests. Without a git history
-    (a bare copy of the files) every record is revision 0 and `available`
-    is False, and build_site says so on stderr.
+    A clean record carrying the commit it ran from (`repo.commit`, metrics
+    schema 6) gets the revision at that commit: proven. Any other record (an
+    older one, or one run from a dirty checkout, whose edits may have been
+    to the vignette itself) is bounded instead: it ran no earlier code than
+    the revision committed last before it ran (or before its `repo.commit`)
+    and, its results being committed afterwards, no later code than the
+    revision current when the record was committed (from `git blame` of its
+    history file; a later reformat of the file only widens the bound). One
+    revision inside those bounds is the record's revision. More than one
+    means it may have run code committed after it: it gets a revision of its
+    own, so it is never compared with anything. Without a git history (a
+    bare copy of the files) every record is revision 0 and `available` is
+    False, and build_site says so on stderr.
     """
 
     def __init__(self, repo_root):
@@ -304,6 +310,8 @@ class VignetteRevisions(object):
         self._eras = {}
         self._at_commit = {}
         self._touched = {}
+        self._added = {}
+        self._uncertain = 0
 
     def eras(self, vignette_dir):
         """[(commit time, short sha)] where the vignette's code changed, oldest first."""
@@ -331,19 +339,31 @@ class VignetteRevisions(object):
         self._at_commit[vignette_dir] = sha_era
         return eras
 
-    def of(self, vignette_dir, timestamp, record):
-        """(index, label) of the revision this record ran, or (0, "") unknown."""
-        if not self.available:
-            return 0, ""
-        eras = self.eras(vignette_dir)
-        if not eras:
-            return 0, ""
-        index = None
-        commit = (record.get("repo") or {}).get("commit")
-        if commit and (commit, vignette_dir) in self._touched:
-            touched = self._touched[(commit, vignette_dir)]
-        elif commit:
-            touched = _git(
+    def added(self, history_path):
+        """{timestamp key: when the line holding it was last committed}.
+
+        From `git blame` of one history file. A line not committed yet maps
+        to now.
+        """
+        if history_path in self._added:
+            return self._added[history_path]
+        out, when = {}, None
+        blame = _git(self.repo_root, "blame", "--line-porcelain", "--", history_path)
+        for line in (blame or "").splitlines():
+            if line.startswith("committer-time "):
+                when = datetime.datetime.fromtimestamp(int(line.split()[1]), SITE_TZ)
+            elif line.startswith("\t") and when is not None:
+                match = re.match(r'\s*"([^"]+)":\s*\{', line[1:])
+                if match:
+                    out[match.group(1)] = when.replace(tzinfo=None)
+        self._added[history_path] = out
+        return out
+
+    def _era_at_commit(self, vignette_dir, commit):
+        """The era index at `commit`, or None when git does not know it."""
+        key = (commit, vignette_dir)
+        if key not in self._touched:
+            self._touched[key] = _git(
                 self.repo_root,
                 "log",
                 "-1",
@@ -352,18 +372,49 @@ class VignetteRevisions(object):
                 "--",
                 ":(glob){0}/*.py".format(vignette_dir),
             )
-            self._touched[(commit, vignette_dir)] = touched
-        if commit:
-            if touched and touched.strip():
-                index = self._at_commit[vignette_dir].get(touched.strip())
-        if index is None:
-            moment = parse_ts(timestamp)
-            index = 0
-            for n, (when, _) in enumerate(eras):
-                if when <= moment:
-                    index = n
+        touched = (self._touched[key] or "").strip()
+        return self._at_commit[vignette_dir].get(touched) if touched else None
+
+    def of(self, vignette_dir, history_path, timestamp, record):
+        """(revision, label) this record ran; (0, "") when unknown.
+
+        The revision is an era index, or a negative number of its own for a
+        record whose revision cannot be pinned down.
+        """
+        if not self.available:
+            return 0, ""
+        eras = self.eras(vignette_dir)
+        if not eras:
+            return 0, ""
+        repo = record.get("repo") or {}
+        at_commit = (
+            self._era_at_commit(vignette_dir, repo["commit"])
+            if repo.get("commit")
+            else None
+        )
+        if at_commit is not None and repo.get("dirty") is False:
+            return at_commit, self.label(eras, at_commit)
+        moment = parse_ts(timestamp)
+        low = at_commit
+        if low is None:
+            low = max([n for n, (when, _) in enumerate(eras) if when <= moment] or [0])
+        committed = self.added(history_path).get(timestamp, datetime.datetime.now())
+        high = max(
+            [n for n, (when, _) in enumerate(eras) if when <= committed] or [low]
+        )
+        if high <= low:
+            return low, self.label(eras, low)
+        self._uncertain += 1
+        return (
+            -self._uncertain,
+            "uncertain: {0} or later, the vignette changed "
+            "before this run was committed".format(self.label(eras, low)),
+        )
+
+    @staticmethod
+    def label(eras, index):
         when, sha = eras[index]
-        return index, "{0} ({1})".format(sha, when.strftime("%d %b %Y"))
+        return "{0} ({1})".format(sha, when.strftime("%d %b %Y"))
 
 
 def tag_revisions(histories, repo_root=REPO_ROOT):
@@ -377,8 +428,13 @@ def tag_revisions(histories, repo_root=REPO_ROOT):
     for (config, tool), vignettes in histories.items():
         for vignette, rows in vignettes.items():
             vignette_dir = "{0}/{1}".format(dirs[tool], vignette)
+            history = "{0}/Testing/performance_metrics_{1}.json".format(
+                vignette_dir, config
+            )
             for ts, rec in rows:
-                rec["_rev"], rec["_rev_label"] = revisions.of(vignette_dir, ts, rec)
+                rec["_rev"], rec["_rev_label"] = revisions.of(
+                    vignette_dir, history, ts, rec
+                )
     return revisions
 
 
