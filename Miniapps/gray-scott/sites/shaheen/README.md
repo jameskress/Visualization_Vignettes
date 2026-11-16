@@ -230,7 +230,7 @@ after the first one's teardown.
 |---|---|---|---|---|
 | 64 + 4 | 2.2 GB | 5.34 -> 2.97 | 4.26 -> 3.07 | 9.75 -> 6.51 |
 | 256 + 16 | 4.4 GB | 12.4 -> 6.75 | 8.43 -> 5.46 | out of memory, both |
-| 512 + 32 (after with `--reader-smt`) | 2.2 GB | 8.52 -> 3.96 | 3.96 -> 2.81 | 12.4 -> 9.19 |
+| 512 + 32 (after with SMT) | 2.2 GB | 8.52 -> 3.96 | 3.96 -> 2.81 | 12.4 -> 9.19 |
 | 1024 + 64 | 1.1 GB | 6.29 -> 3.25 | 1.96 -> 1.73 | 6.42 -> 4.66 |
 
 Every image matches the "before" run within the spread two "before" runs
@@ -292,9 +292,15 @@ README) next to the timers.
 cores, are as fast as `spread` and 0.1 s faster than unbound. Both hardware
 threads of the same 24 cores (48 threads, `--reader-smt`) save another
 0.5 s on the 64 + 4 node isosurface, 0.1 s on volume and 0.05 s on slices.
-It changes every backend's reader launch (and drops the job-wide
-`--hint=nomultithread`; the simulation's `srun` keeps its own), so it is
-off by default until Catalyst is measured with it.
+Catalyst gains the same (64 + 4 nodes, two runs each, frames
+bit-identical): isosurface 18.78 -> 18.25 s, slices 3.49 -> 3.44 s, volume
+2.65 -> 2.62 s; its reader keeps `OMP_PROC_BIND=false` and gets
+`LP_NUM_THREADS=48`. A node has 192 cores with two hardware threads each,
+and without this the second thread of every reader core sat idle; the
+reader now uses it. So it is on by default (`--no-reader-smt` turns it
+off). It drops the job-wide `--hint=nomultithread` in in transit jobs; the
+simulation's `srun` keeps its own, so the simulation still runs one thread
+per core. Paper 1 jobs keep the setup they ran with.
 
 **Isosurface at 256 + 16 nodes runs out of memory**, before and after:
 each reader holds 4.4 GB per field, and the contour of a surface that fills
