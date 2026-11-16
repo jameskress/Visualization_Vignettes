@@ -422,7 +422,12 @@ records, for every run:
   cumulative energy, CPU temperatures), `/proc` CPU ticks, available memory
   and load, and the Slingshot NIC's sent and received bytes and its NACK
   and retry counters, at 1 Hz, in `telemetry/<job id>/nodes/<host>.csv` (one directory per job, so a
-  resubmitted run never mixes samples with an earlier job's). All of it is
+  resubmitted run never mixes samples with an earlier job's).
+  The sampler step runs with `--network=no_vni --mpi=none`: with Slurm's
+  defaults it was given Slingshot network resources and a PMI wire-up it
+  does not use, and MPI_Init in the run's own step then failed on some
+  nodes (`fi_getinfo() failed ... No data available`). Both 1920 + 128 node
+  sweep runs and one 64 + 4 run were lost that way. All of it is
   readable without privileges. Shaheen's CPU nodes have one NIC each
   (`cxi0`). On 2 nodes, a step using every core ran no slower with the
   sampler beside it (2.725 s per task alone, 2.75 s with it, 2.745 s alone
