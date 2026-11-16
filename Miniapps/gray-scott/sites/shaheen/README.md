@@ -414,6 +414,13 @@ of pixels, nearly all by two levels or less, with no seams. The default
 stays `slab`. The experiment IDs do not include the decomposition, so
 generate slab and brick runs into different `--results-dir`s; the
 generator refuses to regenerate an in transit run with the other one.
+Those brick runs read each shared plane from the writers. On the x and y
+faces that plane is strided in the writer blocks, and as far as we know ADIOS2 sends whole
+blocks for it, which would explain the extra `EndStep` time (to be confirmed with the readonly reader). The reader now takes
+the shared planes from its neighbouring readers instead
+(`--reader-shared-planes exchange`, the default; `read` is the old way, for
+comparison). The same rule applies: settings written before the option
+are `read` runs, so generate into a new `--results-dir`.
 
 **Other engines and transports.** SST over WAN (TCP) needs
 `ControlModule=select`; with `epoll` it aborts at once. SSC uses MPI

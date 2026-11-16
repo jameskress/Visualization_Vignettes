@@ -32,9 +32,12 @@ struct RepartitionInfo
 {
     std::vector<size_t> global_dims;
     std::vector<size_t> local_start;
-    // What was read: the owned points plus, on every piece but the last
-    // along an axis, the neighbour's first plane on that axis, so that
-    // neighbouring pieces share a plane of points and no cell is lost.
+    // The buffer's points: the owned points plus, on every piece but the
+    // last along an axis, the neighbour's first plane on that axis, so that
+    // neighbouring pieces share a plane of points and no cell is lost. The
+    // plane is read from the writers or taken from the neighbouring reader
+    // (BackendOptions::reader_shared_planes); either way it is in place
+    // once AdiosReader::EndStep() returns.
     std::vector<size_t> local_dims;
     // The owned points alone (local_dims without the shared planes).
     std::vector<size_t> owned_dims;
@@ -68,6 +71,16 @@ struct BackendOptions
     // At 262144 writers and 2048 readers a slab spans at least 4096 writers
     // and a brick exactly 128.
     std::string read_decomposition = "slab";
+    // How each piece gets the plane it shares with the next piece along an
+    // axis (RepartitionInfo::shared_high):
+    //   "exchange" -- read only the owned box from the writers, then take
+    //                 the plane from the neighbouring reader over MPI
+    //                 after EndStep;
+    //   "read"     -- read it from the writers with the owned box (the
+    //                 original way). On a brick the x and y planes are
+    //                 strided in the writer blocks, and ADIOS2 then sends
+    //                 the whole block for one plane.
+    std::string reader_shared_planes = "exchange";
     // The simulation's ADIOS2 XML (settings "adios_config"). The reader takes
     // its engine parameters from the <io name="AnalysisInput"> block there,
     // so settings such as ControlModule reach the reader as well as the
@@ -108,6 +121,8 @@ struct BackendOptions
             opts.block_mode = js["block_mode"];
         if (js.contains("read_decomposition"))
             opts.read_decomposition = js["read_decomposition"];
+        if (js.contains("reader_shared_planes"))
+            opts.reader_shared_planes = js["reader_shared_planes"];
         if (js.contains("adios_config"))
             opts.adios_config = js["adios_config"];
         if (js.contains("sst_wait_mode"))

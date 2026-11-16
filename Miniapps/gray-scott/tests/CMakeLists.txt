@@ -131,3 +131,26 @@ if(Python3_Interpreter_FOUND AND _gs_no_pil EQUAL 0)
     message(STATUS "Render check backends: ${_gs_rc_backends}")
   endif()
 endif()
+
+# Reader shared planes (label reader): the in transit reader's buffers hold
+# exactly what the writer wrote, shared planes included, for slab and brick
+# and for both ways of getting the planes (reader_shared_planes). Built with
+# the analysis reader only, so not in CI.
+if(TARGET analysis-reader)
+  add_executable(test_reader_planes reader_planes/test_reader_planes.cpp ${PROJECT_SOURCE_DIR}/analysis/adios_reader.cpp)
+  target_include_directories(test_reader_planes PRIVATE ${PROJECT_SOURCE_DIR})
+  target_link_libraries(test_reader_planes PRIVATE common MPI::MPI_CXX adios2::cxx11_mpi nlohmann_json::nlohmann_json)
+  foreach(decomp slab brick)
+    foreach(planes exchange read)
+      foreach(readers 3 4)
+        math(EXPR _np "4 + ${readers}")
+        set(_name gs_reader_planes_${decomp}_${planes}_r${readers})
+        add_test(NAME ${_name}
+          COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${_np} ${MPIEXEC_PREFLAGS} ${_gs_preflags}
+                  $<TARGET_FILE:test_reader_planes> ${MPIEXEC_POSTFLAGS}
+                  4 ${decomp} ${planes} ${CMAKE_CURRENT_BINARY_DIR}/reader_planes/${_name}.bp)
+        set_tests_properties(${_name} PROPERTIES LABELS reader PROCESSORS ${_np} TIMEOUT 120)
+      endforeach()
+    endforeach()
+  endforeach()
+endif()

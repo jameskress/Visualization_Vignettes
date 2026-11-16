@@ -62,6 +62,12 @@ VOLUME_SAMPLES_PER_CELL = 9.0
 # aligned with the simulation's blocks, so each reader reads whole writer
 # blocks from far fewer writers). --reader-decomposition overrides it.
 READ_DECOMPOSITION = "slab"
+# How each reader piece gets the plane it shares with the next piece:
+# "exchange" (read only the owned box, take the plane from the neighbouring
+# reader over MPI) or "read" (read it from the writers, as before; on a brick
+# ADIOS2 then sends a whole writer block for each strided plane).
+# --reader-shared-planes overrides it.
+READER_SHARED_PLANES = "exchange"
 
 # #72 step 1: SST transport x reader x launch x fan-in, small and short.
 # Fan-in is in tasks (64 simulation and 8 reader ranks per node):
@@ -1380,12 +1386,19 @@ def check_decomposition_unchanged(output_dir):
         if not os.path.exists(path):
             continue
         with open(path) as f:
-            old = json.load(f).get("read_decomposition", "slab")
-        if old != READ_DECOMPOSITION:
-            raise SystemExit(
-                f"{path} is a {old} run; generating {READ_DECOMPOSITION} would put its "
-                f"settings beside that run's results. Use another --results-dir."
-            )
+            settings = json.load(f)
+        # Settings written before an option existed hold its old behaviour:
+        # slab, and shared planes read from the writers.
+        for key, legacy, current in (
+            ("read_decomposition", "slab", READ_DECOMPOSITION),
+            ("reader_shared_planes", "read", READER_SHARED_PLANES),
+        ):
+            old = settings.get(key, legacy)
+            if old != current:
+                raise SystemExit(
+                    f"{path} has {key} {old}; generating {current} would put its "
+                    f"settings beside that run's results. Use another --results-dir."
+                )
 
 
 # Threads for the in transit reader: 8 ranks per staging node, 24 cores each.
@@ -1483,6 +1496,7 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         "adios_span": False,
         "adios_memory_selection": True,
         "read_decomposition": READ_DECOMPOSITION,
+        "reader_shared_planes": READER_SHARED_PLANES,
         "ascent_options": "",
     }
 
@@ -2393,6 +2407,13 @@ if __name__ == "__main__":
         help="How the in transit reader splits the domain: slab (slowest axis) or brick (aligned with writer blocks)",
     )
     parser.add_argument(
+        "--reader-shared-planes",
+        choices=("exchange", "read"),
+        default=READER_SHARED_PLANES,
+        help="How each reader gets the plane it shares with the next: exchange (from the neighbouring reader "
+        "over MPI) or read (from the writers, the old way)",
+    )
+    parser.add_argument(
         "--ascent-timings",
         action="store_true",
         help="Turn on Ascent's per-filter timings (ascent_options.yaml `timings`)",
@@ -2431,6 +2452,7 @@ if __name__ == "__main__":
             )
     VOLUME_SAMPLES_PER_CELL = args.volume_samples_per_cell
     READ_DECOMPOSITION = args.reader_decomposition
+    READER_SHARED_PLANES = args.reader_shared_planes
     ASCENT_TIMINGS = args.ascent_timings
     READER_SMT = args.reader_smt
     generate_scripts(args)

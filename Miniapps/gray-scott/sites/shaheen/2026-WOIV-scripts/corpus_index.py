@@ -152,6 +152,7 @@ def index_run(results_dir, run_id):
     row["steps"] = settings.get("steps")
     row["plotgap"] = settings.get("plotgap")
     row["read_decomposition"] = settings.get("read_decomposition")
+    row["reader_shared_planes"] = settings.get("reader_shared_planes")
     row["adios_memory_selection"] = settings.get("adios_memory_selection")
     meta = _load_json(base + "_metadata.json") or {}
     row["adios2_version"] = (meta.get("backend") or {}).get("version")
