@@ -397,7 +397,16 @@ class VignetteRevisions(object):
         moment = parse_ts(timestamp)
         low = at_commit
         if low is None:
-            low = max([n for n, (when, _) in enumerate(eras) if when <= moment] or [0])
+            before = [n for n, (when, _) in enumerate(eras) if when <= moment]
+            if not before:
+                # Run before the vignette's first commit: git has no
+                # revision for the code it ran.
+                self._uncertain += 1
+                return (
+                    -self._uncertain,
+                    "uncertain: run before the vignette's first commit",
+                )
+            low = max(before)
         committed = self.added(history_path).get(timestamp, datetime.datetime.now())
         high = max(
             [n for n, (when, _) in enumerate(eras) if when <= committed] or [low]
@@ -1409,8 +1418,8 @@ def render_index(histories, states, generated):
 
     body.append(
         "<h2>Which machine is fastest?</h2><p class='note'>Each vignette's latest "
-        "time on every active configuration at the pinned build, on a log scale. "
-        "Colour is the site.</p>"
+        "time on every active configuration at the pinned build, on a log scale, "
+        "from runs of the same vignette code. Colour is the site.</p>"
     )
     for tool in TOOLS:
         body.append(render_dot_plot(tool, histories, states))
@@ -1749,8 +1758,14 @@ def render_dot_plot(tool, histories, states):
                 continue
             rec = latest_at(hist, pin)[1]
             if drift.tool_version(rec) == pin and is_number(rec.get("execution_time")):
-                dots.append((c, float(rec["execution_time"])))
-                table.append((v, c, float(rec["execution_time"])))
+                dots.append((c, float(rec["execution_time"]), rec.get("_rev", 0)))
+        # One revision per vignette: machines that ran different code are
+        # not set side by side. The newest known revision wins; uncertain
+        # ones (negative) never take part.
+        known = [r for _, _, r in dots if r >= 0]
+        rev = max(known) if known else None
+        dots = [(c, t) for c, t, r in dots if r == rev]
+        table.extend((v, c, t) for c, t in dots)
         rows.append((v, dots))
     svg = svg_dot_plot(tool, rows)
     if not svg:

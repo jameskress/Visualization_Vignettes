@@ -753,7 +753,8 @@ configurations, latest passes and failures, drift warnings) and a short
   10%), with a one-line summary of how many pairs moved. A pair whose vignette
   changed between the two versions shows &ne; and is not compared.
 * *Which machine is fastest?* Each vignette's latest time on every active
-  configuration at the pinned version, on a log scale, coloured by site.
+  configuration at the pinned version, on a log scale, coloured by site. Only
+  runs of the vignette's newest known revision are set side by side.
 
 **Only runs of the same vignette revision are compared.** The vignettes
 change too: ex00 to ex06 were rewritten on 17 September 2026 and several
@@ -774,6 +775,10 @@ revisions are drawn faded and left out of the median bars, and drift is
 judged within a revision. Each run's revision is in its table and in
 `records.json` (`vignette_revision`). The build needs the git history; in a
 copy without it every run is compared, and the build says so.
+
+A vignette's latest result (the heatmap, the tables, staleness) is its last
+run of the newest version the configuration has run, so a backfill of older
+builds on today's vignettes, recorded later, does not replace it.
 
 Then the table of active configurations (last run, version, latest results,
 drift count) and the table of retired ones.
