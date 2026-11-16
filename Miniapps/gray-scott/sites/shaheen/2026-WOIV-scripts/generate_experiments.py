@@ -1405,6 +1405,7 @@ def check_decomposition_unchanged(output_dir, exp):
         for key, legacy, current in (
             ("read_decomposition", "slab", decomposition),
             ("reader_shared_planes", "read", planes),
+            ("adios_endstep_barrier", False, ADIOS_ENDSTEP_BARRIER),
         ):
             old = settings.get(key, legacy)
             if old != current:
@@ -1412,6 +1413,18 @@ def check_decomposition_unchanged(output_dir, exp):
                     f"{path} has {key} {old}; generating {current} would put its "
                     f"settings beside that run's results. Use another --results-dir."
                 )
+    # The SST queue policy lives in the run's adios2.xml; files written
+    # before the option count as Block.
+    xml = os.path.join(output_dir, "adios2.xml")
+    if os.path.exists(xml):
+        with open(xml) as f:
+            match = re.search(r'key="QueueFullPolicy" value="([^"]*)"', f.read())
+        old = match.group(1) if match else "Block"
+        if old != QUEUE_FULL_POLICY:
+            raise SystemExit(
+                f"{xml} has QueueFullPolicy {old}; generating {QUEUE_FULL_POLICY} would put it "
+                f"beside that run's results. Use another --results-dir."
+            )
 
 
 # Threads for the in transit reader: 8 ranks per staging node, 24 cores each.
