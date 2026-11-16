@@ -18,6 +18,7 @@ on:
     paths:
       - '**/performance_metrics_*.json'
       - 'Testing/dashboard.py'
+      - 'Testing/retired_configurations.json'
       - 'Testing/drift.py'
       - '.github/workflows/dashboard.yml'
   pull_request:
@@ -25,6 +26,7 @@ on:
     paths:
       - '**/performance_metrics_*.json'
       - 'Testing/dashboard.py'
+      - 'Testing/retired_configurations.json'
       - 'Testing/drift.py'
       - '.github/workflows/dashboard.yml'
   workflow_dispatch:
@@ -84,7 +86,8 @@ jobs:
         run: |
           NEWEST=$(git -C tip log -1 --format=%H master -- \
             ':(glob)**/performance_metrics_*.json' Testing/dashboard.py \
-            Testing/drift.py .github/workflows/dashboard.yml)
+            Testing/retired_configurations.json Testing/drift.py \
+            .github/workflows/dashboard.yml)
           if git -C tip merge-base --is-ancestor "$NEWEST" "$SHA"; then
             echo "newest=true" >> "$GITHUB_OUTPUT"
           else

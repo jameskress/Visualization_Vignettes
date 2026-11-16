@@ -1496,6 +1496,41 @@ found:
 ex11 was skipped on the two Ibex nodes that had no Xvfb (`ibex-cpu`, both
 tools; `ibex-gpu`); the #104 records had landed on one that had it.
 
+### 4b.18 Dashboard v3: the version axis and retired configurations, 16 Nov 2026
+
+The v2 dashboard drew every chart over real dates. Each configuration has
+about six run days in two years (October 2024, a few in 2025, then
+13 to 15 November 2026), so the charts were mostly blank and the summary
+showed only the last two runs. What changed in `Testing/dashboard.py`:
+
+* **The x axis is the tool version.** Each version is a band holding its runs
+  in date order, at least 46 px wide so its label fits, the rest shared out by
+  run count. A bar marks the median of the runs measured like the latest.
+* **Speed by tool version** replaces suite time over dates. A per-version
+  total is comparable only over the same work, and the vignette set grew from
+  ex00 to ex06 in 2024 to ex00 to ex12, so the panels sum each vignette's
+  median over the vignettes every version ran on every active configuration:
+  ex00 to ex06 for ParaView, ex00 to ex05 for VisIt (ibex-cpu's VisIt 3.4.2
+  record has no successful ex06). Failed runs are left out of every time.
+* **What changed in the last upgrade** replaces "time vs median", which
+  mixed versions and needed a key to decode. Today's data: ParaView, 124
+  pairs, median change -5%, 14 slower and 60 faster by more than 10%; VisIt,
+  57 pairs, median -2%, 3 slower and 21 faster. The large Ibex EGL speedups
+  from 6.0.1 compare against a single 6.0.1 run per vignette, hence the
+  caption's "a lead, not a verdict".
+* **Retired configurations.** `Testing/retired_configurations.json` lists
+  hardware that left the suite; `ibex-egl-p6000` (last run 23 Oct 2024,
+  ParaView 5.13.1) is the first. A retired configuration keeps its page,
+  drops out of the summary and is never stale, so the stale tile now counts
+  only configurations that are expected to run.
+* The "tool versions over time" chart is gone (the version axis carries
+  it), and the page text is shorter, full width, with a "How to read this"
+  key in place of a paragraph per chart.
+
+Checked by building the site from master's records and reading every index
+section and two configuration pages (ibex-cpu, the retired ibex-egl-p6000) at
+1300 px in the dark theme, and the index at phone width in the light one.
+
 ## 5. Known issue: ex06 image stability
 
 `ex06_pvLargeData` differs **4.13% of pixels between two consecutive runs** on

@@ -1,0 +1,7 @@
+{
+    "_about": "Configurations whose hardware left the suite. Testing/dashboard.py keeps their history and pages, leaves them out of the summary charts and never reports them stale. Add an entry when a node or GPU type is removed from the runs; delete it if the hardware comes back. See Testing/README.md, The results dashboard.",
+    "ibex-egl-p6000": {
+        "since": "2026-11-16",
+        "reason": "the P6000 nodes were removed from the suite's runs"
+    }
+}

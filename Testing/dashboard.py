@@ -9,24 +9,31 @@
 # a small static site:
 #
 #   index.html        the whole suite at a glance: a status heatmap of
-#                     vignette by configuration (switchable to time against
-#                     that vignette's median), suite time per configuration
-#                     over time, each vignette's time across machines on the
-#                     current build, which tool version each configuration
-#                     ran when, and a table of every configuration with its
-#                     staleness and drift
-#   <config>.html     per vignette: run history, telemetry charts over real
-#                     dates with version changes marked, drift, builds and
+#                     vignette by configuration, each machine's time across
+#                     tool versions, every vignette's change in its machine's
+#                     last upgrade, each vignette's time across machines on
+#                     the current build, and tables of the active and the
+#                     retired configurations
+#   <config>.html     per vignette: run history, telemetry charts with the
+#                     tool version as the x axis, drift, builds and
 #                     baselines, every run
 #   records.json      every record, flattened, for analysis elsewhere
+#
+# Charts put the tool version on the x axis, not the date: a configuration
+# runs on a handful of days a year, and a date axis left most of each chart
+# blank. Dates are in the tooltips and the tables.
+#
+# Testing/retired_configurations.json lists configurations whose hardware
+# left the suite. They keep their pages, but drop out of the summary charts
+# and are never reported stale.
 #
 # .github/workflows/dashboard.yml publishes it to GitHub Pages.
 #
 #   python3 Testing/dashboard.py --out _site
 #
 # Standard library only, so it runs on a bare GitHub runner. Charts are
-# inline SVG with a few lines of script for tooltips and the heatmap switch;
-# without the script every page still reads, minus those two.
+# inline SVG with a few lines of script for tooltips; without the script
+# every page still reads, and every mark keeps an SVG title.
 #
 # What it deliberately leaves out: the host name each record carries
 # (machine_info.node) and executable paths. On the clusters those name
@@ -63,6 +70,8 @@ SITES = ("Workstation", "Ibex", "Shaheen", "Other")
 CURRENT_PINS = {"ParaView": "6.2.1", "VisIt": "3.5.0"}
 # A configuration with no run for this long is marked stale too.
 STALE_DAYS = 30
+# Configurations whose hardware left the suite (see load_retired).
+RETIRED_FILE = os.path.join("Testing", "retired_configurations.json")
 
 # Charted metrics, in display order. Each chart holds one metric (one axis).
 # floor: a chart whose largest value is below it shows noise, not a quantity
@@ -107,16 +116,17 @@ SLOTS_DARK = [
 ]
 SITE_SLOT = {"Workstation": 0, "Ibex": 1, "Shaheen": 2, "Other": 3}
 
-# Diverging steps for "time against the vignette's median": blue faster, red
-# slower, grey about the same. Upper edges of log2(time / median) bins.
-RATIO_BINS = [
-    (-1.0, "r-3", "under half"),
-    (-0.5, "r-2", "0.5 to 0.7x"),
-    (-0.15, "r-1", "0.7 to 0.9x"),
-    (0.15, "r0", "about the median"),
-    (0.5, "r1", "1.1 to 1.4x"),
-    (1.0, "r2", "1.4 to 2x"),
-    (float("inf"), "r3", "over 2x"),
+# Diverging steps for a vignette's median time at its machine's newest
+# version over its median at the version before: blue faster, red slower,
+# grey within about 10%. Upper edges of the ratio, symmetric in log terms.
+CHANGE_BINS = [
+    (0.5, "r-3", "2x faster or more"),
+    (0.8, "r-2", "20 to 50% faster"),
+    (0.91, "r-1", "10 to 20% faster"),
+    (1.1, "r0", "within 10%"),
+    (1.25, "r1", "10 to 25% slower"),
+    (2.0, "r2", "25% to 2x slower"),
+    (float("inf"), "r3", "2x slower or more"),
 ]
 
 
@@ -189,6 +199,39 @@ def load_histories(repo_root=REPO_ROOT):
     return histories
 
 
+def load_retired(repo_root=REPO_ROOT):
+    """{configuration: {"since": date, "reason": text}} from RETIRED_FILE.
+
+    Nodes and GPU types come and go while the vignettes stay. Retiring a
+    configuration keeps its history and its page, takes it out of the
+    summary charts and never reports it stale. Keys starting with "_" are
+    notes. A file that does not parse stops the build: ignoring it would
+    put every retired configuration back on the front page as stale.
+    """
+    path = os.path.join(repo_root, RETIRED_FILE)
+    try:
+        with open(path, "r") as handle:
+            document = json.load(handle)
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        raise SystemExit("cannot read {0}: {1}".format(path, exc))
+    if not isinstance(document, dict):
+        raise SystemExit("{0}: expected an object of configurations".format(path))
+    retired = {}
+    for config, entry in document.items():
+        if config.startswith("_"):
+            continue
+        if not isinstance(entry, dict) or not entry.get("since"):
+            raise SystemExit(
+                '{0}: "{1}" needs an object with "since" (and a "reason")'.format(
+                    path, config
+                )
+            )
+        retired[config] = entry
+    return retired
+
+
 # ---------------------------------------------------------------------------
 # What each record says
 # ---------------------------------------------------------------------------
@@ -257,6 +300,25 @@ def comparable_rows(rows, metric):
     return out
 
 
+def run_ok(record):
+    """False when the vignette's own run failed, whose time means nothing."""
+    verdicts = record.get("verdicts")
+    if isinstance(verdicts, dict):
+        return bool(verdicts.get("run"))
+    return record.get("run_succeeded") is not False
+
+
+def version_times(rows):
+    """{version: [seconds]} over one vignette's successful, timed runs."""
+    out = {}
+    for _, rec in rows:
+        seconds = rec.get("execution_time")
+        if run_ok(rec) and is_number(seconds) and seconds > 0:
+            version = drift.tool_version(rec) or "unknown"
+            out.setdefault(version, []).append(float(seconds))
+    return out
+
+
 def drift_by_record(rows):
     """{timestamp: (drift results, judged)} for one vignette's history.
 
@@ -271,8 +333,12 @@ def drift_by_record(rows):
     return out
 
 
-def config_state(tool, vignettes, now):
-    """Everything the index says about one configuration and tool."""
+def config_state(tool, vignettes, now, retired=None):
+    """Everything the index says about one configuration and tool.
+
+    retired: this configuration's RETIRED_FILE entry, or None. A retired
+    configuration is never stale: no run is expected of it.
+    """
     latest = []
     for vignette in sorted(vignettes, key=vignette_number):
         rows = vignettes[vignette]
@@ -289,10 +355,15 @@ def config_state(tool, vignettes, now):
     drifting = sum(1 for entry in latest if entry[3]) if judged_any else None
     reasons = []
     age = (now - parse_ts(last_ts)).days
-    if age > STALE_DAYS:
+    if not retired and age > STALE_DAYS:
         reasons.append("last run {0} days ago".format(age))
     pin = CURRENT_PINS.get(tool)
-    if pin and last_version and version_key(last_version) < version_key(pin):
+    if (
+        not retired
+        and pin
+        and last_version
+        and version_key(last_version) < version_key(pin)
+    ):
         reasons.append("last ran v{0}; the suite pins v{1}".format(last_version, pin))
     return {
         "latest": latest,
@@ -301,6 +372,15 @@ def config_state(tool, vignettes, now):
         "version": last_version,
         "drifting": drifting,
         "stale": reasons,
+        "retired": retired,
+        "versions": sorted(
+            {
+                drift.tool_version(rec) or "unknown"
+                for rows in vignettes.values()
+                for _, rec in rows
+            },
+            key=version_key,
+        ),
     }
 
 
@@ -409,52 +489,41 @@ def display_unit(unit, values):
     return unit, 1.0
 
 
-def date_ticks(start, end, max_ticks=5):
-    """[(datetime, label)] at month starts between start and end."""
-    months = (end.year - start.year) * 12 + end.month - start.month + 1
-    step = next(
-        s for s in (1, 2, 3, 6, 12, 24, 36, 120) if months / float(s) <= max_ticks
-    )
-    ticks = []
-    year = start.year
-    month = ((start.month - 1) // step) * step + 1 if step <= 12 else 1
-    while True:
-        tick = datetime.datetime(year, month, 1)
-        if tick > end:
-            break
-        if tick >= start:
-            ticks.append(tick)
-        month += step
-        while month > 12:
-            month -= 12
-            year += 1
-    label = "%Y" if step >= 12 else "%b %Y"
-    return [(t, t.strftime(label)) for t in ticks] or [
-        (start, start.strftime("%d %b %Y"))
-    ]
+class VersionAxis(object):
+    """x positions with the tool version as the axis, in version order.
 
+    Each version is a band and its runs sit evenly across it in date order,
+    so a configuration that ran on six days in two years fills its chart
+    instead of leaving it blank between them. keys: [(version, timestamp)].
+    A band is at least MIN_BAND wide so its label fits; the rest of the
+    width goes to the bands in proportion to their runs.
+    """
 
-class TimeAxis(object):
-    """x positions for timestamps across a chart's plot width."""
+    MIN_BAND = 46
+    GAP = 6
 
-    def __init__(self, stamps, left, right):
-        times = [parse_ts(s) for s in stamps]
-        start, end = min(times), max(times)
-        if end - start < datetime.timedelta(days=2):
-            start -= datetime.timedelta(days=1)
-            end += datetime.timedelta(days=1)
-        pad = (end - start) * 0.04
-        self.start, self.end = start - pad, end + pad
-        self.left, self.right = left, right
+    def __init__(self, keys, left, right):
+        self.versions = sorted({v for v, _ in keys}, key=version_key)
+        runs = {v: sorted({ts for vv, ts in keys if vv == v}) for v in self.versions}
+        width = right - left - self.GAP * (len(self.versions) - 1)
+        base = min(self.MIN_BAND, width / float(len(self.versions)))
+        spare = width - base * len(self.versions)
+        total = float(sum(len(r) for r in runs.values()))
+        self.bands = []
+        self._x = {}
+        x = left
+        for version in self.versions:
+            band = base + spare * len(runs[version]) / total
+            self.bands.append((version, x, x + band))
+            for index, ts in enumerate(runs[version]):
+                self._x[(version, ts)] = x + band * (index + 0.5) / len(runs[version])
+            x += band + self.GAP
 
-    def x(self, stamp):
-        moment = stamp if isinstance(stamp, datetime.datetime) else parse_ts(stamp)
-        span = (self.end - self.start).total_seconds()
-        frac = (moment - self.start).total_seconds() / span
-        return self.left + frac * (self.right - self.left)
+    def x(self, version, ts):
+        return self._x[(version, ts)]
 
-    def ticks(self, max_ticks=5):
-        return date_ticks(self.start, self.end, max_ticks)
+    def band(self, version):
+        return next((x0, x1) for v, x0, x1 in self.bands if v == version)
 
 
 def svg_open(width, height, label, cls="chart"):
@@ -481,13 +550,20 @@ def svg_y_grid(ticks, y_max, left, right, top, bottom_y):
     return "".join(out)
 
 
-def svg_x_dates(axis, y, max_ticks=5):
-    return "".join(
-        '<text class="tick" x="{0:.1f}" y="{1}" text-anchor="middle">{2}</text>'.format(
-            axis.x(moment), y, esc(label)
+def svg_version_bands(axis, top, bottom_y, label_y):
+    """Every other version band shaded, each labelled under the axis."""
+    out = []
+    for index, (version, x0, x1) in enumerate(axis.bands):
+        if index % 2 == 0:
+            out.append(
+                '<rect class="band" x="{0:.1f}" y="{1}" width="{2:.1f}" '
+                'height="{3}"/>'.format(x0, top, x1 - x0, bottom_y - top)
+            )
+        out.append(
+            '<text class="blabel" x="{0:.1f}" y="{1}" text-anchor="middle">'
+            "v{2}</text>".format((x0 + x1) / 2.0, label_y, esc(version))
         )
-        for moment, label in axis.ticks(max_ticks)
-    )
+    return "".join(out)
 
 
 def svg_dot(slot, x, y, tip, extra="", r=4):
@@ -522,65 +598,54 @@ def status_legend():
     )
     return (
         '<div class="legend">{0}<span class="key"><span class="cell c-unknown drift">'
-        "</span>drift warning</span></div>"
-        '<p class="note">Pass and fail come from the comparison gates, recorded '
-        "from metrics schema 6. Older records say only whether the vignette ran "
-        "cleanly (ran OK / run failed).</p>".format(keys)
+        "</span>drift warning</span></div>".format(keys)
     )
 
 
 # ---------------------------------------------------------------------------
 # Charts
 # ---------------------------------------------------------------------------
-def svg_metric_chart(title, unit, points, slot_of, drifted, version_marks):
-    """One metric over real dates. points: [(ts, version, value, same)].
+def svg_metric_chart(title, unit, points, slot_of, drifted):
+    """One metric with the tool version as the x axis.
 
-    Runs measured like the latest are solid and joined per version; the
-    rest are faded and unjoined. Each version change is a labelled rule.
+    points: [(ts, version, value, same)]. Each version is a band holding its
+    runs in date order; a bar across the band marks the median of its runs
+    measured like the latest. Runs measured differently are faded.
     """
     width, height = 380, 196
-    left, right, top, bottom = 54, 14, 24, 26
+    left, right, top, bottom = 54, 14, 12, 26
     unit_shown, factor = display_unit(unit, [p[2] for p in points])
     ticks = nice_ticks(max(p[2] for p in points) * factor)
     y_max = ticks[-1]
-    axis = TimeAxis([p[0] for p in points], left, width - right)
+    axis = VersionAxis([(p[1], p[0]) for p in points], left, width - right)
     bottom_y = height - bottom
 
     def sy(value):
         return top + (bottom_y - top) * (1 - value * factor / y_max)
 
-    out = [svg_open(width, height, "{0} per run".format(title))]
+    out = [svg_open(width, height, "{0} per run, by tool version".format(title))]
+    out.append(svg_version_bands(axis, top, bottom_y, height - 8))
     out.append(svg_y_grid(ticks, y_max, left, width - right, top, bottom_y))
-    out.append(svg_x_dates(axis, height - 8))
-    last_label_x = -100
-    for stamp, version in version_marks:
-        if not axis.start <= parse_ts(stamp) <= axis.end:
-            continue  # outside this metric's dates
-        x = axis.x(stamp)
-        out.append(
-            '<line class="vmark" x1="{0:.1f}" x2="{0:.1f}" y1="{1}" y2="{2}"/>'.format(
-                x, top - 4, bottom_y
-            )
-        )
-        if x - last_label_x > 34:  # do not stack labels on top of each other
-            out.append(
-                '<text class="vlabel" x="{0:.1f}" y="{1}">v{2}</text>'.format(
-                    x + 2, top - 8, esc(version)
-                )
-            )
-            last_label_x = x
     by_version = {}
     for ts, version, value, same in points:
         if same:
-            by_version.setdefault(version, []).append((ts, value))
-    for version, series in by_version.items():
-        if len(series) > 1:
-            path = " ".join(
-                "{0}{1:.1f},{2:.1f}".format("M" if n == 0 else "L", axis.x(ts), sy(v))
-                for n, (ts, v) in enumerate(series)
-            )
+            by_version.setdefault(version, []).append(value)
+    for version, values in by_version.items():
+        if len(values) > 1:
+            x0, x1 = axis.band(version)
+            median = statistics.median(values)
             out.append(
-                '<path class="line s{0}" d="{1}"/>'.format(slot_of(version), path)
+                '<line class="med" x1="{0:.1f}" x2="{1:.1f}" y1="{2:.1f}" y2="{2:.1f}" '
+                'data-tip="{3}"><title>{3}</title></line>'.format(
+                    x0 + 3,
+                    x1 - 3,
+                    sy(median),
+                    esc(
+                        "v{0} median of {1} runs: {2:,.3g} {3}".format(
+                            version, len(values), median * factor, unit_shown
+                        )
+                    ),
+                )
             )
     for ts, version, value, same in points:
         note = drifted.get(ts)
@@ -595,72 +660,102 @@ def svg_metric_chart(title, unit, points, slot_of, drifted, version_marks):
         extra = ("" if same else " faded") + (" drift" if note else "")
         out.append(
             svg_dot(
-                slot_of(version), axis.x(ts), sy(value), tip, extra, 6 if note else 4
+                slot_of(version),
+                axis.x(version, ts),
+                sy(value),
+                tip,
+                extra,
+                6 if note else 4,
             )
         )
     out.append("</svg>")
     return "".join(out), unit_shown
 
 
-def suite_runs(vignettes):
-    """[(timestamp, total seconds, vignettes, version)] per suite run.
-
-    Records of one invocation share a run_id; older ones without it are
-    grouped by day. A vignette counts once per run, its last record there,
-    since an older day can hold several attempts. Only runs that covered
-    most of the suite (10 vignettes or more) are kept, so a two-vignette
-    rerun is not read as a fast suite.
-    """
-    groups = {}
-    for vignette, rows in vignettes.items():
-        for ts, rec in rows:
-            key = rec.get("run_id") or "day-" + short_date(ts)
-            if is_number(rec.get("execution_time")):
-                # rows are oldest first, so the last assignment wins
-                groups.setdefault(key, {})[vignette] = (
-                    ts,
-                    float(rec["execution_time"]),
-                    rec,
-                )
-    out = []
-    for per_vignette in groups.values():
-        items = sorted(per_vignette.values(), key=lambda item: item[0])
-        if len(items) < 10:
+def common_vignettes(tool, histories, states):
+    """Vignettes with a timed, successful run at every version on every
+    active configuration of `tool`: the set a per-version total can be
+    compared over."""
+    sets = []
+    for (config, t), vignettes in histories.items():
+        if t != tool or states[(config, t)]["retired"]:
             continue
-        version = drift.tool_version(items[-1][2]) or "unknown"
-        out.append((items[-1][0], sum(v for _, v, _ in items), len(items), version))
-    return sorted(out)
+        per_version = {}
+        for vignette, rows in vignettes.items():
+            for version in version_times(rows):
+                per_version.setdefault(version, set()).add(vignette)
+        sets.extend(per_version.values())
+    if not sets:
+        return []
+    return sorted(set.intersection(*sets), key=vignette_number)
 
 
-def svg_suite_time(label, series, config_slot):
-    """Total suite time per run, in minutes, a line per configuration."""
-    points = [p for _, runs in series for p in runs]
-    width, height = 380, 200
-    left, right, top, bottom = 54, 14, 12, 26
-    ticks = nice_ticks(max(p[1] for p in points) / 60.0)
+def describe_vignettes(names):
+    """ "ex00 to ex06" for a run of numbers, else the numbers listed."""
+    numbers = [vignette_number(n) for n in names]
+    if numbers and numbers == list(range(numbers[0], numbers[-1] + 1)):
+        return "ex{0:02d} to ex{1:02d}".format(numbers[0], numbers[-1])
+    return ", ".join("ex{0:02d}".format(n) for n in numbers)
+
+
+def suite_by_version(vignettes, common):
+    """[(version, minutes, fewest runs, most runs)] for one configuration.
+
+    minutes: the sum over `common` of each vignette's median time at that
+    version. A version missing any of them is left out, so every total
+    covers the same work.
+    """
+    per_version = {}
+    for vignette in common:
+        for version, times in version_times(vignettes.get(vignette, [])).items():
+            per_version.setdefault(version, {})[vignette] = times
+    out = []
+    for version in sorted(per_version, key=version_key):
+        times = per_version[version]
+        if len(times) == len(common):
+            counts = [len(t) for t in times.values()]
+            minutes = sum(statistics.median(t) for t in times.values()) / 60.0
+            out.append((version, minutes, min(counts), max(counts)))
+    return out
+
+
+def svg_suite_panel(config, series, ticks, slot_of):
+    """One configuration's per-version total, on the tool's shared scale."""
+    width, height = 260, 150
+    left, right, top, bottom = 34, 10, 16, 24
     y_max = ticks[-1]
-    axis = TimeAxis([p[0] for p in points], left, width - right)
     bottom_y = height - bottom
+    axis = VersionAxis([(v, v) for v, _, _, _ in series], left, width - right)
 
-    def sy(seconds):
-        return top + (bottom_y - top) * (1 - seconds / 60.0 / y_max)
+    def sy(minutes):
+        return top + (bottom_y - top) * (1 - minutes / y_max)
 
-    out = [svg_open(width, height, label)]
+    out = [svg_open(width, height, "{0}: minutes by tool version".format(config))]
+    out.append(svg_version_bands(axis, top, bottom_y, height - 8))
     out.append(svg_y_grid(ticks, y_max, left, width - right, top, bottom_y))
-    out.append(svg_x_dates(axis, height - 8))
-    for config, runs in series:
-        slot = config_slot[config]
-        if len(runs) > 1:
-            path = " ".join(
-                "{0}{1:.1f},{2:.1f}".format("M" if n == 0 else "L", axis.x(ts), sy(t))
-                for n, (ts, t, _, _) in enumerate(runs)
+    if len(series) > 1:
+        out.append(
+            '<path class="trend" d="{0}"/>'.format(
+                " ".join(
+                    "{0}{1:.1f},{2:.1f}".format(
+                        "M" if n == 0 else "L", axis.x(v, v), sy(minutes)
+                    )
+                    for n, (v, minutes, _, _) in enumerate(series)
+                )
             )
-            out.append('<path class="line s{0}" d="{1}"/>'.format(slot, path))
-        for ts, total, count, version in runs:
-            tip = "{0} | {1} | v{2} | {3:.1f} min over {4} vignettes".format(
-                config, long_date(ts), version, total / 60.0, count
+        )
+    for n, (version, minutes, fewest, most) in enumerate(series):
+        x, y = axis.x(version, version), sy(minutes)
+        runs = str(fewest) if fewest == most else "{0} to {1}".format(fewest, most)
+        tip = "{0} | v{1} | {2:.1f} min (median of {3} runs per vignette)".format(
+            config, version, minutes, runs
+        )
+        out.append(svg_dot(slot_of(version), x, y, tip, r=5))
+        if n in (0, len(series) - 1):  # label the first and the newest only
+            out.append(
+                '<text class="vallabel" x="{0:.1f}" y="{1:.1f}" '
+                'text-anchor="middle">{2:.1f}</text>'.format(x, y - 9, minutes)
             )
-            out.append(svg_dot(slot, axis.x(ts), sy(total), tip))
     out.append("</svg>")
     return "".join(out)
 
@@ -724,60 +819,6 @@ def svg_dot_plot(tool, rows):
     return "".join(out)
 
 
-def svg_version_timeline(tool, rows, slot_of):
-    """Which version each configuration ran over time: one mark per run day.
-
-    rows: [(config, [(ts, version)])].
-    """
-    stamps = [ts for _, runs in rows for ts, _ in runs]
-    row_h = 20
-    left, right, top, bottom = 178, 16, 8, 26
-    width = 660
-    height = top + bottom + row_h * len(rows)
-    axis = TimeAxis(stamps, left, width - right)
-    out = [
-        svg_open(
-            width,
-            height,
-            "{0} version per configuration over time".format(tool),
-            "chart rows",
-        )
-    ]
-    for moment, label in axis.ticks(6):
-        x = axis.x(moment)
-        out.append(
-            '<line class="grid" x1="{0:.1f}" x2="{0:.1f}" y1="{1}" y2="{2}"/>'
-            '<text class="tick" x="{0:.1f}" y="{3}" text-anchor="middle">{4}</text>'.format(
-                x, top, height - bottom, height - 8, esc(label)
-            )
-        )
-    for index, (config, runs) in enumerate(rows):
-        y = top + row_h * index + row_h / 2.0
-        out.append(
-            '<text class="rowlabel" x="{0}" y="{1:.1f}" text-anchor="end">{2}</text>'.format(
-                left - 8, y + 4, esc(config)
-            )
-        )
-        per_day = {}
-        for ts, version in runs:
-            # A second version on the same day sits beside the first.
-            nudge = 6 * per_day.get(short_date(ts), 0)
-            per_day[short_date(ts)] = per_day.get(short_date(ts), 0) + 1
-            tip = "{0} | {1} | v{2}".format(config, long_date(ts), version)
-            out.append(
-                '<rect class="s{0}" x="{1:.1f}" y="{2:.1f}" width="5" height="{3:.1f}" '
-                'rx="1.5" data-tip="{4}"><title>{4}</title></rect>'.format(
-                    slot_of(version),
-                    axis.x(ts) - 2.5 + nudge,
-                    y - row_h * 0.35,
-                    row_h * 0.7,
-                    esc(tip),
-                )
-            )
-    out.append("</svg>")
-    return "".join(out)
-
-
 # ---------------------------------------------------------------------------
 # Page frame
 # ---------------------------------------------------------------------------
@@ -796,8 +837,18 @@ font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
 main{max-width:1240px;margin:0 auto;padding:20px 16px 64px}
 h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:36px 0 6px}
 h3{font-size:15px;margin:0 0 4px}
-p.lede,.note{color:var(--ink2);max-width:80ch;margin:4px 0 8px}
-.note{font-size:13px}
+p.lede{font-size:15px;color:var(--ink2);margin:4px 0 8px}
+.note{color:var(--ink2);font-size:13px;margin:2px 0 8px}
+h3 .unit,h4 .unit{color:var(--muted);font-weight:400;font-size:12px}
+.banner{background:var(--na);border-radius:8px;padding:8px 12px;color:var(--ink2)}
+.howto-box summary{color:var(--ink)}
+.howto{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+gap:6px 24px;margin:8px 0 0;font-size:13px}
+.howto div{display:flex;gap:10px}.howto dt{flex:0 0 96px;font-weight:600;color:var(--ink)}
+.howto dd{margin:0;color:var(--ink2)}
+.multiples{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+gap:10px;margin-top:6px}
+.panel h4{margin:0;font-size:13px;font-weight:600}.panel h4 a{text-decoration:none}
 .muted{color:var(--muted)}
 a{color:var(--ink)}
 .card{background:var(--surface);border:1px solid var(--ring);border-radius:10px;
@@ -830,7 +881,6 @@ padding:10px 12px}
 .grid-charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));
 gap:12px;margin-top:8px}
 .chart-box h4{margin:0;font-size:13px;font-weight:600}
-.chart-box .unit{color:var(--muted);font-weight:400}
 svg.chart{width:100%%;height:auto;display:block}
 svg.chart.rows{max-width:860px}
 svg .grid{stroke:var(--grid);stroke-width:1}
@@ -838,8 +888,11 @@ svg .axis{stroke:var(--axis);stroke-width:1}
 svg .rowline{stroke:var(--grid);stroke-width:1;stroke-dasharray:2 3}
 svg .tick{fill:var(--muted);font-size:10px}
 svg .rowlabel{fill:var(--ink2);font-size:11px}
-svg .vmark{stroke:var(--axis);stroke-width:1;stroke-dasharray:3 3}
-svg .vlabel{fill:var(--ink2);font-size:10px}
+svg .band{fill:var(--na);opacity:.7}
+svg .blabel{fill:var(--ink2);font-size:10px}
+svg .med{stroke:var(--ink2);stroke-width:2;stroke-linecap:round}
+svg .trend{fill:none;stroke:var(--axis);stroke-width:2}
+svg .vallabel{fill:var(--ink2);font-size:10px;font-variant-numeric:tabular-nums}
 svg .line{fill:none;stroke-width:2}
 svg .dot{stroke:var(--surface);stroke-width:2}
 svg .dot.faded{fill-opacity:.25;stroke-opacity:.4}
@@ -873,13 +926,11 @@ font-size:12px}
 .r-3{background:var(--r-3)}.r-2{background:var(--r-2)}.r-1{background:var(--r-1)}
 .r0{background:var(--mid)}.r1{background:var(--r1)}.r2{background:var(--r2)}
 .r3{background:var(--r3)}.cell.none{background:transparent;color:var(--muted)}
-.heat .mode-time{display:none}.heat.time .mode-status{display:none}
-.heat.time .mode-time{display:inline-block}
-.switch{display:inline-flex;border:1px solid var(--axis);border-radius:6px;overflow:hidden;
-margin:4px 0 6px}
-.switch button{font:inherit;font-size:12px;border:0;padding:4px 10px;
-background:var(--surface);color:var(--ink2);cursor:pointer}
-.switch button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.r-3,.r3{color:#fff}.r-2,.r-1,.r0,.r1,.r2{color:var(--ink)}
+table.heat td.chg{min-width:44px}
+table.heat td.chg .cell{width:42px;font-size:11px;font-variant-numeric:tabular-nums}
+table.heat th.from{font-size:10px;font-weight:400;color:var(--muted);text-align:center;
+padding:2px}
 #tip{position:fixed;pointer-events:none;background:var(--surface);color:var(--ink);
 border:1px solid var(--ring);border-radius:6px;padding:4px 8px;font-size:12px;
 box-shadow:0 2px 8px rgba(0,0,0,.15);display:none;z-index:9;max-width:340px}
@@ -906,13 +957,7 @@ t.style.display='block';});
 document.addEventListener('mousemove',function(e){var x=e.clientX+12;
 if(x+t.offsetWidth>innerWidth-8){x=e.clientX-t.offsetWidth-12;}
 t.style.left=x+'px';t.style.top=(e.clientY+12)+'px';});
-document.querySelectorAll('[data-heat]').forEach(function(sw){
-var id=sw.getAttribute('data-heat'),table=document.getElementById(id);
-sw.querySelectorAll('button').forEach(function(b){b.addEventListener('click',function(){
-var time=b.value==='time';table.classList.toggle('time',time);
-sw.querySelectorAll('button').forEach(function(o){o.setAttribute('aria-pressed',o===b);});
-document.getElementById(id+'-legend-status').hidden=time;
-document.getElementById(id+'-legend-time').hidden=!time;});});});})();
+})();
 </script>
 """
 
@@ -945,19 +990,76 @@ def page(title, body, generated):
 # ---------------------------------------------------------------------------
 # Index
 # ---------------------------------------------------------------------------
+HOW_TO_READ = (
+    (
+        "&#10003; &#10007;",
+        "pass / fail: every comparison gate (image, numbers, CSV). "
+        "Recorded from metrics schema 6.",
+    ),
+    ("&#9679; &#9675;", "older runs: they say only whether the vignette finished."),
+    (
+        "x axis",
+        "the tool version, oldest on the left. Runs of one version sit in "
+        "date order inside its band; hover for the date.",
+    ),
+    ("dot, bar", "a dot is one run; a bar across a band is that version's median."),
+    ("colour", "the tool version, the same on every chart and page."),
+    (
+        "faded dot",
+        "measured differently from the latest run (older schema or "
+        "scope): context, not a comparison.",
+    ),
+    ("ring, outline", "a drift warning: the run moved well outside its own history."),
+    (
+        "stale, retired",
+        "stale: no run in {0} days, or not on the pinned build. "
+        "Retired: hardware that left the suite; its history is kept.",
+    ),
+)
+
+
+def how_to_read(open_=True):
+    return (
+        "<details class='card howto-box'{1}><summary><strong>How to read this"
+        "</strong></summary><dl class='howto'>{0}</dl></details>".format(
+            "".join(
+                "<div><dt>{0}</dt><dd>{1}</dd></div>".format(
+                    key, esc(text.format(STALE_DAYS))
+                )
+                for key, text in HOW_TO_READ
+            ),
+            " open" if open_ else "",
+        )
+    )
+
+
+def active_configs(states, configs, tool=None):
+    """Configurations with a non-retired state (for `tool`, or any tool)."""
+    tools = (tool,) if tool else TOOLS
+    return [
+        c
+        for c in configs
+        if any((c, t) in states and not states[(c, t)]["retired"] for t in tools)
+    ]
+
+
 def render_index(histories, states, generated):
     configs = sorted({config for config, _ in histories}, key=site_order)
+    active = active_configs(states, configs)
+    retired = [c for c in configs if c not in active]
     totals = dict.fromkeys(STATUS_ORDER, 0)
     drifting, last = 0, ""
-    for state in states.values():
+    for (config, _), state in states.items():
+        if state["retired"]:
+            continue
         for key, count in state["counts"].items():
             totals[key] += count
         drifting += state["drifting"] or 0
         last = max(last, state["last_ts"])
-    active = [
+    stale = [
         c
-        for c in configs
-        if any((c, t) in states and not states[(c, t)]["stale"] for t in TOOLS)
+        for c in active
+        if any((c, t) in states and states[(c, t)]["stale"] for t in TOOLS)
     ]
     vignette_count = {
         tool: len({v for (c, t), vs in histories.items() if t == tool for v in vs})
@@ -965,29 +1067,26 @@ def render_index(histories, states, generated):
     }
     body = [
         "<h1>Visualization Vignettes results</h1>",
-        "<p class='lede'>The regression suite's committed history: {0} configurations "
-        "on {1} sites, {2} ParaView and {3} VisIt vignettes. Last run {4}. Latest run "
-        "of every vignette everywhere: {5}.</p>".format(
-            len(configs),
-            len({site_of(c) for c in configs}),
+        "<p class='lede'>{0} ParaView and {1} VisIt vignettes on {2} active "
+        "configurations at {3} sites. Last run {4}. Pinned builds: ParaView v{5}, "
+        "VisIt v{6}.</p>".format(
             vignette_count["ParaView"],
             vignette_count["VisIt"],
+            len(active),
+            len({site_of(c) for c in active}),
             esc(long_date(last)) if last else "never",
-            ", ".join(
-                "{0} {1}".format(totals[k], STATUS[k][1])
-                for k in STATUS_ORDER
-                if totals[k]
-            ),
+            CURRENT_PINS["ParaView"],
+            CURRENT_PINS["VisIt"],
         ),
         "<div class='tiles'>",
     ]
     for value, label in (
         (len(active), "active configurations"),
-        (len(configs) - len(active), "stale configurations"),
-        (totals["pass"], "vignettes passing (schema 6)"),
-        (totals["fail"] + totals["run_failed"], "vignettes failing"),
-        (totals["ran_ok"], "ran OK, verdicts not recorded"),
+        (len(stale), "stale configurations"),
+        (totals["pass"], "latest runs passing"),
+        (totals["fail"] + totals["run_failed"], "latest runs failing"),
         (drifting, "drift warnings"),
+        (len(retired), "retired configurations"),
     ):
         body.append(
             "<div class='tile'><div class='v'>{0}</div><div class='k'>{1}</div></div>".format(
@@ -995,107 +1094,68 @@ def render_index(histories, states, generated):
             )
         )
     body.append("</div>")
+    body.append(how_to_read())
 
     body.append(
-        "<h2>Latest result, every vignette on every configuration</h2>"
-        "<p class='note'>Each cell is the latest run of that vignette there. "
-        "<em>Time vs median</em> colours it by execution time against that "
-        "vignette's median over the active configurations on the pinned build "
-        "(ParaView v{0}, VisIt v{1}). Greyed columns are stale.</p>".format(
-            CURRENT_PINS["ParaView"], CURRENT_PINS["VisIt"]
-        )
+        "<h2>Did everything pass?</h2><p class='note'>The latest run of each "
+        "vignette on each configuration. Click a configuration for its history.</p>"
     )
     for tool in TOOLS:
         body.append(render_heatmap(tool, histories, states, configs))
 
     body.append(
-        "<h2>Suite time per configuration</h2><p class='note'>Total execution time "
-        "of each recorded suite run that covered 10 vignettes or more, in minutes. "
-        "One chart per site and tool, one line per configuration.</p>"
+        "<h2>Speed by tool version</h2><p class='note'>Minutes to run the vignettes "
+        "that every version ran, summed from each vignette's median run at that "
+        "version. One panel per machine, the same scale in each; lower is faster. "
+        "The vignettes were revised over the same years, so a step can come from "
+        "the vignette as well as the tool.</p>"
     )
-    body.append(render_suite_time(histories, configs))
+    for tool in TOOLS:
+        body.append(render_suite_versions(tool, histories, states, configs))
 
     body.append(
-        "<h2>Each vignette across machines, current build</h2><p class='note'>Latest "
-        "execution time of every vignette on every active configuration whose latest "
-        "run used the pinned version, on a log scale. Colour is the site.</p>"
+        "<h2>What changed in the last upgrade?</h2><p class='note'>Each vignette's "
+        "median time at its machine's newest version against the version before it "
+        "there. Blue is faster, red slower, grey within 10%. One or two runs per "
+        "version is common, so read single cells as a lead, not a verdict.</p>"
+    )
+    for tool in TOOLS:
+        body.append(render_change_matrix(tool, histories, states, configs))
+
+    body.append(
+        "<h2>Which machine is fastest?</h2><p class='note'>Each vignette's latest "
+        "time on every active configuration at the pinned build, on a log scale. "
+        "Colour is the site.</p>"
     )
     for tool in TOOLS:
         body.append(render_dot_plot(tool, histories, states))
 
     body.append(
-        "<h2>Tool versions over time</h2><p class='note'>One mark per day a "
-        "configuration recorded a run, coloured by the tool version it ran.</p>"
+        "<h2>Configurations</h2><p class='note'>Drift <em>n/a</em>: no vignette "
+        "there has three earlier runs at the same version and measurement yet.</p>"
     )
-    for tool in TOOLS:
-        body.append(render_version_timeline(tool, histories, configs))
-
-    body.append("<h2>Configurations</h2>")
-    body.append(render_config_table(states, configs))
-    body.append(
-        "<p class='note'><strong>Drift</strong> counts vignettes whose latest run "
-        "moved well outside their own history; <em>n/a</em> means none there has "
-        "enough comparable runs yet (three earlier runs at the same version and "
-        "measurement). <strong>Stale</strong>: no run for {0} days, or the last run "
-        "used an older version than the suite pins.</p>".format(STALE_DAYS)
-    )
+    body.append(render_config_table(states, active))
+    if retired:
+        body.append(
+            "<h2>Retired configurations</h2><p class='note'>Hardware that left the "
+            "suite (<code>{0}</code>). Their history and pages stay; they are left "
+            "out of the charts above.</p>".format(
+                esc(RETIRED_FILE.replace(os.sep, "/"))
+            )
+        )
+        body.append(render_retired_table(states, retired))
     return page("Vignette results", "".join(body), generated)
 
 
-def heat_medians(tool, histories, states, cols, vignettes):
-    """Median latest time per vignette over active configs on the pinned build."""
-    medians = {}
-    for v in vignettes:
-        times = []
-        for c in cols:
-            rows = histories[(c, tool)].get(v)
-            if not rows or states[(c, tool)]["stale"]:
-                continue
-            rec = rows[-1][1]
-            seconds = rec.get("execution_time")
-            # Positive times only: a zero would make the median zero, and
-            # every ratio against it undefined.
-            if (
-                drift.tool_version(rec) == CURRENT_PINS[tool]
-                and is_number(seconds)
-                and seconds > 0
-            ):
-                times.append(float(seconds))
-        if times:
-            medians[v] = statistics.median(times)
-    return medians
-
-
-def render_heatmap(tool, histories, states, configs):
-    cols = [c for c in configs if (c, tool) in states]
-    if not cols:
-        return ""
-    vignettes = sorted(
-        {v for c in cols for v in histories[(c, tool)]}, key=vignette_number
-    )
-    medians = heat_medians(tool, histories, states, cols, vignettes)
-    table_id = "heat-" + tool.lower()
-    ratio_keys = "".join(
-        "<span class='key'><span class='cell {0}'></span>{1}</span>".format(
-            cls, esc(text)
-        )
-        for _, cls, text in RATIO_BINS
-    )
-    out = [
-        "<div class='card'><h3>{0}</h3>".format(esc(tool)),
-        "<div class='switch' data-heat='{0}' role='group' aria-label='Colour cells by'>"
-        "<button value='status' aria-pressed='true'>status</button>"
-        "<button value='time' aria-pressed='false'>time vs median</button></div>".format(
-            table_id
-        ),
-        "<div id='{0}-legend-status'>{1}</div>".format(table_id, status_legend()),
-        "<div id='{0}-legend-time' hidden><div class='legend'>{1}<span class='key'>"
-        "<span class='cell none'>&middot;</span>not on the pinned build or no "
-        "median</span></div></div>".format(table_id, ratio_keys),
-        "<div class='scroll tall'><table class='heat' id='{0}'><thead><tr><th></th>".format(
-            table_id
-        ),
+def heat_columns(tool, states, configs):
+    return [
+        c for c in configs if (c, tool) in states and not states[(c, tool)]["retired"]
     ]
+
+
+def heat_head(cols, tool, states, extra_rows=""):
+    """The site row and the rotated configuration row of a vignette table."""
+    out = ["<thead><tr><th></th>"]
     for site in SITES:
         span = sum(1 for c in cols if site_of(c) == site)
         if span:
@@ -1119,7 +1179,23 @@ def render_heatmap(tool, histories, states, configs):
                 esc(c),
             )
         )
-    out.append("</tr></thead><tbody>")
+    out.append("</tr>{0}</thead>".format(extra_rows))
+    return "".join(out)
+
+
+def render_heatmap(tool, histories, states, configs):
+    cols = heat_columns(tool, states, configs)
+    if not cols:
+        return ""
+    vignettes = sorted(
+        {v for c in cols for v in histories[(c, tool)]}, key=vignette_number
+    )
+    out = [
+        "<div class='card'><h3>{0}</h3>{1}".format(esc(tool), status_legend()),
+        "<div class='scroll tall'><table class='heat'>",
+        heat_head(cols, tool, states),
+        "<tbody>",
+    ]
     for v in vignettes:
         out.append("<tr><td class='rowh'>{0}</td>".format(esc(v)))
         for c in cols:
@@ -1135,19 +1211,7 @@ def render_heatmap(tool, histories, states, configs):
             _, ts, rec, drifted, _ = entry
             status, detail = status_of(rec)
             seconds = rec.get("execution_time")
-            ratio_cls, ratio_txt = "none", "not on the pinned build"
-            if (
-                v in medians
-                and drift.tool_version(rec) == CURRENT_PINS[tool]
-                and is_number(seconds)
-                and seconds > 0
-            ):
-                ratio = math.log2(seconds / medians[v])
-                ratio_cls = next(cls for edge, cls, _ in RATIO_BINS if ratio <= edge)
-                ratio_txt = "{0:.2g}x the median of {1:.3g} s".format(
-                    seconds / medians[v], medians[v]
-                )
-            tip = "{0} | {1} | {2} | v{3} | {4}{5} | {6}".format(
+            tip = "{0} | {1} | {2} | v{3} | {4}{5}{6}".format(
                 v,
                 c,
                 long_date(ts),
@@ -1156,19 +1220,15 @@ def render_heatmap(tool, histories, states, configs):
                 " | drift: " + ", ".join(d["label"] for d in drifted)
                 if drifted
                 else "",
-                "{0:.3g} s, {1}".format(seconds, ratio_txt)
-                if is_number(seconds)
-                else "time not recorded",
+                " | {0:.3g} s".format(seconds) if is_number(seconds) else "",
             )
             out.append(
-                "<td class='hm{0}' data-tip='{1}'>"
-                "<span class='mode-status cell c-{2}'>{3}</span>"
-                "<span class='mode-time cell {4}'></span></td>".format(
+                "<td class='hm{0}' data-tip='{1}'><span class='cell c-{2}'>{3}"
+                "</span></td>".format(
                     " drift" if drifted else "",
                     esc(tip),
                     status_class(status),
                     STATUS[status][0],
-                    ratio_cls,
                 )
             )
         out.append("</tr>")
@@ -1176,48 +1236,201 @@ def render_heatmap(tool, histories, states, configs):
     return "".join(out)
 
 
-def render_suite_time(histories, configs):
-    boxes = []
-    for tool in TOOLS:
-        for site in SITES:
-            series = [
-                (c, suite_runs(histories[(c, tool)]))
-                for c in configs
-                if site_of(c) == site and (c, tool) in histories
-            ]
-            series = [(c, runs) for c, runs in series if runs]
-            if not series:
-                continue
-            config_slot = {c: i % len(SLOTS_LIGHT) for i, (c, _) in enumerate(series)}
-            label = "{0} {1} suite time per run".format(site, tool)
-            rows = "".join(
-                "<tr><td>{0}</td><td>{1}</td><td>v{2}</td><td class='num'>{3:.1f}</td>"
-                "<td class='num'>{4}</td></tr>".format(
-                    esc(c), short_date(ts), esc(version), total / 60.0, count
-                )
-                for c, runs in series
-                for ts, total, count, version in runs
-            )
-            boxes.append(
-                "<div class='chart-box card'><h4>{0} &middot; {1} <span class='unit'>"
-                "(min)</span></h4>{2}{3}<details><summary>table</summary>"
-                "<div class='scroll'><table><thead><tr><th>Configuration</th><th>Date</th>"
-                "<th>Version</th><th class='num'>Minutes</th><th class='num'>Vignettes"
-                "</th></tr></thead><tbody>{4}</tbody></table></div></details></div>".format(
-                    esc(site),
+def render_suite_versions(tool, histories, states, configs):
+    common = common_vignettes(tool, histories, states)
+    if not common:
+        return ""
+    slot_of, _ = tool_slot_map(histories, tool)
+    panels = []
+    for c in active_configs(states, configs, tool):
+        if (c, tool) in histories:
+            series = suite_by_version(histories[(c, tool)], common)
+            if series:
+                panels.append((c, series))
+    if not panels:
+        return ""
+    ticks = nice_ticks(max(m for _, s in panels for _, m, _, _ in s))
+    versions = sorted({v for _, s in panels for v, _, _, _ in s}, key=version_key)
+    rows = "".join(
+        "<tr><td>{0}</td><td>v{1}</td><td class='num'>{2:.1f}</td>"
+        "<td class='num'>{3}</td></tr>".format(
+            esc(c),
+            esc(v),
+            minutes,
+            fewest if fewest == most else "{0} to {1}".format(fewest, most),
+        )
+        for c, series in panels
+        for v, minutes, fewest, most in series
+    )
+    return (
+        "<div class='card'><h3>{0} <span class='unit'>minutes for {1} "
+        "({2} vignettes)</span></h3>{3}<div class='multiples'>{4}</div>"
+        "<details><summary>table</summary><div class='scroll tall'><table><thead><tr>"
+        "<th>Configuration</th><th>Version</th><th class='num'>Minutes</th>"
+        "<th class='num'>Runs per vignette</th></tr></thead><tbody>{5}</tbody>"
+        "</table></div></details></div>".format(
+            esc(tool),
+            esc(describe_vignettes(common)),
+            len(common),
+            legend([(slot_of(v), "v" + v) for v in versions]),
+            "".join(
+                "<div class='panel'><h4><a href='{0}#{1}'>{2}</a> <span class='unit'>"
+                "{3}</span></h4>{4}</div>".format(
+                    esc(page_name(c)),
                     esc(tool),
-                    legend([(config_slot[c], c) for c, _ in series]),
-                    svg_suite_time(label, series, config_slot),
-                    rows,
+                    esc(c),
+                    esc(site_of(c)),
+                    svg_suite_panel(c, series, ticks, slot_of),
+                )
+                for c, series in panels
+            ),
+            rows,
+        )
+    )
+
+
+def last_upgrade(vignettes):
+    """(newest version, the version before) a configuration has times for."""
+    versions = sorted(
+        {v for rows in vignettes.values() for v in version_times(rows)},
+        key=version_key,
+    )
+    return (versions[-1], versions[-2]) if len(versions) > 1 else (None, None)
+
+
+def change_bin(ratio):
+    return next((cls, text) for edge, cls, text in CHANGE_BINS if ratio <= edge)
+
+
+def render_change_matrix(tool, histories, states, configs):
+    cols, upgrades = [], {}
+    for c in heat_columns(tool, states, configs):
+        new, old = last_upgrade(histories[(c, tool)])
+        if new:
+            cols.append(c)
+            upgrades[c] = (new, old)
+    if not cols:
+        return ""
+    vignettes = sorted(
+        {v for c in cols for v in histories[(c, tool)]}, key=vignette_number
+    )
+    from_row = "<tr><th class='from'>from</th>{0}</tr>".format(
+        "".join(
+            "<th class='from' title='{0}'>{1}</th>".format(
+                esc("{0}: v{1} to v{2}".format(c, upgrades[c][1], upgrades[c][0])),
+                esc(upgrades[c][1]),
+            )
+            for c in cols
+        )
+    )
+    body, ratios = [], []
+    for v in vignettes:
+        body.append("<tr><td class='rowh'>{0}</td>".format(esc(v)))
+        for c in cols:
+            new, old = upgrades[c]
+            times = version_times(histories[(c, tool)].get(v, []))
+            if new not in times or old not in times:
+                missing = new if new not in times else old
+                body.append(
+                    "<td class='hm chg' data-tip='{0}'><span class='cell none'>&middot;"
+                    "</span></td>".format(
+                        esc(
+                            "{0} | {1} | no successful run at v{2}".format(
+                                v, c, missing
+                            )
+                        )
+                    )
+                )
+                continue
+            before = statistics.median(times[old])
+            after = statistics.median(times[new])
+            ratio = after / before
+            ratios.append(ratio)
+            cls, text = change_bin(ratio)
+            tip = (
+                "{0} | {1} | v{2} {3:.3g} s ({4} runs) to v{5} {6:.3g} s ({7} runs) "
+                "| {8}".format(
+                    v,
+                    c,
+                    old,
+                    before,
+                    len(times[old]),
+                    new,
+                    after,
+                    len(times[new]),
+                    text,
                 )
             )
-    return "<div class='grid-charts'>{0}</div>".format("".join(boxes))
+            body.append(
+                "<td class='hm chg' data-tip='{0}'><span class='cell {1}'>{2:+.0f}%"
+                "</span></td>".format(esc(tip), cls, (ratio - 1) * 100)
+            )
+        body.append("</tr>")
+    if not ratios:
+        return ""
+    slower = sum(1 for r in ratios if r > 1.1)
+    faster = sum(1 for r in ratios if r < 1 / 1.1)
+    summary = (
+        "{0} vignette and machine pairs: median change {1:+.0f}%; {2} slower by "
+        "more than 10%, {3} faster by more than 10%.".format(
+            len(ratios), (statistics.median(ratios) - 1) * 100, slower, faster
+        )
+    )
+    keys = "".join(
+        "<span class='key'><span class='cell {0}'></span>{1}</span>".format(
+            cls, esc(text)
+        )
+        for _, cls, text in CHANGE_BINS
+    )
+    return (
+        "<div class='card'><h3>{0}</h3><p class='note'>{1}</p>"
+        "<div class='legend'>{2}</div><div class='scroll tall'><table class='heat'>"
+        "{3}<tbody>{4}</tbody></table></div></div>".format(
+            esc(tool),
+            esc(summary),
+            keys,
+            heat_head(cols, tool, states, from_row),
+            "".join(body),
+        )
+    )
+
+
+def render_retired_table(states, configs):
+    out = [
+        "<div class='card scroll'><table><thead><tr><th>Configuration</th>"
+        "<th>Tool</th><th>Retired</th><th>Why</th><th>Versions it ran</th>"
+        "<th>Last run</th></tr></thead><tbody>"
+    ]
+    for c in configs:
+        for tool in TOOLS:
+            state = states.get((c, tool))
+            if not state:
+                continue
+            versions = state["versions"]
+            out.append(
+                "<tr><td><a href='{0}#{1}'>{2}</a></td><td>{1}</td><td>{3}</td>"
+                "<td>{4}</td><td>{5}</td><td>{6}</td></tr>".format(
+                    esc(page_name(c)),
+                    esc(tool),
+                    esc(c),
+                    esc(state["retired"].get("since")),
+                    esc(state["retired"].get("reason") or ""),
+                    esc(", ".join("v" + v for v in versions)),
+                    esc(short_date(state["last_ts"])),
+                )
+            )
+    out.append("</tbody></table></div>")
+    return "".join(out)
 
 
 def render_dot_plot(tool, histories, states):
     pin = CURRENT_PINS[tool]
     configs = sorted(
-        (c for (c, t), s in states.items() if t == tool and not s["stale"]),
+        (
+            c
+            for (c, t), s in states.items()
+            if t == tool and not s["stale"] and not s["retired"]
+        ),
         key=site_order,
     )
     vignettes = sorted(
@@ -1272,31 +1485,6 @@ def tool_slot_map(histories, tool):
     )
     mapping = {v: i % len(SLOTS_LIGHT) for i, v in enumerate(versions)}
     return (lambda v, m=mapping: m.get(v, 0)), versions
-
-
-def render_version_timeline(tool, histories, configs):
-    slot_of, versions = tool_slot_map(histories, tool)
-    rows = []
-    for c in configs:
-        if (c, tool) not in histories:
-            continue
-        # One mark per version seen on a day: a day can hold two builds (a
-        # new one and the reference), and both should show.
-        days = {}
-        for vrows in histories[(c, tool)].values():
-            for ts, rec in vrows:
-                key = (short_date(ts), drift.tool_version(rec) or "unknown")
-                days[key] = max(days.get(key, ts), ts)
-        rows.append((c, sorted((ts, version) for (_, version), ts in days.items())))
-    if not rows:
-        return ""
-    return (
-        "<div class='card'><h3>{0}</h3>{1}<div class='scroll'>{2}</div></div>".format(
-            esc(tool),
-            legend([(slot_of(v), "v" + v) for v in versions]),
-            svg_version_timeline(tool, rows, slot_of),
-        )
-    )
 
 
 def render_config_table(states, configs):
@@ -1392,23 +1580,6 @@ def verdict_text(verdicts, key):
     return esc(verdicts.get(key) or "")
 
 
-def version_marks(rows):
-    """[(timestamp, version)] at the first run of each version after the first.
-
-    First appearances only: a configuration that alternates between a new
-    build and an older reference build would otherwise draw a rule at every
-    run.
-    """
-    marks, seen = [], set()
-    for ts, rec in rows:
-        version = drift.tool_version(rec) or "unknown"
-        if version not in seen:
-            if seen:
-                marks.append((ts, version))
-            seen.add(version)
-    return marks
-
-
 def render_vignette_card(tool, vignette, rows, slot_of):
     drifts = drift_by_record(rows)
     out = [
@@ -1436,7 +1607,6 @@ def render_vignette_card(tool, vignette, rows, slot_of):
         "<div class='scroll'><div class='strip'>{0}</div></div>".format("".join(cells))
     )
 
-    marks = version_marks(rows)
     charts, versions_seen, hidden = [], set(), []
     for metric, title, unit, floor in CHARTS:
         series = comparable_rows(rows, metric)
@@ -1456,7 +1626,7 @@ def render_vignette_card(tool, vignette, rows, slot_of):
             for ts, rec, value, same in series
         ]
         versions_seen.update(p[1] for p in points)
-        svg, unit_shown = svg_metric_chart(title, unit, points, slot_of, drifted, marks)
+        svg, unit_shown = svg_metric_chart(title, unit, points, slot_of, drifted)
         charts.append(
             "<div class='chart-box'><h4>{0} <span class='unit'>({1})</span></h4>"
             "{2}</div>".format(esc(title), esc(unit_shown), svg)
@@ -1469,9 +1639,9 @@ def render_vignette_card(tool, vignette, rows, slot_of):
         )
         out.append("<div class='grid-charts'>{0}</div>".format("".join(charts)))
         out.append(
-            "<div class='note'>Faded points were measured differently from the latest "
-            "run (an older metrics schema or another measurement scope), so they are "
-            "context, not a comparison. Dashed rules mark version changes.{0}</div>".format(
+            "<div class='note'>One band per tool version, its runs in date order "
+            "(hover for the date); the bar is the version's median. Faded: measured "
+            "differently from the latest run.{0}</div>".format(
                 " Not charted, every value under 1 unit: {0}.".format(
                     esc(", ".join(hidden))
                 )
@@ -1588,6 +1758,14 @@ def render_tool_section(tool, vignettes, state, slot_of):
 
 
 def render_config(config, tools, states, slot_maps, generated):
+    retired = next(
+        (
+            states[(config, t)]["retired"]
+            for t in tools
+            if states[(config, t)]["retired"]
+        ),
+        None,
+    )
     body = [
         "<p><a href='index.html'>&larr; All configurations</a></p>",
         "<h1>{0}</h1><p class='lede'>Site: {1}. Tools: {2}.</p>".format(
@@ -1597,6 +1775,14 @@ def render_config(config, tools, states, slot_maps, generated):
                 "<a href='#{0}'>{0}</a>".format(esc(t)) for t in TOOLS if t in tools
             ),
         ),
+        "<p class='banner'>Retired {0}{1}. Kept for its history; no runs are "
+        "expected.</p>".format(
+            esc(retired.get("since")),
+            ": " + esc(retired["reason"]) if retired.get("reason") else "",
+        )
+        if retired
+        else "",
+        how_to_read(open_=False),
         status_legend(),
     ]
     for tool in TOOLS:
@@ -1631,7 +1817,11 @@ def build_site(out_dir, repo_root=REPO_ROOT, generated=None, now=None):
     generated = generated or now.strftime("%Y-%m-%d %H:%M")
     os.makedirs(out_dir, exist_ok=True)
 
-    states = {key: config_state(key[1], vs, now) for key, vs in histories.items()}
+    retired = load_retired(repo_root)
+    states = {
+        key: config_state(key[1], vs, now, retired.get(key[0]))
+        for key, vs in histories.items()
+    }
     slot_maps = {tool: tool_slot_map(histories, tool)[0] for tool in TOOLS}
 
     PAGE_NAMES.clear()

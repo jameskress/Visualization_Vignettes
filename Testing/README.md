@@ -731,30 +731,43 @@ node, and one `git log` per vignette.
 
 `Testing/dashboard.py` turns every committed history file into a static site.
 
-The **index** leads with a summary line and tiles (active and stale
-configurations, passes, failures, drift warnings), then:
+Every chart puts the **tool version on the x axis**, oldest on the left. A
+configuration runs on a handful of days a year, so a date axis left most of
+each chart blank; dates are in the tooltips and the tables instead. Within a
+version's band the runs sit in date order, and a bar across the band marks
+their median.
 
-* a heatmap per tool of vignette by configuration, grouped by site, showing
-  each vignette's latest result there, switchable to its execution time
-  against that vignette's median over the active configurations on the
-  pinned build;
-* total suite time per recorded run, one chart per site and tool, a line per
-  configuration (runs that covered 10 vignettes or more, each vignette once);
-* each vignette's latest time on every active configuration at the pinned
-  version, on a log scale, coloured by site;
-* which tool version each configuration ran over time;
-* a table of every configuration with its last run, its version, its latest
-  results and its drift count.
+The **index** leads with a summary line, tiles (active, stale and retired
+configurations, latest passes and failures, drift warnings) and a short
+"How to read this" key, then answers four questions:
+
+* *Did everything pass?* A heatmap per tool of vignette by configuration,
+  grouped by site: the latest result of each vignette there.
+* *Speed by tool version.* One small panel per machine, all on the tool's
+  shared scale: the minutes to run the vignettes that every version ran
+  everywhere (ParaView ex00 to ex06, VisIt ex00 to ex05 today), summed from
+  each vignette's median successful run at that version. The vignettes were
+  revised over the same years, so a step can come from the vignette as well
+  as the tool.
+* *What changed in the last upgrade?* Per vignette and machine, the median
+  time at the machine's newest version over its median at the version before,
+  as a percentage on a diverging scale (blue faster, red slower, grey within
+  10%), with a one-line summary of how many pairs moved.
+* *Which machine is fastest?* Each vignette's latest time on every active
+  configuration at the pinned version, on a log scale, coloured by site.
+
+Then the table of active configurations (last run, version, latest results,
+drift count) and the table of retired ones.
 
 Each **configuration page** has, per vignette, the run history, a chart per
-metric over real dates (a dashed rule at each version's first run; runs
-measured differently from the latest drawn faded; metrics whose every value is
-under 1 MB or 1 J left out as noise), drift, and every run with its build and
-baselines. `records.json` holds every record flattened with its configuration,
-site, tool and vignette, for analysis elsewhere. The host name each record
-carries (`machine_info.node`, a compute node on the clusters) is left out of
-all of it, as are executable paths. Configuration names are the history files'
-names, already public in the repository, so they are shown as they are.
+metric over the version axis (runs measured differently from the latest drawn
+faded; metrics whose every value is under 1 MB or 1 J left out as noise),
+drift, and every run with its build and baselines. `records.json` holds every
+record flattened with its configuration, site, tool and vignette, for analysis
+elsewhere. The host name each record carries (`machine_info.node`, a compute
+node on the clusters) is left out of all of it, as are executable paths.
+Configuration names are the history files' names, already public in the
+repository, so they are shown as they are.
 
 How to read the results:
 
@@ -765,6 +778,17 @@ How to read the results:
 | unknown | the oldest records, which say neither |
 | drift n/a | no vignette there has the three earlier comparable runs the drift rule needs |
 | stale | no run for 30 days, or the last run used an older version than the suite pins (`CURRENT_PINS` in `dashboard.py`; move it with the pinned builds) |
+| retired | listed in `Testing/retired_configurations.json`: never stale, left out of the summary charts, history and page kept |
+
+Nodes and GPU types come and go while the vignettes stay. When one leaves the
+suite, add its configuration to `Testing/retired_configurations.json` with the
+date and a reason; leave its history files in place. Delete the entry if the
+hardware comes back. A malformed file stops the dashboard build rather than
+putting every retired configuration back on the front page as stale.
+
+```json
+"ibex-egl-p6000": {"since": "2026-11-16", "reason": "the P6000 nodes were removed from the suite's runs"}
+```
 
 ```bash
 python3 Testing/dashboard.py --out _site      # standard library only
@@ -773,7 +797,8 @@ python3 -m http.server --directory _site      # look at it
 
 `.github/workflows/dashboard.yml` builds it on a GitHub-hosted runner and
 publishes it to <https://jameskress.github.io/Visualization_Vignettes/dashboard/>
-on every master push that changes a history file or the generator; a pull
+on every master push that changes a history file, the generator or the
+retired list; a pull
 request builds it and attaches the site as an artifact. Pages serves the
 `gh-pages` branch, which also holds the Docker badge at its root; each
 workflow replaces only its own files there.
