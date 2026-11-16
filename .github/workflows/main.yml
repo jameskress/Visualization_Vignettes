@@ -305,6 +305,11 @@ jobs:
         with:
           image: ${{ env.QEMU_IMAGE }}
           platforms: arm64
+          # Replace any emulator already registered on this persistent
+          # runner; without it the old handler stays and the pin is ignored.
+          reset: true
+      - name: Show the registered arm64 emulator
+        run: cat /proc/sys/fs/binfmt_misc/qemu-aarch64 || true
       - uses: docker/setup-buildx-action@v4
         id: buildx
       - name: Cap the builder's CPU
@@ -456,6 +461,11 @@ jobs:
         with:
           image: ${{ matrix.image }}
           platforms: arm64
+          reset: true
+      - name: Show the registered arm64 emulator
+        run: |
+          cat /proc/sys/fs/binfmt_misc/qemu-aarch64 || true
+          docker run --rm --privileged ${{ matrix.image }} --version
       - name: apt-get with libc-bin under arm64 emulation
         run: |
           docker run --rm --platform linux/arm64 ubuntu:22.04 bash -c '
