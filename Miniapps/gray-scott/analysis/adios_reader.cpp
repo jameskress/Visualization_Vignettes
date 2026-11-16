@@ -105,12 +105,23 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
 #if !defined(ADIOS2_VERSION) || ADIOS2_VERSION < 20902
         honoured = false;
 #endif
-        if (const auto marshal = xml_value("MarshalMethod"))
-        {
-            std::string m = *marshal;
+        auto is_bp5 = [](std::string m) {
             std::transform(m.begin(), m.end(), m.begin(),
                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            honoured = honoured && m == "bp5";
+            return m == "bp5";
+        };
+        if (const auto marshal = xml_value("MarshalMethod"))
+            honoured = honoured && is_bp5(*marshal);
+        // SST takes the read path from the writer's marshalling, which the
+        // simulation sets in its <io name="SimulationOutput"> block of the
+        // same XML; SST reads only the exact key (writerADIOS.cpp), and
+        // without it marshals with BP5.
+        if (!m_opts.adios_config.empty())
+        {
+            const auto writer_params = m_adios->DeclareIO("SimulationOutput").Parameters();
+            const auto it = writer_params.find("MarshalMethod");
+            if (it != writer_params.end())
+                honoured = honoured && is_bp5(it->second);
         }
         if (!honoured)
         {
@@ -241,7 +252,7 @@ void AdiosReader::ExchangeSharedPlanes()
         return r;
     };
 
-    std::vector<char> send_buf, recv_buf;
+    std::vector<char> &send_buf = m_send_planes, &recv_buf = m_recv_planes; // kept across steps
     for (size_t d = 0; d < nd; ++d)
     {
         const bool send = owns && m_coords[d] > 0;

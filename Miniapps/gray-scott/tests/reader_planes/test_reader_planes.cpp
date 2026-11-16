@@ -94,6 +94,11 @@ long read_file(MPI_Comm comm, const std::string &file, const std::string &decomp
         reader.ReadRepartition("V", bv, iv);
         reader.EndStep();
         const int s = static_cast<int>(reader.CurrentStep());
+        if (s != steps)
+        {
+            std::fprintf(stderr, "reader %d: step %d where %d was expected\n", rank, s, steps);
+            ++bad;
+        }
         const auto &st = iu.local_start, &n = iu.local_dims;
         // The metadata first, so an empty or truncated buffer cannot pass:
         // both fields agree, the buffers hold local_dims, and local_dims is

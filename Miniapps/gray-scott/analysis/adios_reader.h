@@ -61,6 +61,9 @@ private:
         std::vector<bool> shared_high;
     };
     std::vector<PendingPlanes> m_pending_planes;
+    // The packed planes, kept across steps so they are not reallocated.
+    std::vector<char> m_send_planes;
+    std::vector<char> m_recv_planes;
     // This rank's piece in the reader grid, slowest axis first (set by
     // ReadRepartition).
     std::vector<int> m_parts;
