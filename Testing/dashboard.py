@@ -581,16 +581,42 @@ def drift_by_record(rows):
     return out
 
 
+def newest_version(vignettes):
+    """The highest known tool version any record of this configuration ran."""
+    versions = {
+        drift.tool_version(rec)
+        for rows in vignettes.values()
+        for _, rec in rows
+        if drift.tool_version(rec)
+    }
+    return max(versions, key=version_key) if versions else None
+
+
+def latest_at(rows, version):
+    """The last (ts, record) of `version`, else the last of all.
+
+    An older build run after the current one (a backfill of old versions on
+    today's vignettes) must not become the configuration's latest result.
+    """
+    for ts, rec in reversed(rows):
+        if drift.tool_version(rec) == version:
+            return ts, rec
+    return rows[-1]
+
+
 def config_state(tool, vignettes, now, retired=None):
     """Everything the index says about one configuration and tool.
 
-    retired: this configuration's RETIRED_FILE entry, or None. A retired
-    configuration is never stale: no run is expected of it.
+    The latest result of a vignette is its last run of the newest version
+    the configuration has run, so runs of older builds recorded later do
+    not replace it. retired: this configuration's RETIRED_FILE entry, or
+    None. A retired configuration is never stale: no run is expected of it.
     """
+    newest = newest_version(vignettes)
     latest = []
     for vignette in sorted(vignettes, key=vignette_number):
         rows = vignettes[vignette]
-        ts, record = rows[-1]
+        ts, record = latest_at(rows, newest)
         drifted, judged = drift_by_record(rows).get(ts, ([], False))
         latest.append((vignette, ts, record, drifted, judged))
     counts = dict.fromkeys(STATUS_ORDER, 0)
@@ -1721,7 +1747,7 @@ def render_dot_plot(tool, histories, states):
             hist = histories[(c, tool)].get(v)
             if not hist:
                 continue
-            rec = hist[-1][1]
+            rec = latest_at(hist, pin)[1]
             if drift.tool_version(rec) == pin and is_number(rec.get("execution_time")):
                 dots.append((c, float(rec["execution_time"])))
                 table.append((v, c, float(rec["execution_time"])))
