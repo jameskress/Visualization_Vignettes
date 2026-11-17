@@ -320,6 +320,13 @@ def index_run(results_dir, run_id, fallback_topology=None):
     except OSError:
         pass
     sim_nodes = set((meta.get("host") or {}).get("hostnames") or [])
+    # The node list (telemetry) and the simulation's hostnames (metadata)
+    # must come from the same job: a later run without telemetry leaves the
+    # earlier job's telemetry exports. When both name a job and they differ,
+    # placement is unknown. Records from before slurm_job_id are trusted.
+    meta_job = meta.get("slurm_job_id")
+    if meta_job and row["job_id"] is not None and str(meta_job) != str(row["job_id"]):
+        job_nodes = []
     topo = _topology(base + "_tel_topology.txt") or fallback_topology
     row.update(_placement(job_nodes, sim_nodes, topo))
     n, variants, firmware, max_load = _platform_nodes(base + "_tel_platform_nodes.txt")
