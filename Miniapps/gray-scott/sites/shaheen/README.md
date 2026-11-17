@@ -1,6 +1,15 @@
+# Stack (since 17 Nov 2026)
+
+Builds and runs here use one stack; `config.bash` and `MODULES.sh` point at it:
+
+- ParaView 6.2.1 (Catalyst 2.0) from the `paraview/6.2.1-egl` module. Before 17 Nov the Catalyst numbers came from the 6.0.1 superbuild in `software/paraview-build`, so they are not comparable with later runs.
+- GCC 13.3.1 (`gcc-native/13.2`), the compiler the module was built with, and cray-mpich 8.1.32.
+- ADIOS2 `release_213` at 8d7270164, built with GCC 13 as a minimal transport build: MPI, SST and BP5, with curl, HDF5, OpenSSL and the compressors off. The module bundles its own curl and HDF5, and a second HDF5 with a different soname in the same process is the suspected cause of a crash at exit after `catalyst_finalize`. Build script: `software/build-adios2-r213-8d7270164-gcc13.sh`.
+- Ascent 0.9.6 (Conduit 0.9.9, Viskores, 32-bit IDs), built with GCC 13.
+
 # Running with Catalyst on a workq node: set the OSMesa window first
 
-The Catalyst implementation in `software/paraview-build` is an EGL build. On a
+The Catalyst implementation in `software/paraview-build` (6.0.1, used until 17 Nov 2026) is an EGL build. On a
 `workq` node, which has no GPU, its EGL window creation falls into the system
 Mesa (`libEGL_mesa` / `libgallium`) and segfaults in `_glapi_add_dispatch` at
 the first render, on a handful of ranks, before any image is written (21 Oct
@@ -10,7 +19,7 @@ its own offscreen window and EGL is never touched:
 ```bash
 export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
 # OSPRay (used by the Paper 2 Catalyst scripts) loads its modules from here:
-export LD_LIBRARY_PATH=/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/sw/vis2/shaheen3.2026.11/paraview-build-6.2.1/install/lib:$LD_LIBRARY_PATH
 srun ... ./gray-scott --settings-file=settings.json
 ```
 
