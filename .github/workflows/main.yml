@@ -175,6 +175,9 @@ jobs:
         run: |
           # A cache left by an interrupted run must never be rotated in.
           rm -rf "$C-new"
+          # arm64 builds on GitHub's runner since 17 Nov 2026; drop the
+          # emulated build's caches from this shared runner's /tmp.
+          rm -rf /tmp/.buildx-cache-arm64 /tmp/.buildx-cache-arm64-new
           HAVE_CACHE=false
           [ -f "$C/index.json" ] && HAVE_CACHE=true
           if [ "$EVENT" = "pull_request" ] && [ "$HAVE_CACHE" = true ]; then WRITE=false; else WRITE=true; fi
@@ -316,9 +319,12 @@ jobs:
           IMAGE_LC=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
           echo "publish=$PUBLISH, tag=$IMAGE_LC:$SHORT-arm64"
           { echo "publish=$PUBLISH"; echo "tags=$IMAGE_LC:$SHORT-arm64"; echo "cache=$IMAGE_LC:buildcache-arm64"; } >> "$GITHUB_OUTPUT"
-          # Only publishing runs write the cache, so a manual run on a
-          # branch can never replace master's.
-          if [ "$PUBLISH" = true ]; then
+          # Publishing runs and manual runs write the cache. A manual run
+          # can seed it before a recipe change merges (a cold native build
+          # may not fit the job limit, and buildx exports nothing from a
+          # job that times out); cache entries are keyed by content, so a
+          # branch run cannot corrupt master's builds, only replace the ref.
+          if [ "$PUBLISH" = true ] || [ "$EVENT" = workflow_dispatch ]; then
             echo "cache_to=type=registry,ref=$IMAGE_LC:buildcache-arm64,mode=max" >> "$GITHUB_OUTPUT"
           else
             echo "cache_to=" >> "$GITHUB_OUTPUT"
