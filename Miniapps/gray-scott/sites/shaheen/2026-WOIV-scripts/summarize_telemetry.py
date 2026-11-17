@@ -108,7 +108,9 @@ def expand_nodelist(text):
     """'nid[04513-04515,04597]' -> ['nid04513', 'nid04514', 'nid04515', 'nid04597']."""
     names = []
     for prefix, ranges, single in re.findall(
-        r"([A-Za-z_-]+)\[([^\]]*)\]|([^,\[\]]+)", text or ""
+        # The prefix may hold digits (gpu214-[06,10], x1000c0s1b0n[0-1]).
+        r"([^,\[\]]+)\[([^\]]*)\]|([^,\[\]]+)",
+        text or "",
     ):
         if single:
             names.append(single.strip())

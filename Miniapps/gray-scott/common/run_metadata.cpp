@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -133,17 +134,46 @@ nlohmann::json platform()
     // The NVIDIA driver, when there is one (a driver update is one of the
     // few system changes a cluster gets): the first line of the driver's
     // own version file, no subprocess.
-    p["nvidia_driver"] = first_line("/proc/driver/nvidia/version");
+    {
+        // The version token of "NVRM version: NVIDIA UNIX ... 615.71.09 ...".
+        std::istringstream words(first_line("/proc/driver/nvidia/version"));
+        std::string w, version;
+        while (words >> w)
+            if (!w.empty() && std::isdigit(static_cast<unsigned char>(w[0])) &&
+                w.find('.') != std::string::npos)
+            {
+                version = w;
+                break;
+            }
+        p["nvidia_driver"] = version;
+    }
     // How busy the node was as the run started (1-minute load), and whether
     // the job owns the node: on a shared node another job's load moves the
     // timings and nothing else would show it.
     const std::string loadavg = first_line("/proc/loadavg");
-    p["load_1min"] = loadavg.substr(0, loadavg.find(' '));
+    if (!loadavg.empty())
+        p["load_1min"] = std::strtod(loadavg.c_str(), nullptr);
     if (const char *per_node = std::getenv("SLURM_JOB_CPUS_PER_NODE"))
     {
         // "384(x2)" or "384": the CPUs the job has on each node
         p["slurm_cpus_per_node"] = std::string(per_node);
-        p["job_owns_its_nodes"] = std::atoi(per_node) >= cpu_count();
+        // Slurm may count cores or hardware threads; owning every core is
+        // owning the node either way.
+        int siblings = 1;
+        {
+            std::ifstream in("/sys/devices/system/cpu/cpu0/topology/thread_siblings_list");
+            std::string list;
+            std::getline(in, list);
+            for (char c : list)
+                siblings += (c == ',');
+            const auto dash = list.find('-');
+            if (dash != std::string::npos)
+                siblings = std::atoi(list.c_str() + dash + 1) - std::atoi(list.c_str()) + 1;
+        }
+        const int threads = cpu_count();
+        const int cores = threads / (siblings > 0 ? siblings : 1);
+        const int have = std::atoi(per_node);
+        p["job_owns_its_nodes"] = have >= threads || have >= cores;
     }
     // "263748908 kB" -> 263748908
     const std::string mem = field("/proc/meminfo", "MemTotal");

@@ -1024,8 +1024,10 @@ cd $OUTPUT_DIR
 # job's: the Catalyst timers carry no run record to check.
 for d in reader_timers catalyst_timers; do
     if [ -d $OUTPUT_DIR/$d ]; then
-        mv $OUTPUT_DIR/$d $OUTPUT_DIR/$d.before$SLURM_JOB_ID
-        echo "Set aside an earlier job's $d/ as $d.before$SLURM_JOB_ID"
+        # Unique, so a requeued job (same ID) never moves it inside an
+        # earlier set-aside directory.
+        aside=$OUTPUT_DIR/$d.before$SLURM_JOB_ID.$(date +%s)
+        mv $OUTPUT_DIR/$d $aside && echo "Set aside an earlier job's $d/ as $(basename $aside)"
     fi
 done
 
