@@ -6,10 +6,13 @@ Builds and runs here use one stack; `config.bash` and `MODULES.sh` point at it:
 - GCC 13.3.1 (`gcc-native/13.2`), the compiler the module was built with, and cray-mpich 8.1.32.
 - ADIOS2 `release_213` at 8d7270164, built with GCC 13 as a minimal transport build: MPI, SST and BP5, with curl, HDF5, OpenSSL and the compressors off. The module bundles its own curl and HDF5, and a second HDF5 with a different soname in the same process is the suspected cause of a crash at exit after `catalyst_finalize`. Build script: `software/build-adios2-r213-8d7270164-gcc13.sh`.
 - Ascent 0.9.6 (Conduit 0.9.9, Viskores, 32-bit IDs), built with GCC 13.
+- Darshan is still the GCC 12.3 build in `software/darshan-3.4.7-install`; it is only preloaded for `--telemetry`. A GCC 13 rebuild goes to a new prefix so earlier telemetry keeps its provenance.
+
+Paper 1 Catalyst jobs generated from this tree also use the 6.2.1 module. Reproducing the published Paper 1 runs needs the older trees and the 6.0.1 superbuild.
 
 # Running with Catalyst on a workq node: set the OSMesa window first
 
-The Catalyst implementation in `software/paraview-build` (6.0.1, used until 17 Nov 2026) is an EGL build. On a
+The Catalyst implementation in `software/paraview-build` (6.0.1, used until 17 Nov 2026) is an EGL build. The generator's jobs still set the OSMesa window below with the 6.2.1 module, so the render path matches the earlier runs. On a
 `workq` node, which has no GPU, its EGL window creation falls into the system
 Mesa (`libEGL_mesa` / `libgallium`) and segfaults in `_glapi_add_dispatch` at
 the first render, on a handful of ranks, before any image is written (21 Oct
@@ -55,8 +58,9 @@ env prefix=build enable_mpi=ON enable_openmp=ON \
 ```
 
 # ADIOS2
-ADIOS2 builds following the README instructions. Use 2.12 or newer for in
-transit runs. With 2.11, SST over RDMA on Shaheen III hung or performed
+The current build is the one in Stack above (release_213 at 8d7270164, minimal
+options); do not rebuild with default options, which turn on HDF5 and curl. History:
+use 2.12 or newer for in transit runs. With 2.11, SST over RDMA on Shaheen III hung or performed
 inconsistently, and the WAN, MPI and UCX data planes crashed on Slingshot.
 With 2.12.0, SST over the MPI data plane ran consistently in the Paper 2
 tests. SST over RDMA with 2.12.0 completed a 1,024 + 32 node Catalyst run
