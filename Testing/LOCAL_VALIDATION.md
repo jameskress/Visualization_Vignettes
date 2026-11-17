@@ -1496,6 +1496,61 @@ found:
 ex11 was skipped on the two Ibex nodes that had no Xvfb (`ibex-cpu`, both
 tools; `ibex-gpu`); the #104 records had landed on one that had it.
 
+### 4b.18 Dashboard v3: the version axis and retired configurations, 16 Nov 2026
+
+The v2 dashboard drew every chart over real dates. Each configuration has
+about six run days in two years (October 2024, a few in 2025, then
+13 to 15 November 2026), so the charts were mostly blank and the summary
+showed only the last two runs. What changed in `Testing/dashboard.py`:
+
+* **The x axis is the tool version.** Each version is a band holding its runs
+  in date order, at least 46 px wide so its label fits, the rest shared out by
+  run count. A bar marks the median of the runs measured like the latest.
+* **Only like runs are compared.** The vignettes changed as well as the
+  tools: `d3be2be` (17 Sep 2026) rewrote ex00 to ex06 in both suites, about
+  1,400 changed lines, and `a4fdc7c`, `fdbd943` (ex06, 21 Oct) and `f0d42c7`
+  (ex03, ex05 and ex09, 3 Nov) changed them again. Every ParaView 5.13.1 and
+  VisIt 3.4.1 run before the rewrite, and Shaheen's ParaView 6.0.1 runs,
+  measured older tests. `dashboard.py` now tags each record with the
+  vignette revision it ran and compares only within a revision; comments,
+  docstrings and layout are ignored by comparing syntax trees. A clean
+  record's `repo.commit` proves its revision. Any other record is bounded
+  by when it ran and when its record was committed (`git blame`, on the
+  sites' +03 clock); a vignette change inside that window makes it
+  uncertain, and an uncertain record is never compared. That is 191 of
+  1,172 records today: the October 2024 runs made before the suite's first
+  commit, and a few 2026 runs made the day a script changed. The two dirty
+  schema-6 records are bounded the same way (local CodeRabbit caught both
+  gaps). Tagging the whole history takes about 6 s; the dashboard workflow
+  now checks out full history and rebuilds when a vignette script changes.
+* **Speed by tool version** replaces suite time over dates: per machine, how
+  long each earlier version took against the newest, the geometric mean of
+  per-vignette median ratios over the vignettes both ran at the same
+  revision. Today only 2026 versions qualify; no 5.13.1 or 3.4.1 run is
+  comparable with a current one. Two outliers to look at: Ibex GTX 1080 Ti
+  and RTX 2080 Ti took 4.3x and 5.1x as long on 6.0.1 as on 6.2.1, over nine
+  vignettes each.
+* **What changed in the last upgrade** replaces "time vs median", which
+  mixed versions and needed a key to decode. Today, comparing like with
+  like: ParaView, 93 pairs, median change -6%, 10 slower and 45 faster by
+  more than 10%, 31 not compared because the vignette changed; VisIt, 41
+  pairs, median +2%, 2 slower and 10 faster, 16 not compared. One or two
+  runs per version is common, hence the caption's "a lead, not a verdict".
+* **Retired configurations.** `Testing/retired_configurations.json` lists
+  hardware that left the suite; `ibex-egl-p6000` (last run 23 Oct 2024,
+  ParaView 5.13.1) is the first. A retired configuration keeps its page,
+  drops out of the summary and is never stale, so the stale tile now counts
+  only configurations that are expected to run.
+* The "tool versions over time" chart is gone (the version axis carries
+  it), and the page text is shorter, full width, with a "How to read this"
+  key in place of a paragraph per chart.
+
+Checked by building the site from master's records and reading every index
+section and three configuration pages (ibex-cpu, shaheen3-cpu, the retired
+ibex-egl-p6000) at 1300 px in both themes, and the index at phone width. A
+build from a copy without `.git` falls back to comparing every run and says
+so on stderr.
+
 ## 5. Known issue: ex06 image stability
 
 `ex06_pvLargeData` differs **4.13% of pixels between two consecutive runs** on

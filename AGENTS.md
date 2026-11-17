@@ -318,6 +318,7 @@ phase makes it true; update the line when that changes)
 | `Testing/manage_metrics.py` | inspect and prune the committed history |
 | `Testing/plot_metrics.py` | trend and comparison plots from that history |
 | `Testing/dashboard.py` | the published results dashboard (GitHub Pages) |
+| `Testing/retired_configurations.json` | configurations whose hardware left the suite: add one when a node or GPU type is dropped, never delete its history |
 | `Testing/drift.py` | drift warnings: a run far outside its own history |
 | `data/make_topology_datasets.py` | ex09's four mesh topologies |
 | `data/make_time_series.py` | the XML time series with real times |
