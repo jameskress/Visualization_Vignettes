@@ -18,6 +18,11 @@ MACHINE=${2:-$(hostname)}
 # Three runs of each vignette, so one disturbed run is outvoted and the
 # dashboard has a spread to test a difference against.
 REPEAT=${REPEAT:-3}
+# Checked here, before the old record with this id is removed below: a value
+# test_suite.py rejects would otherwise delete the run and record nothing.
+case "$REPEAT" in
+    '' | *[!0-9]* | 0*) echo "REPEAT must be a positive integer, got '$REPEAT'"; exit 2 ;;
+esac
 : "${PARAVIEW_PATH:?set PARAVIEW_PATH to the ParaView bin directory}"
 : "${VISIT_PATH:?set VISIT_PATH to the VisIt bin directory}"
 PV_VERSION=$("$PARAVIEW_PATH/pvbatch" --version 2>/dev/null | awk '{print $NF}')

@@ -137,6 +137,45 @@ class CollapseRepeats(unittest.TestCase):
         self.assertNotIn("memory_usage_mb", folded)
         self.assertEqual(folded["execution_time"], 10.5)
 
+    def test_cpu_percent_folds_only_within_the_cpu_scope(self):
+        def cpu(seconds, percent, scope, index):
+            rec = record(seconds, "r", (index, 3))
+            rec["cpu_usage_percent"] = percent
+            rec["cpu_measurement_scope"] = scope
+            return rec
+
+        history = {
+            "t1": cpu(10.0, 28.0, "children-rusage", 1),
+            "t2": cpu(10.0, 30.0, "children-rusage", 2),
+            "t3": cpu(10.0, 317.0, "child-tree-sampled", 3),
+        }
+        folded = drift.collapse_repeats(history)["t3"]
+        self.assertEqual(folded["cpu_usage_percent"], 317.0)
+        self.assertEqual(folded["cpu_measurement_scope"], "child-tree-sampled")
+
+    def test_check_history_judges_a_repeated_run_once(self):
+        # Two earlier repeated runs of three near-identical values, then a
+        # third run 6% slower: ordinary noise, below the 25% floor.
+        history = []
+        for day, base in ((1, 100.0), (2, 100.5), (3, 106.0)):
+            for i in (1, 2, 3):
+                history.append(
+                    (
+                        "2026-01-0{0}T00:0{1}".format(day, i),
+                        record(base + i * 0.01, "run{0}".format(day), (i, 3)),
+                    )
+                )
+        verdicts = drift.check_history(history)
+        # Every repeat gets its run's verdict.
+        self.assertEqual(len(verdicts), 9)
+        third = [verdicts["2026-01-03T00:0{0}".format(i)] for i in (1, 2, 3)]
+        self.assertTrue(all(v == third[0] for v in third))
+        # Judged against two earlier runs, not five sibling values: too
+        # little history to judge, rather than a narrow MAD calling it drift.
+        timing = [r for r in third[0] if r["metric"] == "execution_time"][0]
+        self.assertEqual(timing["history_runs"], 2)
+        self.assertEqual(timing["verdict"], "insufficient")
+
 
 if __name__ == "__main__":
     unittest.main()

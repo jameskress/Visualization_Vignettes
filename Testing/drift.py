@@ -177,13 +177,60 @@ def check_history(records):
     `records` is a list of (timestamp, record) for one configuration's
     history file, in any order. Returns {timestamp: [results]} for the
     dashboard, which marks every drifted point, not only the latest.
+
+    The repeats of one --repeat run are judged as one run, by their median
+    (collapse_repeats), and every repeat carries that run's verdict: judged
+    one by one, a repeat's siblings would count as independent history and
+    their narrow spread would call ordinary run-to-run noise drift.
     """
-    ordered = sorted(records, key=lambda item: item[0])
-    verdicts = {}
+    folded = collapse_repeats(dict(records))
+    ordered = sorted(folded.items())
+    run_verdicts = {}
     for index, (timestamp, record) in enumerate(ordered):
         earlier = [other for _, other in ordered[:index]]
-        verdicts[timestamp] = check_record(record, earlier)
+        run_verdicts[timestamp] = check_record(record, earlier)
+    verdicts = {}
+    for timestamp, record in records:
+        verdicts[timestamp] = run_verdicts.get(
+            _folded_timestamp(records, timestamp, record), []
+        )
     return verdicts
+
+
+def _repeat_key(record):
+    """The (run_id, version) a repeat folds under, or None for a single run."""
+    if isinstance(record, dict) and record.get("repeat") and record.get("run_id"):
+        return (record["run_id"], tool_version(record))
+    return None
+
+
+def _folded_timestamp(records, timestamp, record):
+    """The timestamp collapse_repeats files this record's run under."""
+    key = _repeat_key(record)
+    if key is None:
+        return timestamp
+    return max(ts for ts, other in records if _repeat_key(other) == key)
+
+
+def scope_of(metric):
+    """The field naming how `metric` was measured, or None when it has none.
+
+    The METRICS entries, plus the figures recorded beside them under the
+    same measurement: CPU percentages and splits share the CPU scope, the
+    byte and RSS memory figures the memory scope, the I/O call counts the
+    I/O scope, the energy split the energy scope.
+    """
+    if metric in METRICS:
+        return METRICS[metric][4]
+    if metric.startswith("cpu_"):
+        return "cpu_measurement_scope"
+    if metric.startswith("memory_"):
+        return "memory_measurement_scope"
+    if metric.startswith("io_"):
+        return "io_scope"
+    if metric.startswith("energy_"):
+        return "energy_scope"
+    return None
 
 
 def collapse_repeats(history):
@@ -202,8 +249,8 @@ def collapse_repeats(history):
     """
     groups, out = {}, {}
     for timestamp, record in sorted(history.items()):
-        if isinstance(record, dict) and record.get("repeat") and record.get("run_id"):
-            key = (record["run_id"], tool_version(record))
+        key = _repeat_key(record)
+        if key is not None:
             groups.setdefault(key, []).append((timestamp, record))
         else:
             out[timestamp] = record
@@ -227,7 +274,7 @@ def collapse_repeats(history):
         for metric in sorted(numeric):
             # A scoped figure (CPU, memory) is folded only over repeats
             # measured like the last one used, whose scope the record keeps.
-            scope_field = METRICS[metric][4] if metric in METRICS else None
+            scope_field = scope_of(metric)
             usable = [
                 record
                 for _, record in pool
