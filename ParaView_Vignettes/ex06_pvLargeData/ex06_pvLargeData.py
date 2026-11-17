@@ -90,6 +90,17 @@ if os.path.abspath(ctx.output_dir) != _fixed_output:
     ctx.output_dir = _fixed_output
 os.makedirs(ctx.output_dir, exist_ok=True)
 
+# Silo is read through ParaView's VisIt bridge, an optional build component
+# (PARAVIEW_ENABLE_VISITBRIDGE). A build without it has no VisItSiloReader at
+# all, which is a property of that install rather than a regression, so say so
+# and stop instead of dying on a NameError further down.
+if "VisItSiloReader" not in globals():
+    ctx.skip(
+        "this ParaView has no VisItSiloReader: it was built without the VisIt "
+        "bridge (PARAVIEW_ENABLE_VISITBRIDGE), which this vignette needs to "
+        "read Silo"
+    )
+
 # This is the one vignette whose inputs are not in the repository. The cyclone
 # multiblock and the rainfall silo are 5.7 GB extracted, fetched once by
 # data/fetchData.sh, and deliberately not committed. A clone that has not run
