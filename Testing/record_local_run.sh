@@ -21,8 +21,9 @@ REPEAT=${REPEAT:-3}
 # Checked here, before the old record with this id is removed below: a value
 # test_suite.py rejects would otherwise delete the run and record nothing.
 case "$REPEAT" in
-    '' | *[!0-9]* | 0*) echo "REPEAT must be a positive integer, got '$REPEAT'"; exit 2 ;;
+    '' | *[!0-9]*) echo "REPEAT must be a positive integer, got '$REPEAT'"; exit 2 ;;
 esac
+if [ $((10#$REPEAT)) -lt 1 ]; then echo "REPEAT must be a positive integer, got '$REPEAT'"; exit 2; fi
 : "${PARAVIEW_PATH:?set PARAVIEW_PATH to the ParaView bin directory}"
 : "${VISIT_PATH:?set VISIT_PATH to the VisIt bin directory}"
 PV_VERSION=$("$PARAVIEW_PATH/pvbatch" --version 2>/dev/null | awk '{print $NF}')

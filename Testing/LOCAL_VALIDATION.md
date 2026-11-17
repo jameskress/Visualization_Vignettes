@@ -1570,7 +1570,12 @@ record started at load 69 on a node shared with other jobs. Changes:
   the individual values) before either looks. `Testing/test_repeats.py`
   covers the folding, two versions in one run id, and drift judging the
   folded run against earlier runs only; CI runs it with the I/O sampler
-  tests.
+  tests. `drift.check_history`, which the dashboard uses, folds the same way
+  and gives every repeat its run's verdict. A fold keeps a failed repeat
+  out of the median and folds a scoped figure only over repeats measured in
+  the last one's scope; `drift.scope_of` is the one metric-to-scope map
+  (the gate's `MEASUREMENT_SCOPE` and the dashboard read it), so
+  `cpu_usage_percent` is scoped like `cpu_seconds`.
 * **Schema 7 fields:** `load_1m_at_end`, and in `machine_info` the OS
   release, CPU governor and each GPU with its driver (`nvidia-smi`). With
   the kernel release and `build.id` already recorded, a step in a history

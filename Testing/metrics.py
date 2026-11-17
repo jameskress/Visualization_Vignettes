@@ -30,6 +30,9 @@ import os
 import resource
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import drift  # noqa: E402
+
 try:
     import psutil  # pyright: ignore[reportMissingModuleSource]
 except ImportError:  # pragma: no cover - psutil is in the documented venv
@@ -376,9 +379,11 @@ def _tool_versions(frame):
 
 # The field that says how each schema-sensitive metric was measured. Rows
 # with different scopes hold different quantities, even at the same schema.
+# From drift.scope_of, the one metric-to-scope map, so the gate and the
+# repeat fold cannot disagree.
 MEASUREMENT_SCOPE = {
-    "cpu_usage_percent": "cpu_measurement_scope",
-    "memory_usage_mb": "memory_measurement_scope",
+    metric: drift.scope_of(metric)
+    for metric in ("cpu_usage_percent", "memory_usage_mb")
 }
 
 

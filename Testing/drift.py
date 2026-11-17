@@ -189,10 +189,17 @@ def check_history(records):
     for index, (timestamp, record) in enumerate(ordered):
         earlier = [other for _, other in ordered[:index]]
         run_verdicts[timestamp] = check_record(record, earlier)
+    # collapse_repeats files a run under its last repeat's timestamp.
+    run_last = {}
+    for timestamp, record in records:
+        key = _repeat_key(record)
+        if key is not None and timestamp > run_last.get(key, ""):
+            run_last[key] = timestamp
     verdicts = {}
     for timestamp, record in records:
+        key = _repeat_key(record)
         verdicts[timestamp] = run_verdicts.get(
-            _folded_timestamp(records, timestamp, record), []
+            run_last[key] if key is not None else timestamp, []
         )
     return verdicts
 
@@ -204,21 +211,14 @@ def _repeat_key(record):
     return None
 
 
-def _folded_timestamp(records, timestamp, record):
-    """The timestamp collapse_repeats files this record's run under."""
-    key = _repeat_key(record)
-    if key is None:
-        return timestamp
-    return max(ts for ts, other in records if _repeat_key(other) == key)
-
-
 def scope_of(metric):
     """The field naming how `metric` was measured, or None when it has none.
 
     The METRICS entries, plus the figures recorded beside them under the
     same measurement: CPU percentages and splits share the CPU scope, the
     byte and RSS memory figures the memory scope, the I/O call counts the
-    I/O scope, the energy split the energy scope.
+    I/O scope, the energy split the energy scope. The one map: the fold,
+    the performance gate (metrics.py) and the dashboard all use it.
     """
     if metric in METRICS:
         return METRICS[metric][4]
