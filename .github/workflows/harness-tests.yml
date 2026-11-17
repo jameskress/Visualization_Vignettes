@@ -41,4 +41,4 @@ jobs:
       - name: Install psutil
         run: python -m pip install psutil
       - name: Run
-        run: python -m unittest -v Testing/test_io_sampler.py
+        run: python -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py

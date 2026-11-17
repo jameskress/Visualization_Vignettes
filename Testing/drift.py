@@ -186,6 +186,41 @@ def check_history(records):
     return verdicts
 
 
+def collapse_repeats(history):
+    """{timestamp: record} with each repeated run folded into one record.
+
+    `test_suite.py --repeat N` appends N records of one vignette, sharing a
+    run_id and each carrying `repeat`. Judged one by one, each would be
+    compared with its own siblings: the performance gate would compare the
+    last repeat with the one before it, and drift would count this run's
+    repeats as history. Folded, a repeated run is one record under the
+    timestamp of its last repeat, every numeric field the median of its
+    repeats, with `repeat_values` keeping each metric's individual values.
+    Records without `repeat` pass through unchanged.
+    """
+    groups, out = {}, {}
+    for timestamp, record in sorted(history.items()):
+        if isinstance(record, dict) and record.get("repeat") and record.get("run_id"):
+            key = (record["run_id"], tool_version(record))
+            groups.setdefault(key, []).append((timestamp, record))
+        else:
+            out[timestamp] = record
+    for members in groups.values():
+        timestamp, last = members[-1]
+        folded = dict(last)
+        values = {}
+        for metric in last:
+            numbers = [_value(record, metric) for _, record in members]
+            numbers = [n for n in numbers if n is not None]
+            if numbers and _value(last, metric) is not None:
+                folded[metric] = statistics.median(numbers)
+                values[metric] = numbers
+        folded["repeat_values"] = {m: values[m] for m in METRICS if m in values}
+        folded["repeat"] = dict(last["repeat"], folded=len(members))
+        out[timestamp] = folded
+    return dict(sorted(out.items()))
+
+
 def check_latest(history, timestamp=None):
     """Drift warnings for one record of a {timestamp: record} history.
 

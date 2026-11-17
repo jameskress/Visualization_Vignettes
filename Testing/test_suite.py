@@ -413,8 +413,59 @@ def host_hardware():
                         break
         except (OSError, ValueError, IndexError):
             pass
+        info.update(host_environment())
         _HOST_HARDWARE = info
     return dict(_HOST_HARDWARE)
+
+
+def host_environment():
+    """What a system update changes, so a step in the history can be tied to one.
+
+    OS release, the CPU frequency governor, and each GPU with its driver.
+    Read once per invocation; a field that cannot be read is left out
+    rather than guessed. No host names or paths.
+    """
+    env = {}
+    try:
+        with open("/etc/os-release", "r") as handle:
+            for line in handle:
+                if line.startswith("PRETTY_NAME="):
+                    env["os_release"] = line.split("=", 1)[1].strip().strip('"')
+                    break
+    except OSError:
+        pass
+    try:
+        with open(
+            "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", "r"
+        ) as handle:
+            env["cpu_governor"] = handle.read().strip()
+    except OSError:
+        pass
+    smi = shutil.which("nvidia-smi")
+    if smi:
+        try:
+            out = subprocess.run(
+                [
+                    smi,
+                    "--query-gpu=name,driver_version",
+                    "--format=csv,noheader",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            gpus = [
+                {"name": name.strip(), "driver": driver.strip()}
+                for name, _, driver in (
+                    line.rpartition(",") for line in out.stdout.splitlines()
+                )
+                if name.strip()
+            ]
+            if out.returncode == 0 and gpus:
+                env["gpus"] = gpus
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return env
 
 
 def _git(*args):
@@ -1410,6 +1461,10 @@ def create_summary_report(
                     performance_data = json.load(handle)
             except ValueError:
                 performance_data = {}
+            # A --repeat run is judged as one run, by its median: otherwise
+            # the gate compares the last repeat with the one before it and
+            # drift counts this run's own repeats as its history.
+            performance_data = drift.collapse_repeats(performance_data)
 
             if performance_data:
                 formatted_data = [
@@ -1724,6 +1779,8 @@ def run_test(test_dir, dir_name, args):
         record["build"] = build_identity(run_result, args)
         record["baseline"] = baseline_identity(test_dir, comparison_results)
         record["repo"] = repo_before
+        if getattr(args, "repeat", 1) > 1:
+            record["repeat"] = {"index": args.repeat_index, "of": args.repeat}
         log_performance(
             dir_name,
             record,
@@ -1816,6 +1873,19 @@ def build_parser():
         "Defaults to a generated timestamp-plus-suffix id. Pass one "
         "explicitly to group several invocations -- ParaView and VisIt, say "
         "-- into a single logical run for manage_metrics.py --remove-run.",
+    )
+    history_group.add_argument(
+        "--repeat",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Run the selected vignettes N times, in N passes over the whole "
+        "selection, and record every run. One run is easily skewed by "
+        "whatever else the host was doing; with three or more the dashboard "
+        "can compare medians and test whether a difference is real. Every "
+        "pass runs every gate, and the run fails if any pass does. The "
+        "performance gate and drift judge the median of the N runs. "
+        "(default: 1)",
     )
 
     bless_group = parser.add_argument_group("baselines")
@@ -2078,6 +2148,16 @@ def main(argv=None):
             "output images before committing them. ***\n"
         )
 
+    if args.repeat < 1:
+        print("Error: --repeat takes 1 or more.")
+        return 2
+    if args.repeat > 1 and (args.bless or args.submit or args.generate_metrics):
+        print(
+            "Error: --repeat runs the vignettes here N times; it cannot be "
+            "combined with --bless, --submit or --generate-metrics."
+        )
+        return 2
+
     if args.write_metrics:
         if not args.run_id:
             args.run_id = new_run_id()
@@ -2104,13 +2184,20 @@ def main(argv=None):
                 )
                 test_failed = True
 
-    for dir_name in selected:
-        test_dir = os.path.join(test_directory, dir_name)
-        run_test(test_dir, dir_name, args)
-        if args.submit:
-            continue
-        if check_failure(os.path.join(test_dir, "Testing"), args.non_gpu_machine):
-            test_failed = True
+    # Whole passes rather than each vignette N times in a row: a burst of
+    # load from another job then lands on one run of several vignettes, not
+    # on every run of one.
+    for repeat in range(1, args.repeat + 1):
+        args.repeat_index = repeat
+        if args.repeat > 1:
+            print("\n===== pass {0} of {1} =====".format(repeat, args.repeat))
+        for dir_name in selected:
+            test_dir = os.path.join(test_directory, dir_name)
+            run_test(test_dir, dir_name, args)
+            if args.submit:
+                continue
+            if check_failure(os.path.join(test_dir, "Testing"), args.non_gpu_machine):
+                test_failed = True
 
     create_summary_report(
         test_directory,

@@ -44,7 +44,12 @@ except ImportError:  # pragma: no cover - psutil is in the documented venv
 # MIN_COMPARABLE_SCHEMA is the oldest schema whose CPU and memory figures
 # mean what the current one's do. Bump that too when a figure changes
 # meaning; leave it when a schema only adds fields.
-METRICS_SCHEMA = 6
+#
+# 7 adds fields again: `repeat` (this record is one of N runs of the
+# vignette in one invocation, --repeat), `load_1m_at_end`, and the host's OS
+# release, CPU governor and GPUs with their driver in machine_info. A figure
+# means what it did at 6.
+METRICS_SCHEMA = 7
 MIN_COMPARABLE_SCHEMA = 5
 
 
@@ -332,7 +337,12 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
         if run_result.get("duration_s") is not None:
             metrics["subprocess_time"] = run_result["duration_s"]
         # Context for reading the numbers, not measurements of the run.
-        for key in ("load_1m_at_start", "opengl_window", "job_owns_its_nodes"):
+        for key in (
+            "load_1m_at_start",
+            "load_1m_at_end",
+            "opengl_window",
+            "job_owns_its_nodes",
+        ):
             if run_result.get(key) is not None:
                 metrics[key] = run_result[key]
 

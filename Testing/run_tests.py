@@ -693,6 +693,13 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
 
     ended = time.time()
     duration = ended - started
+    # And how busy it was by the end: the 1-minute average then covers most
+    # of a short vignette's run (its own processes included), so a start and
+    # end both far above the vignette's own ranks say the host was shared.
+    try:
+        load_at_end = round(os.getloadavg()[0], 2)
+    except (AttributeError, OSError):
+        load_at_end = None
     pm_after = read_pm_counters() if pm_before else None
 
     payload = {
@@ -707,6 +714,8 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     }
     if load_at_start is not None:
         payload["load_1m_at_start"] = load_at_start
+    if load_at_end is not None:
+        payload["load_1m_at_end"] = load_at_end
     if env.get("VTK_DEFAULT_OPENGL_WINDOW"):
         payload["opengl_window"] = env["VTK_DEFAULT_OPENGL_WINDOW"]
     energy = pm_energy(pm_before, pm_after)

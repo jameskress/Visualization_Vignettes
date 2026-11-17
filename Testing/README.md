@@ -168,6 +168,7 @@ python test_suite.py <base_directory> --test_type <type> --machine_name <name> .
 * **`--paraview_version` / `--visit_version`**: The version number of the software being tested. This is saved as metadata in the JSON logs.
 * **`--non_gpu_machine`**: A flag that tells the test script to enforce a CPU-only execution path. This is required for CPU-only ParaView modules (`-mesa`) to prevent them from trying to find a GPU.
 * **`--no-metrics`** (alias `--ephemeral`): Run and compare exactly as usual, but append nothing to the committed performance history. See [The performance history](#the-performance-history).
+* **`--repeat N`**: Run the selected vignettes N times, in N passes over the whole selection, and record every run (each record carries `repeat: {index, of}`). One run is easily skewed by whatever else the host was doing; three or more outvote a disturbed run and give the dashboard a spread to test a difference against. Every pass runs every gate and the run fails if any pass does. The performance gate and drift judge the median of the N runs against earlier runs, never one repeat against another. `record_local_run.sh` uses 3 (`REPEAT=`). Cannot be combined with `--bless`, `--submit` or `--generate-metrics`.
 * **`--run-id ID`**: Tag every record this invocation writes. Defaults to a generated id; pass one explicitly to group a ParaView run and a VisIt run into a single logical run.
 
 ---
@@ -702,10 +703,10 @@ VisIt 3.4.1 and 3.4.2 together since 2024 and how the ParaView files carry
 5.13.1 alongside 6.x. Splitting them by file name hides exactly the
 comparison the table above exists to produce.
 
-### What a record holds (metrics schema 6)
+### What a record holds (metrics schema 7)
 
-Schema 6 added fields and changed the meaning of none, so its CPU and memory
-compare with schema 5's. Every field below is optional: a record carries it
+Schemas 6 and 7 added fields and changed the meaning of none, so their CPU
+and memory compare with schema 5's. Every field below is optional: a record carries it
 only when it could be measured, and never fills a gap from another run.
 
 | Field | What it is |
@@ -718,14 +719,16 @@ only when it could be measured, and never fills a gap from another run.
 | `io_rchar_mb`, `io_wchar_mb` | Every read and write call, cached or not (`rchar`, `wchar`). |
 | `peak_processes`, `peak_threads` | The most processes and threads the tree had at once. |
 | `energy_joules` | Energy the run used, recorded only when the Slurm job owned every CPU of every node it held, because both sources count whole nodes. `energy_scope` says which: `slurm-steps-whole-nodes` (sum of `ConsumedEnergyRaw` over the run's steps, for srun runs) or `node-pm-counters` (`/sys/cray/pm_counters/energy` before and after, for runs on the harness's node, with `energy_cpu_joules` and `energy_memory_joules` beside it). Never recorded on Shaheen's shared or ppn partitions, nor on the workstation. |
-| `load_1m_at_start` | The host's one-minute load average when the vignette started. Context, not a measurement of the run: on the shared workstation it is the first thing to look at when a time swings. |
+| `load_1m_at_start`, `load_1m_at_end` | The host's one-minute load average when the vignette started and when it ended (the end figure, schema 7, includes the vignette's own processes). Context, not a measurement of the run: a start and end both well above the vignette's own rank count say the host was shared, and that is the first thing to look at when a time swings. |
+| `repeat` | `{index, of}` when the run was one of N (`--repeat`, schema 7). The gate and drift fold a repeated run into one by its median (`drift.collapse_repeats`). |
 | `job_owns_its_nodes` | Whether the Slurm job held every CPU of its nodes (`SLURM_JOB_CPUS_PER_NODE` against the node's CPU count). False outside Slurm. |
 | `opengl_window` | `VTK_DEFAULT_OPENGL_WINDOW` as launched (ParaView). |
 | `machine_info.cpu_model`, `.logical_cpus`, `.memory_total_gb` | The host's hardware. |
+| `machine_info.os_release`, `.cpu_governor`, `.gpus` | What a system update changes (schema 7): the OS release (`PRETTY_NAME`), the CPU frequency governor, and each visible GPU's name and driver from `nvidia-smi`. Read once per invocation; left out when it cannot be read. With the kernel `release` and `build.id`, a step in a history can be tied to a system change. |
 
 All of it is read in the passes the harness already made: a few extra `/proc`
 reads per 0.25 s sample, one more `sacct` field, two file reads on a Cray
-node, and one `git log` per vignette.
+node, one `git log` per vignette, and one `nvidia-smi` query per invocation.
 
 ## The results dashboard
 

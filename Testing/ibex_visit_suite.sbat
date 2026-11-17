@@ -10,14 +10,14 @@
 #SBATCH --output=vv-visit-suite.%j.out
 # VisIt regression suite on an Ibex node as a batch job (RUNBOOK.md section 5).
 #   cd /ibex/scratch/$USER/<clone>/Testing && sbatch ibex_visit_suite.sbat
-#   TESTS="5 6" sbatch ...   EXTRA="--run-id ibex-cpu-2026-10" sbatch ...   RANKS=8 (default)
+#   TESTS="5 6" sbatch ...   EXTRA="--run-id ibex-cpu-2026-10 --repeat 3" sbatch ...   RANKS=8 (default)
 # GPU: VARIANT=gpu records --machine_name ibex-gpu at the default image tolerance and passes
 # --hw-accel to the vignettes, so ex08 demands a hardware offscreen context (the others
 # ignore the flag). Request the GPU on the command line, never --partition, and keep
 # ntasks x cpus-per-task within the GPU's CPU limit (16 on an A100). Use 8 ranks: ex06's
 # baseline is blessed at 8 and it disables its own image gate at any other count.
 #   sbatch --gres=gpu:1 --constraint=a100 --ntasks=8 --cpus-per-task=2 --mem=90G \
-#     --export=ALL,VARIANT=gpu,EXTRA="--run-id ibex-gpu-$(date +%F)" ibex_visit_suite.sbat
+#     --export=ALL,VARIANT=gpu,EXTRA="--run-id ibex-gpu-$(date +%F) --repeat 3" ibex_visit_suite.sbat
 # The clone needs data/topologies and data/varying_series_xml, which pvbatch builds: run the
 # ParaView suite in it first, or copy them from a clone that did (RUNBOOK section 5).
 # shellcheck disable=SC1091  # sourced files are site paths that exist only at run time

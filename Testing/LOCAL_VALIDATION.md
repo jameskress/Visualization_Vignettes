@@ -1551,6 +1551,40 @@ ibex-egl-p6000) at 1300 px in both themes, and the index at phone width. A
 build from a copy without `.git` falls back to comparing every run and says
 so on stderr.
 
+### 4b.19 Repeated runs and the host environment (schema 7), 17 Nov 2026
+
+One recorded run per vignette is easily skewed by whatever else the host is
+doing, and nothing in the record says so: the 15 Nov `ibex-egl-a100` ex02
+record started at load 69 on a node shared with other jobs. Changes:
+
+* **`--repeat N`** runs the selection N times in whole passes (a burst of
+  load lands on one run of several vignettes, not every run of one) and
+  records each run with `repeat: {index, of}`. Every pass runs every gate.
+  `record_local_run.sh` defaults to 3; the RUNBOOK and batch script recipes
+  pass `--repeat 3` for recorded runs.
+* **The gate and drift judge a repeated run by its median.** Unchanged, the
+  performance gate would have compared repeat 3 with repeat 2 and drift
+  would have counted a run's own repeats as its history.
+  `drift.collapse_repeats` folds the repeats of one run id and tool version
+  into one record (every numeric field the median, `repeat_values` keeping
+  the individual values) before either looks. `Testing/test_repeats.py`
+  covers the folding, two versions in one run id, and drift judging the
+  folded run against earlier runs only; CI runs it with the I/O sampler
+  tests.
+* **Schema 7 fields:** `load_1m_at_end`, and in `machine_info` the OS
+  release, CPU governor and each GPU with its driver (`nvidia-smi`). With
+  the kernel release and `build.id` already recorded, a step in a history
+  can be tied to a system change; recording before and after each cluster
+  maintenance is now in the RUNBOOK. Gray-Scott's provenance work (#124)
+  covers the miniapp only.
+
+Checked on the workstation: ParaView ex00 and ex01 with `--repeat 3` wrote
+three schema-7 records each (load 0.5 to 1.0 at start and end; Ubuntu
+22.04.5, `schedutil`, two RTX A5000 on driver 615.71.09), and the gate
+reported nothing to compare (one folded run). A second invocation with
+`--repeat 2` compared the two runs' medians, 3.480 s against 3.461 s. The
+test records were deleted.
+
 ## 5. Known issue: ex06 image stability
 
 `ex06_pvLargeData` differs **4.13% of pixels between two consecutive runs** on
