@@ -1129,6 +1129,14 @@ if [ -n "${{RUN_JOB_ID:-}}" ]; then
         OWN_EXPORTS=0
         rm -f "{results_dir}/{id}_summary.json" "{results_dir}/{id}_writer.csv" \\
             "{results_dir}/{id}_reader.csv" "{results_dir}/{id}_catalyst.csv"
+        # The earlier job's archives are set aside (kept, under its job ID),
+        # so no later reduction of this job can restore them as its own.
+        for d in perf reader_timers catalyst_timers; do
+            if [ -f $OUTPUT_DIR/$d.tar.gz ]; then
+                mv $OUTPUT_DIR/$d.tar.gz $OUTPUT_DIR/$d.job${{OWNER:-unknown}}.tar.gz
+                echo "$d.tar.gz is job ${{OWNER:-unknown}}'s: kept as $d.job${{OWNER:-unknown}}.tar.gz"
+            fi
+        done
     fi
     echo "$RUN_JOB_ID" > "{results_dir}/{id}_reduced_job.txt"
 fi
