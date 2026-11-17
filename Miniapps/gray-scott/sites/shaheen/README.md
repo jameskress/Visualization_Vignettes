@@ -4,7 +4,7 @@ Builds and runs here use one stack; `config.bash` and `MODULES.sh` point at it:
 
 - ParaView 6.2.1 (Catalyst 2.0) from the `paraview/6.2.1-egl` module. Before 17 Nov the Catalyst numbers came from the 6.0.1 superbuild in `software/paraview-build`, so they are not comparable with later runs.
 - GCC 13.3.1 (`gcc-native/13.2`), the compiler the module was built with, and cray-mpich 8.1.32.
-- ADIOS2 `release_213` at 8d7270164, built with GCC 13 as a minimal transport build: MPI, SST and BP5, with curl, HDF5, OpenSSL and the compressors off. The module bundles its own curl and HDF5, and a second HDF5 with a different soname in the same process is the suspected cause of a crash at exit after `catalyst_finalize`. Build script: `software/build-adios2-r213-8d7270164-gcc13.sh`.
+- ADIOS2 `release_213` at 8d7270164, built with GCC 13 as a minimal transport build: MPI, SST and BP5, with curl, HDF5, OpenSSL and the compressors off. The module bundles its own curl (built without SSL) and HDF5. An ADIOS2 built against the system curl and OpenSSL shares the `libcurl.so.4` soname with the module's copy and binds to it at run time; that is the suspected cause of a crash at exit after `catalyst_finalize` (under test). Build script: `software/build-adios2-r213-8d7270164-gcc13.sh`.
 - Ascent 0.9.6 (Conduit 0.9.9, Viskores, 32-bit IDs), built with GCC 13.
 - Darshan is still the GCC 12.3 build in `software/darshan-3.4.7-install`; it is only preloaded for `--telemetry`. A GCC 13 rebuild goes to a new prefix so earlier telemetry keeps its provenance.
 
