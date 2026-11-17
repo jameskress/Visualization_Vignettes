@@ -1133,7 +1133,13 @@ if [ -n "${{RUN_JOB_ID:-}}" ]; then
         # so no later reduction of this job can restore them as its own.
         for d in perf reader_timers catalyst_timers; do
             if [ -f $OUTPUT_DIR/$d.tar.gz ]; then
-                mv $OUTPUT_DIR/$d.tar.gz $OUTPUT_DIR/$d.job${{OWNER:-unknown}}.tar.gz
+                # Stop before the owner marker below moves to this job if the
+                # archive cannot be set aside: a retry then tries again
+                # instead of taking the earlier job's archive as this job's.
+                if ! mv $OUTPUT_DIR/$d.tar.gz $OUTPUT_DIR/$d.job${{OWNER:-unknown}}.tar.gz; then
+                    echo "Could not set $d.tar.gz (job ${{OWNER:-unknown}}) aside; not reducing."
+                    exit 1
+                fi
                 echo "$d.tar.gz is job ${{OWNER:-unknown}}'s: kept as $d.job${{OWNER:-unknown}}.tar.gz"
             fi
         done
