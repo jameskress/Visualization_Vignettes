@@ -104,10 +104,9 @@ nlohmann::json platform()
     struct utsname u;
     if (uname(&u) == 0)
         p["kernel"] = std::string(u.release) + " " + u.version;
-    std::string os = field("/etc/os-release", "PRETTY_NAME");
-    if (os.empty())
+    // os-release is key=value (field() reads key: value files)
+    std::string os;
     {
-        // os-release is key=value, not key: value
         std::ifstream in("/etc/os-release");
         std::string line;
         while (std::getline(in, line))
@@ -131,6 +130,21 @@ nlohmann::json platform()
             numa++;
     }
     p["numa_nodes"] = numa;
+    // The NVIDIA driver, when there is one (a driver update is one of the
+    // few system changes a cluster gets): the first line of the driver's
+    // own version file, no subprocess.
+    p["nvidia_driver"] = first_line("/proc/driver/nvidia/version");
+    // How busy the node was as the run started (1-minute load), and whether
+    // the job owns the node: on a shared node another job's load moves the
+    // timings and nothing else would show it.
+    const std::string loadavg = first_line("/proc/loadavg");
+    p["load_1min"] = loadavg.substr(0, loadavg.find(' '));
+    if (const char *per_node = std::getenv("SLURM_JOB_CPUS_PER_NODE"))
+    {
+        // "384(x2)" or "384": the CPUs the job has on each node
+        p["slurm_cpus_per_node"] = std::string(per_node);
+        p["job_owns_its_nodes"] = std::atoi(per_node) >= cpu_count();
+    }
     // "263748908 kB" -> 263748908
     const std::string mem = field("/proc/meminfo", "MemTotal");
     p["mem_total_kB"] = mem.empty() ? 0LL : std::atoll(mem.c_str());
@@ -140,11 +154,13 @@ nlohmann::json platform()
 // The shared libraries this process loaded that decide its behaviour
 // (MPI, libfabric, ADIOS2, the visualization stacks), by their real paths:
 // an install directory names the exact build (for example ADIOS2's commit).
+// One entry per library, except that the many VTK and ParaView libraries
+// are kept to one per directory (a Catalyst reader loads about 300).
 std::vector<std::string> key_libraries()
 {
     static const char *keys[] = {"adios2", "mpi", "fabric", "ascent", "conduit", "catalyst",
                                  "vtk",    "viskores", "ospray", "kombyne", "darshan"};
-    std::set<std::string> out;
+    std::set<std::string> out, vtk_dirs;
     std::ifstream in("/proc/self/maps");
     std::string line;
     while (std::getline(in, line))
@@ -161,7 +177,15 @@ std::vector<std::string> key_libraries()
             {
                 std::error_code e2;
                 const auto real = std::filesystem::canonical(path, e2);
-                out.insert(e2 ? path : real.string());
+                const std::string full = e2 ? path : real.string();
+                if (std::string(k) == "vtk")
+                {
+                    const std::string dir = std::filesystem::path(full).parent_path().string();
+                    if (vtk_dirs.insert(dir).second)
+                        out.insert(full);
+                }
+                else
+                    out.insert(full);
                 break;
             }
     }

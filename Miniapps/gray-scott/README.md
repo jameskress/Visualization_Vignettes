@@ -368,7 +368,7 @@ closed, so a shutdown that hangs (ADIOS2 SST over RDMA can) cannot lose it
 The in transit reader writes the same record (build, host, platform, libraries) as `reader_timers/metadata.json`, with its options and settings. `metadata.json` records:
 
 * **Build:** git commit, `git describe` and dirty state (tracked files only), compiler and version, flags, build type, enabled backends. A tree exported with `git archive` has no `.git`; its commit comes from `cmake/git_archive_commit.txt` (filled in by `git archive`, `describe` "archive"), or from the `GS_SOURCE_COMMIT` environment variable at build time.
-* **Host:** hostnames and node count, CPU model, CPU count, NVIDIA GPU models, and `platform` for rank 0's node: kernel, OS, CPU frequency driver, governor, boost and maximum, NUMA nodes, memory.
+* **Host:** hostnames and node count, CPU model, CPU count, NVIDIA GPU models, and `platform` for rank 0's node: kernel, OS, CPU frequency driver, governor, boost and maximum, NUMA nodes, memory, NVIDIA driver, the 1-minute load as the run started, and (under Slurm) whether the job owns its nodes.
 * **Libraries:** the real paths of the loaded MPI, libfabric, ADIOS2 and visualization libraries (an install directory names the exact build).
 * **MPI:** library version, rank count, 3D decomposition, rank 0's local block size.
 * **Problem:** `L`, steps, plotgap, F, k, Du, Dv, dt, noise, seed, the restart step, and `restart_read_s` (slowest rank's checkpoint read, seconds).

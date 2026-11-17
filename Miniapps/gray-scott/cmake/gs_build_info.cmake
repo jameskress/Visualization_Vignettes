@@ -15,7 +15,8 @@ set(GS_GIT_DIRTY "-1")  # -1: not a git checkout
 # placeholder. A hexadecimal value therefore means an export, and it wins
 # over any git query, which would find the enclosing repository's commit if
 # the export were unpacked inside another checkout. The tree is marked
-# "archive", not dirty: it is exactly that commit as exported.
+# "archive", not dirty: it is that commit as exported, provided nobody
+# patched it afterwards (an export cannot detect that; export again instead).
 set(_archived "")
 if(EXISTS "${SRC_DIR}/cmake/git_archive_commit.txt")
   file(STRINGS "${SRC_DIR}/cmake/git_archive_commit.txt" _archived LIMIT_COUNT 1)

@@ -20,7 +20,8 @@ sacct.txt), and writes per-run totals:
 * Slurm: each numbered step's elapsed time, CPU seconds, peak task memory
   and ConsumedEnergyRaw, as sacct reported them, plus the sampled energy,
   mean power and CPU use of that step's nodes. An in transit run is one
-  heterogeneous step: 1+0 is the simulation, 1+1 the reader. Shaheen's
+  heterogeneous step: N+0 is the simulation, N+1 the reader (N is 1 with only
+  the sampler before it, 3 with the platform probes too). Shaheen's
   accounting reports no CPU or energy for the reader component (measured
   15 Nov 2026), so its nodes' sampled figures are the only ones.
 

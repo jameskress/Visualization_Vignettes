@@ -1019,6 +1019,15 @@ rm -f $OUTPUT_DIR/data/*.sst
 mkdir -p $OUTPUT_DIR/data
 lfs setstripe -c -1 $OUTPUT_DIR/data
 cd $OUTPUT_DIR
+# Timer directories an earlier job left unreduced (its reduction failed or
+# never ran) are set aside, so this job's reduction never takes them for this
+# job's: the Catalyst timers carry no run record to check.
+for d in reader_timers catalyst_timers; do
+    if [ -d $OUTPUT_DIR/$d ]; then
+        mv $OUTPUT_DIR/$d $OUTPUT_DIR/$d.before$SLURM_JOB_ID
+        echo "Set aside an earlier job's $d/ as $d.before$SLURM_JOB_ID"
+    fi
+done
 
 # A stuck shutdown no longer needs a watchdog: both programs write their
 # results and timings first, then give teardown teardown_timeout_s seconds
@@ -1131,6 +1140,8 @@ if [ -n "${{RUN_JOB_ID:-}}" ]; then
             "{results_dir}/{id}_reader.csv" "{results_dir}/{id}_catalyst.csv"
         # The earlier job's archives are set aside (kept, under its job ID),
         # so no later reduction of this job can restore them as its own.
+        # Nothing reads them afterwards: delete them by hand when no longer
+        # wanted (sites/shaheen/README.md, Telemetry).
         for d in perf reader_timers catalyst_timers; do
             if [ -f $OUTPUT_DIR/$d.tar.gz ]; then
                 # Stop before the owner marker below moves to this job if the
@@ -1262,14 +1273,16 @@ scontrol show job $SLURM_JOB_ID > $TEL/job.txt 2>&1
 scontrol show topology > $TEL/topology.txt 2>&1
 # The platform before the run: one line per node (kernel, CPU frequency
 # driver, governor and boost, memory, NUMA nodes, NIC firmware and link),
-# so a node that differs is visible, and the full detail of one node.
+# so a node that differs is visible, and the full detail of one node. Each
+# probe is limited to 120 s, so a hung tool on a bad node cannot hold the
+# allocation; these steps shift Slurm's step numbers (the run is step 3).
 PLATFORM={repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/node_platform.sh
 srun --overlap --network=no_vni --mpi=none \\
     --nodes=$SLURM_NNODES --ntasks=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
-    --output=$TEL/platform_nodes.txt --error=$TEL/platform_nodes.err $PLATFORM line \\
+    --output=$TEL/platform_nodes.txt --error=$TEL/platform_nodes.err timeout 120 $PLATFORM line \\
     || echo "platform capture failed (rc $?); the run goes on"
 srun --overlap --network=no_vni --mpi=none --nodes=1 --ntasks=1 --cpus-per-task=1 --mem=1G \\
-    --output=$TEL/platform.txt --error=$TEL/platform.txt $PLATFORM full \\
+    --output=$TEL/platform.txt --error=$TEL/platform.txt timeout 120 $PLATFORM full \\
     || echo "platform capture failed (rc $?); the run goes on"
 # No Slingshot VNI and no MPI wire-up for the sampler: it uses neither, and
 # with the defaults the step took network resources that MPI_Init in the

@@ -37,6 +37,10 @@ import os
 import re
 import sys
 
+# Slurm host lists, the same parser the telemetry summary uses.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from summarize_telemetry import expand_nodelist  # noqa: E402
+
 READER_KEYS = (
     "total_step",
     "ADIOS_Wait",
@@ -114,37 +118,6 @@ def _darshan_totals(directory):
     return totals
 
 
-def _expand_hostlist(spec):
-    """Slurm's compressed host list ("nid[00089-00090,00262],login1") as names."""
-    parts, depth, cur = [], 0, ""
-    for ch in spec:
-        if ch == "," and depth == 0:
-            parts.append(cur)
-            cur = ""
-            continue
-        depth += ch == "["
-        depth -= ch == "]"
-        cur += ch
-    if cur:
-        parts.append(cur)
-    names = []
-    for part in parts:
-        m = re.match(r"^([^\[]+)\[([^\]]*)\]$", part)
-        if not m:
-            names.append(part)
-            continue
-        prefix, ranges = m.groups()
-        for r in ranges.split(","):
-            if "-" in r:
-                a, b = r.split("-", 1)
-                names += [
-                    "%s%0*d" % (prefix, len(a), n) for n in range(int(a), int(b) + 1)
-                ]
-            else:
-                names.append(prefix + r)
-    return names
-
-
 def _topology(path):
     """Node -> (leaf switch, level-1 switch) from `scontrol show topology`.
 
@@ -166,7 +139,7 @@ def _topology(path):
             leaf if level.group(1) == "0" else group if level.group(1) == "1" else None
         )
         if target is not None:
-            for node in _expand_hostlist(nodes.group(1)):
+            for node in expand_nodelist(nodes.group(1)):
                 target[node] = name.group(1)
     return (leaf, group) if leaf else None
 
@@ -215,19 +188,30 @@ def _placement(job_nodes, sim_nodes, topo):
 
 def _platform_nodes(path):
     """Per-node platform lines (node_platform.sh line): how many nodes, how
-    many distinct platforms among them, and the NIC firmware versions."""
+    many distinct platforms among them (load left out: it differs on every
+    node), the NIC firmware versions, and the highest 1-minute load at start
+    (a node another job was using shows up here)."""
     try:
         with open(path) as handle:
             lines = [ln.split() for ln in handle if ln.startswith("host=")]
     except OSError:
-        return None, None, None
-    variants, firmware = set(), set()
+        return None, None, None, None
+    variants, firmware, loads = set(), set(), []
     for fields in lines:
         kv = dict(f.split("=", 1) for f in fields if "=" in f)
         kv.pop("host", None)
+        try:
+            loads.append(float(kv.pop("load_1min")))
+        except (KeyError, ValueError):
+            pass
         variants.add(tuple(sorted(kv.items())))
         firmware.add(kv.get("nic_fw", "na"))
-    return len(lines), len(variants), ";".join(sorted(firmware))
+    return (
+        len(lines),
+        len(variants),
+        ";".join(sorted(firmware)),
+        max(loads) if loads else None,
+    )
 
 
 def _sbatch_value(text, option):
@@ -332,16 +316,17 @@ def index_run(results_dir, run_id, fallback_topology=None):
         with open(job_txt) as handle:
             m = re.search(r"^\s*NodeList=(\S+)", handle.read(), re.M)
         if m and m.group(1) != "(null)":
-            job_nodes = _expand_hostlist(m.group(1))
+            job_nodes = expand_nodelist(m.group(1))
     except OSError:
         pass
     sim_nodes = set((meta.get("host") or {}).get("hostnames") or [])
     topo = _topology(base + "_tel_topology.txt") or fallback_topology
     row.update(_placement(job_nodes, sim_nodes, topo))
-    n, variants, firmware = _platform_nodes(base + "_tel_platform_nodes.txt")
+    n, variants, firmware, max_load = _platform_nodes(base + "_tel_platform_nodes.txt")
     row["platform_nodes_listed"] = n
     row["platform_variants"] = variants
     row["platform_nic_fw"] = firmware
+    row["platform_max_load_1min"] = max_load
     row["energy_j"] = totals.get("energy_j")
     row["node_power_mean_w"] = totals.get("node_power_mean_w")
     row["nodes_sampled"] = totals.get("nodes_sampled")

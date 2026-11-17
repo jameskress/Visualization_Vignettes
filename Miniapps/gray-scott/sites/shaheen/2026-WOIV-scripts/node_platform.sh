@@ -26,6 +26,8 @@ if [ "$mode" = line ]; then
         "cpus=$(nproc --all)" \
         "numa_nodes=$(find /sys/devices/system/node -maxdepth 1 -name 'node[0-9]*' 2>/dev/null | wc -l)" \
         "mem_kB=$(awk '/MemTotal/{print $2}' /proc/meminfo)" \
+        "load_1min=$(cut -d' ' -f1 /proc/loadavg)" \
+        "nvidia_driver=$(awk '{for(i=1;i<=NF;i++) if($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?$/){print $i; exit}}' /proc/driver/nvidia/version 2>/dev/null || true)" \
         "hugepages_2M=$(sysval /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages)" \
         "thp=$(sed 's/.*\[\(.*\)\].*/\1/' /sys/kernel/mm/transparent_hugepage/enabled 2>/dev/null)" \
         "nic_fw=${fw:-na}" "nic_link=${link:-na}" "nic_state=${state:-na}"
