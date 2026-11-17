@@ -725,7 +725,15 @@ showed Contour 21.7 s, GhostCells 8.4 s and OSPRay 11 to 13 s on rank 0.
   scalars. It is also the algorithm VTK-m's contour (Ascent) uses. About 2%
   of pixels change, by 1 to 3 levels and at most 78, as isolated pixels over
   the surface: flying edges triangulates ambiguous cells differently and
-  keeps degenerate triangles.
+  keeps degenerate triangles. ParaView issue
+  [#23459](https://gitlab.kitware.com/paraview/paraview/-/work_items/23459)
+  reports the `FastMode` bug. The script loads the plugin by its path, which
+  the generator finds next to `CATALYST_LIB_PATH`
+  (`accelerated_algorithms_plugin()`): the ParaView 6.2.1 module's Catalyst
+  does not find the install's plugin list, so loading it by name stops the
+  run with "Plugin 'AcceleratedAlgorithms' not found". `PV_PLUGIN_CONFIG_FILE`
+  would also fix that, but ParaView force-loads every plugin in that list on
+  every rank.
 * GhostCells copies every array it is given, and `u` is not drawn. The
   template now passes only `v` and the ghost flags: bit-identical frames,
   44 to 38 s. With both `u` and flying edges' working arrays, a 64 + 4 run

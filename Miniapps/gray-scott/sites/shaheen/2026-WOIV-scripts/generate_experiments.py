@@ -1,3 +1,4 @@
+import glob
 import math
 import os
 import re
@@ -157,6 +158,33 @@ READER_SMT = True
 READER_MALLOC_ENV = "MALLOC_MMAP_MAX_=0 MALLOC_TRIM_THRESHOLD_=137438953472"
 
 CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
+
+
+def accelerated_algorithms_plugin(catalyst_lib_path=CATALYST_LIB_PATH):
+    """Path of ParaView's AcceleratedAlgorithms plugin in the install that
+    holds catalyst_lib_path (<install>/lib/catalyst), or "" if there is none
+    on this host. The isosurface script loads FlyingEdges3D from it by path:
+    ParaView looks a plugin up by name in a plugin list it finds relative to
+    its executable, which the 6.2.1 module's Catalyst does not find.
+    PV_PLUGIN_CONFIG_FILE would also do, but ParaView force-loads every
+    plugin in that list (vtkPVPluginLoader::LoadPluginsFromPluginConfigFile),
+    on every rank."""
+    install = os.path.dirname(os.path.dirname(catalyst_lib_path.rstrip("/")))
+    found = sorted(
+        glob.glob(
+            os.path.join(
+                install,
+                "lib",
+                "paraview-*",
+                "plugins",
+                "AcceleratedAlgorithms",
+                "AcceleratedAlgorithms.so",
+            )
+        )
+    )
+    return found[-1] if found else ""
+
+
 # Darshan (I/O characterization) for --telemetry; --darshan-prefix overrides,
 # --no-darshan leaves it out. Built by software/build-darshan-3.4.7.sh.
 DARSHAN_PREFIX = (
@@ -557,7 +585,15 @@ ghostCells = GhostCells(registrationName='GhostCells', Input=vOnly)
 # ParaView 6.0 (vtkPVContourFilter::ContourUsingSuperclass). Same normals and
 # scalars as Contour; the triangulation of ambiguous cells differs, so about
 # 2% of pixels change by a few levels.
-LoadDistributedPlugin('AcceleratedAlgorithms', remote=False, ns=globals())
+# Load the plugin by its path when the generator found it next to the
+# Catalyst library (accelerated_algorithms_plugin): the ParaView 6.2.1
+# module's Catalyst does not find the install's plugin list, so loading
+# it by name fails (sites/shaheen/README.md, "Catalyst reader performance").
+_gs_aa_plugin = "{accelerated_algorithms_plugin}"
+if _gs_aa_plugin:
+    LoadPlugin(_gs_aa_plugin, remote=False, ns=globals())
+else:
+    LoadDistributedPlugin('AcceleratedAlgorithms', remote=False, ns=globals())
 contour = FlyingEdges3D(registrationName='Contour', Input=ghostCells)
 contour.ContourBy = ['POINTS', 'v']
 contour.Isosurfaces = [0.1]
@@ -1711,6 +1747,7 @@ def copy_pipeline_files(exp, output_dir, repo_root):
         "volume_samples": int(
             math.ceil(VOLUME_SAMPLES_PER_CELL * math.sqrt(3) * exp["grid_size"])
         ),
+        "accelerated_algorithms_plugin": accelerated_algorithms_plugin(),
     }
 
     if exp["paper"] == "paper1":
