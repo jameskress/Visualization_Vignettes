@@ -779,9 +779,10 @@ showed Contour 21.7 s, GhostCells 8.4 s and OSPRay 11 to 13 s on rank 0.
   [#23459](https://gitlab.kitware.com/paraview/paraview/-/work_items/23459)
   reports the `FastMode` bug. The script loads the plugin by its path, which
   the generator finds next to `CATALYST_LIB_PATH`
-  (`accelerated_algorithms_plugin()`): the ParaView 6.2.1 module's Catalyst
-  does not find the install's plugin list, so loading it by name stops the
-  run with "Plugin 'AcceleratedAlgorithms' not found". `PV_PLUGIN_CONFIG_FILE`
+  (`accelerated_algorithms_plugin()`): with ParaView 6.2.1, both the Shaheen
+  module and our own GCC 13 superbuild, Catalyst does not find the install's
+  plugin list, so loading it by name stops the run with "Plugin
+  'AcceleratedAlgorithms' not found" (6.0 found it). `PV_PLUGIN_CONFIG_FILE`
   would also fix that, but ParaView force-loads every plugin in that list on
   every rank.
 * GhostCells copies every array it is given, and `u` is not drawn. The

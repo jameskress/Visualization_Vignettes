@@ -165,7 +165,8 @@ def accelerated_algorithms_plugin(catalyst_lib_path=CATALYST_LIB_PATH):
     holds catalyst_lib_path (<install>/lib/catalyst), or "" if there is none
     on this host. The isosurface script loads FlyingEdges3D from it by path:
     ParaView looks a plugin up by name in a plugin list it finds relative to
-    its executable, which the 6.2.1 module's Catalyst does not find.
+    its executable, which Catalyst does not find with ParaView 6.2.1 (the
+    Shaheen module and our own superbuild alike).
     PV_PLUGIN_CONFIG_FILE would also do, but ParaView force-loads every
     plugin in that list (vtkPVPluginLoader::LoadPluginsFromPluginConfigFile),
     on every rank."""
@@ -586,9 +587,9 @@ ghostCells = GhostCells(registrationName='GhostCells', Input=vOnly)
 # scalars as Contour; the triangulation of ambiguous cells differs, so about
 # 2% of pixels change by a few levels.
 # Load the plugin by its path when the generator found it next to the
-# Catalyst library (accelerated_algorithms_plugin): the ParaView 6.2.1
-# module's Catalyst does not find the install's plugin list, so loading
-# it by name fails (sites/shaheen/README.md, "Catalyst reader performance").
+# Catalyst library (accelerated_algorithms_plugin): with ParaView 6.2.1,
+# Catalyst does not find the install's plugin list, so loading it by name
+# fails (sites/shaheen/README.md, "Catalyst reader performance").
 _gs_aa_plugin = "{accelerated_algorithms_plugin}"
 if _gs_aa_plugin:
     LoadPlugin(_gs_aa_plugin, remote=False, ns=globals())
