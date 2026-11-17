@@ -2,23 +2,38 @@ name: CI Pipeline
 
 # The full pipeline runs on the shared self-hosted runner, so it runs once
 # per change: on pull requests, and on pushes to master (which publish the
-# image and the badge). Any other branch can be run by hand from the Actions
-# tab (workflow_dispatch); such runs build and test but publish nothing.
+# image). Any branch can be run by hand from the Actions tab
+# (workflow_dispatch); a manual run on master builds both platforms and
+# publishes like the weekly run (the way to move `latest` sooner), and on any
+# other branch it builds and tests but publishes nothing.
 on:
   push:
     branches: [ master ]
   pull_request:
     branches: [ '**' ]
   workflow_dispatch:
+    inputs:
+      arm64:
+        description: "Also build arm64 (always on for master; elsewhere built but not published)"
+        type: boolean
+        default: false
+      qemu_image:
+        description: "QEMU (binfmt) image for the arm64 build, to try another than the pinned one"
+        type: string
+        default: ""
+  schedule:
+    - cron: '0 20 * * 5'   # Fridays 20:00 UTC, the KAUST weekend
 
 # A newer push to the same pull request replaces the run still in progress.
 # The event name keeps manual runs apart from master pushes: GitHub replaces
-# a pending run with a newer one in the same group, and a manual run does not
-# publish, so it must never displace a pending master push.
+# a pending run with a newer one in the same group, and a manual run (often
+# on another branch) must never displace a pending master push.
 # Master pushes run one at a time and are never cancelled. If several land
 # while one is running, only the newest waits; the ones in between are
-# skipped on purpose (one shared runner). The "newest" check below keeps an
-# older commit from moving `latest` or the badge after a newer one.
+# skipped on purpose (one shared runner), and the newest is compared with the
+# last master commit that had a successful run, so their changes still count.
+# The "newest" check below keeps an older commit from moving `latest` or the
+# badge after a newer one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -27,100 +42,174 @@ concurrency:
 permissions:
   contents: read
 
-# What a pull request runs (#69). The image build always runs, because the
-# image compiles the Gray-Scott miniapp with every backend; on pull requests
-# it builds amd64 only (arm64 runs under emulation and takes hours) and
-# publishes nothing. The ParaView and VisIt suites test the vignettes with
-# their own downloads, not the miniapp, so a pull request that changes only
-# Miniapps/gray-scott/ skips them. Pushes to master and manual runs always run
-# everything.
+# What runs (#69). The "changes" job compares a pull request with its base,
+# or a master push with the last master commit that had a successful run,
+# and decides:
+#   * docs only (Markdown, docs/ folders, LICENSE): nothing else runs;
+#   * Miniapps/gray-scott/ only: the ParaView and VisIt suites are skipped
+#     (they test the vignettes with their own downloads, not the miniapp);
+#   * otherwise the image build and every suite run.
+# The image build compiles the Gray-Scott miniapp with every backend. arm64
+# runs under emulation and takes hours, so it is built only on the weekly
+# run, on manual runs on master, and on master pushes that change the image
+# recipe (Dockerfile, Scripts/docker/, this workflow). Other master pushes
+# build amd64 and publish only their commit's tag; `latest`, the `master`
+# tag and the badge move only with a two-platform build, so they never lose
+# arm64. Pull requests build amd64 and publish nothing. A diff that cannot be
+# computed runs everything.
 jobs:
   changes:
     name: Decide what to run
     runs-on: ubuntu-latest   # a git diff only; keeps it off the shared runner
+    permissions:
+      contents: read
+      actions: read          # to find the last successful master run
     timeout-minutes: 10
     outputs:
+      code: ${{ steps.diff.outputs.code }}
       vignettes: ${{ steps.diff.outputs.vignettes }}
+      arm64: ${{ steps.diff.outputs.arm64 }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Compare with the pull request's base
+      - name: Compare with the base
         id: diff
         env:
           EVENT: ${{ github.event_name }}
-          BASE: ${{ github.event.pull_request.base.sha }}
-          HEAD: ${{ github.event.pull_request.head.sha }}
+          REF: ${{ github.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ARM64_INPUT: ${{ inputs.arm64 }}
         run: |
-          if [ "$EVENT" != "pull_request" ]; then
-            echo "not a pull request: run everything"
-            echo "vignettes=true" >> "$GITHUB_OUTPUT"
+          everything() {
+            echo "$1: run everything"
+            { echo "code=true"; echo "vignettes=true"; } >> "$GITHUB_OUTPUT"
+            # arm64 on master; elsewhere only when a manual run asks for it
+            # (built, not published), to try the emulated build.
+            if { [ "$EVENT" != "pull_request" ] && [ "$REF" = "refs/heads/master" ]; } || [ "$ARM64_INPUT" = "true" ]; then
+              echo "arm64=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "arm64=false" >> "$GITHUB_OUTPUT"
+            fi
             exit 0
+          }
+          case "$EVENT" in
+            pull_request) RANGE="$PR_BASE...$PR_HEAD" ;;  # three-dot: only the PR's own changes
+            push)
+              # Against the last master commit with a successful run, not
+              # the commit before: a newer push replaces a pending one, so
+              # the commits in between may never have had a run of their own.
+              LAST=$(gh api "repos/$REPO/actions/workflows/main.yml/runs?branch=master&status=success&per_page=20" \
+                       --jq '[.workflow_runs[] | select(.event == "push" or .event == "schedule")][0].head_sha // empty') \
+                || everything "cannot list earlier runs"
+              [ -n "$LAST" ] || everything "no earlier successful master run"
+              git cat-file -e "$LAST^{commit}" 2>/dev/null || everything "last successful run's commit $LAST not found"
+              git merge-base --is-ancestor "$LAST" "$SHA" || everything "$LAST is not an ancestor of $SHA"
+              echo "last successful master run: $LAST"
+              RANGE="$LAST..$SHA" ;;
+            *) everything "$EVENT" ;;
+          esac
+          # --no-renames lists both paths of a move, so a file moved into a
+          # skipped area from elsewhere still counts as outside it.
+          if ! changed=$(git diff --name-only --no-renames "$RANGE"); then
+            everything "cannot diff $RANGE"
           fi
-          # Three-dot: only what the pull request itself changes.
-          # --no-renames lists both paths of a move, so a file moved into
-          # Miniapps/gray-scott/ from elsewhere still counts as outside.
-          if ! changed=$(git diff --name-only --no-renames "$BASE...$HEAD"); then
-            echo "cannot diff $BASE...$HEAD: run everything"
-            echo "vignettes=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          [ -n "$changed" ] || everything "empty diff"
           echo "$changed"
-          if [ -n "$changed" ] && ! echo "$changed" | grep -qv '^Miniapps/gray-scott/'; then
-            echo "only Miniapps/gray-scott/ changed: skip the ParaView and VisIt suites"
+          docs_re='(\.md$|(^|/)docs/|^LICENSE$)'
+          if ! echo "$changed" | grep -Evq "$docs_re"; then
+            echo "documentation only: skip the image build and every suite"
+            { echo "code=false"; echo "vignettes=false"; echo "arm64=false"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "code=true" >> "$GITHUB_OUTPUT"
+          if ! echo "$changed" | grep -Ev "$docs_re" | grep -qv '^Miniapps/gray-scott/'; then
+            echo "only Miniapps/gray-scott/ (and docs) changed: skip the ParaView and VisIt suites"
             echo "vignettes=false" >> "$GITHUB_OUTPUT"
           else
             echo "vignettes=true" >> "$GITHUB_OUTPUT"
           fi
+          if [ "$EVENT" = "push" ] && echo "$changed" | grep -Eq '^(Dockerfile|\.dockerignore|Scripts/docker/|\.github/workflows/main\.yml)'; then
+            echo "the image recipe changed: build arm64 too"
+            echo "arm64=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "arm64=false" >> "$GITHUB_OUTPUT"
+          fi
 
+  # The image is built in two jobs, so an arm64 failure (arm64 runs under
+  # QEMU emulation, which has crashed in apt's libc-bin step: 2026-11-16) can
+  # never stop the amd64 image or the tests:
+  #   build        amd64, every run that changes code; no emulation;
+  #   build-arm64  arm64, only when "changes" asks for it (weekly, recipe
+  #                changes, manual runs), with a pinned QEMU image;
+  #   publish      on a GitHub-hosted runner, joins the two into one
+  #                multi-platform tag and moves `latest`, `master` and the badge.
+  # Published tags: <sha>-amd64 and <sha>-arm64 per platform, and <sha> for
+  # the commit (both platforms when arm64 built, amd64 alone otherwise).
   build:
     name: Build and Push Docker Image
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     runs-on: self-hosted
-    timeout-minutes: 1440
+    # An amd64 build with the cache takes minutes; from an empty cache it
+    # rebuilds ParaView and the rest (hours). The limit stops a hung build
+    # from holding the shared runner (a master build sat 7 hours on
+    # 2026-11-16 under the old 24-hour limit).
+    timeout-minutes: 240
     permissions:
-      contents: write        # <-- needed to push badge to a branch
+      contents: read
       packages: write
+    outputs:
+      publish: ${{ steps.tip.outputs.publish }}
+      short_sha: ${{ steps.tip.outputs.short_sha }}
     steps:
       - uses: actions/checkout@v7
       # A pull request reads the cache but writes it only when there is
-      # none; otherwise its amd64-only cache would replace master's
-      # two-platform one and the next master build would redo arm64.
-      - name: Choose platforms and cache
+      # none, so master's cache is never replaced by a pull request's.
+      - name: Choose the cache
         id: plan
         env:
           EVENT: ${{ github.event_name }}
+          C: /tmp/.buildx-cache-amd64
         run: |
           # A cache left by an interrupted run must never be rotated in.
-          rm -rf /tmp/.buildx-cache-new
+          rm -rf "$C-new"
           HAVE_CACHE=false
-          [ -f /tmp/.buildx-cache/index.json ] && HAVE_CACHE=true
-          if [ "$EVENT" = "pull_request" ]; then
-            echo "platforms=linux/amd64" >> "$GITHUB_OUTPUT"
-            if [ "$HAVE_CACHE" = true ]; then WRITE=false; else WRITE=true; fi
-          else
-            echo "platforms=linux/amd64,linux/arm64" >> "$GITHUB_OUTPUT"
-            WRITE=true
-          fi
+          [ -f "$C/index.json" ] && HAVE_CACHE=true
+          if [ "$EVENT" = "pull_request" ] && [ "$HAVE_CACHE" = true ]; then WRITE=false; else WRITE=true; fi
           echo "cache present: $HAVE_CACHE, write cache: $WRITE"
           echo "write_cache=$WRITE" >> "$GITHUB_OUTPUT"
           if [ "$WRITE" = true ]; then
-            echo "cache_to=type=local,dest=/tmp/.buildx-cache-new,mode=max" >> "$GITHUB_OUTPUT"
+            echo "cache_to=type=local,dest=$C-new,mode=max" >> "$GITHUB_OUTPUT"
           else
             echo "cache_to=" >> "$GITHUB_OUTPUT"
           fi
-      # Publish `latest` and the badge only from master's current tip, so a
-      # run for an older commit can never overwrite a newer one's.
-      - name: Check this commit is master's tip
+      # Master pushes, the weekly run and manual runs on master publish.
+      - name: Decide what to publish
         id: tip
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          ARM64: ${{ needs.changes.outputs.arm64 }}
+          IMAGE: ghcr.io/${{ github.repository }}
         run: |
-          TIP=$(git ls-remote origin refs/heads/master | cut -f1)
-          NEWEST=false
-          if [ "${{ github.event_name }}" = "push" ] && [ "$TIP" = "${{ github.sha }}" ]; then NEWEST=true; fi
-          echo "master tip $TIP, this run ${{ github.sha }}, newest=$NEWEST"
-          echo "newest=$NEWEST" >> "$GITHUB_OUTPUT"
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+          PUBLISH=false
+          case "$EVENT" in push | schedule | workflow_dispatch)
+            [ "$REF" = "refs/heads/master" ] && PUBLISH=true ;;
+          esac
+          SHORT=$(git rev-parse --short=7 HEAD)
+          # Without arm64 this image is the commit's tag; with it, the
+          # publish job makes <sha> from both platforms.
+          TAGS="$IMAGE:$SHORT-amd64"
+          [ "$ARM64" = true ] || TAGS="$TAGS,$IMAGE:$SHORT"
+          IMAGE_LC=$(echo "$TAGS" | tr '[:upper:]' '[:lower:]')
+          echo "publish=$PUBLISH, tags=$IMAGE_LC"
+          { echo "publish=$PUBLISH"; echo "short_sha=$SHORT"; echo "tags=$IMAGE_LC"; } >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v4
         id: buildx
       # z2n-fe is also the SAGE server (kvl/kvl-windows-management#243): the builder
@@ -138,27 +227,26 @@ jobs:
         id: meta
         with:
           images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=
-            type=raw,value=latest,enable=${{ steps.tip.outputs.newest == 'true' }}
       - uses: docker/build-push-action@v7
         id: build
         with:
           context: .
-          platforms: ${{ steps.plan.outputs.platforms }}
-          push: ${{ github.event_name == 'push' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/amd64
+          push: ${{ steps.tip.outputs.publish == 'true' }}
+          tags: ${{ steps.tip.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=local,src=/tmp/.buildx-cache
+          # The per-platform cache, and the old two-platform one it replaces
+          # (read only, so the first build after the split starts warm).
+          cache-from: |
+            type=local,src=/tmp/.buildx-cache-amd64
+            type=local,src=/tmp/.buildx-cache
           # Writes to a NEW directory, rotated in by the step below. Writing
           # back to the directory it reads from makes buildx append rather
-          # than replace, and with mode=max across two platforms that grows
-          # without bound on a self-hosted runner, where /tmp survives every
-          # run. A full disk then shows up as a truncated download and a bare
-          # `tar` exit 2 in the test jobs, naming nothing.
+          # than replace, and with mode=max that grows without bound on a
+          # self-hosted runner, where /tmp survives every run. A full disk
+          # then shows up as a truncated download and a bare `tar` exit 2 in
+          # the test jobs, naming nothing.
           cache-to: ${{ steps.plan.outputs.cache_to }}
-
       # Swap in the new cache only after a successful build that wrote a
       # complete one (index.json last). A cancelled or failed run used to
       # rotate a partial directory in, and the next build started from
@@ -168,30 +256,170 @@ jobs:
         env:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           WROTE_CACHE: ${{ steps.plan.outputs.write_cache }}
+          C: /tmp/.buildx-cache-amd64
         run: |
-          if [ "$BUILD_OUTCOME" = "success" ] && [ "$WROTE_CACHE" = "true" ] && [ -f /tmp/.buildx-cache-new/index.json ]; then
-            rm -rf /tmp/.buildx-cache
-            mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          if [ "$BUILD_OUTCOME" = "success" ] && [ "$WROTE_CACHE" = "true" ] && [ -f "$C-new/index.json" ]; then
+            rm -rf "$C"
+            mv "$C-new" "$C"
             echo "cache rotated"
           else
-            rm -rf /tmp/.buildx-cache-new
+            rm -rf "$C-new"
             echo "build $BUILD_OUTCOME, cache written: $WROTE_CACHE; kept the existing cache"
           fi
-          echo "buildx cache: $(du -sh /tmp/.buildx-cache 2>/dev/null | cut -f1)"
+          echo "buildx cache: $(du -sh "$C" 2>/dev/null | cut -f1)"
           df -h /tmp /home 2>/dev/null || df -h
-
-      - name: Generate latest image badge
-        if: ${{ steps.tip.outputs.newest == 'true' }}
+      - name: Prune Docker System
+        if: always()  # Run this even if the build fails
         run: |
-          TAG=$(echo "${{ steps.meta.outputs.tags }}" | grep -Eo ':[a-f0-9]{7,}' | head -n 1 | tr -d ':')
-          [ -z "$TAG" ] && TAG=$(git rev-parse --short HEAD)
-          mkdir -p badges
-          echo '{"schemaVersion":1,"label":"docker image","message":"'"$TAG"'","color":"blue"}' > badges/docker-latest.json
+          echo "Pruning Docker images/containers to free space..."
+          docker system prune -f
 
+  build-arm64:
+    name: Build arm64 image (emulated)
+    needs: [changes, build]
+    if: ${{ needs.changes.outputs.arm64 == 'true' }}
+    runs-on: self-hosted
+    # Emulated, from an empty cache, rebuilds ParaView and the rest under
+    # QEMU (many hours). A failure here leaves the amd64 image published.
+    timeout-minutes: 600
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # The arm64 build segfaulted in libc-bin's postinst (ldconfig) on
+      # 2026-11-16. A probe on this runner (the same apt step in an arm64
+      # ubuntu:22.04, one emulator at a time, registrations reset) passed
+      # with QEMU 10.2.3, 9.2.2 and 7.0.0 and failed only with 8.1.5, with
+      # the same exit 100. So the crash was most likely an older emulator
+      # left registered on the runner, which reset: true (below) now
+      # replaces. Pinned so an upstream change cannot break the build
+      # unannounced; a manual run can try another (input qemu_image).
+      QEMU_IMAGE: ${{ inputs.qemu_image || 'docker.io/tonistiigi/binfmt:qemu-v10.2.3-68' }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Choose the cache
+        id: plan
+        env:
+          C: /tmp/.buildx-cache-arm64
+        run: |
+          rm -rf "$C-new"
+          echo "cache present: $([ -f "$C/index.json" ] && echo true || echo false)"
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          image: ${{ env.QEMU_IMAGE }}
+          platforms: arm64
+          # Replace any emulator already registered on this persistent
+          # runner; without it the old handler stays and the pin is ignored.
+          reset: true
+      - name: Show the registered arm64 emulator
+        run: cat /proc/sys/fs/binfmt_misc/qemu-aarch64 || true
+      - uses: docker/setup-buildx-action@v4
+        id: buildx
+      - name: Cap the builder's CPU
+        run: docker update --cpus 48 --cpu-shares 256 "buildx_buildkit_${{ steps.buildx.outputs.name }}0"
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v6
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}
+      - name: Tag
+        id: tag
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          SHORT: ${{ needs.build.outputs.short_sha }}
+        run: echo "tags=$(echo "$IMAGE:$SHORT-arm64" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v7
+        id: build
+        with:
+          context: .
+          platforms: linux/arm64
+          push: ${{ needs.build.outputs.publish == 'true' }}
+          tags: ${{ steps.tag.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: |
+            type=local,src=/tmp/.buildx-cache-arm64
+            type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-arm64-new,mode=max
+      - name: Rotate the buildx cache
+        if: always()
+        env:
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          C: /tmp/.buildx-cache-arm64
+        run: |
+          if [ "$BUILD_OUTCOME" = "success" ] && [ -f "$C-new/index.json" ]; then
+            rm -rf "$C"
+            mv "$C-new" "$C"
+            echo "cache rotated"
+          else
+            rm -rf "$C-new"
+            echo "build $BUILD_OUTCOME; kept the existing cache"
+          fi
+          echo "buildx cache: $(du -sh "$C" 2>/dev/null | cut -f1)"
+      - name: Prune Docker System
+        if: always()
+        run: docker system prune -f
+
+  publish:
+    name: Publish image tags and badge
+    needs: [changes, build, build-arm64]
+    # After the arm64 job whatever its outcome (or when it was skipped), as
+    # long as the amd64 image was built and published with arm64 planned.
+    if: ${{ always() && needs.build.result == 'success' && needs.build.outputs.publish == 'true' && needs.changes.outputs.arm64 == 'true' }}
+    runs-on: ubuntu-latest   # registry calls only; keeps it off the shared runner
+    timeout-minutes: 15
+    permissions:
+      contents: write        # the badge on gh-pages
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # `latest`, `master` and the badge move only from master's current tip,
+      # so a run for an older commit can never overwrite a newer one's, and
+      # only when both platforms built, so they never lose arm64.
+      - name: Join the platforms and tag
+        id: join
+        env:
+          ARM64_RESULT: ${{ needs.build-arm64.result }}
+          SHORT: ${{ needs.build.outputs.short_sha }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          IMAGE=$(echo "ghcr.io/$REPO" | tr '[:upper:]' '[:lower:]')
+          TIP=$(git ls-remote origin refs/heads/master | cut -f1)
+          NEWEST=false
+          if [ "$ARM64_RESULT" = success ]; then
+            TAGS=(-t "$IMAGE:$SHORT")
+            if [ "$TIP" = "$SHA" ]; then
+              NEWEST=true
+              TAGS+=(-t "$IMAGE:master" -t "$IMAGE:latest")
+            fi
+            docker buildx imagetools create "${TAGS[@]}" "$IMAGE:$SHORT-amd64" "$IMAGE:$SHORT-arm64"
+          else
+            echo "::warning::arm64 build $ARM64_RESULT: $IMAGE:$SHORT is amd64 only, and latest stays where it was"
+            docker buildx imagetools create -t "$IMAGE:$SHORT" "$IMAGE:$SHORT-amd64"
+          fi
+          echo "master tip $TIP, this run $SHA, newest=$NEWEST"
+          echo "newest=$NEWEST" >> "$GITHUB_OUTPUT"
+      - name: Generate latest image badge
+        if: ${{ steps.join.outputs.newest == 'true' }}
+        env:
+          SHORT: ${{ needs.build.outputs.short_sha }}
+        run: |
+          mkdir -p badges
+          echo '{"schemaVersion":1,"label":"docker image","message":"'"$SHORT"'","color":"blue"}' > badges/docker-latest.json
       - name: Publish badge to GitHub Pages
         id: badge
         uses: peaceiris/actions-gh-pages@v4
-        if: ${{ steps.tip.outputs.newest == 'true' }}
+        if: ${{ steps.join.outputs.newest == 'true' }}
         continue-on-error: true
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -206,21 +434,17 @@ jobs:
       # Try once more from the new tip.
       - name: Publish badge again if the branch moved
         uses: peaceiris/actions-gh-pages@v4
-        if: ${{ steps.tip.outputs.newest == 'true' && steps.badge.outcome == 'failure' }}
+        if: ${{ steps.join.outputs.newest == 'true' && steps.badge.outcome == 'failure' }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: badges
           keep_files: true
 
-      - name: Prune Docker System
-        if: always()  # Run this even if the build fails
-        run: |
-          echo "Pruning Docker images/containers to free space..."
-          docker system prune -f
-
   gray-scott-test:
     name: Gray-Scott Miniapp Tests
+    needs: changes
+    if: ${{ needs.changes.outputs.code == 'true' }}
     # Independent of the image build: it needs only the source tree. Capped at
     # 4 CPUs (docker --cpus) because the self-hosted runner has no CPU limit
     # of its own yet; the work is a 64^3 problem on at most 4 ranks.
