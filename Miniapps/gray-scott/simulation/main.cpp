@@ -265,7 +265,7 @@ int main(int argc, char **argv)
         settings.perf_dir, settings.output_type + "_np" + std::to_string(procs), app_comm);
     PerfLogger perf(run_dir, rank, my_hostname,
                     {"create_writer", "writer_open", "printSelf", "halo", "stencil",
-                     "compute_step", "wrap", "execute", "io", "write_step",
+                     "compute_step", "wrap", "execute", "io", "endstep_barrier", "write_step",
                      "create_checkpoint", "total_step"},
                     {"halo_bytes", "backend_bytes", "allocs_step", "alloc_bytes_step",
                      "allocs_wrap", "alloc_bytes_wrap", "allocs_write"},
@@ -447,6 +447,7 @@ int main(int argc, char **argv)
                 perf.add("wrap", ph.wrap_s);
                 perf.add("execute", ph.execute_s);
                 perf.add("io", ph.io_s);
+                perf.add("endstep_barrier", ph.barrier_s);
             }
             else
             {

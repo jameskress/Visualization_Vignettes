@@ -1,6 +1,7 @@
 import math
 import os
 import re
+import xml.etree.ElementTree as ET
 import argparse
 import json
 import shutil
@@ -72,6 +73,13 @@ READ_DECOMPOSITION = "brick"
 # ADIOS2 then sends a whole writer block for each strided plane).
 # --reader-shared-planes overrides it.
 READER_SHARED_PLANES = "exchange"
+# Diagnostics for the SST write path (ADIOS2 #5272), both off by default:
+# --adios-endstep-barrier puts an MPI_Barrier before each EndStep, timed as
+# the writer's endstep_barrier, so its io timer is the engine's own time;
+# --adios-queue-full-policy Discard lets the writer drop steps instead of
+# blocking on a full queue, to take the readers out of its EndStep.
+ADIOS_ENDSTEP_BARRIER = False
+QUEUE_FULL_POLICY = "Block"
 
 # #72 step 1: SST transport x reader x launch x fan-in, small and short.
 # Fan-in is in tasks (64 simulation and 8 reader ranks per node):
@@ -173,7 +181,7 @@ ADIOS_XML_TEMPLATE = """<?xml version="1.0"?>
             <parameter key="verbose" value="0"/>
             <parameter key="RendezvousReaderCount" value="{rendezvous}"/>
             <parameter key="QueueLimit" value="{queue_limit}"/>
-            <parameter key="QueueFullPolicy" value="Block"/>
+            <parameter key="QueueFullPolicy" value="{queue_full_policy}"/>
             <parameter key="DataTransport" value="{data_transport}"/>
             <parameter key="ControlModule" value="epoll"/>
             <parameter key="OpenTimeoutSecs" value="600.0"/>
@@ -1376,35 +1384,57 @@ echo "Simulation exit status: $SIM_RC, reader exit status: $STAGE_RC"
 """
 
 
-def check_decomposition_unchanged(output_dir, exp):
-    """Refuse to regenerate a run with a different reader decomposition.
+def check_settings_unchanged(output_dir, exp):
+    """Refuse to regenerate a run with different recorded settings.
 
-    The experiment ID does not include the decomposition, so a slab and a
-    brick generation into the same --results-dir share directories, and new
-    settings would sit beside the old run's numbers. Settings written before
-    the option existed are slab runs. Only in transit runs have a reader;
-    the initialisation runs, often shared between results directories,
-    are not checked.
+    The experiment ID includes neither the reader decomposition and
+    shared-plane setting (in transit runs) nor the SST EndStep barrier and
+    queue policy (every run), so generations with other values into the
+    same --results-dir share directories, and new settings would sit beside
+    the old run's numbers. Files written before an option existed hold its
+    old behaviour: slab, planes read, no barrier, Block. The initialisation
+    runs, often shared between results directories, are not checked.
     """
+    decomposition, planes = reader_decomposition(exp)
+    checks = [("adios_endstep_barrier", False, ADIOS_ENDSTEP_BARRIER)]
+    if exp["type"] == "intransit":
+        checks += [
+            ("read_decomposition", "slab", decomposition),
+            ("reader_shared_planes", "read", planes),
+        ]
     for name in ("settings.json", "settings-stage.json"):
         path = os.path.join(output_dir, name)
         if not os.path.exists(path):
             continue
         with open(path) as f:
             settings = json.load(f)
-        # Settings written before an option existed hold its old behaviour:
-        # slab, and shared planes read from the writers.
-        decomposition, planes = reader_decomposition(exp)
-        for key, legacy, current in (
-            ("read_decomposition", "slab", decomposition),
-            ("reader_shared_planes", "read", planes),
-        ):
+        for key, legacy, current in checks:
             old = settings.get(key, legacy)
             if old != current:
                 raise SystemExit(
                     f"{path} has {key} {old}; generating {current} would put its "
                     f"settings beside that run's results. Use another --results-dir."
                 )
+    # The SST queue policy lives in the run's adios2.xml; a file without it
+    # (or written before the option) counts as Block.
+    xml_path = os.path.join(output_dir, "adios2.xml")
+    if os.path.exists(xml_path):
+        old = "Block"
+        try:
+            root = ET.parse(xml_path).getroot()
+        except ET.ParseError as err:
+            raise SystemExit(
+                f"{xml_path} cannot be parsed ({err}); not overwriting it."
+            )
+        io = root.find("./io[@name='SimulationOutput']")
+        for param in io.iter("parameter") if io is not None else []:
+            if param.get("key") == "QueueFullPolicy":
+                old = param.get("value", "Block")
+        if old != QUEUE_FULL_POLICY:
+            raise SystemExit(
+                f"{xml_path} has QueueFullPolicy {old}; generating {QUEUE_FULL_POLICY} would put it "
+                f"beside that run's results. Use another --results-dir."
+            )
 
 
 # Threads for the in transit reader: 8 ranks per staging node, 24 cores each.
@@ -1513,6 +1543,7 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         "adios_config": f"{output_dir}/adios2.xml",
         "adios_span": False,
         "adios_memory_selection": True,
+        "adios_endstep_barrier": ADIOS_ENDSTEP_BARRIER,
         "read_decomposition": reader_decomposition(exp)[0],
         "reader_shared_planes": reader_decomposition(exp)[1],
         "ascent_options": "",
@@ -1601,6 +1632,7 @@ def generate_adios_xml(exp, output_dir):
         sim_aggregators=sim_aggregators,
         stage_aggregators=stage_aggregators,
         queue_limit=exp.get("queue_limit", 1),
+        queue_full_policy=QUEUE_FULL_POLICY,
     )
     with open(f"{output_dir}/adios2.xml", "w") as f:
         f.write(xml_content)
@@ -2264,11 +2296,11 @@ def generate_scripts(args):
                 )
 
     # Preflight, before any file is written: a run whose existing settings
-    # use the other decomposition stops the whole generation, so nothing
-    # beside that run's results (adios2.xml included) is rewritten.
+    # differ (check_settings_unchanged) stops the whole generation, so
+    # nothing beside that run's results (adios2.xml included) is rewritten.
     for exp in EXPERIMENTS:
-        if exp["type"] == "intransit" and exp["workload"] != "initialization":
-            check_decomposition_unchanged(f"{args.results_dir}/{exp['id']}", exp)
+        if exp["workload"] != "initialization":
+            check_settings_unchanged(f"{args.results_dir}/{exp['id']}", exp)
 
     for exp in EXPERIMENTS:
         sim_ranks = exp["sim_nodes"] * SYSTEM_CONFIG["mpi_per_node"]
@@ -2426,6 +2458,17 @@ if __name__ == "__main__":
         "slab (slowest axis, the layout of runs before 16 Nov 2026). Paper 1 jobs always use slab, as run",
     )
     parser.add_argument(
+        "--adios-endstep-barrier",
+        action="store_true",
+        help="Diagnostic: MPI_Barrier before each SST EndStep, timed as endstep_barrier (ADIOS2 #5272)",
+    )
+    parser.add_argument(
+        "--adios-queue-full-policy",
+        choices=("Block", "Discard"),
+        default=QUEUE_FULL_POLICY,
+        help="SST QueueFullPolicy for the simulation's output (Discard: the writer never waits for readers)",
+    )
+    parser.add_argument(
         "--reader-shared-planes",
         choices=("exchange", "read"),
         default=READER_SHARED_PLANES,
@@ -2481,6 +2524,8 @@ if __name__ == "__main__":
     VOLUME_SAMPLES_PER_CELL = args.volume_samples_per_cell
     READ_DECOMPOSITION = args.reader_decomposition
     READER_SHARED_PLANES = args.reader_shared_planes
+    ADIOS_ENDSTEP_BARRIER = args.adios_endstep_barrier
+    QUEUE_FULL_POLICY = args.adios_queue_full_policy
     ASCENT_TIMINGS = args.ascent_timings
     READER_SMT = args.reader_smt
     generate_scripts(args)

@@ -11,7 +11,7 @@ ReadOnlyBackend::ReadOnlyBackend(const BackendOptions &opts)
                     // The same timers as the Ascent and Catalyst backends, so
                     // reduce_timers.py and comparisons need no special case;
                     // Vis_Time is always zero here.
-                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "Halo_Exchange", "Blueprint_Time", "Vis_Time", "total_step"}),
+                    {"ADIOS_Wait", "ADIOS_Read_U", "ADIOS_Read_V", "ADIOS_EndStep", "Halo_Exchange", "Step_Latency", "Blueprint_Time", "Vis_Time", "total_step"}),
       m_reader(opts, m_perf_logger)
 {
 }

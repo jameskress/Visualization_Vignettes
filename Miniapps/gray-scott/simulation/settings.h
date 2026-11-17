@@ -30,6 +30,11 @@ struct Settings
     std::string adios_config;
     bool adios_span;
     bool adios_memory_selection;
+    // Diagnostic (ADIOS2 #5272): an MPI_Barrier just before each EndStep(),
+    // timed as endstep_barrier, so the io timer is the engine's own time
+    // and not the wait for the slowest rank to arrive. Off by default: it
+    // synchronises every output step.
+    bool adios_endstep_barrier;
     std::string mesh_type;
     std::string kombynelite_script_path;
     // Parent directory for each run's performance log directory (#26).

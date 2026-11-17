@@ -11,6 +11,7 @@
 #include <chrono>
 #include <climits>
 #include <cstring>
+#include <limits>
 #include <thread>
 
 AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
@@ -160,6 +161,9 @@ bool AdiosReader::NextStep()
         switch (BeginStep())
         {
         case adios2::StepStatus::OK:
+        {
+            const double begin_wall =
+                std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
             // Over SST, attributes arrive with the first step, after Open();
             // read the Fides origin and spacing again now (#42).
             if (!m_attributes_after_first_step)
@@ -167,7 +171,18 @@ bool AdiosReader::NextStep()
                 ReadFidesAttributes();
                 m_attributes_after_first_step = true;
             }
+            // The writer's wall-clock time entering EndStep(), when the
+            // simulation sends it: Step_Latency (set at EndStep) is from
+            // then to this BeginStep's return, the step's delivery.
+            m_begin_wall = begin_wall;
+            m_have_endstep_wall = false;
+            if (auto wall = m_io->InquireVariable<double>("gs_endstep_wall"))
+            {
+                m_engine->Get(wall, &m_writer_endstep_wall, adios2::Mode::Deferred);
+                m_have_endstep_wall = true;
+            }
             return true;
+        }
         case adios2::StepStatus::EndOfStream:
             return false;
         case adios2::StepStatus::NotReady:
@@ -187,6 +202,11 @@ void AdiosReader::EndStep()
     m_logger.start("ADIOS_EndStep");
     m_engine->EndStep();
     m_logger.stop("ADIOS_EndStep");
+    // NaN when the stream carries no gs_endstep_wall (an older simulation),
+    // so a missing measurement never reads as zero latency.
+    m_logger.add("Step_Latency", m_have_endstep_wall ? m_begin_wall - m_writer_endstep_wall
+                                                     : std::numeric_limits<double>::quiet_NaN());
+    m_have_endstep_wall = false;
     if (m_opts.reader_shared_planes == "exchange")
     {
         m_logger.start("Halo_Exchange");

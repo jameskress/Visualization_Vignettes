@@ -302,6 +302,7 @@ distances by 0.1, and multiply output gradients by 0.1, to get solver units.
 | `catalyst_lib_path` | Catalyst implementation library directory | empty |
 | `adios_config` | ADIOS2 XML configuration | `adios2.xml` |
 | `adios_span`, `adios_memory_selection` | ADIOS2 write paths (span or memory selection) | false |
+| `adios_endstep_barrier` | diagnostic: `MPI_Barrier` before each ADIOS2 `EndStep`, timed as `endstep_barrier`, so `io` is the engine's own time | false |
 | `mesh_type` | mesh description for backends that use it | `image` |
 | `kombynelite_script_path` | Kombyne-lite script | empty |
 | `checkpoint`, `checkpoint_freq`, `checkpoint_output` | ADIOS2 checkpoint after every N completed steps (a restart resumes from exactly that state); needs an `ENABLE_ADIOS2=ON` build (see below) | false, 2000, `ckpt.bp` |
@@ -387,6 +388,7 @@ With them, each step record holds these timers, in seconds per rank:
 | `wrap` | building the backend's description of the data |
 | `execute` | the backend's own work (pipeline, actions, engine) |
 | `io` | files written or data sent |
+| `endstep_barrier` | ADIOS2 with `adios_endstep_barrier` only: waiting for every rank to reach `EndStep` (load imbalance), kept out of `io` |
 | `write_step` | the whole backend call on output steps |
 | `total_step` | one step, from barrier to barrier |
 | `create_writer`, `writer_open`, `printSelf` | setup, in the first record only |

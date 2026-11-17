@@ -29,6 +29,7 @@ void to_json(nlohmann::json &j, const Settings &s)
                        {"adios_config", s.adios_config},
                        {"adios_span", s.adios_span},
                        {"adios_memory_selection", s.adios_memory_selection},
+                       {"adios_endstep_barrier", s.adios_endstep_barrier},
                        {"mesh_type", s.mesh_type},
                        {"kombynelite_script_path", s.kombynelite_script_path},
                        {"perf_dir", s.perf_dir},
@@ -61,6 +62,7 @@ void from_json(const nlohmann::json &j, Settings &s)
     j.at("adios_config").get_to(s.adios_config);
     j.at("adios_span").get_to(s.adios_span);
     j.at("adios_memory_selection").get_to(s.adios_memory_selection);
+    s.adios_endstep_barrier = j.value("adios_endstep_barrier", false);
     j.at("mesh_type").get_to(s.mesh_type);
     j.at("kombynelite_script_path").get_to(s.kombynelite_script_path);
     s.perf_dir = j.value("perf_dir", std::string("perf"));
@@ -93,6 +95,7 @@ Settings::Settings()
     adios_config = "adios2.xml";
     adios_span = false;
     adios_memory_selection = false;
+    adios_endstep_barrier = false;
     mesh_type = "image";
     kombynelite_script_path = "";
     perf_dir = "perf";
@@ -105,17 +108,17 @@ Settings Settings::from_json(const std::string &fname)
 {
     std::ifstream ifs(fname);
     nlohmann::json j;
-    
-    if (!ifs.is_open()) 
+
+    if (!ifs.is_open())
     {
         // Provide a clear, actionable error message to the user/console.
         // It's critical to report the *missing* file.
         std::string err_msg = "Error: Settings file not found or could not be opened: " + fname;
-        
+
         std::cerr << err_msg << std::endl;
         exit(1);
     }
-    
+
     // Attempt to parse the JSON from the file stream
     try {
         ifs >> j;
@@ -125,8 +128,8 @@ Settings Settings::from_json(const std::string &fname)
         std::cerr << err_msg << std::endl;
         exit(1);
     }
-    
-    // If the file was opened but was empty, the `ifs >> j;` will likely 
+
+    // If the file was opened but was empty, the `ifs >> j;` will likely
     // throw the parse_error caught above. But as a safeguard:
     if (ifs.fail() && ifs.eof() && j.empty()) {
         std::string err_msg = "Error: Settings file is empty: " + fname;

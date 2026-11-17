@@ -282,7 +282,13 @@ point-based query counts them twice (#42).
 | `adios_memory_selection` | none: ADIOS2 reads the interior of the ghosted arrays | 0 | `BeginStep` and the `Put` calls | `EndStep` |
 
 In every mode, `io` also includes the close and reopen that
-`overwrite_last_step` does before each write.
+`overwrite_last_step` does before each write. With `adios_endstep_barrier`
+(a diagnostic, off by default) the ranks meet in an `MPI_Barrier` just
+before `EndStep`, timed as `endstep_barrier` and kept out of `io`: the
+barrier is the wait for the slowest rank, and `io` is what is left, the
+engine's own time. Rank 0 also writes `gs_endstep_wall`, its wall-clock
+time entering `EndStep`, which the in transit reader turns into
+`Step_Latency` (analysis/README.md).
 
 Span is checked with BP5 only; SST has no span `Put()`, so with SST the
 writer logs a warning and uses the default mode. Memory selection works

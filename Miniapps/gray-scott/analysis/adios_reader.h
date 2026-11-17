@@ -61,6 +61,11 @@ private:
         std::vector<bool> shared_high;
     };
     std::vector<PendingPlanes> m_pending_planes;
+    // Step_Latency (ADIOS2 #5272): this rank's wall-clock time when
+    // BeginStep returned, and the writer's (rank 0) entering EndStep().
+    double m_begin_wall = 0.0;
+    double m_writer_endstep_wall = 0.0;
+    bool m_have_endstep_wall = false;
     // The packed planes, kept across steps so they are not reallocated.
     std::vector<char> m_send_planes;
     std::vector<char> m_recv_planes;
