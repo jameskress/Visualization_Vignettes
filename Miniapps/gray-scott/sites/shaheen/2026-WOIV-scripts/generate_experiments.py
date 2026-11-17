@@ -1019,6 +1019,17 @@ rm -f $OUTPUT_DIR/data/*.sst
 mkdir -p $OUTPUT_DIR/data
 lfs setstripe -c -1 $OUTPUT_DIR/data
 cd $OUTPUT_DIR
+# Timer directories an earlier job left unreduced (its reduction failed or
+# never ran) are set aside, so this job's reduction never takes them for this
+# job's: the Catalyst timers carry no run record to check.
+for d in reader_timers catalyst_timers; do
+    if [ -d $OUTPUT_DIR/$d ]; then
+        # Unique, so a requeued job (same ID) never moves it inside an
+        # earlier set-aside directory.
+        aside=$OUTPUT_DIR/$d.before$SLURM_JOB_ID.$(date +%s)
+        mv $OUTPUT_DIR/$d $aside && echo "Set aside an earlier job's $d/ as $(basename $aside)"
+    fi
+done
 
 # A stuck shutdown no longer needs a watchdog: both programs write their
 # results and timings first, then give teardown teardown_timeout_s seconds
@@ -1114,12 +1125,49 @@ archive() {{
         && rm -rf $OUTPUT_DIR/$1/
 }}
 
+# Whose exports are these? <id>_reduced_job.txt names the job whose
+# measurements were last reduced here (written just below, for every run;
+# older results fall back to the telemetry's <id>_tel_job.txt). If it is
+# not this reduction's job, clear every measurement export first, before
+# anything can fail or exit, so this job never ends up beside an earlier
+# job's summary or CSVs. Without RUN_JOB_ID (a reduction run by hand) the
+# exports are taken as this job's.
+OWN_EXPORTS=1
+if [ -n "${{RUN_JOB_ID:-}}" ]; then
+    OWNER=$(cat "{results_dir}/{id}_reduced_job.txt" 2>/dev/null \\
+        || cat "{results_dir}/{id}_tel_job.txt" 2>/dev/null)
+    if [ "$OWNER" != "$RUN_JOB_ID" ]; then
+        OWN_EXPORTS=0
+        rm -f "{results_dir}/{id}_summary.json" "{results_dir}/{id}_writer.csv" \\
+            "{results_dir}/{id}_reader.csv" "{results_dir}/{id}_catalyst.csv"
+        # The earlier job's archives are set aside (kept, under its job ID),
+        # so no later reduction of this job can restore them as its own.
+        # Nothing reads them afterwards: delete them by hand when no longer
+        # wanted (sites/shaheen/README.md, Telemetry).
+        for d in perf reader_timers catalyst_timers; do
+            if [ -f $OUTPUT_DIR/$d.tar.gz ]; then
+                # Stop before the owner marker below moves to this job if the
+                # archive cannot be set aside: a retry then tries again
+                # instead of taking the earlier job's archive as this job's.
+                if ! mv $OUTPUT_DIR/$d.tar.gz $OUTPUT_DIR/$d.job${{OWNER:-unknown}}.tar.gz; then
+                    echo "Could not set $d.tar.gz (job ${{OWNER:-unknown}}) aside; not reducing."
+                    exit 1
+                fi
+                echo "$d.tar.gz is job ${{OWNER:-unknown}}'s: kept as $d.job${{OWNER:-unknown}}.tar.gz"
+            fi
+        done
+    fi
+    echo "$RUN_JOB_ID" > "{results_dir}/{id}_reduced_job.txt"
+fi
+
 # A rerun after a successful reduction finds only the archives: restore them.
-# Extract into a temporary directory and move it into place only if tar
-# succeeds, so a failed extraction never looks like a complete one. The
+# Only for a rerun of the same job (OWN_EXPORTS): another job's archives
+# would be reduced as this job's, and the Catalyst timers carry no run record
+# to check. Extract into a temporary directory and move it into place only if
+# tar succeeds, so a failed extraction never looks like a complete one. The
 # archive is kept until the new one replaces it.
 for d in perf reader_timers catalyst_timers; do
-    if [ ! -d $OUTPUT_DIR/$d ] && [ -f $OUTPUT_DIR/$d.tar.gz ]; then
+    if [ "$OWN_EXPORTS" = 1 ] && [ ! -d $OUTPUT_DIR/$d ] && [ -f $OUTPUT_DIR/$d.tar.gz ]; then
         echo "Restoring $d/ from $d.tar.gz..."
         rm -rf $OUTPUT_DIR/$d.restore && mkdir $OUTPUT_DIR/$d.restore
         if tar -xzf $OUTPUT_DIR/$d.tar.gz -C $OUTPUT_DIR/$d.restore \
@@ -1133,10 +1181,28 @@ for d in perf reader_timers catalyst_timers; do
     fi
 done
 
+# A rerun of this reduction restores archives (above), so a directory here
+# may be an earlier job's when this job wrote none. other_job is true when a
+# run record names a job other than this reduction's: that directory is then
+# neither reduced nor exported, and the earlier job's exports are removed, so
+# this job's results never carry another job's measurements. Without
+# RUN_JOB_ID (a reduction run by hand), and for records from before
+# slurm_job_id, everything is taken as before.
+other_job() {{
+    [ -n "${{RUN_JOB_ID:-}}" ] && [ -f "$1" ] && grep -q slurm_job_id "$1" \\
+        && ! grep -Eq "slurm_job_id.: ?.${{RUN_JOB_ID}}[^0-9]" "$1"
+}}
+
 # 2. Simulation timings: the newest run directory under perf/ (README.md,
 #    Performance). Keep its metadata.json and summary.json beside the CSV.
 SIM_PERF=$(ls -dt $OUTPUT_DIR/perf/*/ 2>/dev/null | head -1)
-if [ -n "$SIM_PERF" ]; then
+# An earlier job's run record must not stay beside this job's results (its
+# hostnames would be taken for this job's simulation nodes).
+rm -f "{results_dir}/{id}_metadata.json"
+if [ -n "$SIM_PERF" ] && other_job "$SIM_PERF/metadata.json"; then
+    echo "$SIM_PERF is another job's, not $RUN_JOB_ID's: not reduced; its exports removed."
+    rm -f "{results_dir}/{id}_summary.json" "{results_dir}/{id}_writer.csv"
+elif [ -n "$SIM_PERF" ]; then
     echo "Reducing $SIM_PERF..."
     cp "$SIM_PERF/metadata.json" "{results_dir}/{id}_metadata.json" 2>/dev/null
     cp "$SIM_PERF/summary.json" "{results_dir}/{id}_summary.json" 2>/dev/null
@@ -1150,7 +1216,16 @@ if [ -n "$SIM_PERF" ]; then
 fi
 
 # 3. Reader timings (in transit runs).
-if [ -d "$OUTPUT_DIR/reader_timers" ]; then
+# A reader record from an earlier job of this experiment must not stay
+# beside this job's results, whether or not this job wrote one.
+rm -f "{results_dir}/{id}_reader_metadata.json"
+if [ -d "$OUTPUT_DIR/reader_timers" ] && other_job "$OUTPUT_DIR/reader_timers/metadata.json"; then
+    echo "reader_timers/ is another job's, not $RUN_JOB_ID's: not reduced; its export removed."
+    rm -f "{results_dir}/{id}_reader.csv"
+elif [ -d "$OUTPUT_DIR/reader_timers" ]; then
+    # The reader's own run record (build, commit, platform, libraries), beside
+    # the simulation's {id}_metadata.json, before the directory is archived.
+    cp "$OUTPUT_DIR/reader_timers/metadata.json" "{results_dir}/{id}_reader_metadata.json" 2>/dev/null
     echo "Reducing reader_timers..."
     if python "$REDUCE" "$OUTPUT_DIR/reader_timers" "{results_dir}/{id}_reader.csv"; then
         echo "Compressing reader_timers..."
@@ -1194,12 +1269,29 @@ env | grep -E '^(SLURM_|OMP_|OSPRAY_|GALLIUM_|VTK_|TBB_|MALLOC_|FI_|CM_|MPICH_|S
 for b in "$EXE_SIM" "$EXE_STAGE"; do echo "== $b"; ldd "$b" 2>&1; done > $TEL/ldd.txt
 (cat "{repo_path}/SOURCE.txt" 2>/dev/null; git -C "{repo_path}" describe --always --dirty 2>/dev/null) > $TEL/source.txt
 scontrol show job $SLURM_JOB_ID > $TEL/job.txt 2>&1
+# Where the nodes sit on the network (Slurm's tree: leaf switch of 16
+# nodes, then the 256-node dragonfly group); corpus_index.py turns it and
+# the node lists into placement columns.
+scontrol show topology > $TEL/topology.txt 2>&1
+# The platform before the run: one line per node (kernel, CPU frequency
+# driver, governor and boost, memory, NUMA nodes, NIC firmware and link),
+# so a node that differs is visible, and the full detail of one node. Each
+# probe is limited to 120 s, so a hung tool on a bad node cannot hold the
+# allocation; these steps shift Slurm's step numbers (the run is step 3).
+PLATFORM={repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/node_platform.sh
+srun --overlap --network=no_vni --mpi=none \\
+    --nodes=$SLURM_NNODES --ntasks=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
+    --output=$TEL/platform_nodes.txt --error=$TEL/platform_nodes.err timeout 120 $PLATFORM line \\
+    || echo "platform capture failed (rc $?); the run goes on"
+srun --overlap --network=no_vni --mpi=none --nodes=1 --ntasks=1 --cpus-per-task=1 --mem=1G \\
+    --output=$TEL/platform.txt --error=$TEL/platform.txt timeout 120 $PLATFORM full \\
+    || echo "platform capture failed (rc $?); the run goes on"
 # No Slingshot VNI and no MPI wire-up for the sampler: it uses neither, and
 # with the defaults the step took network resources that MPI_Init in the
 # run's step then could not get (fi_getinfo "No data available") on some
 # nodes: both 1920 + 128 sweep runs and one 64 + 4 run failed that way.
 srun --overlap --network=no_vni --mpi=none \\
-    --nodes=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
+    --nodes=$SLURM_NNODES --ntasks=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
     --output=$TEL/sampler.log --error=$TEL/sampler.log \\
     {repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/node_sampler.sh $TEL/nodes 1 &
 TEL_PID=$!
@@ -1245,7 +1337,9 @@ if [ -f $TEL/job_id ]; then
         rm -rf "{results_dir}/{id}_sacct.txt" "{results_dir}/{id}_telemetry.json" \\
             "{results_dir}/{id}_darshan" "{results_dir}/{id}_mpich_cxi_summary.txt" \\
             "{results_dir}/{id}_tel_env.txt" "{results_dir}/{id}_tel_modules.txt" \\
-            "{results_dir}/{id}_tel_ldd.txt" "{results_dir}/{id}_tel_source.txt"
+            "{results_dir}/{id}_tel_ldd.txt" "{results_dir}/{id}_tel_source.txt" \\
+            "{results_dir}/{id}_tel_topology.txt" "{results_dir}/{id}_tel_platform.txt" \\
+            "{results_dir}/{id}_tel_platform_nodes.txt"
         echo "$RUN_JOB" > "$TJ"
     fi
     # Accounting counts only once sacct answers, lists the run's numbered
@@ -1309,14 +1403,15 @@ if [ -f $TEL/job_id ]; then
     if [ ! -d $TEL/nodes ] && [ -f $TEL/nodes.tar.gz ]; then
         tar -xzf $TEL/nodes.tar.gz -C $TEL || {{ echo "Could not restore telemetry/nodes; summary kept."; rm -rf $TEL/nodes; }}
     fi
+    # The captures from before the run, whatever the summary below does.
+    # Straight to this experiment's names: reductions of other runs share
+    # the results directory.
+    for f in env modules ldd source topology platform platform_nodes; do
+        [ -f $TEL/$f.txt ] && cp $TEL/$f.txt "{results_dir}/{id}_tel_$f.txt"
+    done
     SUMMARY="{results_dir}/{id}_telemetry.json"
     if [ -d $TEL/nodes ] && python {repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/summarize_telemetry.py $TEL "$SUMMARY.tmp"; then
         mv "$SUMMARY.tmp" "$SUMMARY"
-        # Straight to this experiment's names: reductions of other runs share
-        # the results directory.
-        for f in env modules ldd source; do
-            [ -f $TEL/$f.txt ] && cp $TEL/$f.txt "{results_dir}/{id}_tel_$f.txt"
-        done
         (cd $TEL && tar -czf nodes.tar.gz.tmp nodes/ && mv nodes.tar.gz.tmp nodes.tar.gz && rm -rf nodes/)
     else
         rm -f "$SUMMARY.tmp"

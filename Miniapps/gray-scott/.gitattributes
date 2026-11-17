@@ -1,0 +1,4 @@
+# git archive writes the archived commit into this file (see
+# cmake/gs_build_info.cmake), so a build from an exported tree still
+# records which commit it is.
+cmake/git_archive_commit.txt export-subst

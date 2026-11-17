@@ -42,6 +42,11 @@ public:
     // Minor page faults taken while sizing the read buffers since the last
     // call (ReadRepartition's Read_Alloc), then reset.
     double TakeAllocFaults();
+    // The shared-plane mode the last reader constructed actually uses: the
+    // settings ask for one, but a brick over SST without BP5 marshalling
+    // falls back to "read" (adios_reader.cpp). Empty before any reader. For
+    // the run record, which is written outside the backend.
+    static const std::string &EffectiveSharedPlanes();
 
 private:
     void ReadFidesAttributes();

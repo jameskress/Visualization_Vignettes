@@ -1,4 +1,5 @@
 #include "analysis_backend_interface.h"
+#include "adios_reader.h"
 #include <mpi.h>
 #include <getopt.h>
 #include <nlohmann/json.hpp>
@@ -10,6 +11,9 @@
 #include <iomanip>
 
 #include "../common/teardown_guard.hpp"
+#include "../common/run_metadata_string.hpp"
+#include <filesystem>
+#include <sstream>
 
 static constexpr const char *PROG = "analysis-reader";
 
@@ -233,6 +237,52 @@ int main(int argc, char **argv)
         }
 
         auto backend = CreateBackend(opts.output_type, opts);
+        // The reader's own run record, as the simulation writes one, taken
+        // once the backend exists so its libraries (ParaView's Catalyst
+        // implementation, Ascent) are in the list. Every rank constructs a
+        // backend, so every rank reaches this collective:
+        // reader_timers/metadata.json beside its timers (build, git commit,
+        // hosts, platform, loaded libraries, settings and options).
+        {
+            const std::string collected = collect_run_metadata_string(app_comm);
+            if (rank == 0)
+            {
+                nlohmann::json meta = nlohmann::json::parse(collected, nullptr, false);
+                if (meta.is_discarded() || !meta.is_object())
+                    meta = nlohmann::json::object();
+                // Rank 0 only: nothing here may throw, or the other ranks
+                // would wait in the backend's first collective.
+                std::ifstream sf(settings_arg);
+                std::stringstream raw;
+                raw << sf.rdbuf();
+                nlohmann::json parsed = nlohmann::json::parse(raw.str(), nullptr, false);
+                meta["role"] = "analysis-reader";
+                meta["settings_file"] = settings_arg;
+                if (parsed.is_discarded())
+                    meta["settings_text"] = raw.str();
+                else
+                    meta["settings"] = parsed;
+                meta["options"] = {{"output_type", opts.output_type},
+                                   {"adios_file", opts.adios_file},
+                                   {"adios_engine", opts.adios_engine},
+                                   {"adios_config", opts.adios_config},
+                                   {"block_mode", opts.block_mode},
+                                   {"read_decomposition", opts.read_decomposition},
+                                   // what the reader runs, after any fallback
+                                   {"reader_shared_planes", AdiosReader::EffectiveSharedPlanes().empty()
+                                                                ? opts.reader_shared_planes
+                                                                : AdiosReader::EffectiveSharedPlanes()},
+                                   {"sst_wait_mode", opts.sst_wait_mode}};
+                meta["command_line"] = std::vector<std::string>(argv, argv + argc);
+                std::error_code ec;
+                std::filesystem::create_directories("reader_timers", ec);
+                std::ofstream out("reader_timers/metadata.json");
+                out << meta.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+                if (!out)
+                    std::cerr << "analysis-reader: could not write reader_timers/metadata.json\n";
+            }
+        }
+
         backend->Run();
         // Run() has written every output and the timings. Bound the rest:
         // destroying the backend (SST close, catalyst_finalize) and
