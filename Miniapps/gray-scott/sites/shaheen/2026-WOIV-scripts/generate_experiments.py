@@ -1114,12 +1114,33 @@ archive() {{
         && rm -rf $OUTPUT_DIR/$1/
 }}
 
+# Whose exports are these? <id>_reduced_job.txt names the job whose
+# measurements were last reduced here (written just below, for every run;
+# older results fall back to the telemetry's <id>_tel_job.txt). If it is
+# not this reduction's job, clear every measurement export first, before
+# anything can fail or exit, so this job never ends up beside an earlier
+# job's summary or CSVs. Without RUN_JOB_ID (a reduction run by hand) the
+# exports are taken as this job's.
+OWN_EXPORTS=1
+if [ -n "${{RUN_JOB_ID:-}}" ]; then
+    OWNER=$(cat "{results_dir}/{id}_reduced_job.txt" 2>/dev/null \\
+        || cat "{results_dir}/{id}_tel_job.txt" 2>/dev/null)
+    if [ "$OWNER" != "$RUN_JOB_ID" ]; then
+        OWN_EXPORTS=0
+        rm -f "{results_dir}/{id}_summary.json" "{results_dir}/{id}_writer.csv" \\
+            "{results_dir}/{id}_reader.csv" "{results_dir}/{id}_catalyst.csv"
+    fi
+    echo "$RUN_JOB_ID" > "{results_dir}/{id}_reduced_job.txt"
+fi
+
 # A rerun after a successful reduction finds only the archives: restore them.
-# Extract into a temporary directory and move it into place only if tar
-# succeeds, so a failed extraction never looks like a complete one. The
+# Only for a rerun of the same job (OWN_EXPORTS): another job's archives
+# would be reduced as this job's, and the Catalyst timers carry no run record
+# to check. Extract into a temporary directory and move it into place only if
+# tar succeeds, so a failed extraction never looks like a complete one. The
 # archive is kept until the new one replaces it.
 for d in perf reader_timers catalyst_timers; do
-    if [ ! -d $OUTPUT_DIR/$d ] && [ -f $OUTPUT_DIR/$d.tar.gz ]; then
+    if [ "$OWN_EXPORTS" = 1 ] && [ ! -d $OUTPUT_DIR/$d ] && [ -f $OUTPUT_DIR/$d.tar.gz ]; then
         echo "Restoring $d/ from $d.tar.gz..."
         rm -rf $OUTPUT_DIR/$d.restore && mkdir $OUTPUT_DIR/$d.restore
         if tar -xzf $OUTPUT_DIR/$d.tar.gz -C $OUTPUT_DIR/$d.restore \
@@ -1144,16 +1165,6 @@ other_job() {{
     [ -n "${{RUN_JOB_ID:-}}" ] && [ -f "$1" ] && grep -q slurm_job_id "$1" \\
         && ! grep -Eq "slurm_job_id.: ?.${{RUN_JOB_ID}}[^0-9]" "$1"
 }}
-
-# Exports from another job go first, whatever happens below: <id>_tel_job.txt
-# names the job the exports belong to (step 5 writes it). If it is not this
-# reduction's job (or missing), clear every measurement export now, so a job
-# that stopped before writing its timers, or whose reduction fails, never
-# leaves an earlier job's summary or CSVs beside its own records.
-if [ -n "${{RUN_JOB_ID:-}}" ] && [ "$(cat "{results_dir}/{id}_tel_job.txt" 2>/dev/null)" != "$RUN_JOB_ID" ]; then
-    rm -f "{results_dir}/{id}_summary.json" "{results_dir}/{id}_writer.csv" \\
-        "{results_dir}/{id}_reader.csv" "{results_dir}/{id}_catalyst.csv"
-fi
 
 # 2. Simulation timings: the newest run directory under perf/ (README.md,
 #    Performance). Keep its metadata.json and summary.json beside the CSV.
