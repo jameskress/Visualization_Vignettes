@@ -78,7 +78,7 @@ RUN cmake --install adios2-build
 # ParaView 6.2's superbuild has no osmesa project any more (VTK loads OSMesa
 # at run time), so ENABLE_osmesa below is ignored and headless rendering
 # relies on libosmesa6 in the runtime stage.
-ARG PARAVIEW_VERSION=v6.2.0
+ARG PARAVIEW_VERSION=v6.2.1
 RUN git clone --quiet --recursive -b ${PARAVIEW_VERSION} https://gitlab.kitware.com/paraview/paraview-superbuild.git
 WORKDIR /builds/paraview-superbuild/build
 RUN cmake \
