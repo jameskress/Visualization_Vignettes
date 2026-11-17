@@ -1133,24 +1133,30 @@ for d in perf reader_timers catalyst_timers; do
     fi
 done
 
+# A rerun of this reduction restores archives (above), so a directory here
+# may be an earlier job's when this job wrote none. other_job is true when a
+# run record names a job other than this reduction's: that directory is then
+# neither reduced nor exported, and the earlier job's exports are removed, so
+# this job's results never carry another job's measurements. Without
+# RUN_JOB_ID (a reduction run by hand), and for records from before
+# slurm_job_id, everything is taken as before.
+other_job() {{
+    [ -n "${{RUN_JOB_ID:-}}" ] && [ -f "$1" ] && grep -q slurm_job_id "$1" \\
+        && ! grep -Eq "slurm_job_id.: ?.${{RUN_JOB_ID}}[^0-9]" "$1"
+}}
+
 # 2. Simulation timings: the newest run directory under perf/ (README.md,
 #    Performance). Keep its metadata.json and summary.json beside the CSV.
 SIM_PERF=$(ls -dt $OUTPUT_DIR/perf/*/ 2>/dev/null | head -1)
 # An earlier job's run record must not stay beside this job's results (its
 # hostnames would be taken for this job's simulation nodes).
 rm -f "{results_dir}/{id}_metadata.json"
-if [ -n "$SIM_PERF" ]; then
+if [ -n "$SIM_PERF" ] && other_job "$SIM_PERF/metadata.json"; then
+    echo "$SIM_PERF is another job's, not $RUN_JOB_ID's: not reduced; its exports removed."
+    rm -f "{results_dir}/{id}_summary.json" "{results_dir}/{id}_writer.csv"
+elif [ -n "$SIM_PERF" ]; then
     echo "Reducing $SIM_PERF..."
-    # Only this job's record: perf/ may have been restored from an earlier
-    # job's archive (above) if this job wrote none; by hand (no RUN_JOB_ID)
-    # any record is taken. Records from before slurm_job_id are taken too.
-    SM="$SIM_PERF/metadata.json"
-    if [ -f "$SM" ] && {{ [ -z "${{RUN_JOB_ID:-}}" ] || ! grep -q slurm_job_id "$SM" \\
-        || grep -Eq "slurm_job_id.: ?.${{RUN_JOB_ID}}[^0-9]" "$SM"; }}; then
-        cp "$SM" "{results_dir}/{id}_metadata.json"
-    else
-        echo "perf/ metadata.json is not job $RUN_JOB_ID's; not exported."
-    fi
+    cp "$SIM_PERF/metadata.json" "{results_dir}/{id}_metadata.json" 2>/dev/null
     cp "$SIM_PERF/summary.json" "{results_dir}/{id}_summary.json" 2>/dev/null
     # Compress only after a successful reduction, so a failure keeps the raw logs.
     if python "$REDUCE" "$SIM_PERF" "{results_dir}/{id}_writer.csv"; then
@@ -1165,17 +1171,13 @@ fi
 # A reader record from an earlier job of this experiment must not stay
 # beside this job's results, whether or not this job wrote one.
 rm -f "{results_dir}/{id}_reader_metadata.json"
-if [ -d "$OUTPUT_DIR/reader_timers" ]; then
+if [ -d "$OUTPUT_DIR/reader_timers" ] && other_job "$OUTPUT_DIR/reader_timers/metadata.json"; then
+    echo "reader_timers/ is another job's, not $RUN_JOB_ID's: not reduced; its export removed."
+    rm -f "{results_dir}/{id}_reader.csv"
+elif [ -d "$OUTPUT_DIR/reader_timers" ]; then
     # The reader's own run record (build, commit, platform, libraries), beside
     # the simulation's {id}_metadata.json, before the directory is archived.
-    # Only this job's: reader_timers/ may have been restored from an
-    # earlier job's archive (above) if this job wrote none. Without
-    # RUN_JOB_ID (a reduction run by hand) any record is taken.
-    RM="$OUTPUT_DIR/reader_timers/metadata.json"
-    if [ -f "$RM" ] && {{ [ -z "${{RUN_JOB_ID:-}}" ] \\
-        || grep -Eq "slurm_job_id.: ?.${{RUN_JOB_ID}}[^0-9]" "$RM"; }}; then
-        cp "$RM" "{results_dir}/{id}_reader_metadata.json"
-    fi
+    cp "$OUTPUT_DIR/reader_timers/metadata.json" "{results_dir}/{id}_reader_metadata.json" 2>/dev/null
     echo "Reducing reader_timers..."
     if python "$REDUCE" "$OUTPUT_DIR/reader_timers" "{results_dir}/{id}_reader.csv"; then
         echo "Compressing reader_timers..."
