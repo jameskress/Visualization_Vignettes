@@ -822,6 +822,10 @@ class VignetteContext(object):
         regression: it writes `status: "skipped"` with a reason, and the
         harness records a skip, runs no comparisons, and appends no metrics.
 
+        The same holds for an optional component the tool was built without,
+        such as ParaView's VisIt bridge (the only Silo reader): the install
+        cannot run the vignette, and that is a fact about the install.
+
         A missing input that is NOT in that category is still a failure. Use
         `ctx.dataset(key)`, which raises, for anything the repository ships
         or generates.

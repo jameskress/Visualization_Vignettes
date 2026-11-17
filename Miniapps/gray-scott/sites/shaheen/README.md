@@ -509,6 +509,29 @@ records, for every run:
   again) and started without waiting.
 * An environment snapshot: the job's settings variables, `module list`,
   `ldd` of both binaries, the source revision and `scontrol show job`.
+* The platform and the network, before the run (`node_platform.sh`):
+  * one line per node in `platform_nodes.txt`: kernel, CPU frequency
+    driver, governor, boost and maximum, CPU count, NUMA nodes, memory,
+    huge pages, 1-minute load, NVIDIA driver, NIC firmware, link speed and
+    state; a node that differs from the rest shows up there;
+  * the full detail of one node in `platform.txt`: `lscpu`, `numactl -H`,
+    `cxi_stat`, OS release, `fi_info --version`, Slurm's version and the
+    kernel command line;
+  * `scontrol show topology` in `topology.txt`: Slurm's network tree. On
+    Shaheen III that is 288 leaf switches of 16 nodes (named by hardware
+    location, `x1005c0r3`) and 18 dragonfly groups of 256 nodes
+    (`group4` is cabinet x1005, nid00001 to nid00256); traffic between
+    groups crosses the global links that every job shares.
+
+  The reduction copies them beside the results as `<id>_tel_platform*.txt`
+  and `<id>_tel_topology.txt`. Each probe is limited to 120 s; the probes add
+  two Slurm steps before the run, so the in transit run is step 3 (3+0 the
+  simulation, 3+1 the reader).
+* When a resubmitted job's reduction finds results from an earlier job, it
+  clears that job's exports and keeps its archives as
+  `<dir>.job<old job>.tar.gz`; a run also sets aside timer directories an
+  earlier job left unreduced as `<dir>.before<job>`. Nothing reads either
+  afterwards: delete them by hand when no longer wanted.
 * `SLURM_ACCTG_FREQ=task=30,energy=30`, so steps get memory and energy
   figures (Shaheen samples every 600 s by default).
 * Darshan 3.4.7 (`build-darshan.sh <software dir>`; Shaheen has no Darshan
@@ -550,7 +573,34 @@ core that the jobs leave idle.
 grid, decomposition, ADIOS2 version, build), headline numbers (simulation
 and reader step times over steps 1 and up, the writer's io, the reader's
 wait (BeginStep), EndStep, build and vis times, sampled energy and power, Darshan bytes) and the path of every
-artifact. Missing inputs leave their columns empty. The reduction of a
+artifact. Provenance and placement columns:
+
+* `sim_git_commit`, `sim_git_describe`, `reader_git_commit`: the commit
+  each program was built from. Builds from `git archive` (as on Shaheen)
+  get it from `cmake/git_archive_commit.txt`, which `git archive` fills in;
+  a tree copied another way can set `GS_SOURCE_COMMIT` when it is built.
+  Builds before this was added say `unknown`. An exported tree cannot tell
+  that a file was changed after the export, so never patch one in place
+  (copying a single file over it, say): export again with `git archive`, or
+  the build will claim a commit it does not hold.
+* `adios2_library`: the ADIOS2 library the simulation actually loaded (its
+  install directory names the build, for example the 653c9e3 commit).
+* `platform_*`: rank 0's node (kernel, OS, CPU governor and boost, NUMA
+  nodes, memory, NVIDIA driver, load at start, whether the job owned its
+  nodes), and from `platform_nodes.txt` how many nodes were listed, how many
+  distinct platforms they have (1 when every node matches; load is left
+  out), the NIC firmware versions seen and the highest node load at start
+  (`platform_max_load_1min`: a node another job was using shows up there).
+* `placement_*`: from the job's node list, the simulation's hostnames and
+  the topology, the dragonfly groups and leaf switches the simulation and
+  the readers span, and how many groups they share. For runs from before
+  the topology capture, pass a saved topology: `corpus_index.py --topology
+  topology-20261116.txt ...` (`/scratch/kressjm/vv-telemetry` has one). The
+  node lists of past runs are in their telemetry, so their placement can be
+  rebuilt; the 2816 + 128 sweep runs, for example, spread the simulation
+  over 16 to 18 of the 18 groups and the 128 reader nodes over 1 group and
+  9 switches.
+ Missing inputs leave their columns empty. The reduction of a
 large run can take a while: 65536 per-rank timer files took over 54
 minutes, so the reduction job's limit is 4 hours.
 

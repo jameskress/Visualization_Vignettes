@@ -14,6 +14,20 @@
 #include <limits>
 #include <thread>
 
+namespace
+{
+std::string &EffectiveSharedPlanesStore()
+{
+    static std::string value;
+    return value;
+}
+} // namespace
+
+const std::string &AdiosReader::EffectiveSharedPlanes()
+{
+    return EffectiveSharedPlanesStore();
+}
+
 AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
     : m_opts(opts), m_logger(logger), m_comm(opts.comm)
 {
@@ -134,6 +148,7 @@ AdiosReader::AdiosReader(const BackendOptions &opts, PerfLogger &logger)
         }
     }
 
+    EffectiveSharedPlanesStore() = m_opts.reader_shared_planes;
     m_engine = std::make_unique<adios2::Engine>(m_io->Open(m_opts.adios_file, adios2::Mode::Read));
 
     ReadFidesAttributes(); // Read attributes and potentially update m_opts

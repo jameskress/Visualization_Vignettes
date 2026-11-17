@@ -17,10 +17,6 @@ on:
         description: "Also build arm64 (always on for master; elsewhere built but not published)"
         type: boolean
         default: false
-      qemu_image:
-        description: "QEMU (binfmt) image for the arm64 build, to try another than the pinned one"
-        type: string
-        default: ""
   schedule:
     - cron: '0 20 * * 5'   # Fridays 20:00 UTC, the KAUST weekend
 
@@ -50,9 +46,10 @@ permissions:
 #     (they test the vignettes with their own downloads, not the miniapp);
 #   * otherwise the image build and every suite run.
 # The image build compiles the Gray-Scott miniapp with every backend. arm64
-# runs under emulation and takes hours, so it is built only on the weekly
-# run, on manual runs on master, and on master pushes that change the image
-# recipe (Dockerfile, Scripts/docker/, this workflow). Other master pushes
+# builds natively on GitHub's hosted arm64 runner (hours from an empty
+# cache, never on the shared runner), only on the weekly run, on manual runs
+# on master, and on master pushes that change the image recipe (Dockerfile,
+# .dockerignore, Scripts/docker/; edits to this workflow alone do not). Other master pushes
 # build amd64 and publish only their commit's tag; `latest`, the `master`
 # tag and the badge move only with a two-platform build, so they never lose
 # arm64. Pull requests build amd64 and publish nothing. A diff that cannot be
@@ -90,7 +87,7 @@ jobs:
             echo "$1: run everything"
             { echo "code=true"; echo "vignettes=true"; } >> "$GITHUB_OUTPUT"
             # arm64 on master; elsewhere only when a manual run asks for it
-            # (built, not published), to try the emulated build.
+            # (built, not published), to try the arm64 build.
             if { [ "$EVENT" != "pull_request" ] && [ "$REF" = "refs/heads/master" ]; } || [ "$ARM64_INPUT" = "true" ]; then
               echo "arm64=true" >> "$GITHUB_OUTPUT"
             else
@@ -134,19 +131,18 @@ jobs:
           else
             echo "vignettes=true" >> "$GITHUB_OUTPUT"
           fi
-          if [ "$EVENT" = "push" ] && echo "$changed" | grep -Eq '^(Dockerfile|\.dockerignore|Scripts/docker/|\.github/workflows/main\.yml)'; then
+          if [ "$EVENT" = "push" ] && echo "$changed" | grep -Eq '^(Dockerfile|\.dockerignore|Scripts/docker/)'; then
             echo "the image recipe changed: build arm64 too"
             echo "arm64=true" >> "$GITHUB_OUTPUT"
           else
             echo "arm64=false" >> "$GITHUB_OUTPUT"
           fi
 
-  # The image is built in two jobs, so an arm64 failure (arm64 runs under
-  # QEMU emulation, which has crashed in apt's libc-bin step: 2026-11-16) can
-  # never stop the amd64 image or the tests:
-  #   build        amd64, every run that changes code; no emulation;
-  #   build-arm64  arm64, only when "changes" asks for it (weekly, recipe
-  #                changes, manual runs), with a pinned QEMU image;
+  # The image is built in two jobs, so an arm64 failure can never stop the
+  # amd64 image or the tests:
+  #   build        amd64 on the shared runner, every run that changes code;
+  #   build-arm64  arm64 on GitHub's hosted arm64 runner, alongside it, only
+  #                when "changes" asks for it (weekly, recipe changes, manual runs);
   #   publish      on a GitHub-hosted runner, joins the two into one
   #                multi-platform tag and moves `latest`, `master` and the badge.
   # Published tags: <sha>-amd64 and <sha>-arm64 per platform, and <sha> for
@@ -179,6 +175,9 @@ jobs:
         run: |
           # A cache left by an interrupted run must never be rotated in.
           rm -rf "$C-new"
+          # arm64 builds on GitHub's runner since 17 Nov 2026; drop the
+          # emulated build's caches from this shared runner's /tmp.
+          rm -rf /tmp/.buildx-cache-arm64 /tmp/.buildx-cache-arm64-new
           HAVE_CACHE=false
           [ -f "$C/index.json" ] && HAVE_CACHE=true
           if [ "$EVENT" = "pull_request" ] && [ "$HAVE_CACHE" = true ]; then WRITE=false; else WRITE=true; fi
@@ -275,49 +274,62 @@ jobs:
           docker system prune -f
 
   build-arm64:
-    name: Build arm64 image (emulated)
-    needs: [changes, build]
+    name: Build arm64 image (native)
+    needs: changes
     if: ${{ needs.changes.outputs.arm64 == 'true' }}
-    runs-on: self-hosted
-    # Emulated, from an empty cache, rebuilds ParaView and the rest under
-    # QEMU (many hours). A failure here leaves the amd64 image published.
-    timeout-minutes: 600
+    # GitHub's own arm64 runner (free for public repositories): a native
+    # build that never touches the shared self-hosted runner. Until 17 Nov
+    # 2026 this job ran under QEMU emulation on z2n-fe and took 5 to 10
+    # hours, holding every other KVL CI run behind it. The hosted runner has
+    # 4 cores, 16 GB and a 6-hour job limit, so the cache lives in the
+    # registry (the Actions cache caps at 10 GB, less than the superbuild).
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 350
     permissions:
       contents: read
       packages: write
-    env:
-      # The arm64 build segfaulted in libc-bin's postinst (ldconfig) on
-      # 2026-11-16. A probe on this runner (the same apt step in an arm64
-      # ubuntu:22.04, one emulator at a time, registrations reset) passed
-      # with QEMU 10.2.3, 9.2.2 and 7.0.0 and failed only with 8.1.5, with
-      # the same exit 100. So the crash was most likely an older emulator
-      # left registered on the runner, which reset: true (below) now
-      # replaces. Pinned so an upstream change cannot break the build
-      # unannounced; a manual run can try another (input qemu_image).
-      QEMU_IMAGE: ${{ inputs.qemu_image || 'docker.io/tonistiigi/binfmt:qemu-v10.2.3-68' }}
     steps:
       - uses: actions/checkout@v7
-      - name: Choose the cache
-        id: plan
-        env:
-          C: /tmp/.buildx-cache-arm64
-        run: |
-          rm -rf "$C-new"
-          echo "cache present: $([ -f "$C/index.json" ] && echo true || echo false)"
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
         with:
-          image: ${{ env.QEMU_IMAGE }}
-          platforms: arm64
-          # Replace any emulator already registered on this persistent
-          # runner; without it the old handler stays and the pin is ignored.
-          reset: true
-      - name: Show the registered arm64 emulator
-        run: cat /proc/sys/fs/binfmt_misc/qemu-aarch64 || true
+          persist-credentials: false
+      # About 14 GB is free on a fresh runner; the ParaView superbuild needs
+      # more. Drop preinstalled toolchains the image build never uses.
+      - name: Free disk space
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup \
+                      /opt/hostedtoolcache /usr/share/swift /usr/local/share/powershell \
+                      /usr/local/share/chromium /usr/local/lib/node_modules || true
+          sudo docker image prune -af > /dev/null || true
+          df -h /
+      # Same rule and tags as the amd64 job (computed here so this job runs
+      # alongside it rather than after it).
+      - name: Decide what to publish
+        id: tip
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          IMAGE: ghcr.io/${{ github.repository }}
+        run: |
+          PUBLISH=false
+          case "$EVENT" in push | schedule | workflow_dispatch)
+            [ "$REF" = "refs/heads/master" ] && PUBLISH=true ;;
+          esac
+          SHORT=$(git rev-parse --short=7 HEAD)
+          IMAGE_LC=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          echo "publish=$PUBLISH, tag=$IMAGE_LC:$SHORT-arm64"
+          { echo "publish=$PUBLISH"; echo "tags=$IMAGE_LC:$SHORT-arm64"; echo "cache=$IMAGE_LC:buildcache-arm64"; } >> "$GITHUB_OUTPUT"
+          # Publishing runs and manual runs write the cache. A manual run
+          # can seed it before a recipe change merges (a cold native build
+          # may not fit the job limit, and buildx exports nothing from a
+          # job that times out); cache entries are keyed by content, so a
+          # branch run cannot corrupt master's builds, only replace the ref.
+          if [ "$PUBLISH" = true ] || [ "$EVENT" = workflow_dispatch ]; then
+            echo "cache_to=type=registry,ref=$IMAGE_LC:buildcache-arm64,mode=max" >> "$GITHUB_OUTPUT"
+          else
+            echo "cache_to=" >> "$GITHUB_OUTPUT"
+          fi
       - uses: docker/setup-buildx-action@v4
-        id: buildx
-      - name: Cap the builder's CPU
-        run: docker update --cpus 48 --cpu-shares 256 "buildx_buildkit_${{ steps.buildx.outputs.name }}0"
       - uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -327,42 +339,22 @@ jobs:
         id: meta
         with:
           images: ghcr.io/${{ github.repository }}
-      - name: Tag
-        id: tag
-        env:
-          IMAGE: ghcr.io/${{ github.repository }}
-          SHORT: ${{ needs.build.outputs.short_sha }}
-        run: echo "tags=$(echo "$IMAGE:$SHORT-arm64" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v7
         id: build
         with:
           context: .
           platforms: linux/arm64
-          push: ${{ needs.build.outputs.publish == 'true' }}
-          tags: ${{ steps.tag.outputs.tags }}
+          push: ${{ steps.tip.outputs.publish == 'true' }}
+          tags: ${{ steps.tip.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: |
-            type=local,src=/tmp/.buildx-cache-arm64
-            type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-arm64-new,mode=max
-      - name: Rotate the buildx cache
+          # 4 cores and 16 GB: four compile jobs fit (the Dockerfile's
+          # default of 2 is for smaller machines).
+          build-args: BUILD_JOBS=4
+          cache-from: type=registry,ref=${{ steps.tip.outputs.cache }}
+          cache-to: ${{ steps.tip.outputs.cache_to }}
+      - name: Disk after the build
         if: always()
-        env:
-          BUILD_OUTCOME: ${{ steps.build.outcome }}
-          C: /tmp/.buildx-cache-arm64
-        run: |
-          if [ "$BUILD_OUTCOME" = "success" ] && [ -f "$C-new/index.json" ]; then
-            rm -rf "$C"
-            mv "$C-new" "$C"
-            echo "cache rotated"
-          else
-            rm -rf "$C-new"
-            echo "build $BUILD_OUTCOME; kept the existing cache"
-          fi
-          echo "buildx cache: $(du -sh "$C" 2>/dev/null | cut -f1)"
-      - name: Prune Docker System
-        if: always()
-        run: docker system prune -f
+        run: df -h /
 
   publish:
     name: Publish image tags and badge

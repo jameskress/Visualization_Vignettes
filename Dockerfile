@@ -56,11 +56,15 @@ WORKDIR /builds
 
 # --- Build and Install ADIOS2 ---
 # We will install it to a custom prefix to keep it organized
-# Pinned to a release. Cloning the default branch made every image build a
-# different, untested ADIOS2. v2.12.1 is also the ADIOS2 that ParaView 6.2's
-# own superbuild ships (versions.cmake, "SELECT v2.12.0 DEFAULT" -> 2.12.1).
-ARG ADIOS2_VERSION=v2.12.1
-RUN git clone --quiet --depth 1 --branch ${ADIOS2_VERSION} https://github.com/ornladios/ADIOS2.git adios2-src
+# Pinned to a commit. Cloning the default branch made every image build a
+# different, untested ADIOS2. This is the release_213 commit the Gray-Scott
+# work is tested against (the project's target stack, Nov 2026); it moves only
+# for fixes that matter to us. It has no tag, so clone the branch and check
+# out the hash.
+ARG ADIOS2_BRANCH=release_213
+ARG ADIOS2_COMMIT=8d727016477d7a1e7e238bb82e80285c13bd8a6a
+RUN git clone --quiet --branch ${ADIOS2_BRANCH} https://github.com/ornladios/ADIOS2.git adios2-src && \
+    git -C adios2-src checkout --quiet ${ADIOS2_COMMIT}
 RUN cmake -S adios2-src -B adios2-build \
     -DCMAKE_INSTALL_PREFIX=/opt/adios2 \
     -DCMAKE_C_FLAGS="-D'sys_icache_invalidate(a,s)=__builtin___clear_cache((char*)(a),(char*)(a)+(s))'" \
@@ -78,7 +82,7 @@ RUN cmake --install adios2-build
 # ParaView 6.2's superbuild has no osmesa project any more (VTK loads OSMesa
 # at run time), so ENABLE_osmesa below is ignored and headless rendering
 # relies on libosmesa6 in the runtime stage.
-ARG PARAVIEW_VERSION=v6.2.0
+ARG PARAVIEW_VERSION=v6.2.1
 RUN git clone --quiet --recursive -b ${PARAVIEW_VERSION} https://gitlab.kitware.com/paraview/paraview-superbuild.git
 WORKDIR /builds/paraview-superbuild/build
 RUN cmake \
@@ -108,11 +112,15 @@ WORKDIR /builds
 # --- Build and Install Ascent ---
 RUN git clone --quiet --recursive https://github.com/alpine-dav/ascent.git ascent-src
 WORKDIR /builds/ascent-src
-# Checkout a stable, tagged release instead of the main development branch
-RUN git checkout v0.9.5
+# Checkout a stable, tagged release instead of the main development branch,
+# and move the submodules (cloned at the default branch) to that tag.
+RUN git checkout --quiet v0.9.6 && git submodule update --quiet --init --recursive
 # The build script uses environment variables for configuration.
 # We set the installation prefix to /opt/ascent to keep it organized.
-RUN env prefix=/opt/ascent enable_mpi=ON enable_openmp=ON enable_verbose=OFF ./scripts/build_ascent/build_ascent.sh
+# build_config=Release: 0.9.6's script defaults to Debug (0.9.5 defaulted to
+# Release), and a Debug Ascent would skew every timing taken in this image.
+# The rest are the script's defaults, including 32-bit Viskores IDs.
+RUN env prefix=/opt/ascent enable_mpi=ON enable_openmp=ON enable_verbose=OFF build_config=Release ./scripts/build_ascent/build_ascent.sh
 
 # Reset WORKDIR for any subsequent builds
 WORKDIR /builds
@@ -176,7 +184,7 @@ ENV PATH="/opt/paraview/bin:/opt/adios2/bin:${PATH}"
 # The Ascent build script places many libraries in versioned subdirectories.
 # We add them all here using wildcards for resilience.
 # Define the library path directly. It is empty by default.
-ENV LD_LIBRARY_PATH="/opt/paraview/lib:/opt/adios2/lib:/opt/ascent/install/ascent-checkout/lib:/opt/ascent/install/conduit-*/lib:/opt/ascent/install/raja-*/lib:/opt/ascent/install/umpire-*/lib:/opt/ascent/install/mfem-*/lib:/opt/ascent/install/silo-*/lib:/opt/ascent/install/vtk-m-*/lib:/opt/ascent/install/zlib-*/lib:/usr/lib/x86_64-linux-gnu:/usr/lib/aarch64-linux-gnu"
+ENV LD_LIBRARY_PATH="/opt/paraview/lib:/opt/adios2/lib:/opt/ascent/install/ascent-checkout/lib:/opt/ascent/install/conduit-*/lib:/opt/ascent/install/raja-*/lib:/opt/ascent/install/umpire-*/lib:/opt/ascent/install/mfem-*/lib:/opt/ascent/install/silo-*/lib:/opt/ascent/install/viskores-*/lib:/opt/ascent/install/zlib-*/lib:/usr/lib/x86_64-linux-gnu:/usr/lib/aarch64-linux-gnu"
 # The CMAKE_PREFIX_PATH helps CMake find all your custom-built packages
 # We add /opt/ascent/install so CMake can find Ascent's dependencies like Conduit.
 ENV CMAKE_PREFIX_PATH="/opt/ascent/install:/opt/paraview/lib/cmake/paraview-6.2:/opt/paraview/lib/cmake/catalyst-2.0:/opt/adios2/lib/cmake/adios2:/opt/ascent/lib/cmake/ascent"
