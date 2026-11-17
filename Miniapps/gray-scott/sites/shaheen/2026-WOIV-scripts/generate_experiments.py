@@ -156,9 +156,7 @@ READER_SMT = True
 # not, and neither do Paper 1's jobs, which keep the setup they ran with (#71).
 READER_MALLOC_ENV = "MALLOC_MMAP_MAX_=0 MALLOC_TRIM_THRESHOLD_=137438953472"
 
-CATALYST_LIB_PATH = (
-    "/sw/vis2/shaheen3.2026.11/paraview-build-6.2.1/install/lib/catalyst"
-)
+CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-6.2.1-gcc13-build/install/lib/catalyst"
 # Darshan (I/O characterization) for --telemetry; --darshan-prefix overrides,
 # --no-darshan leaves it out. Built by software/build-darshan-3.4.7.sh.
 DARSHAN_PREFIX = (

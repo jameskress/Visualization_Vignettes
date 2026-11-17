@@ -2,9 +2,9 @@
 
 Builds and runs here use one stack; `config.bash` and `MODULES.sh` point at it:
 
-- ParaView 6.2.1 (Catalyst 2.0) from the `paraview/6.2.1-egl` module. Before 17 Nov the Catalyst numbers came from the 6.0.1 superbuild in `software/paraview-build`, so they are not comparable with later runs.
-- GCC 13.3.1 (`gcc-native/13.2`), the compiler the module was built with, and cray-mpich 8.1.32.
-- ADIOS2 `release_213` at 8d7270164, built with GCC 13 as a minimal transport build: MPI, SST and BP5, with curl, HDF5, OpenSSL and the compressors off. The module bundles its own curl (built without SSL) and HDF5. An ADIOS2 built against the system curl and OpenSSL shares the `libcurl.so.4` soname with the module's copy and binds to it at run time; that is the suspected cause of a crash at exit after `catalyst_finalize` (under test). Build script: `software/build-adios2-r213-8d7270164-gcc13.sh`.
+- ParaView 6.2.1 (Catalyst 2.0), our own superbuild in `software/paraview-6.2.1-gcc13-build` (script `software/build-paraview-6.2.1-gcc13.sh`, the same options as the 6.0.1 build, Viskores off). Not the `paraview/6.2.1-egl` module: its VTK carries its own Viskores (64-bit IDs, TBB), which shares symbols with Ascent 0.9.6's Viskores (32-bit IDs) in the reader and breaks the build. Before 17 Nov the Catalyst numbers came from the 6.0.1 superbuild in `software/paraview-build`, so they are not comparable with later runs.
+- GCC 13.3.1 (`gcc-native/13.2`, the same compiler as the center's 6.2.1 module) and cray-mpich 8.1.32. Build on login5, which has the limits for long builds.
+- ADIOS2 `release_213` at 8d7270164, built with GCC 13 as a minimal transport build: MPI, SST and BP5, with curl, HDF5, OpenSSL and the compressors off. A ParaView superbuild bundles its own curl and HDF5. An ADIOS2 built against the system curl and OpenSSL shares the `libcurl.so.4` soname with ParaView's copy and binds to it at run time; that was the suspected cause of a crash at exit after `catalyst_finalize` with the module (under test). Build script: `software/build-adios2-r213-8d7270164-gcc13.sh`.
 - Ascent 0.9.6 (Conduit 0.9.9, Viskores, 32-bit IDs), built with GCC 13.
 - Darshan is still the GCC 12.3 build in `software/darshan-3.4.7-install`; it is only preloaded for `--telemetry`. A GCC 13 rebuild goes to a new prefix so earlier telemetry keeps its provenance.
 
@@ -22,7 +22,7 @@ its own offscreen window and EGL is never touched:
 ```bash
 export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow
 # OSPRay (used by the Paper 2 Catalyst scripts) loads its modules from here:
-export LD_LIBRARY_PATH=/sw/vis2/shaheen3.2026.11/paraview-build-6.2.1/install/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/scratch/kressjm/Visualization_Vignettes/software/paraview-6.2.1-gcc13-build/install/lib:$LD_LIBRARY_PATH
 srun ... ./gray-scott --settings-file=settings.json
 ```
 

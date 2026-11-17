@@ -1,6 +1,6 @@
 cmake \
--Dcatalyst_DIR=/sw/vis2/shaheen3.2026.11/paraview-build-6.2.1/install/lib/cmake/catalyst-2.0 \
--DVTK_DIR=/sw/vis2/shaheen3.2026.11/paraview-build-6.2.1/install/lib/cmake/paraview-6.2/vtk \
+-Dcatalyst_DIR=/scratch/kressjm/Visualization_Vignettes/software/paraview-6.2.1-gcc13-build/install/lib/cmake/catalyst-2.0 \
+-DVTK_DIR=/scratch/kressjm/Visualization_Vignettes/software/paraview-6.2.1-gcc13-build/install/lib/cmake/paraview-6.2/vtk \
 -DAscent_DIR=/scratch/kressjm/Visualization_Vignettes/software/ascent-0.9.6-gcc13-install/ascent-checkout/lib/cmake/ascent \
 -DADIOS2_DIR=/scratch/kressjm/Visualization_Vignettes/software/adios2-r213-8d7270164-gcc13-install/lib64/cmake/adios2 \
 -Dkombynelite_DIR=/scratch/kressjm/Visualization_Vignettes/software/kombynelite-v1.5-linux-x86_64/lib/cmake/kombynelite \
