@@ -1145,6 +1145,16 @@ other_job() {{
         && ! grep -Eq "slurm_job_id.: ?.${{RUN_JOB_ID}}[^0-9]" "$1"
 }}
 
+# Exports from another job go first, whatever happens below: <id>_tel_job.txt
+# names the job the exports belong to (step 5 writes it). If it is not this
+# reduction's job (or missing), clear every measurement export now, so a job
+# that stopped before writing its timers, or whose reduction fails, never
+# leaves an earlier job's summary or CSVs beside its own records.
+if [ -n "${{RUN_JOB_ID:-}}" ] && [ "$(cat "{results_dir}/{id}_tel_job.txt" 2>/dev/null)" != "$RUN_JOB_ID" ]; then
+    rm -f "{results_dir}/{id}_summary.json" "{results_dir}/{id}_writer.csv" \\
+        "{results_dir}/{id}_reader.csv" "{results_dir}/{id}_catalyst.csv"
+fi
+
 # 2. Simulation timings: the newest run directory under perf/ (README.md,
 #    Performance). Keep its metadata.json and summary.json beside the CSV.
 SIM_PERF=$(ls -dt $OUTPUT_DIR/perf/*/ 2>/dev/null | head -1)
