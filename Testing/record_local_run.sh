@@ -17,7 +17,7 @@ RUN_ID=${1:?run id, e.g. KW61316-2026-10-21}
 MACHINE=${2:-$(hostname)}
 # Three runs of each vignette, so one disturbed run is outvoted and the
 # dashboard has a spread to test a difference against.
-REPEAT=${REPEAT:-3}
+REPEAT=${REPEAT-3}   # unset: 3; set but empty is refused below
 # Checked here, before the old record with this id is removed below: a value
 # test_suite.py rejects would otherwise delete the run and record nothing.
 case "$REPEAT" in

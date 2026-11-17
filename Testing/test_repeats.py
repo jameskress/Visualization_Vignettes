@@ -176,6 +176,21 @@ class CollapseRepeats(unittest.TestCase):
         self.assertEqual(timing["history_runs"], 2)
         self.assertEqual(timing["verdict"], "insufficient")
 
+    def test_vignettes_in_one_run_fold_separately(self):
+        other = record(50.0, "r", (1, 2))
+        other["test_name"] = "ex04_pvStreamlineAnimation"
+        other2 = record(52.0, "r", (2, 2))
+        other2["test_name"] = "ex04_pvStreamlineAnimation"
+        history = {
+            "t1": record(10.0, "r", (1, 2)),
+            "t2": other,
+            "t3": record(12.0, "r", (2, 2)),
+            "t4": other2,
+        }
+        folded = drift.collapse_repeats(history)
+        self.assertEqual(folded["t3"]["execution_time"], 11.0)
+        self.assertEqual(folded["t4"]["execution_time"], 51.0)
+
 
 if __name__ == "__main__":
     unittest.main()

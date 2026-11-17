@@ -205,9 +205,13 @@ def check_history(records):
 
 
 def _repeat_key(record):
-    """The (run_id, version) a repeat folds under, or None for a single run."""
+    """The (run_id, test, version) a repeat folds under, or None for a single run.
+
+    The test name too: one run id covers every vignette of an invocation,
+    and a history passed in may hold more than one vignette.
+    """
     if isinstance(record, dict) and record.get("repeat") and record.get("run_id"):
-        return (record["run_id"], tool_version(record))
+        return (record["run_id"], record.get("test_name"), tool_version(record))
     return None
 
 
