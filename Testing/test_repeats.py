@@ -89,6 +89,33 @@ class CollapseRepeats(unittest.TestCase):
         self.assertEqual(judged[0]["history_runs"], 3)
         self.assertEqual(judged[0]["value"], 32.0)
 
+    def test_failed_repeats_stay_out_of_the_median(self):
+        failed = record(1.0, "r", (1, 3))
+        failed["run_succeeded"] = False
+        history = {
+            "t1": failed,
+            "t2": dict(record(10.0, "r", (2, 3)), run_succeeded=True),
+            "t3": dict(record(12.0, "r", (3, 3)), run_succeeded=True),
+        }
+        folded = drift.collapse_repeats(history)["t3"]
+        self.assertEqual(folded["execution_time"], 11.0)
+        self.assertFalse(folded["run_succeeded"])
+
+    def test_scoped_figures_fold_only_within_the_last_scope(self):
+        other = record(10.0, "r", (1, 3), memory=9000.0)
+        other["memory_measurement_scope"] = "child-tree-sampled"
+        history = {
+            "t1": other,
+            "t2": record(11.0, "r", (2, 3), memory=400.0),
+            "t3": record(12.0, "r", (3, 3), memory=600.0),
+        }
+        folded = drift.collapse_repeats(history)["t3"]
+        self.assertEqual(folded["memory_usage_mb"], 500.0)
+        self.assertEqual(folded["repeat_values"]["memory_usage_mb"], [400.0, 600.0])
+        self.assertEqual(folded["memory_measurement_scope"], "child-tree-pss")
+        # Wall time has no scope: every repeat counts.
+        self.assertEqual(folded["execution_time"], 11.0)
+
 
 if __name__ == "__main__":
     unittest.main()

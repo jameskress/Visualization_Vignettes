@@ -387,6 +387,45 @@ _HOST_HARDWARE = None
 # The history files this invocation appended to, so the summary judges
 # drift on this run's records only, not on a vignette it did not run.
 APPENDED_HISTORIES = {}  # history file -> timestamp of the record appended
+# Under --repeat, the first pass each vignette failed in: testing dir ->
+# (pass, passes). The summary reports that pass's gate files, not the last.
+FAILED_PASSES = {}
+# What a pass leaves in Testing/ that the summary reads.
+GATE_FILES = (
+    RUN_RESULT_FILENAME,
+    IMAGE_RESULTS_FILENAME,
+    NUMERIC_RESULTS_FILENAME,
+    CSV_RESULTS_FILENAME,
+    TEXT_RESULTS_FILENAME,
+    BASELINE_SOURCE_FILENAME,
+)
+
+
+def snapshot_gate_files(testing_dir):
+    """{file name: bytes, or None when absent} of one vignette's gate files."""
+    out = {}
+    for name in GATE_FILES:
+        try:
+            with open(os.path.join(testing_dir, name), "rb") as handle:
+                out[name] = handle.read()
+        except OSError:
+            out[name] = None
+    return out
+
+
+def restore_gate_files(testing_dir, snapshot):
+    for name, content in snapshot.items():
+        path = os.path.join(testing_dir, name)
+        if content is None:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        else:
+            with open(path, "wb") as handle:
+                handle.write(content)
+
+
 TOOL_EXECUTABLES = ("pvbatch", "pvpython", "visit")
 
 
@@ -1318,6 +1357,10 @@ def create_summary_report(
             "performance_stable": True,
             "baseline_ref": None,
         }
+        failed_pass = FAILED_PASSES.get(os.path.realpath(testing_dir))
+        if failed_pass:
+            # The gate files below are that failing pass's, restored by main().
+            test_status["failed_in_pass"] = "{0} of {1}".format(*failed_pass)
         source_file = os.path.join(testing_dir, BASELINE_SOURCE_FILENAME)
         try:
             with open(source_file, "r") as handle:
@@ -2187,6 +2230,7 @@ def main(argv=None):
     # Whole passes rather than each vignette N times in a row: a burst of
     # load from another job then lands on one run of several vignettes, not
     # on every run of one.
+    failed_snapshots = {}
     for repeat in range(1, args.repeat + 1):
         args.repeat_index = repeat
         if args.repeat > 1:
@@ -2196,8 +2240,22 @@ def main(argv=None):
             run_test(test_dir, dir_name, args)
             if args.submit:
                 continue
-            if check_failure(os.path.join(test_dir, "Testing"), args.non_gpu_machine):
+            testing_dir = os.path.join(test_dir, "Testing")
+            if check_failure(testing_dir, args.non_gpu_machine):
                 test_failed = True
+                key = os.path.realpath(testing_dir)
+                if args.repeat > 1 and key not in FAILED_PASSES:
+                    # A later pass rewrites these files; keep the failure so
+                    # the summary cannot say "passed" for a failed run.
+                    FAILED_PASSES[key] = (repeat, args.repeat)
+                    failed_snapshots[key] = snapshot_gate_files(testing_dir)
+
+    for key, snapshot in failed_snapshots.items():
+        restore_gate_files(key, snapshot)
+        print(
+            "{0}: the summary reports pass {1} of {2}, the first that "
+            "failed.".format(key, *FAILED_PASSES[key])
+        )
 
     create_summary_report(
         test_directory,

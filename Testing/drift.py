@@ -195,7 +195,9 @@ def collapse_repeats(history):
     last repeat with the one before it, and drift would count this run's
     repeats as history. Folded, a repeated run is one record under the
     timestamp of its last repeat, every numeric field the median of its
-    repeats, with `repeat_values` keeping each metric's individual values.
+    successful repeats (a scoped figure over those measured in the last
+    one's scope), with `repeat_values` keeping each metric's individual
+    values.
     Records without `repeat` pass through unchanged.
     """
     groups, out = {}, {}
@@ -208,13 +210,31 @@ def collapse_repeats(history):
     for members in groups.values():
         timestamp, last = members[-1]
         folded = dict(last)
+        # A failed repeat's time measures a crash, not the vignette: the
+        # median is taken over the repeats that ran, and the folded run
+        # succeeded only if every repeat did. All failed: all are kept.
+        succeeded = [m for m in members if m[1].get("run_succeeded") is not False]
+        pool = succeeded or members
+        folded["run_succeeded"] = len(succeeded) == len(members)
+        reference = pool[-1][1]
         values = {}
         for metric in last:
-            numbers = [_value(record, metric) for _, record in members]
+            # A scoped figure (CPU, memory) is folded only over repeats
+            # measured like the last one used, whose scope the record keeps.
+            scope_field = METRICS[metric][4] if metric in METRICS else None
+            usable = [
+                record
+                for _, record in pool
+                if not scope_field
+                or record.get(scope_field) == reference.get(scope_field)
+            ]
+            numbers = [_value(record, metric) for record in usable]
             numbers = [n for n in numbers if n is not None]
             if numbers and _value(last, metric) is not None:
                 folded[metric] = statistics.median(numbers)
                 values[metric] = numbers
+                if scope_field:
+                    folded[scope_field] = reference.get(scope_field)
         folded["repeat_values"] = {m: values[m] for m in METRICS if m in values}
         folded["repeat"] = dict(last["repeat"], folded=len(members))
         out[timestamp] = folded
