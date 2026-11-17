@@ -116,6 +116,27 @@ class CollapseRepeats(unittest.TestCase):
         # Wall time has no scope: every repeat counts.
         self.assertEqual(folded["execution_time"], 11.0)
 
+    def test_a_metric_missing_from_the_last_repeat_still_folds(self):
+        last = record(12.0, "r", (3, 3))
+        del last["memory_usage_mb"]
+        history = {
+            "t1": record(10.0, "r", (1, 3), memory=400.0),
+            "t2": record(11.0, "r", (2, 3), memory=600.0),
+            "t3": last,
+        }
+        self.assertEqual(
+            drift.collapse_repeats(history)["t3"]["memory_usage_mb"], 500.0
+        )
+
+    def test_a_metric_only_a_failed_repeat_measured_is_dropped(self):
+        ok1, ok2 = record(10.0, "r", (1, 3)), record(11.0, "r", (2, 3))
+        del ok1["memory_usage_mb"], ok2["memory_usage_mb"]
+        failed = record(1.0, "r", (3, 3), memory=9000.0)
+        failed["run_succeeded"] = False
+        folded = drift.collapse_repeats({"t1": ok1, "t2": ok2, "t3": failed})["t3"]
+        self.assertNotIn("memory_usage_mb", folded)
+        self.assertEqual(folded["execution_time"], 10.5)
+
 
 if __name__ == "__main__":
     unittest.main()

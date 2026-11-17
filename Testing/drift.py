@@ -218,7 +218,13 @@ def collapse_repeats(history):
         folded["run_succeeded"] = len(succeeded) == len(members)
         reference = pool[-1][1]
         values = {}
-        for metric in last:
+        numeric = {
+            key
+            for _, record in members
+            for key in record
+            if _value(record, key) is not None
+        }
+        for metric in sorted(numeric):
             # A scoped figure (CPU, memory) is folded only over repeats
             # measured like the last one used, whose scope the record keeps.
             scope_field = METRICS[metric][4] if metric in METRICS else None
@@ -230,11 +236,14 @@ def collapse_repeats(history):
             ]
             numbers = [_value(record, metric) for record in usable]
             numbers = [n for n in numbers if n is not None]
-            if numbers and _value(last, metric) is not None:
+            if numbers:
                 folded[metric] = statistics.median(numbers)
                 values[metric] = numbers
                 if scope_field:
                     folded[scope_field] = reference.get(scope_field)
+            else:
+                # Only repeats that do not count measured it.
+                folded.pop(metric, None)
         folded["repeat_values"] = {m: values[m] for m in METRICS if m in values}
         folded["repeat"] = dict(last["repeat"], folded=len(members))
         out[timestamp] = folded
