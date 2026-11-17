@@ -225,5 +225,437 @@
             "memory_total_gb": 251.5
         },
         "run_id": "KW61316-2026-11-15"
+    },
+    "2026-11-16T19:01:44.686088": {
+        "test_name": "ex05_pvMultiTimeStepFile",
+        "metrics_schema": 6,
+        "execution_time": 4.270575046539307,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 16.53,
+        "cpu_usage_percent": 387.0673110731355,
+        "memory_rss_mb": 673.133,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 2.99609375,
+        "io_write_mb": 1.203125,
+        "io_rchar_mb": 45.228224754333496,
+        "io_wchar_mb": 1.1817617416381836,
+        "peak_processes": 3,
+        "peak_threads": 272,
+        "cpu_user_seconds": 7.37,
+        "cpu_system_seconds": 9.16,
+        "memory_usage_mb": 599.072,
+        "memory_usage": 628172521.472,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.171167,
+        "load_1m_at_start": 17.71,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 179.8515625,
+        "verdicts": {
+            "run": true,
+            "image": "FAIL",
+            "image_statuses": {
+                "DIFFERENT": 5,
+                "NOT BASELINED": 15
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": false
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "5.13.3",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "4781334d6793"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "45fe66f911e6",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "5.13.3",
+            "visit_version": null,
+            "logical_cpus": 64,
+            "cpu_model": "AMD Ryzen Threadripper PRO 3975WX 32-Cores",
+            "memory_total_gb": 251.5
+        },
+        "run_id": "KW61316-backfill-paraview-5.13.3-2026-11-16"
+    },
+    "2026-11-16T19:10:33.955270": {
+        "test_name": "ex05_pvMultiTimeStepFile",
+        "metrics_schema": 6,
+        "execution_time": 41.871421575546265,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 14.16,
+        "cpu_usage_percent": 33.81781527157349,
+        "memory_rss_mb": 717.387,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.57421875,
+        "io_write_mb": 1.23046875,
+        "io_rchar_mb": 55.827189445495605,
+        "io_wchar_mb": 1.2270622253417969,
+        "peak_processes": 3,
+        "peak_threads": 209,
+        "cpu_user_seconds": 8.14,
+        "cpu_system_seconds": 6.02,
+        "memory_usage_mb": 639.868,
+        "memory_usage": 670950227.968,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 41.434535,
+        "load_1m_at_start": 15.5,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 180.6484375,
+        "verdicts": {
+            "run": true,
+            "image": "FAIL",
+            "image_statuses": {
+                "DIFFERENT": 5,
+                "NOT BASELINED": 15
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": false
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.0.0",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "9d38ea2df59e"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "45fe66f911e6",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.0",
+            "visit_version": null,
+            "logical_cpus": 64,
+            "cpu_model": "AMD Ryzen Threadripper PRO 3975WX 32-Cores",
+            "memory_total_gb": 251.5
+        },
+        "run_id": "KW61316-backfill-paraview-6.0.0-2026-11-16"
+    },
+    "2026-11-16T19:18:34.190260": {
+        "test_name": "ex05_pvMultiTimeStepFile",
+        "metrics_schema": 6,
+        "execution_time": 4.723811388015747,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 13.33,
+        "cpu_usage_percent": 282.1873886374475,
+        "memory_rss_mb": 676.398,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.7421875,
+        "io_write_mb": 1.40234375,
+        "io_rchar_mb": 54.622541427612305,
+        "io_wchar_mb": 1.3884544372558594,
+        "peak_processes": 3,
+        "peak_threads": 145,
+        "cpu_user_seconds": 8.01,
+        "cpu_system_seconds": 5.32,
+        "memory_usage_mb": 603.107,
+        "memory_usage": 632403525.632,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.621932,
+        "load_1m_at_start": 9.34,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 181.15625,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 5,
+                "NOT BASELINED": 15
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.0.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "8da674f80e87"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "45fe66f911e6",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null,
+            "logical_cpus": 64,
+            "cpu_model": "AMD Ryzen Threadripper PRO 3975WX 32-Cores",
+            "memory_total_gb": 251.5
+        },
+        "run_id": "KW61316-backfill-paraview-6.0.1-2026-11-16"
+    },
+    "2026-11-16T19:27:19.902742": {
+        "test_name": "ex05_pvMultiTimeStepFile",
+        "metrics_schema": 6,
+        "execution_time": 5.16722559928894,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 21.89,
+        "cpu_usage_percent": 423.6315906743509,
+        "memory_rss_mb": 644.32,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.71484375,
+        "io_write_mb": 1.1875,
+        "io_rchar_mb": 54.666123390197754,
+        "io_wchar_mb": 1.188288688659668,
+        "peak_processes": 3,
+        "peak_threads": 194,
+        "cpu_user_seconds": 12.27,
+        "cpu_system_seconds": 9.62,
+        "memory_usage_mb": 572.131,
+        "memory_usage": 599922835.456,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.023634,
+        "load_1m_at_start": 18.31,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 180.0546875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 5,
+                "NOT BASELINED": 15
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.1.0",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "eac458608ec4"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "45fe66f911e6",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.1.0",
+            "visit_version": null,
+            "logical_cpus": 64,
+            "cpu_model": "AMD Ryzen Threadripper PRO 3975WX 32-Cores",
+            "memory_total_gb": 251.5
+        },
+        "run_id": "KW61316-backfill-paraview-6.1.0-2026-11-16"
+    },
+    "2026-11-16T19:35:13.939002": {
+        "test_name": "ex05_pvMultiTimeStepFile",
+        "metrics_schema": 6,
+        "execution_time": 5.4936134815216064,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 20.52,
+        "cpu_usage_percent": 373.5246403668797,
+        "memory_rss_mb": 904.375,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.83984375,
+        "io_write_mb": 1.19921875,
+        "io_rchar_mb": 55.32288360595703,
+        "io_wchar_mb": 1.1890106201171875,
+        "peak_processes": 3,
+        "peak_threads": 272,
+        "cpu_user_seconds": 9.82,
+        "cpu_system_seconds": 10.7,
+        "memory_usage_mb": 827.584,
+        "memory_usage": 867784720.384,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.374658,
+        "load_1m_at_start": 7.77,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 183.359375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 5,
+                "NOT BASELINED": 15
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.0",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "5c043edfd215"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "45fe66f911e6",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.0",
+            "visit_version": null,
+            "logical_cpus": 64,
+            "cpu_model": "AMD Ryzen Threadripper PRO 3975WX 32-Cores",
+            "memory_total_gb": 251.5
+        },
+        "run_id": "KW61316-backfill-paraview-6.2.0-2026-11-16"
+    },
+    "2026-11-16T19:43:30.611590": {
+        "test_name": "ex05_pvMultiTimeStepFile",
+        "metrics_schema": 6,
+        "execution_time": 5.68298077583313,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 20.95,
+        "cpu_usage_percent": 368.6445692213117,
+        "memory_rss_mb": 785.16,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.7734375,
+        "io_write_mb": 1.1953125,
+        "io_rchar_mb": 54.70063495635986,
+        "io_wchar_mb": 1.1890106201171875,
+        "peak_processes": 3,
+        "peak_threads": 272,
+        "cpu_user_seconds": 10.31,
+        "cpu_system_seconds": 10.64,
+        "memory_usage_mb": 711.742,
+        "memory_usage": 746315579.392,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.572939,
+        "load_1m_at_start": 11.72,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 178.90234375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 5,
+                "NOT BASELINED": 15
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "a4541ef57b92"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "45fe66f911e6",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 64,
+            "cpu_model": "AMD Ryzen Threadripper PRO 3975WX 32-Cores",
+            "memory_total_gb": 251.5
+        },
+        "run_id": "KW61316-backfill-paraview-6.2.1-2026-11-16"
     }
 }

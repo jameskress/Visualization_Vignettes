@@ -207,5 +207,147 @@
             "memory_total_gb": 251.5
         },
         "run_id": "KW61316-2026-11-15"
+    },
+    "2026-11-16T06:43:28.135744": {
+        "test_name": "ex07_visitScaling",
+        "metrics_schema": 6,
+        "execution_time": 5.4349987506866455,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 2.7,
+        "cpu_usage_percent": 49.67802429869718,
+        "memory_rss_mb": 430.582,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 0.03515625,
+        "io_rchar_mb": 73.68181133270264,
+        "io_wchar_mb": 0.02785968780517578,
+        "peak_processes": 8,
+        "peak_threads": 45,
+        "cpu_user_seconds": 2.31,
+        "cpu_system_seconds": 0.39,
+        "memory_usage_mb": 313.092,
+        "memory_usage": 328300756.992,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.328888,
+        "load_1m_at_start": 5.1,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 161.1484375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.1",
+            "launcher": "visit",
+            "ranks": 1,
+            "id": "588d2a7b6e24"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "45fe66f911e6",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.1",
+            "logical_cpus": 64,
+            "cpu_model": "AMD Ryzen Threadripper PRO 3975WX 32-Cores",
+            "memory_total_gb": 251.5
+        },
+        "run_id": "KW61316-backfill-visit-3.4.1-2026-11-16"
+    },
+    "2026-11-16T06:50:54.450927": {
+        "test_name": "ex07_visitScaling",
+        "metrics_schema": 6,
+        "execution_time": 5.427786588668823,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 7.32,
+        "cpu_usage_percent": 134.86160298345933,
+        "memory_rss_mb": 449.789,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 0.05078125,
+        "io_rchar_mb": 32.57907962799072,
+        "io_wchar_mb": 0.043519020080566406,
+        "peak_processes": 8,
+        "peak_threads": 108,
+        "cpu_user_seconds": 2.98,
+        "cpu_system_seconds": 4.34,
+        "memory_usage_mb": 329.987,
+        "memory_usage": 346016448.512,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.272974,
+        "load_1m_at_start": 4.37,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 154.640625,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 1,
+            "id": "c1a5e9d249f8"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "45fe66f911e6",
+            "dirty": false
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 64,
+            "cpu_model": "AMD Ryzen Threadripper PRO 3975WX 32-Cores",
+            "memory_total_gb": 251.5
+        },
+        "run_id": "KW61316-backfill-visit-3.4.2-2026-11-16"
     }
 }
