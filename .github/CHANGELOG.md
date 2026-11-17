@@ -44,6 +44,11 @@ carries the measurement behind each item below.
   the two suites' CSVs agree column for column.
 
 ### Changed
+- The Docker image moves to the Gray-Scott target stack: ParaView 6.2.1
+  (`PARAVIEW_VERSION=v6.2.1`), ADIOS2 at release_213 commit 8d7270164
+  (was v2.12.1), and Ascent 0.9.6 (was 0.9.5), which brings Conduit 0.9.9
+  and Viskores in place of VTK-m. Ascent is built as Release explicitly,
+  because 0.9.6's build script defaults to Debug.
 - ParaView 6.2.0 is the reference version: the workstation baselines, the CI
   download and the Docker image (`PARAVIEW_VERSION=v6.2.0`). ADIOS2 in the
   image is pinned to v2.12.1 instead of following its default branch. ex06's
