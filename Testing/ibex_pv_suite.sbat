@@ -14,7 +14,7 @@
 #   (no --partition for a GPU job: Ibex refuses it; at most 16 CPUs per A100, RUNBOOK section 5)
 #   90G, not more: ex06 peaks near 57 GiB, and 90 GB per GPU is Ibex's ceiling on a V100
 #   TESTS="5 6" sbatch ibex_pv_suite.sbat             # a subset
-#   EXTRA="--run-id ibex-cpu-2026-10" sbatch ...      # the one recorded run; default is --no-metrics
+#   EXTRA="--run-id ibex-cpu-2026-10 --repeat 3" sbatch ...      # the one recorded run; default is --no-metrics
 #   RANKS=4 sbatch ...                                # MPI ranks per vignette (default 1)
 # VARIANT=mesa (default) runs --machine_name ibex-cpu with the software-render tolerance;
 # VARIANT=egl runs --machine_name ibex-egl-$GPU against GPU-blessed baselines at the default tolerance.

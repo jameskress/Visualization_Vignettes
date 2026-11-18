@@ -74,7 +74,8 @@ Rules that are not negotiable:
 * **`--no-metrics` on every debugging, blessing, experimenting and
   rank-checking run.** `performance_metrics_<machine>.json` is tracked in git
   and is the long-term record, not a log of everything anyone ever ran. One
-  recorded run per configuration, at the end, tagged with `--run-id`.
+  recorded run per configuration, at the end, tagged with `--run-id`, with
+  `--repeat 3` so one disturbed run cannot stand for the configuration.
   `manage_metrics.py --remove-run <id> -y` undoes one precisely.
 * **Never bless without looking at the images.** `--bless` is the only thing
   that creates a baseline; a missing baseline is a failure by design. A
@@ -100,10 +101,10 @@ Rules that are not negotiable:
   as another uses that one's directory with `--baseline-machine` rather than a
   copy (`ibex-gpu` VisIt uses `ibex-cpu`'s): one baseline per site per renderer.
 * **`metrics_schema` gets bumped whenever a recorded field changes meaning.**
-  It is 6. The performance gate, the drift check, the plots and the
+  It is 7. The performance gate, the drift check, the plots and the
   dashboard all refuse to compare below `MIN_COMPARABLE_SCHEMA` (5), which is
   the only thing stopping a definition change from reading as a regression.
-  A schema that only adds fields (6 did) bumps `METRICS_SCHEMA` and leaves
+  A schema that only adds fields (6 and 7 did) bumps `METRICS_SCHEMA` and leaves
   `MIN_COMPARABLE_SCHEMA` alone.
 
 ---

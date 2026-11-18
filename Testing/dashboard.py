@@ -97,7 +97,7 @@ CHARTS = [
     ("io_write_mb", "Storage write (process tree)", "MB", 1.0),
     ("energy_joules", "Energy", "J", 1.0),
 ]
-SCOPE_FIELD = {metric: spec[4] for metric, spec in drift.METRICS.items()}
+SCOPE_FIELD = {metric: drift.scope_of(metric) for metric in drift.METRICS}
 
 # Categorical slots in fixed order (dataviz reference palette). A tool
 # version, a site or a configuration keeps its slot on every page: colour
