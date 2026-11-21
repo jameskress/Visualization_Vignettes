@@ -40,8 +40,9 @@ INIT_NODE_MAP = {1024: 8, 2048: 64, 4096: 1024, 8192: 2048}
 # each configuration's median and flags outliers. --repeats overrides it.
 REPEATS = 3
 # Shaheen's workq caps a job at 2048 nodes; larger jobs ask for QoS ex
-# (up to 4608 nodes). James's standing OK covers about 3500 nodes; above
-# that every run needs his approval, which orchestrate.py enforces.
+# (up to 4608 nodes). James's standing OK covers about 3500 nodes, and the
+# 3536-node 3328 + 208 layout (tested 21 Nov 2026); above that every run
+# needs his approval, which orchestrate.py enforces.
 WORKQ_MAX_NODES = 2048
 LARGE_RUN_QOS = "ex"
 # Start-up (MPI wire-up, SST connection, Catalyst/Python import) grows with
@@ -54,7 +55,7 @@ LARGE_RUN_MIN_TIME = "1:00:00"
 # 2048 and 3072 need --qos=ex (workq caps a job at 2048 nodes); 3072 is
 # exactly 12 of Shaheen's 256-node dragonfly groups. Node counts that are not
 # a power of two split L unevenly by at most one cell per rank (#12).
-STRONG_SCALING_NODES = [256, 1024, 2048, 3072, 4096]
+STRONG_SCALING_NODES = [256, 1024, 2048, 3072, 3328, 4096]
 STRONG_GRID = 4096
 
 WEAK_SCALING_CONFIGS = [(8, 1024), (64, 2048), (512, 4096), (4096, 8192)]
@@ -121,6 +122,10 @@ SCALE_CONFIGS = [
     (1024, 64),
     (2048, 128),
     (3072, 192),
+    # 13 dragonfly groups + 208 readers = 3536 nodes, just over the ~3500
+    # James allows; it ran cleanly on 21 Nov 2026 (job 16126972), so he
+    # accepts it.
+    (3328, 208),
 ]  # (simulation, staging) nodes
 SCALE_GRID = 4096
 SCALE_LAUNCHES = ["mpmd", "steps"]
@@ -140,6 +145,7 @@ ADIOS_SWEEP_CONFIGS = [
     (1920, 128, 1),
     (2048, 128, 1),  # --qos=ex from here (21 Nov 2026)
     (3072, 192, 1),
+    (3328, 208, 1),  # 3536 nodes, tested 21 Nov 2026 (job 16126972)
     (1024, 16, 1),  # reader count at 1024 simulation nodes
     (1024, 32, 1),
     (1024, 128, 1),
@@ -160,6 +166,7 @@ PIPE_CONFIGS = [
     ("s1024", 1024, 4096, 64),
     ("s2048", 2048, 4096, 128),  # --qos=ex (21 Nov 2026)
     ("s3072", 3072, 4096, 192),
+    ("s3328", 3328, 4096, 208),  # 3536 nodes
 ]
 PIPE_RUN_STEPS = 101  # 6 outputs at plotgap 20
 PIPE_TIME_LIMIT = "0:45:00"

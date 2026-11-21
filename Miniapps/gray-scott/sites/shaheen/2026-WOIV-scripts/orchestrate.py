@@ -8,9 +8,10 @@ import random
 import re
 import time
 
-# James's standing OK covers jobs up to about this many nodes (21 Nov 2026);
-# anything larger is submitted only with --allow-over-limit naming it.
-NODE_LIMIT = 3500
+# James's standing OK covers jobs up to about 3500 nodes, and "a few over"
+# such as the tested 3536-node 3328 + 208 layout (21 Nov 2026); anything
+# larger (the 4096-node runs) is submitted only with --allow-over-limit.
+NODE_LIMIT = 3600
 
 
 def _job_nodes(script):

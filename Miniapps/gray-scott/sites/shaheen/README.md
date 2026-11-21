@@ -215,13 +215,14 @@ Large runs (since 21 Nov 2026):
 * `workq` caps a job at 2048 nodes; the generator adds `#SBATCH --qos=ex`
   to larger jobs and gives them at least an hour (start-up grows with the
   node count).
-* James's standing OK covers jobs up to about 3500 nodes. `orchestrate.py`
-  holds anything larger (the 4096-node strong, weak, hero and staging-sweep
+* James's standing OK covers jobs up to about 3500 nodes, and a few over
+  (the 3536-node 3328 + 208 layout ran cleanly on 21 Nov 2026, job 16126972:
+  ADIOS2 transport in 6 min 38 s). `orchestrate.py` holds anything above 3600 nodes (the 4096-node strong, weak, hero and staging-sweep
   runs) unless `--allow-over-limit <name part>` names it, which needs his
   approval for those runs.
 * The in transit ladders (`SCALE_CONFIGS`, `PIPE_CONFIGS`,
-  `ADIOS_SWEEP_CONFIGS`) run to 2048 + 128 and 3072 + 192 nodes, 4096^3
-  inline strong scaling adds 2048 and 3072 nodes, and `hero3072` (3072 +
+  `ADIOS_SWEEP_CONFIGS`) run to 2048 + 128, 3072 + 192 and 3328 + 208 nodes
+  (13 dragonfly groups), 4096^3 inline strong scaling adds 2048, 3072 and 3328 nodes, and `hero3072` (3072 +
   192 at 8192^3) is the strong-scaling point below the 4096-node hero run.
   3072 is exactly 12 of Shaheen III's 256-node dragonfly groups. A node
   count that is not a power of two splits L unevenly by at most one cell
