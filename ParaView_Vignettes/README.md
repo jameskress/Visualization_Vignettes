@@ -62,6 +62,11 @@ Use this section if you want to run the provided example scripts (`ex01`, `ex02`
     pvbatch ex01_pvScreenshot/ex01_pvScreenshot.py --machine local
     ```
 
+    With no ParaView installed, the project's Docker image runs `ex01`,
+    `ex02` and `ex10` with one command, or opens the whole repository in
+    GitHub Codespaces; see "Run a vignette in two minutes" in the main
+    [README](../README.md#getting-started).
+
 ### KAUST Ibex Setup
 
 1.  **Connect:** `ssh <user>@glogin.ibex.kaust.edu.sa`
@@ -259,7 +264,7 @@ halves succeed on their own terms.
 # Part 4: Special Use Cases
 
 ### 1. Custom Python Environments
-If you are using a custom ParaView plugin or reader that requires external Python packages (like `numpy` or `scipy`), you cannot use standard pip installations. 
+If you are using a custom ParaView plugin or reader that requires external Python packages (like `numpy` or `scipy`), you cannot use standard pip installations.
 
 To protect your default environment, the KAUST ParaView launch scripts are hardcoded to automatically look for custom packages in a highly specific directory: `/scratch/$USER/pv_python_environment`.
 
