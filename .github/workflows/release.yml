@@ -21,7 +21,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0       # to check the tag is on master
           persist-credentials: false
+      # A release (and its DOI) is permanent, so only a reviewed commit on
+      # master may become one.
+      - name: Check the tag is on master
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/master || { echo "::error::$GITHUB_REF_NAME is not on master"; exit 1; }
       - name: Check CITATION.cff and the changelog against the tag
         id: notes
         env:
@@ -33,8 +38,9 @@ jobs:
           [ "$CFF_VERSION" = "$VERSION" ] || { echo "::error::CITATION.cff has version $CFF_VERSION, the tag is $TAG"; exit 1; }
           echo "CITATION.cff: version $CFF_VERSION, released $CFF_DATE"
           # The section from "## [X.Y.Z]" up to the next "## [".
-          awk -v v="$VERSION" '
-            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+          # Compared as plain text, not a regex (the dots in X.Y.Z).
+          awk -v h="## [$VERSION]" '
+            index($0, h) == 1 { on = 1; next }
             on && /^## \[/ { exit }
             on { print }
           ' .github/CHANGELOG.md > notes.md

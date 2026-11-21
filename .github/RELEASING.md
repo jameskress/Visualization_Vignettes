@@ -26,6 +26,7 @@ used (the Docker image of that commit is `ghcr.io/jameskress/visualization_vigne
    - in `.github/CHANGELOG.md`, rename `## [Unreleased]` to
      `## [X.Y.Z] - YYYY-MM-DD` and start a new empty `## [Unreleased]` above it;
    - in `CITATION.cff`, set `version: X.Y.Z` and `date-released: YYYY-MM-DD`.
+   - bring the changelog's highlights up to the last merged PR.
 3. After that PR merges and master's CI is green, tag the merge commit and push
    the tag:
 
@@ -36,7 +37,8 @@ used (the Docker image of that commit is `ghcr.io/jameskress/visualization_vigne
 
 4. `.github/workflows/release.yml` checks that `CITATION.cff` matches the tag
    and that the changelog has the section, then publishes the release with that
-   section as its notes. Zenodo picks the release up within minutes.
+   section as its notes. Zenodo picks the release up within minutes. If no DOI
+   appears on the first release, re-run the archive from Zenodo's GitHub page.
 
 Tags such as `baselines/...` are not releases; the workflow only reacts to
 `vX.Y.Z`.

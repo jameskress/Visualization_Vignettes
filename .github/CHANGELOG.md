@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Highlights since 1.0.0
 
-Everything merged from March to November 2026 (#1 to #129). The sections
+Merged since 1.0.0 (March to November 2026; extend this list up to the
+release's last PR when cutting it). The sections
 after this one keep the detailed notes from the local validation work.
 
 **Gray-Scott miniapp**
