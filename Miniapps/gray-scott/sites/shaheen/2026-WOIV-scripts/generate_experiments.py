@@ -189,7 +189,7 @@ READER_SMT = True
 # and only silhouette-edge pixels differ (sites/shaheen/README.md, "In
 # transit reader costs"). So every Paper 2 Ascent render turns it off and the
 # run's settings record it (ascent_tiled_rendering); Paper 1's templates stay
-# as they ran (#71).
+# as they ran (#71). --ascent-tiled-rendering turns tiling back on.
 ASCENT_TILED_RENDERING = False
 
 # The in transit reader's allocator: never mmap, never trim. The job-wide
@@ -2711,6 +2711,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Turn on Ascent's per-filter timings (ascent_options.yaml `timings`)",
     )
+    parser.add_argument(
+        "--ascent-tiled-rendering",
+        action="store_true",
+        help="Keep Ascent 0.9.6's default tiled rendering in Paper 2 renders "
+        "(off by default; for A/B runs)",
+    )
     # Python 3.6 on the login nodes has no BooleanOptionalAction.
     parser.add_argument(
         "--reader-smt",
@@ -2769,6 +2775,7 @@ if __name__ == "__main__":
     ADIOS_ENDSTEP_BARRIER = args.adios_endstep_barrier
     QUEUE_FULL_POLICY = args.adios_queue_full_policy
     ASCENT_TIMINGS = args.ascent_timings
+    ASCENT_TILED_RENDERING = args.ascent_tiled_rendering
     READER_SMT = args.reader_smt
     if args.repeats < 1 or args.repeats > 99:
         parser.error("--repeats must be between 1 and 99")
