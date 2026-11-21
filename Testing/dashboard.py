@@ -162,27 +162,51 @@ def public_name(config):
 
 def public_text(text):
     """`text` with every private configuration name, and its short host name
-    (the part before the first dot), replaced by the public name."""
+    (the part before the first dot), replaced by the public name. Whole
+    tokens only: a longer word that merely contains the short name stays."""
     text = str(text)
     for private, public in PUBLIC_NAMES.items():
         for form in (private, private.split(".", 1)[0]):
-            text = re.sub(re.escape(form), public, text, flags=re.IGNORECASE)
+            text = re.sub(
+                r"(?<![A-Za-z0-9]){0}(?![A-Za-z0-9])".format(re.escape(form)),
+                public,
+                text,
+                flags=re.IGNORECASE,
+            )
     return text
 
 
+def scrub(value):
+    """`value` with public_text applied to every string in it, keys too."""
+    if isinstance(value, str):
+        return public_text(value)
+    if isinstance(value, dict):
+        return {scrub(k): scrub(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [scrub(v) for v in value]
+    return value
+
+
 def publish_names(histories):
-    """Histories keyed by public names, run ids scrubbed of host names.
+    """Histories keyed by public names, every record scrubbed of host names.
 
     Runs after the vignette revisions are read, which need the history
-    files' real names.
+    files' real names. Two configurations with one public name stop the
+    build rather than one silently replacing the other.
     """
-    out = {}
+    out, origin = {}, {}
     for (config, tool), vignettes in histories.items():
-        for rows in vignettes.values():
-            for _, record in rows:
-                if record.get("run_id"):
-                    record["run_id"] = public_text(record["run_id"])
-        out[(public_name(config), tool)] = vignettes
+        key = (public_name(config), tool)
+        if key in out:
+            raise SystemExit(
+                "configurations '{0}' and '{1}' would both be published as "
+                "'{2}'".format(origin[key], config, key[0])
+            )
+        origin[key] = config
+        out[key] = {
+            vignette: [(ts, scrub(record)) for ts, record in rows]
+            for vignette, rows in vignettes.items()
+        }
     return out
 
 
@@ -2206,8 +2230,11 @@ def build_site(out_dir, repo_root=REPO_ROOT, generated=None, now=None):
     generated = generated or now.strftime("%Y-%m-%d %H:%M")
     os.makedirs(out_dir, exist_ok=True)
 
+    # PUBLIC_NAMES directly, not public_name: a retired host-named entry
+    # whose history is gone publishes nothing and must not stop the build.
     retired = {
-        public_name(config): entry for config, entry in load_retired(repo_root).items()
+        PUBLIC_NAMES.get(config, config): entry
+        for config, entry in load_retired(repo_root).items()
     }
     states = {
         key: config_state(key[1], vs, now, retired.get(key[0]))
