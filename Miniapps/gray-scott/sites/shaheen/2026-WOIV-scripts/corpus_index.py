@@ -67,6 +67,10 @@ REPEAT_METRICS = (
 )
 OUTLIER_MADS = 3.0  # in scaled MADs (1.4826 * MAD estimates a standard deviation)
 OUTLIER_FLOOR = 0.10  # never flag a run within 10% of the median
+OUTLIER_ABS_FLOOR_S = 0.05  # nor within 50 ms (waits of a few ms are noise)
+# With fewer than three runs there is no median to judge by; a spread wider
+# than this is reported instead, so a failed third repeat cannot hide one.
+FEW_RUNS_SPREAD_PCT = 25.0
 WRITER_KEYS = ("total_step", "compute_step", "write_step", "io", "endstep_barrier")
 DARSHAN_KEYS = (
     "total_POSIX_BYTES_READ",
@@ -408,6 +412,7 @@ def summarize_repeats(rows):
             "ids": " ".join(sorted(m["id"] for m in members)),
         }
         flagged = set()
+        few_wide = []
         for metric in REPEAT_METRICS:
             pairs = [
                 (m["id"], m.get(metric))
@@ -422,7 +427,11 @@ def summarize_repeats(rows):
                 continue
             med = statistics.median(values)
             mad = statistics.median(abs(v - med) for v in values)
-            limit = max(OUTLIER_MADS * 1.4826 * mad, OUTLIER_FLOOR * abs(med))
+            limit = max(
+                OUTLIER_MADS * 1.4826 * mad,
+                OUTLIER_FLOOR * abs(med),
+                OUTLIER_ABS_FLOOR_S,
+            )
             outliers = [
                 i for i, v in pairs if len(values) >= 3 and abs(v - med) > limit
             ]
@@ -434,7 +443,16 @@ def summarize_repeats(rows):
                 100.0 * (max(values) - min(values)) / med if med else None
             )
             summary[metric + "_outliers"] = " ".join(sorted(outliers))
+            spread = summary[metric + "_spread_pct"]
+            if (
+                2 == len(values)
+                and spread is not None
+                and spread > FEW_RUNS_SPREAD_PCT
+                and max(values) - min(values) > OUTLIER_ABS_FLOOR_S
+            ):
+                few_wide.append(metric)
         summary["outlier_runs"] = " ".join(sorted(flagged))
+        summary["few_runs_wide"] = " ".join(few_wide)
         out.append(summary)
     return out
 
@@ -479,14 +497,22 @@ def main(argv):
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
         writer.writerows(summaries)
-    flagged = [s for s in summaries if s["outlier_runs"]]
+    flagged = [s for s in summaries if s["outlier_runs"] or s["few_runs_wide"]]
     print(
         "corpus_index: {0} configurations -> {1}_repeats.csv; {2} with an outlier run".format(
             len(summaries), prefix, len(flagged)
         )
     )
     for s in flagged:
-        print("  outlier: " + s["config"] + ": " + s["outlier_runs"])
+        if s["outlier_runs"]:
+            print("  outlier: " + s["config"] + ": " + s["outlier_runs"])
+        if s["few_runs_wide"]:
+            print(
+                "  two runs disagree (rerun): "
+                + s["config"]
+                + ": "
+                + s["few_runs_wide"]
+            )
     return 0
 
 

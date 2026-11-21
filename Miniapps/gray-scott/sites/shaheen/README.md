@@ -206,7 +206,8 @@ to `<results-dir>/submissions.tsv`.
 configuration, the number of runs and, for the reader and writer step,
 `Vis_Time`, `ADIOS_Wait` and io times, the median, minimum, maximum, spread
 and the outlier runs (further from the median than 3 scaled median absolute
-deviations and at least 10% of the median). It prints the configurations
+deviations, at least 10% of the median and at least 50 ms). With only two
+usable runs (a repeat failed) a spread over 25% is flagged instead. It prints the configurations
 with an outlier. Rerun an outlier as a fourth repeat rather than dropping
 it, and keep it in the corpus with its flag.
 
