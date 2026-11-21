@@ -11,11 +11,15 @@ on:
     branches: [ master ]
     paths:
       - 'Testing/**.py'
+      - 'Testing/README.md'
+      - '*_Vignettes/MODULES.sh'
       - '.github/workflows/harness-tests.yml'
   pull_request:
     branches: [ '**' ]
     paths:
       - 'Testing/**.py'
+      - 'Testing/README.md'
+      - '*_Vignettes/MODULES.sh'
       - '.github/workflows/harness-tests.yml'
   workflow_dispatch:
 
@@ -41,4 +45,4 @@ jobs:
       - name: Install psutil
         run: python -m pip install psutil
       - name: Run
-        run: python -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_dashboard_names.py
+        run: python -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_dashboard_names.py Testing/test_docs_pins.py

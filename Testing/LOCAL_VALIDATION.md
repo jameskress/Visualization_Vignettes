@@ -11,6 +11,15 @@ Machine of record: `KW61316.kaust.edu.sa`, Ubuntu 22.04, 64 cores, 251 GB RAM,
 
 ## 1. Current status
 
+**Now (Nov 2026): ParaView 6.2.1 and VisIt 3.5.0, every vignette passing on
+every active configuration** (the workstation, Ibex CPU and five EGL GPUs,
+Ibex VisIt GPU, Shaheen `workq`, `ppn` Mesa and `ppn` L40). The 15 Nov 2026
+records (§4b.17) are the reference; older builds were run against today's
+vignettes for the version comparison (§4b.18, §4b.19). The
+[results dashboard](https://jameskress.github.io/Visualization_Vignettes/dashboard/)
+shows the latest result of each. The paragraphs below are the earlier
+references, kept as the record of how the suite got here.
+
 **ParaView 6.2.0 (Nov 2026): 13 of 13 on this workstation, and the CI
 container script (Mesa llvmpipe) exits 0**, with ex06 skipped there as
 always. Getting there took three vignette fixes and one re-blessed image;
@@ -1990,21 +1999,22 @@ which are cheap to answer locally and expensive to discover in a queue:
 
 ## 7. Next steps
 
-Both suites run clean locally, on all three builds, and every question that
-could be answered on a workstation has been. The clusters are next.
+The suite runs on every configuration on the pinned builds (§1), so the
+earlier list here (Shaheen, Ibex, the move to VisIt 3.4.2) is done. Open:
 
-1. **Shaheen CPU** (`workq`), both suites, collect numbers. Pass `--ranks 8`
-   for VisIt, to match the `.sbat` scripts and ex06's baseline.
-2. **Shaheen GPU** (`ppn`, EGL/L40 for ParaView).
-3. **Ibex**, ParaView 6.0.1 and VisIt 3.4.1 are both expected to work
-   unchanged, given §5a and §5b respectively. Neither has been run.
-4. **Spring: move the clusters to 3.4.2.** Decided rather than open, and
-   recorded in §5b: this workstation stays on **3.4.2**, Shaheen and Ibex
-   stay on **3.4.1** until the spring module update, and the two are
-   validated against the same baselines in the meantime. When the clusters
-   move, change `visit/3.4.1` in `VisIt_Vignettes/MODULES.sh` **and** in the
-   Shaheen job submitter inside `~/.visit/customlauncher`, which hard-codes
-   it separately. The suite itself needs nothing.
+1. **Harness drift by vignette revision** (#120): the dashboard compares
+   only runs of the same vignette code; the harness's own drift check does
+   not yet.
+2. **Slurm memory for short steps** is not a measurement on Shaheen: task
+   memory is sampled every 600 s, so a 1 to 3 s VisIt step records whatever
+   one sample saw (records of 15 and 17 Nov 2026). A job can ask for 1 s
+   sampling itself: with `SLURM_ACCTG_FREQ=task=1` in the environment a 3 s
+   step allocating 500 MB recorded 504M, where the default recorded 0
+   (Shaheen job 16126720, 22 Nov 2026). The harness should set it under
+   Slurm, and mark memory unmeasured when a step is shorter than the
+   interval it ran with.
+3. **Record before and after each cluster maintenance** (RUNBOOK section 9,
+   Recording a run), with `--repeat 3`.
 
 Deferred deliberately, with reasons, rather than forgotten:
 

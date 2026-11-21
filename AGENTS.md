@@ -218,7 +218,10 @@ Shared with the other KVL repositories so every agent works the same way.
   "Resolves" (those close the issue at merge, before it is checked).
 * **James merges.** `master` is protected. Say "ready to merge" only after
   the last push and a green pipeline, and push nothing after that.
-* **Docs ship with the change** in the same PR.
+* **Docs ship with the change** in the same PR. The PR template
+  (`.github/pull_request_template.md`) asks which pages changed, and
+  `Testing/test_docs_pins.py` fails CI when the recipes in `Testing/README.md`
+  or the `MODULES.sh` defaults name a build other than `CURRENT_PINS`.
 * **Answer every CodeRabbit finding.** CodeRabbit reviews every PR, stacked
   ones included (`.coderabbit.yaml`, #60). Fix each finding, or reply on its
   thread with the reason; never leave one unanswered.

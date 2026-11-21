@@ -1,5 +1,6 @@
 [![Build Status](https://github.com/jameskress/Visualization_Vignettes/actions/workflows/main.yml/badge.svg)](https://github.com/jameskress/Visualization_Vignettes/actions)
 [![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/jameskress/Visualization_Vignettes)](https://github.com/jameskress/Visualization_Vignettes/tags)
+[![Results dashboard](https://img.shields.io/badge/results-dashboard-2a78d6)](https://jameskress.github.io/Visualization_Vignettes/dashboard/)
 
 [![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)](./Dockerfile)
 [![Docker Image](https://img.shields.io/endpoint?url=https://jameskress.github.io/Visualization_Vignettes/docker-latest.json)](https://github.com/jameskress/Visualization_Vignettes/pkgs/container/visualization_vignettes)
@@ -25,6 +26,14 @@ This repository is broadly divided into two sections:
 
 2. An evolving section on **In Situ Processing**, centered on a "miniapp" that demonstrates co-processing with libraries like Ascent, Catalyst2, ADIOS2, and Kombyne. The detailed vignettes for this section are still under development.
 
+## Results dashboard
+
+Every vignette is also a regression test. The [**results dashboard**](https://jameskress.github.io/Visualization_Vignettes/dashboard/) shows the latest result of all 13 ParaView and 13 VisIt vignettes on every site and GPU configuration (a workstation, Ibex and Shaheen), and how each one's time, memory and other measurements moved across tool versions and runs. It is rebuilt from the committed records on every change.
+
+<p align="center">
+  <a href="https://jameskress.github.io/Visualization_Vignettes/dashboard/"><img src="data/images/dashboard_overview.png" alt="The results dashboard: summary tiles and every ParaView vignette passing on every configuration" width="720"></a>
+</p>
+
 ## Table of Contents
 
 * **General Documentation**
@@ -46,6 +55,10 @@ This repository is broadly divided into two sections:
     * Details VisIt use on HPC systems (both batch and interactively), as well as local workflows.
 
 * **Regression Testing**
+
+  * [**Results dashboard**](https://jameskress.github.io/Visualization_Vignettes/dashboard/)
+
+    * The latest result of every vignette on every configuration, and how each one's measurements moved across tool versions and runs.
 
   * [**Test Suite**](./Testing/README.md)
 
