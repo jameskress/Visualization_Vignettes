@@ -57,6 +57,10 @@ class PublicNames(unittest.TestCase):
         with self.assertRaises(SystemExit):
             dashboard.publish_names(histories)
 
+    def test_a_short_host_configuration_name_is_published_too(self):
+        self.assertEqual(dashboard.public_name("KW61316"), "workstation")
+        self.assertEqual(dashboard.public_name("KW61316-egl"), "workstation-egl")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -157,7 +157,8 @@ def public_name(config):
                 config
             )
         )
-    return config
+    # A dotless name that is a listed host's short name (KW61316) too.
+    return public_text(config)
 
 
 def public_text(text):
@@ -2233,7 +2234,7 @@ def build_site(out_dir, repo_root=REPO_ROOT, generated=None, now=None):
     # PUBLIC_NAMES directly, not public_name: a retired host-named entry
     # whose history is gone publishes nothing and must not stop the build.
     retired = {
-        PUBLIC_NAMES.get(config, config): entry
+        public_text(config): scrub(entry)
         for config, entry in load_retired(repo_root).items()
     }
     states = {
