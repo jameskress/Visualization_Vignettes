@@ -1,0 +1,48 @@
+name: Release
+
+# Publishes a GitHub release when a version tag (vX.Y.Z) is pushed. The notes
+# are that version's section of .github/CHANGELOG.md, and the tag must match
+# CITATION.cff, which Zenodo reads to mint the release's DOI
+# (.github/RELEASING.md). Nothing here builds or tests; master's CI already has.
+on:
+  push:
+    tags: [ 'v[0-9]+.[0-9]+.[0-9]+' ]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish the release
+    runs-on: ubuntu-latest   # GitHub-hosted; keeps it off the shared runner
+    timeout-minutes: 10
+    permissions:
+      contents: write        # to create the release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check CITATION.cff and the changelog against the tag
+        id: notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION=${TAG#v}
+          CFF_VERSION=$(sed -n 's/^version: *"\{0,1\}\([^"]*\)"\{0,1\} *$/\1/p' CITATION.cff)
+          CFF_DATE=$(sed -n 's/^date-released: *"\{0,1\}\([^"]*\)"\{0,1\} *$/\1/p' CITATION.cff)
+          [ "$CFF_VERSION" = "$VERSION" ] || { echo "::error::CITATION.cff has version $CFF_VERSION, the tag is $TAG"; exit 1; }
+          echo "CITATION.cff: version $CFF_VERSION, released $CFF_DATE"
+          # The section from "## [X.Y.Z]" up to the next "## [".
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' .github/CHANGELOG.md > notes.md
+          [ -s notes.md ] || { echo "::error::.github/CHANGELOG.md has no section ## [$VERSION]"; exit 1; }
+          grep -q "^## \[$VERSION\] - $CFF_DATE" .github/CHANGELOG.md \
+            || echo "::warning::the changelog date for $VERSION differs from CITATION.cff's date-released ($CFF_DATE)"
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" --title "$TAG" --notes-file notes.md --verify-tag
