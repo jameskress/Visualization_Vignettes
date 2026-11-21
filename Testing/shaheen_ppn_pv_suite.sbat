@@ -14,7 +14,7 @@
 #   Run ex08 first (TESTS="8"): it proves the EGL backend found the L40; without that the
 #   whole run is llvmpipe wearing a GPU label. GPU=<name> sets the machine name suffix (L40).
 #   TESTS="5 6" sbatch shaheen_pv_suite.sbat          # a subset
-#   EXTRA="--run-id shaheen-2026-10" sbatch ...       # the one recorded run; default is --no-metrics
+#   EXTRA="--run-id shaheen-2026-10 --repeat 3" sbatch ...       # the one recorded run; default is --no-metrics
 #   RANKS=4 TESTS="1 7" sbatch ...                   # MPI ranks per vignette (default 1)
 set -o pipefail
 cd "${SLURM_SUBMIT_DIR:-$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")}/.." || exit 1

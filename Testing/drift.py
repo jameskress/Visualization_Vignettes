@@ -177,13 +177,128 @@ def check_history(records):
     `records` is a list of (timestamp, record) for one configuration's
     history file, in any order. Returns {timestamp: [results]} for the
     dashboard, which marks every drifted point, not only the latest.
+
+    The repeats of one --repeat run are judged as one run, by their median
+    (collapse_repeats), and every repeat carries that run's verdict: judged
+    one by one, a repeat's siblings would count as independent history and
+    their narrow spread would call ordinary run-to-run noise drift.
     """
-    ordered = sorted(records, key=lambda item: item[0])
-    verdicts = {}
+    folded = collapse_repeats(dict(records))
+    ordered = sorted(folded.items())
+    run_verdicts = {}
     for index, (timestamp, record) in enumerate(ordered):
         earlier = [other for _, other in ordered[:index]]
-        verdicts[timestamp] = check_record(record, earlier)
+        run_verdicts[timestamp] = check_record(record, earlier)
+    # collapse_repeats files a run under its last repeat's timestamp.
+    run_last = {}
+    for timestamp, record in records:
+        key = _repeat_key(record)
+        if key is not None and timestamp > run_last.get(key, ""):
+            run_last[key] = timestamp
+    verdicts = {}
+    for timestamp, record in records:
+        key = _repeat_key(record)
+        verdicts[timestamp] = run_verdicts.get(
+            run_last[key] if key is not None else timestamp, []
+        )
     return verdicts
+
+
+def _repeat_key(record):
+    """The (run_id, test, version) a repeat folds under, or None for a single run.
+
+    The test name too: one run id covers every vignette of an invocation,
+    and a history passed in may hold more than one vignette.
+    """
+    if isinstance(record, dict) and record.get("repeat") and record.get("run_id"):
+        return (record["run_id"], record.get("test_name"), tool_version(record))
+    return None
+
+
+def scope_of(metric):
+    """The field naming how `metric` was measured, or None when it has none.
+
+    The METRICS entries, plus the figures recorded beside them under the
+    same measurement: CPU percentages and splits share the CPU scope, the
+    byte and RSS memory figures the memory scope, the I/O call counts the
+    I/O scope, the energy split the energy scope. The one map: the fold,
+    the performance gate (metrics.py) and the dashboard all use it.
+    """
+    if metric in METRICS:
+        return METRICS[metric][4]
+    if metric.startswith("cpu_"):
+        return "cpu_measurement_scope"
+    if metric.startswith("memory_"):
+        return "memory_measurement_scope"
+    if metric.startswith("io_"):
+        return "io_scope"
+    if metric.startswith("energy_"):
+        return "energy_scope"
+    return None
+
+
+def collapse_repeats(history):
+    """{timestamp: record} with each repeated run folded into one record.
+
+    `test_suite.py --repeat N` appends N records of one vignette, sharing a
+    run_id and each carrying `repeat`. Judged one by one, each would be
+    compared with its own siblings: the performance gate would compare the
+    last repeat with the one before it, and drift would count this run's
+    repeats as history. Folded, a repeated run is one record under the
+    timestamp of its last repeat, every numeric field the median of its
+    successful repeats (a scoped figure over those measured in the last
+    one's scope), with `repeat_values` keeping each metric's individual
+    values.
+    Records without `repeat` pass through unchanged.
+    """
+    groups, out = {}, {}
+    for timestamp, record in sorted(history.items()):
+        key = _repeat_key(record)
+        if key is not None:
+            groups.setdefault(key, []).append((timestamp, record))
+        else:
+            out[timestamp] = record
+    for members in groups.values():
+        timestamp, last = members[-1]
+        folded = dict(last)
+        # A failed repeat's time measures a crash, not the vignette: the
+        # median is taken over the repeats that ran, and the folded run
+        # succeeded only if every repeat did. All failed: all are kept.
+        succeeded = [m for m in members if m[1].get("run_succeeded") is not False]
+        pool = succeeded or members
+        folded["run_succeeded"] = len(succeeded) == len(members)
+        reference = pool[-1][1]
+        values = {}
+        numeric = {
+            key
+            for _, record in members
+            for key in record
+            if _value(record, key) is not None
+        }
+        for metric in sorted(numeric):
+            # A scoped figure (CPU, memory) is folded only over repeats
+            # measured like the last one used, whose scope the record keeps.
+            scope_field = scope_of(metric)
+            usable = [
+                record
+                for _, record in pool
+                if not scope_field
+                or record.get(scope_field) == reference.get(scope_field)
+            ]
+            numbers = [_value(record, metric) for record in usable]
+            numbers = [n for n in numbers if n is not None]
+            if numbers:
+                folded[metric] = statistics.median(numbers)
+                values[metric] = numbers
+                if scope_field:
+                    folded[scope_field] = reference.get(scope_field)
+            else:
+                # Only repeats that do not count measured it.
+                folded.pop(metric, None)
+        folded["repeat_values"] = {m: values[m] for m in METRICS if m in values}
+        folded["repeat"] = dict(last["repeat"], folded=len(members))
+        out[timestamp] = folded
+    return dict(sorted(out.items()))
 
 
 def check_latest(history, timestamp=None):

@@ -290,7 +290,7 @@ image gate at any other rank count. Its images are judged against `ibex-cpu`'s
 per-machine baselines (`--baseline-machine ibex-cpu`, which the script adds):
 VisIt draws ex06 on an Ibex GPU node bit for bit as on a CPU node (15 Nov
 2026), where the workstation's shared baseline differs over 35% of the frame,
-so one Ibex VisIt baseline serves both. Add `EXTRA="--run-id ibex-gpu-<date>"` for
+so one Ibex VisIt baseline serves both. Add `EXTRA="--run-id ibex-gpu-<date> --repeat 3"` for
 the one recorded run (section 9):
 
 ```bash
@@ -310,7 +310,7 @@ exactly what you want to hear about.
 
 `Testing/ibex_pv_suite.sbat` and `Testing/ibex_visit_suite.sbat`, submitted from
 `Testing/`, with the same `TESTS`, `RANKS` and `EXTRA` knobs as the Shaheen ones
-(default `--no-metrics`; `EXTRA="--run-id ibex-cpu-<date>"` for the one recorded
+(default `--no-metrics`; `EXTRA="--run-id ibex-cpu-<date> --repeat 3"` for the one recorded
 run). GPU: `sbatch --gres=gpu:1 --constraint=a100 --ntasks=4 --cpus-per-task=4
 --export=ALL,VARIANT=egl,GPU=a100 ibex_pv_suite.sbat`. Never pass `--partition`
 for a GPU job (Ibex refuses it) and stay within the per-GPU CPU limit (16 on
@@ -833,7 +833,16 @@ record. It is not a log of everything you ran.
   compares exactly as usual and appends nothing.
 - **One recorded run per configuration, at the end**, once the code is in the
   state you intend to commit. Tag it with `--run-id` so it can be undone as a
-  unit: `--run-id shaheen3-cpu-$(date +%Y-%m-%d)`.
+  unit: `--run-id shaheen3-cpu-$(date +%Y-%m-%d)`. Record it with
+  `--repeat 3` (in the batch scripts, `EXTRA="--run-id <id> --repeat 3"`):
+  a single run on a shared node can be skewed by another job and nothing in
+  the record would show it, while three give a median and a spread. It
+  triples the job's time, most of it ex06.
+- **Record before and after each system maintenance.** The clusters change a
+  few times a year (drivers, modules, OS). A recorded run just before and
+  just after a maintenance window, same build, isolates what the system
+  change did; the records' `machine_info` (kernel, OS, GPU driver,
+  governor) and `build.id` show what changed.
 - **`--machine_name` names a machine and a rendering configuration, never a
   tool version.** Both tool versions belong in the same file; the version is
   recorded inside each record.
