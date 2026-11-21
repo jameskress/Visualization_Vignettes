@@ -9,8 +9,8 @@ needs. VisIt is not in the image, so the VisIt vignettes do not run here.
 
 * **GitHub Codespaces:** use the "Open in GitHub Codespaces" badge in the main
   [README](../README.md#getting-started), or Code > Codespaces > Create on
-  GitHub. Pick the **4-core** machine (16 GB memory, 32 GB disk); the 2-core
-  machine's 8 GB is too tight for the image plus a build and a parallel run.
+  GitHub. Pick the **4-core** machine (16 GB memory, 32 GB disk), which the
+  configuration asks for; the 2-core machine was not tried.
 * **VS Code Dev Containers:** with Docker running, open the folder and choose
   "Reopen in Container". The first open pulls the image (about 4.5 GB).
 
@@ -48,9 +48,11 @@ comments), so the reasons live here:
   the image's entrypoint remaps vizuser to `HOST_UID`; here the Dev Containers
   tooling does the same job with `updateRemoteUserUID`, which matches
   vizuser's UID to the owner of the workspace on Linux hosts.
-* `hostRequirements` asks Codespaces for the 4-core machine: the image is
-  about 12 GB unpacked, and the post-create build plus a 2-rank run want more
-  than the 2-core machine's 8 GB of memory.
+* `hostRequirements` asks Codespaces for the 4-core machine (16 GB, 32 GB
+  disk). The image is about 12 GB unpacked; with 4 CPUs the post-create build
+  took 42 s and a 2-rank Catalyst run peaked near 0.6 GB per rank in a local
+  check. The 2-core machine (8 GB) was not tried, so this is headroom, not a
+  measured minimum.
 * `postCreateCommand` builds this checkout's miniapp, so edits in the
   workspace are what runs; the image's own prebuilt copy stays in
   `/app/install`.
