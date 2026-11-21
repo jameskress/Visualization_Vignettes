@@ -2,7 +2,14 @@
 # Stage 1: The "Builder"
 # This stage has all the tools needed to compile ParaView, ADIOS2, etc.
 # =========================================================================
-FROM ubuntu:22.04 AS builder
+# Base image pinned by digest (the multi-platform index for ubuntu:22.04 as
+# of 21 Nov 2026). The tag alone moves whenever Ubuntu refreshes it, which
+# invalidates every cached layer: the weekly arm64 build then reused nothing
+# and rebuilt ParaView for 3 h. Move the digest on purpose (this one ARG
+# feeds both stages), e.g. for security updates:
+#   docker buildx imagetools inspect ubuntu:22.04   (the top "Digest:" line)
+ARG UBUNTU_BASE=ubuntu:22.04@sha256:f64b2ffc2f10ab8f8505aa56b2664bd846cbb9df87c7e2532e30f7667021c0e6
+FROM ${UBUNTU_BASE} AS builder
 
 LABEL org.opencontainers.image.source=https://github.com/jameskress/Visualization_Vignettes
 LABEL org.opencontainers.image.description="Scientific Visualization Examples and Best Practices"
@@ -140,7 +147,7 @@ WORKDIR /builds
 # This is the clean, small image you will distribute. It only contains
 # the runtime dependencies and the installed software from the builder stage.
 # =========================================================================
-FROM ubuntu:22.04
+FROM ${UBUNTU_BASE}
 
 # --- Install RUNTIME dependencies AND build tools for the user code ---
 # The -dev packages are needed to compile the user code against these libraries.
