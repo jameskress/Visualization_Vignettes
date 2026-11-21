@@ -258,5 +258,245 @@
             "memory_total_gb": 755.5
         },
         "run_id": "ibex-cpu-2026-11-15"
+    },
+    "2026-11-17T06:15:11.798882": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "metrics_schema": 7,
+        "execution_time": 50.43134093284607,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 292.94,
+        "cpu_usage_percent": 580.8689489142799,
+        "memory_rss_mb": 638.516,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 3.41796875,
+        "io_write_mb": 201.44140625,
+        "io_rchar_mb": 57.80327224731445,
+        "io_wchar_mb": 196.70312786102295,
+        "peak_processes": 2,
+        "peak_threads": 105,
+        "cpu_user_seconds": 286.73,
+        "cpu_system_seconds": 6.21,
+        "memory_usage_mb": 625.718,
+        "memory_usage": 656112877.568,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 50.381844,
+        "load_1m_at_start": 74.38,
+        "load_1m_at_end": 76.47,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 198.93359375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.0.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "68f78798fd18",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn511-23",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null,
+            "logical_cpus": 192,
+            "cpu_model": "AMD EPYC 9655 96-Core Processor",
+            "memory_total_gb": 755.5,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)"
+        },
+        "run_id": "ibex-cpu-backfill-paraview-6.0.1-2026-11-17"
+    },
+    "2026-11-17T06:21:54.787955": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "metrics_schema": 7,
+        "execution_time": 51.281444787979126,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 298.9,
+        "cpu_usage_percent": 582.8618932945217,
+        "memory_rss_mb": 641.945,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 202.796875,
+        "io_rchar_mb": 57.804500579833984,
+        "io_wchar_mb": 198.06252002716064,
+        "peak_processes": 2,
+        "peak_threads": 105,
+        "cpu_user_seconds": 289.45,
+        "cpu_system_seconds": 9.45,
+        "memory_usage_mb": 559.668,
+        "memory_usage": 586854432.768,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 51.230159,
+        "load_1m_at_start": 67.47,
+        "load_1m_at_end": 65.2,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 171.19140625,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.0.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "68f78798fd18",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn511-23",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null,
+            "logical_cpus": 192,
+            "cpu_model": "AMD EPYC 9655 96-Core Processor",
+            "memory_total_gb": 755.5,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)"
+        },
+        "run_id": "ibex-cpu-backfill-paraview-6.0.1-2026-11-17"
+    },
+    "2026-11-17T06:28:44.653244": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "metrics_schema": 7,
+        "execution_time": 50.19102144241333,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 197.94,
+        "cpu_usage_percent": 394.37332477305023,
+        "memory_rss_mb": 672.492,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 202.59375,
+        "io_rchar_mb": 57.80237579345703,
+        "io_wchar_mb": 197.85939502716064,
+        "peak_processes": 2,
+        "peak_threads": 105,
+        "cpu_user_seconds": 189.19,
+        "cpu_system_seconds": 8.75,
+        "memory_usage_mb": 577.754,
+        "memory_usage": 605818978.304,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 50.142497,
+        "load_1m_at_start": 69.19,
+        "load_1m_at_end": 69.34,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 192.94921875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.0.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "68f78798fd18",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn511-23",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null,
+            "logical_cpus": 192,
+            "cpu_model": "AMD EPYC 9655 96-Core Processor",
+            "memory_total_gb": 755.5,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)"
+        },
+        "run_id": "ibex-cpu-backfill-paraview-6.0.1-2026-11-17"
     }
 }

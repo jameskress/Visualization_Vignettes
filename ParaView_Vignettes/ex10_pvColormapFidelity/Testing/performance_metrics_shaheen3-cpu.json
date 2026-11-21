@@ -156,5 +156,485 @@
             "memory_total_gb": 376.4
         },
         "run_id": "shaheen3-cpu-2026-11-15"
+    },
+    "2026-11-17T06:32:02.625992": {
+        "test_name": "ex10_pvColormapFidelity",
+        "metrics_schema": 7,
+        "execution_time": 2.5502015876770017,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 6.901,
+        "cpu_usage_percent": 270.60605849148476,
+        "cpu_user_seconds": 6.622,
+        "cpu_system_seconds": 0.278,
+        "memory_max_task_mb": 411.0,
+        "disk_read_mb": 9.87680435180664,
+        "disk_write_mb": 0.16854095458984375,
+        "slurm_steps": [
+            "16037113.10"
+        ],
+        "energy_joules": 782.0,
+        "energy_scope": "slurm-steps-whole-nodes",
+        "memory_usage_mb": 419.5126953125,
+        "memory_usage": 439890944.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.470216,
+        "load_1m_at_start": 1.17,
+        "load_1m_at_end": 1.16,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 164.09375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.1.0",
+            "launcher": "srun",
+            "ranks": 1,
+            "id": "dd9e35a8daba",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00132",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.1.0",
+            "visit_version": null,
+            "logical_cpus": 384,
+            "cpu_model": "AMD EPYC 9654 96-Core Processor",
+            "memory_total_gb": 376.4,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-cpu-backfill-paraview-6.1.0-2026-11-17"
+    },
+    "2026-11-17T06:33:02.885932": {
+        "test_name": "ex10_pvColormapFidelity",
+        "metrics_schema": 7,
+        "execution_time": 2.576122829437253,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 6.486999999999999,
+        "cpu_usage_percent": 251.81252717740432,
+        "cpu_user_seconds": 6.317,
+        "cpu_system_seconds": 0.17,
+        "memory_max_task_mb": 390.0,
+        "disk_read_mb": 9.829202651977539,
+        "disk_write_mb": 0.22520828247070312,
+        "slurm_steps": [
+            "16037110.10"
+        ],
+        "energy_joules": 837.0,
+        "energy_scope": "slurm-steps-whole-nodes",
+        "memory_usage_mb": 398.611328125,
+        "memory_usage": 417974272.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.465914,
+        "load_1m_at_start": 0.74,
+        "load_1m_at_end": 0.76,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 163.671875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.0.1",
+            "launcher": "srun",
+            "ranks": 1,
+            "id": "3664b826f8b2",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00131",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null,
+            "logical_cpus": 384,
+            "cpu_model": "AMD EPYC 9654 96-Core Processor",
+            "memory_total_gb": 376.4,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-cpu-backfill-paraview-6.0.1-2026-11-17"
+    },
+    "2026-11-17T06:52:02.386502": {
+        "test_name": "ex10_pvColormapFidelity",
+        "metrics_schema": 7,
+        "execution_time": 2.4147293109893795,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 6.5,
+        "cpu_usage_percent": 269.18131031990396,
+        "cpu_user_seconds": 6.089,
+        "cpu_system_seconds": 0.41000000000000003,
+        "memory_max_task_mb": 408.0,
+        "disk_read_mb": 9.954398155212402,
+        "disk_write_mb": 0.24662113189697266,
+        "slurm_steps": [
+            "16037113.23"
+        ],
+        "energy_joules": 837.0,
+        "energy_scope": "slurm-steps-whole-nodes",
+        "memory_usage_mb": 416.529296875,
+        "memory_usage": 436762624.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.320027,
+        "load_1m_at_start": 0.93,
+        "load_1m_at_end": 0.93,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 169.65625,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.1.0",
+            "launcher": "srun",
+            "ranks": 1,
+            "id": "dd9e35a8daba",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00132",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.1.0",
+            "visit_version": null,
+            "logical_cpus": 384,
+            "cpu_model": "AMD EPYC 9654 96-Core Processor",
+            "memory_total_gb": 376.4,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-cpu-backfill-paraview-6.1.0-2026-11-17"
+    },
+    "2026-11-17T06:53:59.820050": {
+        "test_name": "ex10_pvColormapFidelity",
+        "metrics_schema": 7,
+        "execution_time": 2.3990152053833,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 6.274,
+        "cpu_usage_percent": 261.523978085732,
+        "cpu_user_seconds": 6.169,
+        "cpu_system_seconds": 0.104,
+        "memory_max_task_mb": 396.0,
+        "disk_read_mb": 9.908753395080566,
+        "disk_write_mb": 0.24662113189697266,
+        "slurm_steps": [
+            "16037110.23"
+        ],
+        "energy_joules": 774.0,
+        "energy_scope": "slurm-steps-whole-nodes",
+        "memory_usage_mb": 404.578125,
+        "memory_usage": 424230912.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.319998,
+        "load_1m_at_start": 0.64,
+        "load_1m_at_end": 0.67,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 168.828125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.0.1",
+            "launcher": "srun",
+            "ranks": 1,
+            "id": "3664b826f8b2",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00131",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null,
+            "logical_cpus": 384,
+            "cpu_model": "AMD EPYC 9654 96-Core Processor",
+            "memory_total_gb": 376.4,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-cpu-backfill-paraview-6.0.1-2026-11-17"
+    },
+    "2026-11-17T07:11:58.997661": {
+        "test_name": "ex10_pvColormapFidelity",
+        "metrics_schema": 7,
+        "execution_time": 2.5619097843170167,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 6.872,
+        "cpu_usage_percent": 268.2373923573588,
+        "cpu_user_seconds": 6.47,
+        "cpu_system_seconds": 0.402,
+        "memory_max_task_mb": 414.0,
+        "disk_read_mb": 9.954608917236328,
+        "disk_write_mb": 0.24648761749267578,
+        "slurm_steps": [
+            "16037113.36"
+        ],
+        "energy_joules": 788.0,
+        "energy_scope": "slurm-steps-whole-nodes",
+        "memory_usage_mb": 422.521484375,
+        "memory_usage": 443045888.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.467882,
+        "load_1m_at_start": 0.89,
+        "load_1m_at_end": 0.89,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 161.43359375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.1.0",
+            "launcher": "srun",
+            "ranks": 1,
+            "id": "dd9e35a8daba",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00132",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.1.0",
+            "visit_version": null,
+            "logical_cpus": 384,
+            "cpu_model": "AMD EPYC 9654 96-Core Processor",
+            "memory_total_gb": 376.4,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-cpu-backfill-paraview-6.1.0-2026-11-17"
+    },
+    "2026-11-17T07:14:59.871066": {
+        "test_name": "ex10_pvColormapFidelity",
+        "metrics_schema": 7,
+        "execution_time": 2.4185009593963613,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 6.366,
+        "cpu_usage_percent": 263.2209003377407,
+        "cpu_user_seconds": 6.146,
+        "cpu_system_seconds": 0.22,
+        "memory_max_task_mb": 394.33203125,
+        "disk_read_mb": 9.908159255981445,
+        "disk_write_mb": 0.24662113189697266,
+        "slurm_steps": [
+            "16037110.36"
+        ],
+        "energy_joules": 807.0,
+        "energy_scope": "slurm-steps-whole-nodes",
+        "memory_usage_mb": 402.97265625,
+        "memory_usage": 422547456.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.320632,
+        "load_1m_at_start": 0.61,
+        "load_1m_at_end": 0.64,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 159.2421875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.0.1",
+            "launcher": "srun",
+            "ranks": 1,
+            "id": "3664b826f8b2",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00131",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null,
+            "logical_cpus": 384,
+            "cpu_model": "AMD EPYC 9654 96-Core Processor",
+            "memory_total_gb": 376.4,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-cpu-backfill-paraview-6.0.1-2026-11-17"
     }
 }

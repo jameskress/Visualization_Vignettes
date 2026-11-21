@@ -152,5 +152,233 @@
             "memory_total_gb": 755.5
         },
         "run_id": "ibex-cpu-2026-11-15"
+    },
+    "2026-11-17T06:19:38.006040": {
+        "test_name": "ex09_visitMeshTopologies",
+        "metrics_schema": 7,
+        "execution_time": 5.762416383743286,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 30.25,
+        "cpu_usage_percent": 524.9533873556963,
+        "cpu_user_seconds": 19.889000000000003,
+        "cpu_system_seconds": 10.360000000000001,
+        "memory_max_task_mb": 198.375,
+        "disk_read_mb": 563.0896635055542,
+        "disk_write_mb": 0.021366119384765625,
+        "slurm_steps": [
+            "55696422.9"
+        ],
+        "memory_usage_mb": 1386.115234375,
+        "memory_usage": 1453447168.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.675405,
+        "load_1m_at_start": 6.19,
+        "load_1m_at_end": 6.33,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 193.6484375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ee1361530ce5"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn603-19-r",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 40,
+            "cpu_model": "Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz",
+            "memory_total_gb": 376.6,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance"
+        },
+        "run_id": "ibex-cpu-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-17T06:26:34.091844": {
+        "test_name": "ex09_visitMeshTopologies",
+        "metrics_schema": 7,
+        "execution_time": 5.759527683258057,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 30.216,
+        "cpu_usage_percent": 524.626352397483,
+        "cpu_user_seconds": 20.006,
+        "cpu_system_seconds": 10.209000000000001,
+        "memory_max_task_mb": 193.15625,
+        "disk_read_mb": 563.0897150039673,
+        "disk_write_mb": 0.021546363830566406,
+        "slurm_steps": [
+            "55696422.21"
+        ],
+        "memory_usage_mb": 1339.0185546875,
+        "memory_usage": 1404062720.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.673269,
+        "load_1m_at_start": 6.8,
+        "load_1m_at_end": 6.41,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 193.546875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ee1361530ce5"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn603-19-r",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 40,
+            "cpu_model": "Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz",
+            "memory_total_gb": 376.6,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance"
+        },
+        "run_id": "ibex-cpu-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-17T06:33:27.110287": {
+        "test_name": "ex09_visitMeshTopologies",
+        "metrics_schema": 7,
+        "execution_time": 5.767978855133057,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 29.935000000000002,
+        "cpu_usage_percent": 518.9859524772729,
+        "cpu_user_seconds": 19.794,
+        "cpu_system_seconds": 10.14,
+        "memory_max_task_mb": 191.9375,
+        "disk_read_mb": 563.0897150039673,
+        "disk_write_mb": 0.021546363830566406,
+        "slurm_steps": [
+            "55696422.33"
+        ],
+        "memory_usage_mb": 1338.654296875,
+        "memory_usage": 1403680768.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.673674,
+        "load_1m_at_start": 5.22,
+        "load_1m_at_end": 5.36,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 194.23828125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ee1361530ce5"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn603-19-r",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 40,
+            "cpu_model": "Intel(R) Xeon(R) Gold 6148 CPU @ 2.40GHz",
+            "memory_total_gb": 376.6,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance"
+        },
+        "run_id": "ibex-cpu-backfill-visit-3.4.2-2026-11-17"
     }
 }

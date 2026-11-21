@@ -67,5 +67,215 @@
             "memory_total_gb": 503.6
         },
         "run_id": "ibex-gpu-2026-11-15b"
+    },
+    "2026-11-18T12:20:38.878486": {
+        "test_name": "ex08_visitBackendCheck",
+        "metrics_schema": 7,
+        "execution_time": 37.55738825798035,
+        "memory_measurement_scope": "unavailable-ranks-launched-by-srun",
+        "cpu_measurement_scope": "unavailable-ranks-launched-by-srun",
+        "returncode": 1,
+        "timed_out": false,
+        "run_succeeded": false,
+        "subprocess_time": 37.471554,
+        "load_1m_at_start": 46.02,
+        "load_1m_at_end": 46.96,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 210.953125,
+        "verdicts": {
+            "run": false,
+            "image": "FAIL",
+            "image_statuses": {
+                "MISSING OUTPUT": 1
+            },
+            "numeric": "FAIL",
+            "csv": null,
+            "text": null,
+            "passed": false
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ee1361530ce5"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "22abc1a",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu110-09",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 128,
+            "cpu_model": "AMD EPYC 7713 64-Core Processor",
+            "memory_total_gb": 1007.7,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "gpus": [
+                {
+                    "name": "NVIDIA A100-SXM4-80GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-gpu-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-18T12:28:27.913114": {
+        "test_name": "ex08_visitBackendCheck",
+        "metrics_schema": 7,
+        "execution_time": 37.40486824417114,
+        "memory_measurement_scope": "unavailable-ranks-launched-by-srun",
+        "cpu_measurement_scope": "unavailable-ranks-launched-by-srun",
+        "returncode": 1,
+        "timed_out": false,
+        "run_succeeded": false,
+        "subprocess_time": 37.316243,
+        "load_1m_at_start": 45.42,
+        "load_1m_at_end": 42.92,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 198.4921875,
+        "verdicts": {
+            "run": false,
+            "image": "FAIL",
+            "image_statuses": {
+                "MISSING OUTPUT": 1
+            },
+            "numeric": "FAIL",
+            "csv": null,
+            "text": null,
+            "passed": false
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ee1361530ce5"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "22abc1a",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu110-09",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 128,
+            "cpu_model": "AMD EPYC 7713 64-Core Processor",
+            "memory_total_gb": 1007.7,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "gpus": [
+                {
+                    "name": "NVIDIA A100-SXM4-80GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-gpu-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-18T12:36:02.603912": {
+        "test_name": "ex08_visitBackendCheck",
+        "metrics_schema": 7,
+        "execution_time": 34.6950544834137,
+        "memory_measurement_scope": "unavailable-ranks-launched-by-srun",
+        "cpu_measurement_scope": "unavailable-ranks-launched-by-srun",
+        "returncode": 1,
+        "timed_out": false,
+        "run_succeeded": false,
+        "subprocess_time": 34.612355,
+        "load_1m_at_start": 45.99,
+        "load_1m_at_end": 45.69,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 197.3046875,
+        "verdicts": {
+            "run": false,
+            "image": "FAIL",
+            "image_statuses": {
+                "MISSING OUTPUT": 1
+            },
+            "numeric": "FAIL",
+            "csv": null,
+            "text": null,
+            "passed": false
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ee1361530ce5"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "22abc1a",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu110-09",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 128,
+            "cpu_model": "AMD EPYC 7713 64-Core Processor",
+            "memory_total_gb": 1007.7,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "gpus": [
+                {
+                    "name": "NVIDIA A100-SXM4-80GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-gpu-backfill-visit-3.4.2-2026-11-17"
     }
 }

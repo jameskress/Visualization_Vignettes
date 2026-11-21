@@ -101,5 +101,251 @@
             "memory_total_gb": 503.6
         },
         "run_id": "ibex-gpu-2026-11-15b"
+    },
+    "2026-11-18T12:19:38.559243": {
+        "test_name": "ex06_visitLargeData",
+        "metrics_schema": 7,
+        "execution_time": 74.59801668548585,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 526.106,
+        "cpu_usage_percent": 705.2546748234953,
+        "cpu_user_seconds": 456.97900000000004,
+        "cpu_system_seconds": 69.126,
+        "memory_max_task_mb": 6824.16015625,
+        "disk_read_mb": 28549.810022354126,
+        "disk_write_mb": 0.021332740783691406,
+        "slurm_steps": [
+            "55696423.6"
+        ],
+        "memory_usage_mb": 45109.6455078125,
+        "memory_usage": 47300891648.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 74.511173,
+        "load_1m_at_start": 48.32,
+        "load_1m_at_end": 48.19,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 174.6875,
+        "verdicts": {
+            "run": true,
+            "image": "FAIL",
+            "image_statuses": {
+                "DIFFERENT": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": false
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ee1361530ce5"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "7d7f247",
+            "image_sources": {
+                "ibex-cpu": 1
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu110-09",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 128,
+            "cpu_model": "AMD EPYC 7713 64-Core Processor",
+            "memory_total_gb": 1007.7,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "gpus": [
+                {
+                    "name": "NVIDIA A100-SXM4-80GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-gpu-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-18T12:27:27.810784": {
+        "test_name": "ex06_visitLargeData",
+        "metrics_schema": 7,
+        "execution_time": 73.4789483127594,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 519.108,
+        "cpu_usage_percent": 706.4717336323912,
+        "cpu_user_seconds": 451.401,
+        "cpu_system_seconds": 67.70700000000001,
+        "memory_max_task_mb": 6840.234375,
+        "disk_read_mb": 28549.80891609192,
+        "disk_write_mb": 0.02153778076171875,
+        "slurm_steps": [
+            "55696423.24"
+        ],
+        "memory_usage_mb": 45290.76171875,
+        "memory_usage": 47490805760.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 73.359097,
+        "load_1m_at_start": 45.82,
+        "load_1m_at_end": 47.23,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 187.92578125,
+        "verdicts": {
+            "run": true,
+            "image": "FAIL",
+            "image_statuses": {
+                "DIFFERENT": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": false
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ee1361530ce5"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "7d7f247",
+            "image_sources": {
+                "ibex-cpu": 1
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu110-09",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 128,
+            "cpu_model": "AMD EPYC 7713 64-Core Processor",
+            "memory_total_gb": 1007.7,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "gpus": [
+                {
+                    "name": "NVIDIA A100-SXM4-80GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-gpu-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-18T12:35:06.529270": {
+        "test_name": "ex06_visitLargeData",
+        "metrics_schema": 7,
+        "execution_time": 73.54988199615478,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 520.093,
+        "cpu_usage_percent": 707.1296185453984,
+        "cpu_user_seconds": 452.08,
+        "cpu_system_seconds": 68.01299999999999,
+        "memory_max_task_mb": 6820.91796875,
+        "disk_read_mb": 28549.810625076294,
+        "disk_write_mb": 0.0214996337890625,
+        "slurm_steps": [
+            "55696423.42"
+        ],
+        "memory_usage_mb": 45281.5068359375,
+        "memory_usage": 47481101312.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 73.467592,
+        "load_1m_at_start": 46.88,
+        "load_1m_at_end": 49.26,
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 189.390625,
+        "verdicts": {
+            "run": true,
+            "image": "FAIL",
+            "image_statuses": {
+                "DIFFERENT": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": false
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ee1361530ce5"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "7d7f247",
+            "image_sources": {
+                "ibex-cpu": 1
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu110-09",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 128,
+            "cpu_model": "AMD EPYC 7713 64-Core Processor",
+            "memory_total_gb": 1007.7,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "gpus": [
+                {
+                    "name": "NVIDIA A100-SXM4-80GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-gpu-backfill-visit-3.4.2-2026-11-17"
     }
 }

@@ -155,5 +155,263 @@
             "memory_total_gb": 754.6
         },
         "run_id": "ibex-egl-v100-2026-11-15"
+    },
+    "2026-11-17T06:29:47.249884": {
+        "test_name": "ex07_pvScaling",
+        "metrics_schema": 7,
+        "execution_time": 4.104763031005859,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 3.35,
+        "cpu_usage_percent": 81.61250660989053,
+        "memory_rss_mb": 547.961,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.8671875,
+        "io_write_mb": 8.18359375,
+        "io_rchar_mb": 98.83720684051514,
+        "io_wchar_mb": 4.106468200683594,
+        "peak_processes": 2,
+        "peak_threads": 21,
+        "cpu_user_seconds": 2.83,
+        "cpu_system_seconds": 0.52,
+        "memory_usage_mb": 474.668,
+        "memory_usage": 497725472.768,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.979521,
+        "load_1m_at_start": 30.64,
+        "load_1m_at_end": 30.43,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 175.46484375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.0.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "31b4ad40c0ce",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu213-18",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null,
+            "logical_cpus": 48,
+            "cpu_model": "Intel(R) Xeon(R) Platinum 8260 CPU @ 2.40GHz",
+            "memory_total_gb": 754.6,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "gpus": [
+                {
+                    "name": "Tesla V100-SXM2-32GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-egl-v100-backfill-paraview-6.0.1-2026-11-17"
+    },
+    "2026-11-17T06:45:03.617211": {
+        "test_name": "ex07_pvScaling",
+        "metrics_schema": 7,
+        "execution_time": 3.904031991958618,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 3.3,
+        "cpu_usage_percent": 84.52799584627428,
+        "memory_rss_mb": 603.152,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 8.19140625,
+        "io_rchar_mb": 98.92401313781738,
+        "io_wchar_mb": 4.106776237487793,
+        "peak_processes": 2,
+        "peak_threads": 21,
+        "cpu_user_seconds": 2.8,
+        "cpu_system_seconds": 0.5,
+        "memory_usage_mb": 475.012,
+        "memory_usage": 498086182.912,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.777798,
+        "load_1m_at_start": 33.06,
+        "load_1m_at_end": 32.73,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 178.9140625,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.0.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "31b4ad40c0ce",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu213-18",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null,
+            "logical_cpus": 48,
+            "cpu_model": "Intel(R) Xeon(R) Platinum 8260 CPU @ 2.40GHz",
+            "memory_total_gb": 754.6,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "gpus": [
+                {
+                    "name": "Tesla V100-SXM2-32GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-egl-v100-backfill-paraview-6.0.1-2026-11-17"
+    },
+    "2026-11-17T06:59:46.530211": {
+        "test_name": "ex07_pvScaling",
+        "metrics_schema": 7,
+        "execution_time": 4.006631851196289,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 3.51,
+        "cpu_usage_percent": 87.60475457589132,
+        "memory_rss_mb": 571.293,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.05859375,
+        "io_write_mb": 8.18359375,
+        "io_rchar_mb": 98.83886337280273,
+        "io_wchar_mb": 4.106475830078125,
+        "peak_processes": 2,
+        "peak_threads": 21,
+        "cpu_user_seconds": 2.84,
+        "cpu_system_seconds": 0.67,
+        "memory_usage_mb": 474.775,
+        "memory_usage": 497837670.4,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.87787,
+        "load_1m_at_start": 31.58,
+        "load_1m_at_end": 31.22,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "harness_rss_mb": 185.234375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.0.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "31b4ad40c0ce",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu213-18",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.0.1",
+            "visit_version": null,
+            "logical_cpus": 48,
+            "cpu_model": "Intel(R) Xeon(R) Platinum 8260 CPU @ 2.40GHz",
+            "memory_total_gb": 754.6,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "gpus": [
+                {
+                    "name": "Tesla V100-SXM2-32GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-egl-v100-backfill-paraview-6.0.1-2026-11-17"
     }
 }

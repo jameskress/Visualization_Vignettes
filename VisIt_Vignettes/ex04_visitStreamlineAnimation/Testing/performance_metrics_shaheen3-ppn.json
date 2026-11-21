@@ -187,5 +187,236 @@
             "memory_total_gb": 3022.5
         },
         "run_id": "shaheen3-ppn-2026-11-15"
+    },
+    "2026-11-17T08:10:02.112557": {
+        "test_name": "ex04_visitStreamlineAnimation",
+        "metrics_schema": 7,
+        "execution_time": 45.27643857192993,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 439.952,
+        "cpu_usage_percent": 971.701869397381,
+        "cpu_user_seconds": 430.288,
+        "cpu_system_seconds": 9.664,
+        "memory_max_task_mb": 621.6328125,
+        "disk_read_mb": 46.659913063049316,
+        "disk_write_mb": 8.392333984375e-05,
+        "slurm_steps": [
+            "16037117.4"
+        ],
+        "memory_usage_mb": 5070.14453125,
+        "memory_usage": 5316431872.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 45.18826,
+        "load_1m_at_start": 2.68,
+        "load_1m_at_end": 5.82,
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 157.16796875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ca3fc6b6c01c"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn10",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 256,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 3022.5,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-ppn-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-17T08:23:00.588294": {
+        "test_name": "ex04_visitStreamlineAnimation",
+        "metrics_schema": 7,
+        "execution_time": 45.16753971481323,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 438.73,
+        "cpu_usage_percent": 971.3391580992252,
+        "cpu_user_seconds": 428.476,
+        "cpu_system_seconds": 10.254,
+        "memory_max_task_mb": 617.85546875,
+        "disk_read_mb": 46.659913063049316,
+        "disk_write_mb": 8.392333984375e-05,
+        "slurm_steps": [
+            "16037117.16"
+        ],
+        "memory_usage_mb": 5003.275390625,
+        "memory_usage": 5246314496.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 45.090014,
+        "load_1m_at_start": 2.5,
+        "load_1m_at_end": 5.6,
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 168.75390625,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ca3fc6b6c01c"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn10",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 256,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 3022.5,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-ppn-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-17T08:36:01.841647": {
+        "test_name": "ex04_visitStreamlineAnimation",
+        "metrics_schema": 7,
+        "execution_time": 45.94303405189514,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 437.398,
+        "cpu_usage_percent": 952.0442196001582,
+        "cpu_user_seconds": 427.442,
+        "cpu_system_seconds": 9.956000000000001,
+        "memory_max_task_mb": 638.3046875,
+        "disk_read_mb": 46.659913063049316,
+        "disk_write_mb": 8.392333984375e-05,
+        "slurm_steps": [
+            "16037117.28"
+        ],
+        "memory_usage_mb": 5204.3447265625,
+        "memory_usage": 5457150976.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 45.862141,
+        "load_1m_at_start": 2.83,
+        "load_1m_at_end": 5.28,
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 168.99609375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ca3fc6b6c01c"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn10",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 256,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 3022.5,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-ppn-backfill-visit-3.4.2-2026-11-17"
     }
 }

@@ -152,5 +152,233 @@
             "memory_total_gb": 3022.5
         },
         "run_id": "shaheen3-ppn-2026-11-15"
+    },
+    "2026-11-17T08:17:03.378055": {
+        "test_name": "ex10_visitColormapFidelity",
+        "metrics_schema": 7,
+        "execution_time": 5.002018562316891,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 26.585,
+        "cpu_usage_percent": 531.4854327067123,
+        "cpu_user_seconds": 25.581,
+        "cpu_system_seconds": 1.004,
+        "memory_max_task_mb": 237.2578125,
+        "disk_read_mb": 26.75531005859375,
+        "disk_write_mb": 8.392333984375e-05,
+        "slurm_steps": [
+            "16037117.10"
+        ],
+        "memory_usage_mb": 1794.87890625,
+        "memory_usage": 1882066944.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.923749,
+        "load_1m_at_start": 0.39,
+        "load_1m_at_end": 1.0,
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 166.9296875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ca3fc6b6c01c"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "c9b82d5",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn10",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 256,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 3022.5,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-ppn-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-17T08:30:00.092580": {
+        "test_name": "ex10_visitColormapFidelity",
+        "metrics_schema": 7,
+        "execution_time": 5.004712928771973,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 26.437,
+        "cpu_usage_percent": 528.2420865343611,
+        "cpu_user_seconds": 25.596,
+        "cpu_system_seconds": 0.8410000000000001,
+        "memory_max_task_mb": 238.70703125,
+        "disk_read_mb": 26.75531005859375,
+        "disk_write_mb": 8.392333984375e-05,
+        "slurm_steps": [
+            "16037117.22"
+        ],
+        "memory_usage_mb": 1811.8291015625,
+        "memory_usage": 1899840512.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.924992,
+        "load_1m_at_start": 1.8,
+        "load_1m_at_end": 1.82,
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 183.9375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ca3fc6b6c01c"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "c9b82d5",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn10",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 256,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 3022.5,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-ppn-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-17T08:43:02.086928": {
+        "test_name": "ex10_visitColormapFidelity",
+        "metrics_schema": 7,
+        "execution_time": 5.039904705047604,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 26.543999999999997,
+        "cpu_usage_percent": 526.6766249253769,
+        "cpu_user_seconds": 25.413999999999998,
+        "cpu_system_seconds": 1.129,
+        "memory_max_task_mb": 245.421875,
+        "disk_read_mb": 26.75531005859375,
+        "disk_write_mb": 8.392333984375e-05,
+        "slurm_steps": [
+            "16037117.34"
+        ],
+        "memory_usage_mb": 1796.6650390625,
+        "memory_usage": 1883939840.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 4.973811,
+        "load_1m_at_start": 0.25,
+        "load_1m_at_end": 0.87,
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 163.37890625,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 4
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ca3fc6b6c01c"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "c9b82d5",
+            "image_sources": {
+                "shared": 4
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn10",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 256,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 3022.5,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-ppn-backfill-visit-3.4.2-2026-11-17"
     }
 }
