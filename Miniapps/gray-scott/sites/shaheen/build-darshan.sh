@@ -16,7 +16,7 @@ source "$HERE/MODULES.sh"
 cd "$S"
 [ -d darshan-3.4.7 ] || git clone --depth 1 --branch darshan-3.4.7 https://github.com/darshan-hpc/darshan.git darshan-3.4.7
 SRC=$S/darshan-3.4.7
-GCC_MAJOR=$(gcc -dumpversion | cut -d. -f1)
+GCC_MAJOR=$(cc -dumpversion | cut -d. -f1)  # the compiler that builds the runtime
 P=$S/darshan-3.4.7-gcc$GCC_MAJOR-install
 B=$S/darshan-3.4.7-gcc$GCC_MAJOR-build
 if [ -e "$P" ]; then
