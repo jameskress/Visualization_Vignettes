@@ -224,13 +224,26 @@ def main():
             kept.append(s)
         selected_scripts = kept
 
+    # The log goes in the results directory: refuse before submitting anything
+    # if it is missing, rather than stop half way with a job unrecorded.
+    if args.submit and not args.dry_run and not os.path.isdir(args.results_dir):
+        print(
+            f"Results directory {args.results_dir} does not exist "
+            "(did generate_experiments.py write there?)"
+        )
+        return
+
     # Spread repeats over time: a shuffled order, reproducible from the seed.
+    # Initialisations stay first: the runs restart from their checkpoints.
     seed = (
         args.seed if args.seed is not None else random.SystemRandom().randrange(2**31)
     )
     if not args.no_shuffle:
-        random.Random(seed).shuffle(selected_scripts)
-        print(f"Submission order shuffled with seed {seed}")
+        inits = [s for s in selected_scripts if os.path.basename(s).startswith("init_")]
+        runs = [s for s in selected_scripts if s not in inits]
+        random.Random(seed).shuffle(runs)
+        selected_scripts = inits + runs
+        print(f"Submission order shuffled with seed {seed} (initialisations first)")
 
     # 3. Perform Actions
     if not args.submit and not args.clean:
