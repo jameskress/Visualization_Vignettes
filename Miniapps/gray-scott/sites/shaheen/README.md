@@ -216,8 +216,10 @@ Large runs (since 21 Nov 2026):
   to larger jobs and gives them at least an hour (start-up grows with the
   node count).
 * James's standing OK covers jobs up to about 3500 nodes, and a few over
-  (the 3536-node 3328 + 208 layout ran cleanly on 21 Nov 2026, job 16126972:
-  ADIOS2 transport in 6 min 38 s). `orchestrate.py` holds anything above 3600 nodes (the 4096-node strong, weak, hero and staging-sweep
+  (the 3536-node 3328 + 208 layout: its ADIOS2 transport run was clean on
+  21 Nov 2026, job 16126972, 6 min 38 s; validate one Ascent and one Catalyst
+  run at that size before queueing its repeats). `orchestrate.py` holds anything
+  above 3500 nodes except the sizes in `APPROVED_SIZES` (3536) (the 4096-node strong, weak, hero and staging-sweep
   runs) unless `--allow-over-limit <name part>` names it, which needs his
   approval for those runs.
 * The in transit ladders (`SCALE_CONFIGS`, `PIPE_CONFIGS`,

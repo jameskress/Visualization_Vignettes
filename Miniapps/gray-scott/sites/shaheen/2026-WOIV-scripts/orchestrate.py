@@ -8,10 +8,12 @@ import random
 import re
 import time
 
-# James's standing OK covers jobs up to about 3500 nodes, and "a few over"
-# such as the tested 3536-node 3328 + 208 layout (21 Nov 2026); anything
-# larger (the 4096-node runs) is submitted only with --allow-over-limit.
-NODE_LIMIT = 3600
+# James's standing OK covers jobs up to about 3500 nodes, plus sizes just
+# over it that were tested and accepted one by one (APPROVED_SIZES: the
+# 3536-node 3328 + 208 layout, 21 Nov 2026). Anything else larger (the
+# 4096-node runs) is submitted only with --allow-over-limit naming it.
+NODE_LIMIT = 3500
+APPROVED_SIZES = {3536}
 
 
 def _job_nodes(script):
@@ -217,7 +219,11 @@ def main():
         for s in selected_scripts:
             name = os.path.basename(s).replace(".sbat", "")
             n = _job_nodes(s)
-            if n > NODE_LIMIT and not any(a in name for a in args.allow_over_limit):
+            if (
+                n > NODE_LIMIT
+                and n not in APPROVED_SIZES
+                and not any(a in name for a in args.allow_over_limit)
+            ):
                 print(
                     f"  [HOLD] {name}: {n} nodes is above {NODE_LIMIT}; needs James's approval (--allow-over-limit)"
                 )
