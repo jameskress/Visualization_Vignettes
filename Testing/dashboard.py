@@ -139,13 +139,60 @@ CHANGE_BINS = [
 ]
 
 
+# Configurations whose history file is named after a host, and the name the
+# public site uses instead. Host names stay out of anything published: a
+# dotted configuration name with no entry here stops the build (see
+# public_name), so a new one cannot reach the site by accident.
+PUBLIC_NAMES = {"KW61316.kaust.edu.sa": "workstation"}
+
+
+def public_name(config):
+    """The name the site publishes for a configuration."""
+    if config in PUBLIC_NAMES:
+        return PUBLIC_NAMES[config]
+    if "." in config:
+        raise SystemExit(
+            "configuration '{0}' looks like a host name: give it a public name "
+            "in PUBLIC_NAMES (Testing/dashboard.py) before it is published".format(
+                config
+            )
+        )
+    return config
+
+
+def public_text(text):
+    """`text` with every private configuration name, and its short host name
+    (the part before the first dot), replaced by the public name."""
+    text = str(text)
+    for private, public in PUBLIC_NAMES.items():
+        for form in (private, private.split(".", 1)[0]):
+            text = re.sub(re.escape(form), public, text, flags=re.IGNORECASE)
+    return text
+
+
+def publish_names(histories):
+    """Histories keyed by public names, run ids scrubbed of host names.
+
+    Runs after the vignette revisions are read, which need the history
+    files' real names.
+    """
+    out = {}
+    for (config, tool), vignettes in histories.items():
+        for rows in vignettes.values():
+            for _, record in rows:
+                if record.get("run_id"):
+                    record["run_id"] = public_text(record["run_id"])
+        out[(public_name(config), tool)] = vignettes
+    return out
+
+
 def site_of(config):
     lowered = config.lower()
     if lowered.startswith("shaheen"):
         return "Shaheen"
     if lowered.startswith("ibex"):
         return "Ibex"
-    if lowered.startswith("kw61316"):
+    if lowered.startswith(("kw61316", "workstation")):
         return "Workstation"
     return "Other"
 
@@ -2154,11 +2201,14 @@ def build_site(out_dir, repo_root=REPO_ROOT, generated=None, now=None):
             "compared".format(repo_root),
             file=sys.stderr,
         )
+    histories = publish_names(histories)
     now = now or datetime.datetime.now()
     generated = generated or now.strftime("%Y-%m-%d %H:%M")
     os.makedirs(out_dir, exist_ok=True)
 
-    retired = load_retired(repo_root)
+    retired = {
+        public_name(config): entry for config, entry in load_retired(repo_root).items()
+    }
     states = {
         key: config_state(key[1], vs, now, retired.get(key[0]))
         for key, vs in histories.items()
