@@ -619,7 +619,11 @@ comparison the table above exists to produce.
 ### What a record holds (metrics schema 8)
 
 Schemas 6, 7 and 8 added fields and changed the meaning of none, so their CPU
-and memory compare with schema 5's. Every field below is optional: a record carries it
+and memory compare with schema 5's. Schema 8 adds one memory scope: a run
+whose ranks srun launched on a single-node job records its exact peak
+(`step-vmhwm-single-node`, below). The gate, drift and the dashboard compare
+memory only within one scope, so those runs start a new memory series rather
+than being compared with Slurm's sampled figures. Every field below is optional: a record carries it
 only when it could be measured, and never fills a gap from another run.
 
 | Field | What it is |
@@ -639,7 +643,7 @@ only when it could be measured, and never fills a gap from another run.
 | `machine_info.cpu_model`, `.logical_cpus`, `.memory_total_gb` | The host's hardware. |
 | `machine_info.os_release`, `.cpu_governor`, `.gpus` | What a system update changes (schema 7): the OS release (`PRETTY_NAME`), the CPU frequency governor, and each visible GPU's name and driver from `nvidia-smi`. Read once per invocation; left out when it cannot be read. With the kernel `release` and `build.id`, a step in a history can be tied to a system change. |
 | `machine_info.cpu_driver`, `.cpu_boost`, `.cpu_max_mhz`, `.smt_active`, `.numa_nodes`, `.thp`, `.hugepages_2m`, `.cpu_microcode`, `.kernel_cmdline_digest` | The node settings a maintenance can change without changing the OS name (schema 8, #140; the same set the Gray-Scott telemetry records): frequency driver, turbo boost, maximum frequency, SMT, NUMA nodes, transparent and 2 MB huge pages, CPU microcode, and the first 12 hex digits of the SHA-256 of `/proc/cmdline` (the command line itself can name hosts and paths). The dashboard lists the first values and every change per configuration under System settings. |
-| `step_hwm_mb` | The exact peak memory of the vignette's processes on this node (schema 8, #140): `VmHWM`, the kernel's high-water mark of each process's resident set, read 10 times a second for every process carrying the run's step name (`VV_SLURM_STEP_NAME`, which srun's tasks and VisIt's engine inherit), summed per process like Slurm's figure (so RSS, shared pages counted per process). Slurm samples task memory at most once a second, so a 2 s step gets one sample; this does not miss the peak unless a process reaches it in its last 0.1 s. Slurm runs only, beside the memory figure rather than in place of it. `step_hwm_processes` and `step_hwm_samples` say what it covered; `step_hwm_mean_sample_s` is the cost of one scan. |
+| `step_hwm_mb` | The exact peak memory of the vignette's processes on this node (schema 8, #140): `VmHWM`, the kernel's high-water mark of each process's resident set, read 10 times a second for every process carrying the run's step name (`VV_SLURM_STEP_NAME`, which srun's tasks and VisIt's engine inherit), summed per process like Slurm's figure (so RSS, shared pages counted per process). Slurm samples task memory at most once a second, so a 2 s step gets one sample; this does not miss the peak unless a process reaches it in its last 0.1 s. Slurm runs only. For a run whose ranks srun launched (Shaheen, and VisIt's engine on Ibex and Shaheen) in a one-node job (`job_nodes`), it is also the run's memory figure: `memory_usage_mb` takes it, with `memory_measurement_scope: step-vmhwm-single-node`, and Slurm's figure stays beside it as `slurm_memory_mb` with its scope in `slurm_memory_scope` (absent when Slurm never sampled a step). On Shaheen, Slurm's 1 s figure was 0.5 to 7% below this on steps of 4 s or more and 22 to 57% below on short peaks (#140). A multi-node job keeps Slurm's figure, since the poller reads only its own node; a local process tree keeps PSS, which counts shared pages once. `step_hwm_processes` and `step_hwm_samples` say what it covered; `step_hwm_mean_sample_s` is the cost of one scan. |
 | `power_mean_node_w`, `power_peak_node_w` (and `_cpu_w`, `_memory_w`), `temp_peak_cpu_c`, `power_samples` | Node, CPU and memory power during the vignette and the hotter CPU's peak temperature, from `/sys/cray/pm_counters` once a second (schema 8). Whole-node jobs on Cray nodes only, like `energy_joules`. For srun runs, whose `energy_joules` comes from Slurm, the pm_counters split is recorded too: `energy_pm_node_joules`, `energy_cpu_joules`, `energy_memory_joules`. |
 | `gpu_telemetry`, `gpu_memory_peak_mib`, `gpu_power_peak_w` | Per visible GPU, from one `nvidia-smi -lms 1000` running for the vignette's duration (schema 8): peak memory used, mean and peak utilisation and power. `gpu_memory_peak_mib` and `gpu_power_peak_w` are the busiest GPU's. A GPU the vignette did not use is still listed, and on the workstation the display's own use is included. |
 
@@ -648,8 +652,10 @@ reads per 0.25 s sample, one more `sacct` field, two file reads on a Cray
 node, one `git log` per vignette, and one `nvidia-smi` query per invocation.
 Schema 8 adds one thread per vignette: a `/proc` scan 10 times a second
 under Slurm (about 5 ms each with 1,300 processes on the workstation), a
-pm_counters read once a second, and one `nvidia-smi` process. Whether that
-moves vignette times is measured in #140.
+pm_counters read once a second, and one `nvidia-smi` process. On a Shaheen
+compute node one scan took 7 ms, about 7% of one core of 192, and setting
+`SLURM_ACCTG_FREQ=task=1` did not change suite times (510.4 s against
+510.4 s at the 600 s default, #140).
 
 ## The results dashboard
 

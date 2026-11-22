@@ -718,6 +718,11 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
         "succeeded": (returncode == 0),
         "job_owns_its_nodes": owns_nodes,
     }
+    # How many nodes the job has: with one, every srun rank ran here, where
+    # node_telemetry.py read its exact peak memory (metrics.HWM_SCOPE).
+    nodes = os.environ.get("SLURM_JOB_NUM_NODES") or os.environ.get("SLURM_NNODES")
+    if nodes and nodes.isdigit():
+        payload["job_nodes"] = int(nodes)
     if load_at_start is not None:
         payload["load_1m_at_start"] = load_at_start
     if load_at_end is not None:

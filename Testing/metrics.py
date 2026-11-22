@@ -59,7 +59,12 @@ except ImportError:  # pragma: no cover - psutil is in the documented venv
 # (node_telemetry.py): node, CPU and memory power and the peak CPU
 # temperature from pm_counters, per-GPU memory, utilisation and power from
 # nvidia-smi, and the exact peak resident set (VmHWM) of the vignette's
-# processes beside Slurm's sampled figure. Figures mean what they did at 7.
+# processes. Figures mean what they did at 7, with one addition: a run whose
+# ranks srun launched on this one node takes its memory from that exact
+# peak, under its own scope (HWM_SCOPE), and keeps Slurm's sampled figure
+# beside it as slurm_memory_mb. Slurm samples once a second at best and
+# missed 22 to 57% of a short step's peak on Shaheen (#140); the scope keeps
+# the gate and drift from comparing the two kinds of figure.
 METRICS_SCHEMA = 8
 MIN_COMPARABLE_SCHEMA = 5
 
@@ -97,6 +102,13 @@ SLURM_SCOPE = "slurm-steps-plus-local-tree"
 SLURM_STEPS_ONLY_SCOPE = "slurm-steps-only"
 # The same, with the local tree's memory as RSS because PSS was unreadable.
 SLURM_LOCAL_RSS_SCOPE = "slurm-steps-plus-local-rss"
+
+# The exact peak resident set of every process of the run (the srun ranks
+# and the harness's own tree, found by VV_SLURM_STEP_NAME), summed: the
+# kernel's VmHWM, polled at 10 Hz by node_telemetry.py. Only when the job
+# has one node, so every rank is on the node the poller reads. Summed per
+# process like Slurm's figure, so shared pages count once per process.
+HWM_SCOPE = "step-vmhwm-single-node"
 
 # Summed PSS over the process tree. Replaces summed RSS, which counted shared
 # libraries once per rank (LOCAL_VALIDATION 4b.15).
@@ -176,9 +188,9 @@ TELEMETRY_KEYS = (
 def node_telemetry_fields(run_result):
     """Schema-8 detail from node_telemetry.py, as recorded fields.
 
-    Context and detail, not compared by the gate. The exact peak memory is
-    recorded beside the run's memory figure, not in place of it, until #140
-    has compared the two on every site.
+    Context and detail, not compared by the gate. step_hwm_mb is recorded on
+    every run that sampled it; for a single-node srun run it is also the
+    run's memory figure (_resource_figures, HWM_SCOPE).
     """
     out = {key: run_result[key] for key in TELEMETRY_KEYS if key in run_result}
     if run_result.get("step_hwm_bytes"):
@@ -325,6 +337,29 @@ def _resource_figures(run_result, after, before, rusage_cpu):
     return figures
 
 
+def prefer_exact_peak(figures, run_result):
+    """Take a single-node srun run's memory from its exact peak (HWM_SCOPE).
+
+    Every rank ran on this node, so node_telemetry.py's poller saw each one.
+    Slurm's sampled figure stays beside it as slurm_memory_mb, with its
+    scope; there is none when a step was never sampled or sacct gave
+    nothing. Other runs are left as they are: a local tree already has PSS,
+    which counts shared pages once, and a multi-node job has ranks the
+    poller cannot see.
+    """
+    if not (
+        run_result.get("ranks_outside_tree")
+        and run_result.get("job_nodes") == 1
+        and run_result.get("step_hwm_bytes")
+    ):
+        return
+    if figures.get("memory_mb") is not None:
+        figures["slurm_memory_mb"] = figures["memory_mb"]
+        figures["slurm_memory_scope"] = figures["memory_scope"]
+    figures["memory_mb"] = run_result["step_hwm_bytes"] / MB
+    figures["memory_scope"] = HWM_SCOPE
+
+
 def gather_metrics(test_name, start_time, end_time, run_result=None, before=None):
     """Collect performance metrics for one vignette run.
 
@@ -367,6 +402,7 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
     # is a false baseline.
     run_result = run_result or {}
     figures = _resource_figures(run_result, after, before, child_utime + child_stime)
+    prefer_exact_peak(figures, run_result)
     cpu_seconds = figures.pop("cpu_seconds")
     child_maxrss_mb = figures.pop("memory_mb")
 

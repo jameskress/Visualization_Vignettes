@@ -199,5 +199,83 @@ class DashboardSystemSettings(unittest.TestCase):
             ],
         )
 
+
+class ExactPeakAsMemory(unittest.TestCase):
+    """metrics.prefer_exact_peak: which runs take their memory from VmHWM."""
+
+    MB = 1024 * 1024
+
+    def run_result(self, **changes):
+        result = {
+            "ranks_outside_tree": True,
+            "job_nodes": 1,
+            "step_hwm_bytes": 541 * self.MB,
+            "succeeded": True,
+            "returncode": 0,
+            "slurm_steps": [
+                {
+                    "step": "1.79",
+                    "total_mem_bytes": 231 * self.MB,
+                    "max_task_mem_bytes": 231 * self.MB,
+                    "cpu_seconds": 3.0,
+                }
+            ],
+            "local_tree": {"peak_pss_bytes": 0, "tree_cpu_seconds": 0.1},
+        }
+        result.update(changes)
+        return result
+
+    def gather(self, run_result):
+        import metrics
+
+        return metrics.gather_metrics("ex01_pvScreenshot", 0.0, 2.0, run_result)
+
+    def test_single_node_srun_takes_the_exact_peak(self):
+        import metrics
+
+        record = self.gather(self.run_result())
+        self.assertEqual(record["memory_usage_mb"], 541.0)
+        self.assertEqual(record["memory_measurement_scope"], metrics.HWM_SCOPE)
+        self.assertEqual(record["slurm_memory_mb"], 231.0)
+        self.assertEqual(record["slurm_memory_scope"], metrics.SLURM_SCOPE)
+
+    def test_an_unsampled_step_still_gets_the_exact_peak(self):
+        import metrics
+
+        steps = [{"step": "1.0", "total_mem_bytes": 0, "cpu_seconds": 1.0}]
+        record = self.gather(self.run_result(slurm_steps=steps))
+        self.assertEqual(record["memory_usage_mb"], 541.0)
+        self.assertEqual(record["memory_measurement_scope"], metrics.HWM_SCOPE)
+        self.assertNotIn("slurm_memory_mb", record)
+        record = self.gather(self.run_result(slurm_steps=[]))
+        self.assertEqual(record["memory_usage_mb"], 541.0)
+
+    def test_other_runs_keep_their_figure(self):
+        import metrics
+
+        for changes in (
+            {"job_nodes": 2},  # ranks on nodes the poller cannot read
+            {"job_nodes": None},  # not under Slurm
+            {"step_hwm_bytes": None},  # nothing sampled
+        ):
+            record = self.gather(self.run_result(**changes))
+            self.assertEqual(record["memory_usage_mb"], 231.0, changes)
+            self.assertEqual(
+                record["memory_measurement_scope"], metrics.SLURM_SCOPE, changes
+            )
+            self.assertNotIn("slurm_memory_mb", record)
+        # A local tree keeps PSS, which counts shared pages once.
+        local = {"peak_pss_mb": 300.0, "step_hwm_bytes": 541 * self.MB, "job_nodes": 1}
+        record = self.gather(local)
+        self.assertEqual(record["memory_usage_mb"], 300.0)
+        self.assertEqual(record["memory_measurement_scope"], metrics.PSS_SCOPE)
+
+    def test_the_slurm_figure_has_its_own_scope(self):
+        import drift
+
+        self.assertEqual(drift.scope_of("slurm_memory_mb"), "slurm_memory_scope")
+        self.assertEqual(drift.scope_of("step_hwm_mb"), None)
+
+
 if __name__ == "__main__":
     unittest.main()
