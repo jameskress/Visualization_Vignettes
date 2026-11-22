@@ -184,6 +184,16 @@ ASCENT_TIMINGS = False
 # --no-reader-smt turns it off. Paper 1 jobs never get it (reader_smt).
 READER_SMT = True
 
+# Ascent 0.9.6 renders in 1024 x 1024 tiles by default. At our 2048^2 images
+# that only adds cost: with brick, plane exchange and SMT, the isosurface
+# took 10.08 -> 5.59 s/step untiled at 512 + 32 nodes and 5.14 -> 2.90 at
+# 1024 + 64, slices 5 to 7% less, volume unchanged; compositing is the same
+# and only silhouette-edge pixels differ (sites/shaheen/README.md, "In
+# transit reader costs"). So every Paper 2 Ascent render turns it off and the
+# run's settings record it (ascent_tiled_rendering); Paper 1's templates stay
+# as they ran (#71). --ascent-tiled-rendering turns tiling back on.
+ASCENT_TILED_RENDERING = False
+
 # The in transit reader's allocator: never mmap, never trim. The job-wide
 # MALLOC_MMAP_THRESHOLD_ (32 MiB) makes every larger block an mmap that is
 # unmapped when freed, so each step the reader faulted the same memory in
@@ -340,6 +350,7 @@ ASCENT_RENDER_TEMPLATE = """
         render1:
           image_width: 2048
           image_height: 2048
+          tiled_rendering: "{tiled_rendering}"
           annotations: "on"
           image_prefix: "data/ascent_render_slices"
           camera:
@@ -372,6 +383,7 @@ ASCENT_VOLUME_TEMPLATE = """
         render1:
           image_width: 2048
           image_height: 2048
+          tiled_rendering: "{tiled_rendering}"
           image_prefix: "data/ascent_render_volume"
           camera:
             position: [{cam_x}, {cam_y}, {cam_z}]
@@ -401,6 +413,7 @@ ASCENT_ISOSURFACE_TEMPLATE = """
         render1:
           image_width: 2048
           image_height: 2048
+          tiled_rendering: "{tiled_rendering}"
           image_prefix: "data/ascent_render_iso"
           camera:
             position: [{cam_x}, {cam_y}, {cam_z}]
@@ -625,7 +638,27 @@ ghostCells = GhostCells(registrationName='GhostCells', Input=vOnly)
 # ParaView 6.0 (vtkPVContourFilter::ContourUsingSuperclass). Same normals and
 # scalars as Contour; the triangulation of ambiguous cells differs, so about
 # 2% of pixels change by a few levels.
-LoadDistributedPlugin('AcceleratedAlgorithms', remote=False, ns=globals())
+# Load the plugin by its path when it is in the install the job's
+# CATALYST_LIB_DIR (<install>/lib/catalyst) points at, for this ParaView's
+# version. With ParaView 6.2.1, Catalyst does not find the install's plugin
+# list, so loading it by name fails (sites/shaheen/README.md, "Catalyst
+# reader performance"). PV_PLUGIN_CONFIG_FILE would also fix that, but
+# ParaView force-loads every plugin in that list, on every rank. Resolved
+# here, at run time, so the script works whichever host generated it.
+from paraview import servermanager as _gs_sm
+_gs_pv = "paraview-%d.%d" % (
+    _gs_sm.vtkSMProxyManager.GetVersionMajor(),
+    _gs_sm.vtkSMProxyManager.GetVersionMinor(),
+)
+_gs_lib = _gs_os.environ.get("CATALYST_LIB_DIR", "").rstrip("/")
+_gs_aa_plugin = _gs_os.path.join(
+    _gs_os.path.dirname(_gs_lib), _gs_pv, "plugins",
+    "AcceleratedAlgorithms", "AcceleratedAlgorithms.so",
+) if _gs_lib else ""
+if _gs_aa_plugin and _gs_os.path.exists(_gs_aa_plugin):
+    LoadPlugin(_gs_aa_plugin, remote=False, ns=globals())
+else:
+    LoadDistributedPlugin('AcceleratedAlgorithms', remote=False, ns=globals())
 contour = FlyingEdges3D(registrationName='Contour', Input=ghostCells)
 contour.ContourBy = ['POINTS', 'v']
 contour.Isosurfaces = [0.1]
@@ -1563,13 +1596,14 @@ def check_settings_unchanged(output_dir, exp):
     """Refuse to regenerate a run with different recorded settings.
 
     The experiment ID includes neither the reader decomposition and
-    shared-plane setting (in transit runs) nor the SST EndStep barrier and
-    queue policy (every run), nor the ParaView build (catalyst_lib_path), so
-    generations with other values into the same --results-dir share
-    directories, and new settings would sit beside the old run's numbers.
-    Files written before an option existed hold its old behaviour: slab,
-    planes read, no barrier, Block, the 6.0.1 Catalyst. The initialisation
-    runs, often shared between results directories, are not checked.
+    shared-plane setting (in transit runs), the SST EndStep barrier and
+    queue policy (every run), the ParaView build (catalyst_lib_path) nor
+    Ascent's tiled rendering, so generations with other values into the same
+    --results-dir share directories, and new settings would sit beside the
+    old run's numbers. Files written before an option existed hold its old
+    behaviour: slab, planes read, no barrier, Block, the 6.0.1 Catalyst,
+    Ascent's default tiling. The initialisation runs, often shared between
+    results directories, are not checked.
     """
     decomposition, planes = reader_decomposition(exp)
     checks = [
@@ -1582,13 +1616,24 @@ def check_settings_unchanged(output_dir, exp):
             ("read_decomposition", "slab", decomposition),
             ("reader_shared_planes", "read", planes),
         ]
+    # Ascent's tiled rendering is recorded in the file that holds the Ascent
+    # options; a file without it was written for Ascent's default (tiled in
+    # 0.9.6).
+    tiled_file = (
+        "settings-stage.json" if exp["type"] == "intransit" else "settings.json"
+    )
     for name in ("settings.json", "settings-stage.json"):
         path = os.path.join(output_dir, name)
         if not os.path.exists(path):
             continue
         with open(path) as f:
             settings = json.load(f)
-        for key, legacy, current in checks:
+        file_checks = list(checks)
+        if name == tiled_file and ascent_renders(exp):
+            file_checks.append(
+                ("ascent_tiled_rendering", "Ascent default", ASCENT_TILED_RENDERING)
+            )
+        for key, legacy, current in file_checks:
             old = settings.get(key, legacy)
             if old != current:
                 raise SystemExit(
@@ -1654,6 +1699,19 @@ def reader_decomposition(exp):
 def reader_smt(exp):
     """--reader-smt applies to every in transit run but Paper 1's (as run, #71)."""
     return READER_SMT and exp.get("paper") != "paper1"
+
+
+def ascent_renders(exp):
+    """Whether a run renders with a Paper 2 Ascent template (tiled_rendering set)."""
+    if exp.get("paper") == "paper1" or exp["workload"] == "initialization":
+        return False
+    if exp["type"] == "intransit":
+        backend = exp.get("stage_pipeline", "adios_data").split("_")[0]
+    else:
+        backend = exp["backend"]
+    return backend == "ascent" and any(
+        w in exp["workload"] for w in ("rendering", "volume", "isosurface")
+    )
 
 
 def reader_env(exp):
@@ -1988,6 +2046,8 @@ def generate_settings_json(exp, output_dir, copied_files, args):
 
         if stage_backend == "ascent":
             config_stage["ascent_options"] = f"{output_dir}/ascent_options.yaml"
+            if ascent_renders(exp):
+                config_stage["ascent_tiled_rendering"] = ASCENT_TILED_RENDERING
         elif (
             stage_backend == "catalyst"
             and config_stage["output_type"] == "catalyst_insitu"
@@ -2004,6 +2064,8 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         elif exp["backend"] == "ascent":
             config["output_type"] = "ascent"
             config["ascent_options"] = f"{output_dir}/ascent_options.yaml"
+            if ascent_renders(exp):
+                config["ascent_tiled_rendering"] = ASCENT_TILED_RENDERING
         elif exp["backend"] == "catalyst":
             if exp["workload"] == "data_save":
                 config["output_type"] = "catalyst_io"
@@ -2124,6 +2186,7 @@ def copy_pipeline_files(exp, output_dir, repo_root):
         "volume_samples": int(
             math.ceil(VOLUME_SAMPLES_PER_CELL * math.sqrt(3) * exp["grid_size"])
         ),
+        "tiled_rendering": "true" if ASCENT_TILED_RENDERING else "false",
     }
 
     if exp["paper"] == "paper1":
@@ -2926,6 +2989,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Turn on Ascent's per-filter timings (ascent_options.yaml `timings`)",
     )
+    parser.add_argument(
+        "--ascent-tiled-rendering",
+        action="store_true",
+        help="Keep Ascent 0.9.6's default tiled rendering in Paper 2 renders "
+        "(off by default; for A/B runs)",
+    )
     # Python 3.6 on the login nodes has no BooleanOptionalAction.
     parser.add_argument(
         "--reader-smt",
@@ -2993,6 +3062,7 @@ if __name__ == "__main__":
     ADIOS_ENDSTEP_BARRIER = args.adios_endstep_barrier
     QUEUE_FULL_POLICY = args.adios_queue_full_policy
     ASCENT_TIMINGS = args.ascent_timings
+    ASCENT_TILED_RENDERING = args.ascent_tiled_rendering
     READER_SMT = args.reader_smt
     CATALYST_STAGE = args.catalyst_stage
     READER_BIN_PATH = args.bin_path

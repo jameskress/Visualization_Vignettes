@@ -363,6 +363,49 @@ off). It drops the job-wide `--hint=nomultithread` in in transit jobs; the
 simulation's `srun` keeps its own, so the simulation still runs one thread
 per core. Paper 1 jobs keep the setup they ran with.
 
+**Tiled rendering is off** (Ascent 0.9.6, 20 Nov 2026). Ascent 0.9.6
+renders in 1024 x 1024 tiles by default; 0.9.5 did not tile. At our
+2048 x 2048 images tiling only costs time, so every Paper 2 Ascent render
+(slices, volume, isosurface) sets `tiled_rendering: "false"`
+(`ASCENT_TILED_RENDERING` in the generator; `--ascent-tiled-rendering`
+turns tiling back on for A/B runs), and the run's settings record
+it as `ascent_tiled_rendering` (`settings-stage.json` in transit,
+`settings.json` inline, and so in the reader's and simulation's
+`metadata.json`, and the corpus index's `ascent_tiled_rendering` column),
+so tiled and untiled runs can be told apart. Paper 1's
+templates stay as they ran (#71). The key needs Ascent 0.9.6; regenerating
+into a results directory written before it stops with an error, so use a
+new `--results-dir`. Reader `total_step` in seconds, two runs
+per arm, shuffled; 64 + 4 nodes with slab, planes read and no SMT, the
+larger runs with the current defaults (brick, plane exchange, SMT):
+
+| Nodes | Pipeline | 0.9.5 | 0.9.6 tiled (default) | 0.9.6 untiled |
+|---|---|---|---|---|
+| 64 + 4 | Slices | 3.02 | 3.42 | 3.02 |
+| 64 + 4 | Volume | 3.06 | 3.09 | 3.08 |
+| 64 + 4 | Isosurface | 6.43 | 10.68 | 6.09 |
+| 512 + 32 | Slices | | 3.11 | 2.89 |
+| 512 + 32 | Volume | | 2.80 | 2.82 |
+| 512 + 32 | Isosurface | | 10.08 | 5.59 |
+| 1024 + 64 | Slices | | 1.73 | 1.60 |
+| 1024 + 64 | Volume | | 1.58 | 1.58 |
+| 1024 + 64 | Isosurface | | 5.14 | 2.90 |
+
+The cost is all in rendering on each rank. The isosurface's
+`exec_main_scene` (render plus composite, `--ascent-timings`), mean / max
+over ranks, falls from 6.05 / 6.36 to 1.58 / 1.89 s at 512 + 32 nodes and
+from 3.04 / 3.33 to 0.82 / 1.11 s at 1024 + 64; the contour is unchanged.
+The gap between the slowest rank and the mean, where compositing and
+waiting show up, is the same with and without tiles (0.31 s at 512 + 32,
+0.29 s at 1024 + 64), so compositing is unchanged and tiling makes each
+rank's local render 3.7 to 3.8 times slower. Images: tiled and untiled
+frames differ in about 420 pixels per 2048^2 slice frame and 1,170 per
+isosurface frame, all on silhouette edges (not tile seams), the same at
+both scales; volume frames are unaffected. Each setting reproduces its own
+frames run to run. Untiled 0.9.6 slices are bit-identical to 0.9.5; 0.9.6
+volume frames differ from 0.9.5 in 50 to 125 pixels because 0.9.6 fixes
+0.9.5's speckle bug (stray pixels with blue 0).
+
 **Isosurface at 256 + 16 nodes runs out of memory**, before and after:
 each reader holds 4.4 GB per field, and the contour of a surface that fills
 the domain needs more than a node's 370 GB across 8 readers. The same
@@ -835,7 +878,16 @@ showed Contour 21.7 s, GhostCells 8.4 s and OSPRay 11 to 13 s on rank 0.
   scalars. It is also the algorithm VTK-m's contour (Ascent) uses. About 2%
   of pixels change, by 1 to 3 levels and at most 78, as isolated pixels over
   the surface: flying edges triangulates ambiguous cells differently and
-  keeps degenerate triangles.
+  keeps degenerate triangles. ParaView issue
+  [#23459](https://gitlab.kitware.com/paraview/paraview/-/work_items/23459)
+  reports the `FastMode` bug. The script loads the plugin by its path in the
+  install the job's `CATALYST_LIB_DIR` points at, found at run time for the
+  running ParaView's version: with ParaView 6.2.1, both the Shaheen
+  module and our own GCC 13 superbuild, Catalyst does not find the install's
+  plugin list, so loading it by name stops the run with "Plugin
+  'AcceleratedAlgorithms' not found" (6.0 found it). `PV_PLUGIN_CONFIG_FILE`
+  would also fix that, but ParaView force-loads every plugin in that list on
+  every rank.
 * GhostCells copies every array it is given, and `u` is not drawn. The
   template now passes only `v` and the ghost flags: bit-identical frames,
   44 to 38 s. With both `u` and flying edges' working arrays, a 64 + 4 run

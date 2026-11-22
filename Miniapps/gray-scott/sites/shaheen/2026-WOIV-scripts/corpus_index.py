@@ -289,6 +289,12 @@ def index_run(results_dir, run_id, fallback_topology=None):
     row["reader_shared_planes"] = settings.get("reader_shared_planes")
     row["adios_endstep_barrier"] = settings.get("adios_endstep_barrier")
     row["adios_memory_selection"] = settings.get("adios_memory_selection")
+    # Ascent's tiled rendering (generate_experiments.py): in the stage
+    # settings in transit, the run's own inline; None for runs without an
+    # Ascent render or written before the key (Ascent's default).
+    row["ascent_tiled_rendering"] = stage.get(
+        "ascent_tiled_rendering", settings.get("ascent_tiled_rendering")
+    )
     meta = _load_json(base + "_metadata.json") or {}
     row["adios2_version"] = (meta.get("backend") or {}).get("version")
     build = meta.get("build") or {}
