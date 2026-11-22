@@ -17,15 +17,21 @@ L=$I/lib
 [ -d "$L/catalyst" ] || { echo "$L/catalyst not found" >&2; exit 1; }
 command -v chrpath >/dev/null || { echo "chrpath not found" >&2; exit 1; }
 T=$(dirname "$I")-lib.tar
+# One build at a time per tarball: the lock is held from the check below to
+# the final mv, so two runs never publish over each other.
+mkdir "$T.lock" 2>/dev/null || { echo "$T.lock exists: another build is running (or remove it)" >&2; exit 1; }
+trap 'rmdir "$T.lock"' EXIT
 if [ -e "$T" ]; then
     echo "$T exists; not overwriting a tarball runs may have used." >&2
     exit 1
 fi
 W=$(mktemp -d "$T.work.XXXXXX")
-trap 'rm -rf "$W" "$T.tmp"' EXIT
+trap 'rm -rf "$W" "$T.tmp"; rmdir "$T.lock"' EXIT
 # .debug (separate debug info) and *.a (static archives) are never loaded at
 # run time and more than double the size (2.4 GB with them, 0.9 GB without).
-tar -C "$I" -cf - --exclude=.debug --exclude='*.a' lib | tar -C "$W" -xf -
+# pipefail: a library the first tar cannot read must stop the build, not
+# leave it out of the archive.
+(set -o pipefail; tar -C "$I" -cf - --exclude=.debug --exclude='*.a' lib | tar -C "$W" -xf -)
 # Some superbuild libraries (LLVM, OpenVKL, OSPRay's modules, Embree, Mesa,
 # libcatalyst) name the install's lib/ by its absolute path in their
 # DT_RPATH, which the loader searches before LD_LIBRARY_PATH: from a staged

@@ -1775,6 +1775,17 @@ def catalyst_stage(exp):
         or exp.get("launch") == "steps"
     ):
         return {"enabled": False}
+    # By name, ParaView finds the AcceleratedAlgorithms plugin only in the
+    # install it was built in; a staged isosurface needs the script to load
+    # it by path from CATALYST_LIB_DIR (#126).
+    if (
+        exp["stage_pipeline"] == "catalyst_isosurface"
+        and "CATALYST_LIB_DIR" not in CATALYST_ISOSURFACE_TEMPLATE
+    ):
+        raise SystemExit(
+            f"{exp['id']}: a staged isosurface needs the plugin loaded by path "
+            "from CATALYST_LIB_DIR (#126); merge it first"
+        )
     method = CATALYST_STAGE
     if method == "auto":
         method = (
@@ -1800,19 +1811,26 @@ STAGE_SRUN = (
     "--cpus-per-task=1 --mem=4G"
 )
 
-# Run on each reader node after unpacking: a copy without Catalyst's
-# libraries would not fail the run, the loader would quietly take them from
-# the Lustre install instead.
-STAGE_COMPLETE = (
-    "test -f $CATALYST_STAGE_DIR/lib/catalyst/libcatalyst-paraview.so "
+# Run on each reader node once the tarball is in the stage directory: check
+# its bytes against the recorded sha256 (the tarball could have changed since
+# generation), unpack it, and check the copy holds Catalyst's libraries (a
+# copy without them would not fail the run: the loader would quietly take
+# them from the Lustre install). The directory is created here with mode 700
+# and must not exist yet, so nothing another user left in /tmp is loaded.
+STAGE_MKDIR = "mkdir -m 700 $CATALYST_STAGE_DIR"
+STAGE_UNPACK = (
+    'echo \\"{sha256}  $CATALYST_STAGE_DIR/stage.tar\\" | sha256sum -c --quiet '
+    "&& tar -C $CATALYST_STAGE_DIR -xf $CATALYST_STAGE_DIR/stage.tar "
+    "&& rm -f $CATALYST_STAGE_DIR/stage.tar "
+    "&& test -f $CATALYST_STAGE_DIR/lib/catalyst/libcatalyst-paraview.so "
     "&& test -f $CATALYST_STAGE_DIR/lib/libcatalyst.so.3"
 )
 
 STAGE_SETUP_TAR = """# --- Catalyst node-local staging (--catalyst-stage tar) ---
 CATALYST_STAGE_DIR={dir}
 ST0=$(date +%s.%N); echo "PHASE stage_start $ST0"
-# Each reader node reads the tarball from Lustre and unpacks it.
-if ! {srun} bash -c "mkdir -p $CATALYST_STAGE_DIR && tar -C $CATALYST_STAGE_DIR -xf {tarball} && {complete}"; then
+# Each reader node copies the tarball from Lustre and unpacks it.
+if ! {srun} bash -c "{mkdir} && cp {tarball} $CATALYST_STAGE_DIR/stage.tar && {unpack}"; then
     echo "JOB ABORTED: staging {tarball} to $CATALYST_STAGE_DIR failed."
     {srun} rm -rf -- $CATALYST_STAGE_DIR
     exit 1
@@ -1827,20 +1845,20 @@ ST0=$(date +%s.%N); echo "PHASE stage_start $ST0"
 # alone; then each unpacks its copy.
 STEP_FILE=$OUTPUT_DIR/stage_step.$SLURM_JOB_ID
 rm -f $STEP_FILE
-{srun} bash -c "[ \\$SLURM_PROCID = 0 ] && echo \\$SLURM_STEP_ID > $STEP_FILE; exec sleep 3600" &
+{srun} bash -c "{mkdir} || exit 1; [ \\$SLURM_PROCID = 0 ] && echo \\$SLURM_STEP_ID > $STEP_FILE; exec sleep 3600" &
 HOLD_PID=$!
 for i in $(seq 1 600); do [ -s $STEP_FILE ] && break; sleep 0.1; done
 STAGE_OK=0
 if [ -s $STEP_FILE ] \\
-    && sbcast --jobid=$SLURM_JOB_ID.$(cat $STEP_FILE) -f {tarball} $CATALYST_STAGE_DIR.tar \\
-    && {srun} bash -c "mkdir -p $CATALYST_STAGE_DIR && tar -C $CATALYST_STAGE_DIR -xf $CATALYST_STAGE_DIR.tar && rm -f $CATALYST_STAGE_DIR.tar && {complete}"; then
+    && sbcast --jobid=$SLURM_JOB_ID.$(cat $STEP_FILE) -f {tarball} $CATALYST_STAGE_DIR/stage.tar \\
+    && {srun} bash -c "{unpack}"; then
     STAGE_OK=1
 fi
 kill $HOLD_PID 2>/dev/null; wait $HOLD_PID 2>/dev/null
 rm -f $STEP_FILE
 if [ $STAGE_OK != 1 ]; then
     echo "JOB ABORTED: staging {tarball} to $CATALYST_STAGE_DIR failed."
-    {srun} rm -rf -- $CATALYST_STAGE_DIR $CATALYST_STAGE_DIR.tar
+    {srun} rm -rf -- $CATALYST_STAGE_DIR
     exit 1
 fi
 """
@@ -1872,7 +1890,11 @@ def stage_scripts(exp, results_dir):
     srun1 = STAGE_SRUN.format(stage_nodes=1, sim_nodes=exp["sim_nodes"])
     template = STAGE_SETUP_SBCAST if stage["method"] == "sbcast" else STAGE_SETUP_TAR
     setup = template.format(
-        dir=stage["dir"], tarball=stage["tarball"], srun=srun, complete=STAGE_COMPLETE
+        dir=stage["dir"],
+        tarball=stage["tarball"],
+        srun=srun,
+        mkdir=STAGE_MKDIR,
+        unpack=STAGE_UNPACK.format(sha256=stage["sha256"]),
     ) + STAGE_RECORD.format(
         method=stage["method"],
         tarball=stage["tarball"],

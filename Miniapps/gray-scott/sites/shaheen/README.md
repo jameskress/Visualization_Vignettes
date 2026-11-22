@@ -921,8 +921,13 @@ cache left by an earlier job did not predict a fast or slow run.
 `generate_experiments.py --catalyst-stage` copies ParaView's `lib/` to
 `/tmp/gs-catalyst-<job ID>` (local disk on Shaheen compute nodes, not tmpfs)
 on the reader nodes alone, before `PHASE run_start`, and removes it after
-the run. The copy is timed as `PHASE stage_start` / `stage_end` in the job
-output, apart from the run. The reader then loads Catalyst from the copy:
+the run. The directory is created with mode 700 and must not exist yet;
+each node checks its copy of the tarball against the recorded sha256 before
+unpacking it, and checks that Catalyst's libraries are there after. The copy
+is timed as `PHASE stage_start` / `stage_end` in the job output, apart from
+the run, and `<results>/<id>_stage.txt` records the times, the tarball and
+what the reader resolves from the copy (`ldd` on a reader node; the
+telemetry's `ldd.txt` shows the job-wide environment). The reader then loads Catalyst from the copy:
 `CATALYST_IMPLEMENTATION_PREFER_ENV=1` with `CATALYST_IMPLEMENTATION_PATHS`
 (ahead of the `catalyst_lib_path` the reader passes to `catalyst_initialize`),
 `CATALYST_LIB_DIR` for the plugins (#126) and the copy first on
@@ -959,7 +964,9 @@ Three things are needed besides the option:
 - **#126** for the isosurface: its script loads the AcceleratedAlgorithms
   plugin by path from `CATALYST_LIB_DIR`. By name, ParaView finds the plugin
   only from the install it was built in, and a staged isosurface fails in
-  its first step.
+  its first step; without #126 the generator refuses to stage it.
+- The generator refuses `--catalyst-stage` for a reader without
+  `DT_RUNPATH` (`readelf -d` on `--bin-path`'s `analysis-reader`).
 
 The methods: `tar` has each reader node read the tarball from Lustre,
 `sbcast` copies it to a placeholder step on the reader nodes (so the other
