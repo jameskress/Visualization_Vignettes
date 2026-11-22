@@ -26,13 +26,25 @@
 #            a process's life after its peak sees the peak; only a process
 #            that peaks in its last 0.1 s is under-read. Slurm samples task
 #            memory at most once a second, so a 2 s step gets one sample
-#            (#140). Summed per process like Slurm's figure, so shared pages
-#            count once per process (RSS, not PSS), and like Slurm per job
-#            step: the processes of one srun step run together, but VisIt
+#            (#140). Two figures come of it, both per srun step (VisIt
 #            starts its engines one after another, each in its own step, so
-#            the run's peak is the largest step's sum plus the harness's own
-#            processes (the step it runs in), never every step added up.
-#            Only processes on this node: every suite run is single-node.
+#            steps are never added to each other):
+#              step PSS peak  the largest sum of the step's processes' PSS
+#                             (smaps_rollup) at one poll: processes alive at
+#                             the same moment, shared pages counted once.
+#                             The memory figure of a single-node srun run.
+#                             Reading smaps_rollup costs about 12 ms per GB
+#                             resident, so this poll paces itself to use at
+#                             most PSS_BUDGET of one core (0.1 s for small
+#                             runs, a few seconds for ex06's 45 GB).
+#              step HWM sum   the sum of the step's processes' VmHWM: each
+#                             process's exact peak, but at different times
+#                             and with shared pages counted per process, so
+#                             an upper bound. Cheap, read every 0.1 s.
+#            The whole tool tree (the harness's own processes too: VisIt's
+#            CLI and viewer, the srun client) is recorded as a separate
+#            PSS peak. Only processes on this node: every suite run is
+#            single-node.
 #
 import hashlib
 import json
@@ -156,20 +168,30 @@ def _step_id(entries):
     return ""
 
 
-def peak_over_steps(hwm, groups, own_step):
-    """(bytes, steps): the run's peak from per-process VmHWM in kB.
+def step_sums(kb_by_pid, groups, own_step):
+    """{step: summed kB} over the srun steps, the harness's own step left out.
 
-    The processes of the harness's own step (own_step, its SLURM_STEP_ID;
-    "" outside Slurm) ran alongside every other step, so they are added to
-    the largest of the other steps' sums. Steps never overlap within one
-    vignette, so they are not added to each other.
+    own_step is the harness's SLURM_STEP_ID ("" outside Slurm): its
+    processes are the tool's own tree, not ranks a step launched.
     """
     sums = {}
-    for pid, kb in hwm.items():
+    for pid, kb in kb_by_pid.items():
         group = groups.get(pid, own_step)
-        sums[group] = sums.get(group, 0) + kb
-    own = sums.pop(own_step, 0)
-    return (own + max(sums.values(), default=0)) * 1024, len(sums)
+        if group != own_step:
+            sums[group] = sums.get(group, 0) + kb
+    return sums
+
+
+def pss_kb(pid, proc="/proc"):
+    """The process's proportional set size in kB (smaps_rollup), or None."""
+    try:
+        with open(os.path.join(proc, str(pid), "smaps_rollup"), "r") as handle:
+            for line in handle:
+                if line.startswith("Pss:"):
+                    return int(line.split()[1])
+    except (OSError, IndexError, ValueError):
+        return None
+    return None
 
 
 def _read_first_line(path):
@@ -263,6 +285,9 @@ class NodeTelemetry(object):
     """
 
     MEMORY_PERIOD_S = 0.1
+    # The PSS poll may use at most this share of one core; it waits longer
+    # between polls of large processes, whose smaps_rollup costs more.
+    PSS_BUDGET = 0.10
     POWER_PERIOD_S = 1.0
 
     def __init__(self, step_name=None, power=False, gpu=True, pm_dir=PM_COUNTERS_DIR):
@@ -280,10 +305,16 @@ class NodeTelemetry(object):
         self._hwm = {}
         self._memory_samples = 0
         self._memory_cost_s = 0.0
+        self._own_step = os.environ.get("SLURM_STEP_ID", "")
+        self._step_pss_peak = {}  # step -> largest summed PSS kB at one poll
+        self._tree_pss_peak = 0  # every process, the tool's own tree too
+        self._pss_samples = 0
+        self._pss_cost_s = 0.0
 
     # -- sources -----------------------------------------------------------
     def _memory_loop(self):
         cache = {}
+        next_pss = 0.0
         while not self._stop.is_set():
             began = time.time()
             groups = {}
@@ -292,6 +323,18 @@ class NodeTelemetry(object):
                 key = (pid, groups.get(pid, ""))
                 if kb > self._hwm.get(key, 0):
                     self._hwm[key] = kb
+            if found and began >= next_pss:
+                pss_began = time.time()
+                pss = {pid: pss_kb(pid) for pid in found}
+                pss = {pid: kb for pid, kb in pss.items() if kb is not None}
+                for step, kb in step_sums(pss, groups, self._own_step).items():
+                    if kb > self._step_pss_peak.get(step, 0):
+                        self._step_pss_peak[step] = kb
+                self._tree_pss_peak = max(self._tree_pss_peak, sum(pss.values()))
+                cost = time.time() - pss_began
+                self._pss_samples += 1
+                self._pss_cost_s += cost
+                next_pss = began + max(self.MEMORY_PERIOD_S, cost / self.PSS_BUDGET)
             spent = time.time() - began
             self._memory_samples += 1
             self._memory_cost_s += spent
@@ -377,12 +420,22 @@ class NodeTelemetry(object):
             if peaks:
                 hwm = {i: kb for i, kb in enumerate(peaks.values())}
                 groups = {i: key[1] for i, key in enumerate(peaks)}
-                total, steps = peak_over_steps(
-                    hwm, groups, os.environ.get("SLURM_STEP_ID", "")
-                )
-                out["step_hwm_bytes"] = total
+                sums = step_sums(hwm, groups, self._own_step)
                 out["step_hwm_processes"] = len(peaks)
-                out["step_hwm_steps"] = steps
+                out["step_hwm_steps"] = len(sums)
+                if sums:
+                    # Upper bound: per-process peaks, each at its own time.
+                    out["step_hwm_bytes"] = max(sums.values()) * 1024
+            step_pss = dict(self._step_pss_peak)
+            if step_pss:
+                out["step_pss_peak_bytes"] = max(step_pss.values()) * 1024
+            if self._tree_pss_peak:
+                out["tool_tree_pss_peak_bytes"] = self._tree_pss_peak * 1024
+            if self._pss_samples:
+                out["step_pss_samples"] = self._pss_samples
+                out["step_pss_mean_sample_s"] = round(
+                    self._pss_cost_s / self._pss_samples, 5
+                )
         if self._power:
             for key in ("node_w", "cpu_w", "memory_w"):
                 values = [r[key] for r in self._power if key in r]

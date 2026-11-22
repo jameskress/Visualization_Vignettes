@@ -101,8 +101,8 @@ CHARTS = [
     ("io_write_mb", "Storage write (process tree)", "MB", 1.0),
     ("energy_joules", "Energy", "J", 1.0),
     # Schema 8 (#140): what the node did during the vignette.
-    ("step_hwm_mb", "Peak memory, exact (VmHWM)", "MB", 1.0),
     ("slurm_memory_mb", "Peak memory, Slurm's sample", "MB", 1.0),
+    ("tool_tree_pss_peak_mb", "Peak memory, whole tool tree (PSS)", "MB", 1.0),
     ("power_mean_node_w", "Mean node power", "W", 1.0),
     ("gpu_memory_peak_mib", "Peak GPU memory", "MiB", 1.0),
 ]

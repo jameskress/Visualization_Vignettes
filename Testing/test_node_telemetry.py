@@ -85,15 +85,11 @@ class SequentialSteps(unittest.TestCase):
             found = node_telemetry.step_hwm_kb("vv-a", proc=root, groups=groups)
             self.assertEqual(len(found), 4)
             self.assertEqual(groups[11], "72")
-            total, steps = node_telemetry.peak_over_steps(found, groups, "4294967291")
-            # The harness plus the larger engine step; the two engines never ran
-            # together, so 300 + 2000, not 300 + 2000 + 1500.
-            self.assertEqual(total, (300 + 2000) * 1024)
-            self.assertEqual(steps, 2)
+            # The harness's own step is the tool tree, not a step's ranks.
+            sums = node_telemetry.step_sums(found, groups, "4294967291")
+            self.assertEqual(sums, {"72": 2000, "73": 1500})
 
-    def test_figures_take_the_largest_step_plus_the_harness(self):
-        from unittest import mock
-
+    def test_figures_are_per_step_and_the_tree_is_separate(self):
         telemetry = node_telemetry.NodeTelemetry(step_name="vv-a", gpu=False)
         telemetry._memory_samples = 1
         # pid 11 reused in step 73 is a different process from pid 11 in 72.
@@ -103,17 +99,49 @@ class SequentialSteps(unittest.TestCase):
             (12, "72"): 1000,
             (11, "73"): 1500,
         }
-        with mock.patch.dict(os.environ, {"SLURM_STEP_ID": "b"}):
-            out = telemetry.figures()
-        self.assertEqual(out["step_hwm_bytes"], (300 + 2000) * 1024)
+        telemetry._step_pss_peak = {"72": 1400, "73": 1200}
+        telemetry._tree_pss_peak = 1650
+        telemetry._pss_samples = 3
+        telemetry._own_step = "b"
+        out = telemetry.figures()
+        # The engines never ran together: the larger step, never their sum,
+        # and the harness's own processes are not in the step figures.
+        self.assertEqual(out["step_hwm_bytes"], 2000 * 1024)
+        self.assertEqual(out["step_pss_peak_bytes"], 1400 * 1024)
+        self.assertEqual(out["tool_tree_pss_peak_bytes"], 1650 * 1024)
         self.assertEqual(out["step_hwm_steps"], 2)
         self.assertEqual(out["step_hwm_processes"], 4)
 
-    def test_outside_slurm_everything_is_one_group(self):
-        total, steps = node_telemetry.peak_over_steps(
-            {1: 100, 2: 200}, {1: "", 2: ""}, ""
-        )
-        self.assertEqual((total, steps), (300 * 1024, 0))
+    def test_pss_is_read_from_smaps_rollup(self):
+        with tempfile.TemporaryDirectory() as root:
+            write(
+                os.path.join(root, "7", "smaps_rollup"),
+                "00400000-ff [rollup]\nRss:  900 kB\nPss:  640 kB\n",
+            )
+            self.assertEqual(node_telemetry.pss_kb(7, proc=root), 640)
+            self.assertIsNone(node_telemetry.pss_kb(8, proc=root))
+
+    def test_the_pss_poll_paces_itself_on_large_processes(self):
+        from unittest import mock
+
+        telemetry = node_telemetry.NodeTelemetry(step_name="vv-a", gpu=False)
+        calls = []
+
+        def slow_pss(pid, proc="/proc"):
+            calls.append(pid)
+            time.sleep(0.05)  # a large process: 50 ms per read
+            return 1000
+
+        with mock.patch.object(
+            node_telemetry, "step_hwm_kb", side_effect=lambda *a, **k: {1: 500}
+        ), mock.patch.object(node_telemetry, "pss_kb", side_effect=slow_pss):
+            telemetry.start()
+            time.sleep(1.2)
+            telemetry.stop()
+        # At most 10% of a core: about one 50 ms read per 0.5 s, not ten a
+        # second, while the cheap VmHWM poll keeps its 0.1 s period.
+        self.assertLessEqual(len(calls), 4)
+        self.assertGreaterEqual(telemetry._memory_samples, 6)
 
 
 class PowerAndGpu(unittest.TestCase):
@@ -268,7 +296,7 @@ class NvidiaSmiLifetime(unittest.TestCase):
 
 
 class ExactPeakAsMemory(unittest.TestCase):
-    """metrics.prefer_exact_peak: which runs take their memory from VmHWM."""
+    """metrics.prefer_exact_peak: which runs take their memory from the ranks' PSS."""
 
     MB = 1024 * 1024
 
@@ -276,7 +304,8 @@ class ExactPeakAsMemory(unittest.TestCase):
         result = {
             "ranks_outside_tree": True,
             "job_nodes": 1,
-            "step_hwm_bytes": 541 * self.MB,
+            "step_pss_peak_bytes": 541 * self.MB,
+            "step_hwm_bytes": 600 * self.MB,
             "succeeded": True,
             "returncode": 0,
             "slurm_steps": [
@@ -302,9 +331,12 @@ class ExactPeakAsMemory(unittest.TestCase):
 
         record = self.gather(self.run_result())
         self.assertEqual(record["memory_usage_mb"], 541.0)
-        self.assertEqual(record["memory_measurement_scope"], metrics.HWM_SCOPE)
+        self.assertEqual(record["memory_measurement_scope"], metrics.STEP_PSS_SCOPE)
         self.assertEqual(record["slurm_memory_mb"], 231.0)
         self.assertEqual(record["slurm_memory_scope"], metrics.SLURM_SCOPE)
+        # The ranks alone, the processes the new figure covers.
+        self.assertEqual(record["slurm_step_memory_mb"], 231.0)
+        self.assertEqual(record["step_hwm_mb"], 600.0)  # the upper bound
 
     def test_an_unsampled_step_still_gets_the_exact_peak(self):
         import metrics
@@ -312,8 +344,9 @@ class ExactPeakAsMemory(unittest.TestCase):
         steps = [{"step": "1.0", "total_mem_bytes": 0, "cpu_seconds": 1.0}]
         record = self.gather(self.run_result(slurm_steps=steps))
         self.assertEqual(record["memory_usage_mb"], 541.0)
-        self.assertEqual(record["memory_measurement_scope"], metrics.HWM_SCOPE)
+        self.assertEqual(record["memory_measurement_scope"], metrics.STEP_PSS_SCOPE)
         self.assertNotIn("slurm_memory_mb", record)
+        self.assertNotIn("slurm_step_memory_mb", record)
         record = self.gather(self.run_result(slurm_steps=[]))
         self.assertEqual(record["memory_usage_mb"], 541.0)
 
@@ -323,7 +356,7 @@ class ExactPeakAsMemory(unittest.TestCase):
         for changes in (
             {"job_nodes": 2},  # ranks on nodes the poller cannot read
             {"job_nodes": None},  # not under Slurm
-            {"step_hwm_bytes": None},  # nothing sampled
+            {"step_pss_peak_bytes": None},  # nothing sampled
         ):
             record = self.gather(self.run_result(**changes))
             self.assertEqual(record["memory_usage_mb"], 231.0, changes)
@@ -332,7 +365,11 @@ class ExactPeakAsMemory(unittest.TestCase):
             )
             self.assertNotIn("slurm_memory_mb", record)
         # A local tree keeps PSS, which counts shared pages once.
-        local = {"peak_pss_mb": 300.0, "step_hwm_bytes": 541 * self.MB, "job_nodes": 1}
+        local = {
+            "peak_pss_mb": 300.0,
+            "step_pss_peak_bytes": 541 * self.MB,
+            "job_nodes": 1,
+        }
         record = self.gather(local)
         self.assertEqual(record["memory_usage_mb"], 300.0)
         self.assertEqual(record["memory_measurement_scope"], metrics.PSS_SCOPE)
