@@ -164,7 +164,7 @@ TELEMETRY_KEYS = (
     "power_peak_cpu_w",
     "power_mean_memory_w",
     "power_peak_memory_w",
-    "cpu_temp_peak_c",
+    "temp_peak_cpu_c",
     "power_samples",
     "gpu_telemetry",
     "step_hwm_processes",
@@ -182,7 +182,18 @@ def node_telemetry_fields(run_result):
     """
     out = {key: run_result[key] for key in TELEMETRY_KEYS if key in run_result}
     if run_result.get("step_hwm_bytes"):
-        out["memory_step_hwm_mb"] = run_result["step_hwm_bytes"] / MB
+        # Not memory_*: that prefix would tie it to the run's memory scope,
+        # and this is the same measurement on every site.
+        out["step_hwm_mb"] = run_result["step_hwm_bytes"] / MB
+    gpus = run_result.get("gpu_telemetry") or []
+    for key, field in (
+        ("memory_peak_mib", "gpu_memory_peak_mib"),
+        ("power_peak_w", "gpu_power_peak_w"),
+    ):
+        values = [g[key] for g in gpus if g.get(key) is not None]
+        if values:
+            # The busiest GPU: a job can see idle ones too.
+            out[field] = max(values)
     # The CPU and memory split of the node's energy, for srun runs too, whose
     # total comes from Slurm's step accounting rather than pm_counters.
     energy = run_result.get("pm_energy")

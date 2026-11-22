@@ -335,7 +335,7 @@ class NodeTelemetry(object):
                     out["power_peak_" + key] = max(values)
             temps = [r["temp_c"] for r in self._power if "temp_c" in r]
             if temps:
-                out["cpu_temp_peak_c"] = max(temps)
+                out["temp_peak_cpu_c"] = max(temps)
             out["power_samples"] = len(self._power)
         if self._gpu:
             gpus = []

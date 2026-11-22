@@ -616,9 +616,9 @@ VisIt 3.4.1 and 3.4.2 together since 2024 and how the ParaView files carry
 5.13.1 alongside 6.x. Splitting them by file name hides exactly the
 comparison the table above exists to produce.
 
-### What a record holds (metrics schema 7)
+### What a record holds (metrics schema 8)
 
-Schemas 6 and 7 added fields and changed the meaning of none, so their CPU
+Schemas 6, 7 and 8 added fields and changed the meaning of none, so their CPU
 and memory compare with schema 5's. Every field below is optional: a record carries it
 only when it could be measured, and never fills a gap from another run.
 
@@ -638,10 +638,18 @@ only when it could be measured, and never fills a gap from another run.
 | `opengl_window` | `VTK_DEFAULT_OPENGL_WINDOW` as launched (ParaView). |
 | `machine_info.cpu_model`, `.logical_cpus`, `.memory_total_gb` | The host's hardware. |
 | `machine_info.os_release`, `.cpu_governor`, `.gpus` | What a system update changes (schema 7): the OS release (`PRETTY_NAME`), the CPU frequency governor, and each visible GPU's name and driver from `nvidia-smi`. Read once per invocation; left out when it cannot be read. With the kernel `release` and `build.id`, a step in a history can be tied to a system change. |
+| `machine_info.cpu_driver`, `.cpu_boost`, `.cpu_max_mhz`, `.smt_active`, `.numa_nodes`, `.thp`, `.hugepages_2m`, `.cpu_microcode`, `.kernel_cmdline_digest` | The node settings a maintenance can change without changing the OS name (schema 8, #140; the same set the Gray-Scott telemetry records): frequency driver, turbo boost, maximum frequency, SMT, NUMA nodes, transparent and 2 MB huge pages, CPU microcode, and the first 12 hex digits of the SHA-256 of `/proc/cmdline` (the command line itself can name hosts and paths). The dashboard lists the first values and every change per configuration under System settings. |
+| `step_hwm_mb` | The exact peak memory of the vignette's processes on this node (schema 8, #140): `VmHWM`, the kernel's high-water mark of each process's resident set, read 10 times a second for every process carrying the run's step name (`VV_SLURM_STEP_NAME`, which srun's tasks and VisIt's engine inherit), summed per process like Slurm's figure (so RSS, shared pages counted per process). Slurm samples task memory at most once a second, so a 2 s step gets one sample; this does not miss the peak unless a process reaches it in its last 0.1 s. Slurm runs only, beside the memory figure rather than in place of it. `step_hwm_processes` and `step_hwm_samples` say what it covered; `step_hwm_mean_sample_s` is the cost of one scan. |
+| `power_mean_node_w`, `power_peak_node_w` (and `_cpu_w`, `_memory_w`), `temp_peak_cpu_c`, `power_samples` | Node, CPU and memory power during the vignette and the hotter CPU's peak temperature, from `/sys/cray/pm_counters` once a second (schema 8). Whole-node jobs on Cray nodes only, like `energy_joules`. For srun runs, whose `energy_joules` comes from Slurm, the pm_counters split is recorded too: `energy_pm_node_joules`, `energy_cpu_joules`, `energy_memory_joules`. |
+| `gpu_telemetry`, `gpu_memory_peak_mib`, `gpu_power_peak_w` | Per visible GPU, from one `nvidia-smi -lms 1000` running for the vignette's duration (schema 8): peak memory used, mean and peak utilisation and power. `gpu_memory_peak_mib` and `gpu_power_peak_w` are the busiest GPU's. A GPU the vignette did not use is still listed, and on the workstation the display's own use is included. |
 
 All of it is read in the passes the harness already made: a few extra `/proc`
 reads per 0.25 s sample, one more `sacct` field, two file reads on a Cray
 node, one `git log` per vignette, and one `nvidia-smi` query per invocation.
+Schema 8 adds one thread per vignette: a `/proc` scan 10 times a second
+under Slurm (about 5 ms each with 1,300 processes on the workstation), a
+pm_counters read once a second, and one `nvidia-smi` process. Whether that
+moves vignette times is measured in #140.
 
 ## The results dashboard
 

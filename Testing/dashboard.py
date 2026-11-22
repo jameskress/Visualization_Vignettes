@@ -100,6 +100,10 @@ CHARTS = [
     ("io_read_mb", "Storage read (process tree)", "MB", 1.0),
     ("io_write_mb", "Storage write (process tree)", "MB", 1.0),
     ("energy_joules", "Energy", "J", 1.0),
+    # Schema 8 (#140): what the node did during the vignette.
+    ("step_hwm_mb", "Peak memory, exact (VmHWM)", "MB", 1.0),
+    ("power_mean_node_w", "Mean node power", "W", 1.0),
+    ("gpu_memory_peak_mib", "Peak GPU memory", "MiB", 1.0),
 ]
 SCOPE_FIELD = {metric: drift.scope_of(metric) for metric in drift.METRICS}
 
@@ -1483,6 +1487,17 @@ PLATFORM_FIELDS = (
     ("release", "kernel"),
     ("gpu_drivers", "GPU driver"),
     ("cpu_governor", "CPU governor"),
+    # Schema 8 (#140): what a maintenance can change without changing the
+    # OS name.
+    ("kernel_cmdline_digest", "kernel command line (digest)"),
+    ("cpu_microcode", "CPU microcode"),
+    ("cpu_driver", "frequency driver"),
+    ("cpu_boost", "boost"),
+    ("cpu_max_mhz", "max MHz"),
+    ("smt_active", "SMT"),
+    ("numa_nodes", "NUMA nodes"),
+    ("thp", "transparent huge pages"),
+    ("hugepages_2m", "2 MB huge pages"),
 )
 
 

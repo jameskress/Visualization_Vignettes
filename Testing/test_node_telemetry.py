@@ -168,5 +168,36 @@ class Platform(unittest.TestCase):
             self.assertEqual(node_telemetry.host_platform(root), {})
 
 
+class DashboardSystemSettings(unittest.TestCase):
+    def test_schema8_settings_are_system_changes(self):
+        """The platform fields node_telemetry records reach the dashboard's
+        system-change markers; a setting seen for the first time is not a
+        change."""
+        import dashboard
+
+        def rec(run, kernel, boost=None):
+            info = {"release": kernel}
+            if boost is not None:
+                info["cpu_boost"] = boost
+            return {"run_id": run, "machine_info": info}
+
+        rows = {
+            "ex00": [
+                ("2026-01-01T00:00:00", rec("a", "5.14")),
+                ("2026-02-01T00:00:00", rec("b", "5.14", True)),
+                ("2026-03-01T00:00:00", rec("c", "6.4", False)),
+                ("2026-04-01T00:00:00", rec("d", "6.4", False)),
+            ]
+        }
+        self.assertEqual(
+            dashboard.platform_changes(rows),
+            [
+                (
+                    "2026-03-01T00:00:00",
+                    [("kernel", "5.14", "6.4"), ("boost", "True", "False")],
+                )
+            ],
+        )
+
 if __name__ == "__main__":
     unittest.main()
