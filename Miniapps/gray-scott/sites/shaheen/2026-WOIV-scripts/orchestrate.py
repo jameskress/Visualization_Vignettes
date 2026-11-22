@@ -4,6 +4,26 @@ import subprocess
 import glob
 import shutil
 import json  # Added for parsing grid size
+import random
+import re
+import time
+
+# James's standing OK covers jobs up to about 3500 nodes, plus sizes just
+# over it that were tested and accepted one by one (APPROVED_SIZES: the
+# 3536-node 3328 + 208 layout, 21 Nov 2026). Anything else larger (the
+# 4096-node runs) is submitted only with --allow-over-limit naming it.
+NODE_LIMIT = 3500
+APPROVED_SIZES = {3536}
+
+
+def _job_nodes(script):
+    """The #SBATCH --nodes value of a generated job script (0 if absent)."""
+    with open(script) as f:
+        for line in f:
+            m = re.match(r"#SBATCH --nodes=(\d+)", line)
+            if m:
+                return int(m.group(1))
+    return 0
 
 
 def main():
@@ -72,6 +92,25 @@ def main():
         action="store_true",
         default=False,
         help="Print actions without executing",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        help="Seed for the submission order (default: random, printed and logged)",
+    )
+    parser.add_argument(
+        "--no-shuffle",
+        action="store_true",
+        help="Submit in name order. By default the order is shuffled so the repeats of one configuration "
+        "(<id>_r01 ...) are spread over time and one bad stretch on the machine cannot hit them all",
+    )
+    parser.add_argument(
+        "--allow-over-limit",
+        action="append",
+        default=[],
+        metavar="SUBSTRING",
+        help=f"Also submit jobs larger than {NODE_LIMIT} nodes whose name contains SUBSTRING "
+        "(repeatable). Only with James's approval for those runs",
     )
 
     args = parser.parse_args()
@@ -174,6 +213,45 @@ def main():
     if len(selected_scripts) == 0:
         return
 
+    # Jobs above NODE_LIMIT need James's approval: dropped unless named.
+    if args.submit:
+        kept = []
+        for s in selected_scripts:
+            name = os.path.basename(s).replace(".sbat", "")
+            n = _job_nodes(s)
+            if (
+                n > NODE_LIMIT
+                and n not in APPROVED_SIZES
+                and not any(a in name for a in args.allow_over_limit)
+            ):
+                print(
+                    f"  [HOLD] {name}: {n} nodes is above {NODE_LIMIT}; needs James's approval (--allow-over-limit)"
+                )
+                continue
+            kept.append(s)
+        selected_scripts = kept
+
+    # The log goes in the results directory: refuse before submitting anything
+    # if it is missing, rather than stop half way with a job unrecorded.
+    if args.submit and not args.dry_run and not os.path.isdir(args.results_dir):
+        print(
+            f"Results directory {args.results_dir} does not exist "
+            "(did generate_experiments.py write there?)"
+        )
+        return
+
+    # Spread repeats over time: a shuffled order, reproducible from the seed.
+    # Initialisations stay first: the runs restart from their checkpoints.
+    seed = (
+        args.seed if args.seed is not None else random.SystemRandom().randrange(2**31)
+    )
+    if not args.no_shuffle:
+        inits = [s for s in selected_scripts if os.path.basename(s).startswith("init_")]
+        runs = [s for s in selected_scripts if s not in inits]
+        random.Random(seed).shuffle(runs)
+        selected_scripts = inits + runs
+        print(f"Submission order shuffled with seed {seed} (initialisations first)")
+
     # 3. Perform Actions
     if not args.submit and not args.clean:
         print("\n[DRY RUN] Use --submit to run or --clean to reset results.")
@@ -240,10 +318,24 @@ def main():
                     print("         Use --clean to overwrite.")
                     continue
 
-            cmd = ["sbatch", s]
+            cmd = ["sbatch", "--parsable", s]
             print(f"  [SUBMIT] {' '.join(cmd)}")
             if not args.dry_run:
-                subprocess.run(cmd)
+                out = subprocess.run(cmd, capture_output=True, text=True)
+                job = out.stdout.strip().split(";")[0]
+                if out.returncode != 0:
+                    print(f"  [FAILED] {out.stderr.strip()}")
+                    job = "FAILED"
+                else:
+                    print(f"  [JOB] {job}")
+                # One line per submission: when, which seed, which script, which job.
+                with open(
+                    os.path.join(args.results_dir, "submissions.tsv"), "a"
+                ) as log:
+                    log.write(
+                        f"{time.strftime('%Y-%m-%dT%H:%M:%S')}\t{'none' if args.no_shuffle else seed}\t"
+                        f"{basename}\t{_job_nodes(s)}\t{job}\n"
+                    )
 
 
 if __name__ == "__main__":

@@ -34,10 +34,28 @@ GLOBAL_SETTINGS = {
 
 INIT_NODE_MAP = {1024: 8, 2048: 64, 4096: 1024, 8192: 2048}
 
+# Repeats: every measured run (not Paper 1, not the initialisations) is
+# generated REPEATS times as <id>_r01 ... so one abnormal run (a noisy node,
+# a busy file system) shows up against the others; corpus_index.py reports
+# each configuration's median and flags outliers. --repeats overrides it.
+REPEATS = 3
+# Shaheen's workq caps a job at 2048 nodes; larger jobs ask for QoS ex
+# (up to 4608 nodes). James's standing OK covers about 3500 nodes, and the
+# 3536-node 3328 + 208 layout (tested 21 Nov 2026); above that every run
+# needs his approval, which orchestrate.py enforces.
+WORKQ_MAX_NODES = 2048
+LARGE_RUN_QOS = "ex"
+# Start-up (MPI wire-up, SST connection, Catalyst/Python import) grows with
+# the node count; runs above the workq cap get at least this long.
+LARGE_RUN_MIN_TIME = "1:00:00"
+
 # =============================================================================
 # DEFINITIONS (Strong/Weak Scaling & New Sweeps)
 # =============================================================================
-STRONG_SCALING_NODES = [256, 1024, 4096]
+# 2048 and 3072 need --qos=ex (workq caps a job at 2048 nodes); 3072 is
+# exactly 12 of Shaheen's 256-node dragonfly groups. Node counts that are not
+# a power of two split L unevenly by at most one cell per rank (#12).
+STRONG_SCALING_NODES = [256, 1024, 2048, 3072, 3328, 4096]
 STRONG_GRID = 4096
 
 WEAK_SCALING_CONFIGS = [(8, 1024), (64, 2048), (512, 4096), (4096, 8192)]
@@ -46,6 +64,9 @@ TRANSIT_CONFIGS = [
     ("small", 64, 2048, 4),  # Weak Scaling Start (16:1)
     ("compressed", 512, 4096, 32),  # Strong Scaling Start (16:1)
     ("hero", 4096, 8192, 256),  # Weak/Strong Scaling End (16:1)
+    # 8192^3 strong scaling below the hero run, within the ~3500-node limit
+    # James allows without asking (21 Nov 2026): 12 dragonfly groups + 192.
+    ("hero3072", 3072, 8192, 192),  # 16:1
 ]
 
 TRANSIT_SWEEP_CONFIGS = [
@@ -94,7 +115,18 @@ XPORT_TIME_LIMIT = "0:30:00"  # a hang must not hold the nodes for hours
 # checkpoint. Fan-in 128:1 in tasks (16 simulation nodes per staging node),
 # which ran cleanly in step 1. 1024 + 64 is the largest power-of-two
 # simulation that fits the per-user node cap (about 2048) with its readers.
-SCALE_CONFIGS = [(256, 16), (512, 32), (1024, 64)]  # (simulation, staging) nodes
+# Extended past the 2048-node per-job cap with --qos=ex (21 Nov 2026).
+SCALE_CONFIGS = [
+    (256, 16),
+    (512, 32),
+    (1024, 64),
+    (2048, 128),
+    (3072, 192),
+    # 13 dragonfly groups + 208 readers = 3536 nodes, just over the ~3500
+    # James allows; it ran cleanly on 21 Nov 2026 (job 16126972), so he
+    # accepts it.
+    (3328, 208),
+]  # (simulation, staging) nodes
 SCALE_GRID = 4096
 SCALE_LAUNCHES = ["mpmd", "steps"]
 SCALE_RUN_STEPS = 101
@@ -111,6 +143,9 @@ ADIOS_SWEEP_CONFIGS = [
     (512, 32, 1),
     (1024, 64, 1),
     (1920, 128, 1),
+    (2048, 128, 1),  # --qos=ex from here (21 Nov 2026)
+    (3072, 192, 1),
+    (3328, 208, 1),  # 3536 nodes, tested 21 Nov 2026 (job 16126972)
     (1024, 16, 1),  # reader count at 1024 simulation nodes
     (1024, 32, 1),
     (1024, 128, 1),
@@ -129,6 +164,9 @@ PIPE_CONFIGS = [
     ("s256", 256, 4096, 16),
     ("s512", 512, 4096, 32),
     ("s1024", 1024, 4096, 64),
+    ("s2048", 2048, 4096, 128),  # --qos=ex (21 Nov 2026)
+    ("s3072", 3072, 4096, 192),
+    ("s3328", 3328, 4096, 208),  # 3536 nodes
 ]
 PIPE_RUN_STEPS = 101  # 6 outputs at plotgap 20
 PIPE_TIME_LIMIT = "0:45:00"
@@ -156,8 +194,12 @@ READER_SMT = True
 # not, and neither do Paper 1's jobs, which keep the setup they ran with (#71).
 READER_MALLOC_ENV = "MALLOC_MMAP_MAX_=0 MALLOC_TRIM_THRESHOLD_=137438953472"
 
-CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
-
+# Catalyst implementation loaded by every job (catalyst_lib_path, and its
+# lib/ on LD_LIBRARY_PATH). --bin-path must be a Gray-Scott build against the
+# same ParaView: the jobs load both into one process. Runs written before
+# 17 Nov 2026 used the 6.0.1 superbuild (LEGACY_CATALYST_LIB_PATH).
+LEGACY_CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
+CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-6.2.1-gcc13-build/install/lib/catalyst"
 # Darshan (I/O characterization) for --telemetry; --darshan-prefix overrides,
 # --no-darshan leaves it out. Built by software/build-darshan-3.4.7.sh.
 DARSHAN_PREFIX = (
@@ -908,6 +950,7 @@ SBATCH_TEMPLATE = """#!/bin/bash
 #SBATCH --job-name={id}
 #SBATCH --account={account}
 #SBATCH --partition={partition}
+{qos_line}
 #SBATCH --nodes={total_nodes}
 #SBATCH --ntasks={total_ranks}
 {cpus_per_task_line}
@@ -1500,19 +1543,33 @@ echo "Simulation exit status: $SIM_RC, reader exit status: $STAGE_RC"
 """
 
 
+def _minutes(limit):
+    """Slurm time "[D-]H:MM:SS" (or "MM:SS") in minutes."""
+    days, _, rest = limit.rpartition("-")
+    parts = [int(x) for x in rest.split(":")]
+    while len(parts) < 3:
+        parts.insert(0, 0)
+    h, m, sec = parts
+    return (int(days) if days else 0) * 1440 + h * 60 + m + sec / 60
+
+
 def check_settings_unchanged(output_dir, exp):
     """Refuse to regenerate a run with different recorded settings.
 
     The experiment ID includes neither the reader decomposition and
     shared-plane setting (in transit runs) nor the SST EndStep barrier and
-    queue policy (every run), so generations with other values into the
-    same --results-dir share directories, and new settings would sit beside
-    the old run's numbers. Files written before an option existed hold its
-    old behaviour: slab, planes read, no barrier, Block. The initialisation
+    queue policy (every run), nor the ParaView build (catalyst_lib_path), so
+    generations with other values into the same --results-dir share
+    directories, and new settings would sit beside the old run's numbers.
+    Files written before an option existed hold its old behaviour: slab,
+    planes read, no barrier, Block, the 6.0.1 Catalyst. The initialisation
     runs, often shared between results directories, are not checked.
     """
     decomposition, planes = reader_decomposition(exp)
-    checks = [("adios_endstep_barrier", False, ADIOS_ENDSTEP_BARRIER)]
+    checks = [
+        ("adios_endstep_barrier", False, ADIOS_ENDSTEP_BARRIER),
+        ("catalyst_lib_path", LEGACY_CATALYST_LIB_PATH, CATALYST_LIB_PATH),
+    ]
     if exp["type"] == "intransit":
         checks += [
             ("read_decomposition", "slab", decomposition),
@@ -1664,6 +1721,11 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         "reader_shared_planes": reader_decomposition(exp)[1],
         "ascent_options": "",
     }
+    # Which configuration this run repeats (REPEATS), for corpus_index.py.
+    if "repeat_of" in exp:
+        config["repeat_of"] = exp["repeat_of"]
+        config["repeat"] = exp["repeat"]
+        config["repeats"] = exp["repeats"]
 
     if is_init:
         config["output_type"] = "none"
@@ -2411,6 +2473,26 @@ def generate_scripts(args):
                     }
                 )
 
+    # Repeats (REPEATS): every measured run except Paper 1's becomes
+    # <id>_r01 ... <id>_rNN, each its own results directory and job; the
+    # initialisations stay single (the repeats share their checkpoint).
+    # getattr: sites/kw61316/run_generator_locally.py builds its own args.
+    repeats = getattr(args, "repeats", 1)
+    if repeats > 1 or getattr(args, "repeats_always_suffix", False):
+        expanded = []
+        for exp in EXPERIMENTS:
+            if exp["workload"] == "initialization" or exp.get("paper") == "paper1":
+                expanded.append(exp)
+                continue
+            for k in range(1, repeats + 1):
+                rep_exp = dict(exp)
+                rep_exp["id"] = f"{exp['id']}_r{k:02d}"
+                rep_exp["repeat_of"] = exp["id"]
+                rep_exp["repeat"] = k
+                rep_exp["repeats"] = repeats
+                expanded.append(rep_exp)
+        EXPERIMENTS = expanded
+
     # Preflight, before any file is written: a run whose existing settings
     # differ (check_settings_unchanged) stops the whole generation, so
     # nothing beside that run's results (adios2.xml included) is rewritten.
@@ -2471,10 +2553,15 @@ def generate_scripts(args):
             reader_hint="" if reader_smt(exp) else "--hint=nomultithread",
         )
 
+        time_limit = exp.get("time_limit", SYSTEM_CONFIG["time_limit"])
+        large = total_nodes > WORKQ_MAX_NODES
+        if large and _minutes(time_limit) < _minutes(LARGE_RUN_MIN_TIME):
+            time_limit = LARGE_RUN_MIN_TIME
         script_content = SBATCH_TEMPLATE.format(
             id=exp["id"],
             account=args.account,
             partition=SYSTEM_CONFIG["partition"],
+            qos_line=f"#SBATCH --qos={LARGE_RUN_QOS}" if large else "",
             # A job-wide nomultithread would refuse the reader's second
             # hardware threads; the simulation's srun still asks for it.
             hint_line=""
@@ -2490,7 +2577,7 @@ def generate_scripts(args):
             else "",
             mpi_per_node=SYSTEM_CONFIG["mpi_per_node"],
             omp_threads=SYSTEM_CONFIG["omp_threads"],
-            time_limit=exp.get("time_limit", SYSTEM_CONFIG["time_limit"]),
+            time_limit=time_limit,
             output_dir=run_output_dir,
             results_dir=args.results_dir,
             perf_env=args.perf_env,
@@ -2539,7 +2626,12 @@ def generate_scripts(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-path", required=True)
-    parser.add_argument("--bin-path", required=True)
+    parser.add_argument(
+        "--bin-path",
+        required=True,
+        help="directory with gray-scott and analysis-reader, built against the "
+        "same ParaView as CATALYST_LIB_PATH (config.bash)",
+    )
     parser.add_argument("--results-dir", required=True)
     parser.add_argument("--output-dir", default="generated_scripts")
     parser.add_argument("--account", default=SYSTEM_CONFIG["account"])
@@ -2611,6 +2703,17 @@ if __name__ == "__main__":
     )
     parser.set_defaults(reader_smt=READER_SMT)
     parser.add_argument(
+        "--repeats",
+        type=int,
+        default=REPEATS,
+        help=f"Generate every measured run (not Paper 1 or the initialisations) this many times, as <id>_r01 ... (default {REPEATS})",
+    )
+    parser.add_argument(
+        "--repeats-always-suffix",
+        action="store_true",
+        help="Give measured runs the _r01 suffix even with --repeats 1, so a later generation with more repeats extends the same IDs",
+    )
+    parser.add_argument(
         "--perf-env",
         default=f"/scratch/{os.environ.get('USER', 'user')}/perf_env",
         help="Python venv with pandas, activated after each run to reduce its timings",
@@ -2644,4 +2747,6 @@ if __name__ == "__main__":
     QUEUE_FULL_POLICY = args.adios_queue_full_policy
     ASCENT_TIMINGS = args.ascent_timings
     READER_SMT = args.reader_smt
+    if args.repeats < 1 or args.repeats > 99:
+        parser.error("--repeats must be between 1 and 99")
     generate_scripts(args)

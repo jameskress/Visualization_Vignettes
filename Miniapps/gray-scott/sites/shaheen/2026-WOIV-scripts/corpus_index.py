@@ -25,6 +25,13 @@ results directories (a run is any <id>_job.sbat). Each row holds:
   accounting, environment snapshot, Darshan logs, MPICH counters), empty
   when a run does not have it.
 
+Runs generated with repeats (<id>_r01 ...) carry repeat_of and repeat
+columns, and <out_prefix>_repeats.csv summarizes each configuration: the
+number of runs, and for each headline time its median, minimum, maximum,
+spread and the repeats that are outliers (further from the median than
+OUTLIER_MADS scaled median absolute deviations, and at least OUTLIER_FLOOR
+of the median, so near-identical runs are never flagged).
+
 Only the standard library is used. Missing or unreadable inputs leave their
 columns empty; nothing is guessed.
 """
@@ -35,6 +42,7 @@ import json
 import math
 import os
 import re
+import statistics
 import sys
 
 # Slurm host lists, the same parser the telemetry summary uses.
@@ -49,6 +57,20 @@ READER_KEYS = (
     "Blueprint_Time",
     "Vis_Time",
 )
+# Headline times summarized across a configuration's repeats.
+REPEAT_METRICS = (
+    "reader_total_step_s",
+    "reader_Vis_Time_s",
+    "reader_ADIOS_Wait_s",
+    "writer_total_step_s",
+    "writer_io_s",
+)
+OUTLIER_MADS = 3.0  # in scaled MADs (1.4826 * MAD estimates a standard deviation)
+OUTLIER_FLOOR = 0.10  # never flag a run within 10% of the median
+OUTLIER_ABS_FLOOR_S = 0.05  # nor within 50 ms (waits of a few ms are noise)
+# With fewer than three runs there is no median to judge by; a spread wider
+# than this is reported instead, so a failed third repeat cannot hide one.
+FEW_RUNS_SPREAD_PCT = 25.0
 WRITER_KEYS = ("total_step", "compute_step", "write_step", "io", "endstep_barrier")
 DARSHAN_KEYS = (
     "total_POSIX_BYTES_READ",
@@ -251,6 +273,13 @@ def index_run(results_dir, run_id, fallback_topology=None):
         row["stage_nodes"] = None
     settings = _load_json(os.path.join(run_dir, "settings.json")) or {}
     stage = _load_json(os.path.join(run_dir, "settings-stage.json")) or {}
+    # Repeats (generate_experiments.py --repeats): from the settings, or the
+    # _rNN suffix for a run whose settings predate the keys.
+    rmatch = re.search(r"_r(\d{2})$", run_id)
+    row["repeat_of"] = settings.get("repeat_of") or (
+        run_id[: rmatch.start()] if rmatch else run_id
+    )
+    row["repeat"] = settings.get("repeat") or (int(rmatch.group(1)) if rmatch else None)
     row["sim_output"] = settings.get("output_type")
     row["stage_output"] = stage.get("output_type")
     row["grid_L"] = settings.get("L")
@@ -370,6 +399,64 @@ def index_run(results_dir, run_id, fallback_topology=None):
     return row
 
 
+def summarize_repeats(rows):
+    """One row per configuration (repeat_of): counts, medians, spread, outliers."""
+    groups = {}
+    for row in rows:
+        groups.setdefault(row.get("repeat_of") or row["id"], []).append(row)
+    out = []
+    for config, members in sorted(groups.items()):
+        summary = {
+            "config": config,
+            "runs": len(members),
+            "ids": " ".join(sorted(m["id"] for m in members)),
+        }
+        flagged = set()
+        few_wide = []
+        for metric in REPEAT_METRICS:
+            pairs = [
+                (m["id"], m.get(metric))
+                for m in members
+                if isinstance(m.get(metric), (int, float)) and not math.isnan(m[metric])
+            ]
+            values = [v for _, v in pairs]
+            summary[metric + "_n"] = len(values)
+            if not values:
+                for key in ("median", "min", "max", "spread_pct", "outliers"):
+                    summary[f"{metric}_{key}"] = None
+                continue
+            med = statistics.median(values)
+            mad = statistics.median(abs(v - med) for v in values)
+            limit = max(
+                OUTLIER_MADS * 1.4826 * mad,
+                OUTLIER_FLOOR * abs(med),
+                OUTLIER_ABS_FLOOR_S,
+            )
+            outliers = [
+                i for i, v in pairs if len(values) >= 3 and abs(v - med) > limit
+            ]
+            flagged.update(outliers)
+            summary[metric + "_median"] = med
+            summary[metric + "_min"] = min(values)
+            summary[metric + "_max"] = max(values)
+            summary[metric + "_spread_pct"] = (
+                100.0 * (max(values) - min(values)) / med if med else None
+            )
+            summary[metric + "_outliers"] = " ".join(sorted(outliers))
+            spread = summary[metric + "_spread_pct"]
+            if (
+                2 == len(values)
+                and spread is not None
+                and spread > FEW_RUNS_SPREAD_PCT
+                and max(values) - min(values) > OUTLIER_ABS_FLOOR_S
+            ):
+                few_wide.append(metric)
+        summary["outlier_runs"] = " ".join(sorted(flagged))
+        summary["few_runs_wide"] = " ".join(few_wide)
+        out.append(summary)
+    return out
+
+
 def main(argv):
     argv = list(argv)
     fallback = None
@@ -402,6 +489,30 @@ def main(argv):
         for row in rows:
             handle.write(json.dumps(row, allow_nan=False) + "\n")
     print("corpus_index: {0} runs -> {1}.csv, {1}.jsonl".format(len(rows), prefix))
+    summaries = summarize_repeats(rows)
+    with open(prefix + "_repeats.csv", "w", newline="") as handle:
+        fields = []
+        for row in summaries:
+            fields.extend(k for k in row if k not in fields)
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(summaries)
+    flagged = [s for s in summaries if s["outlier_runs"] or s["few_runs_wide"]]
+    print(
+        "corpus_index: {0} configurations -> {1}_repeats.csv; {2} with an outlier run".format(
+            len(summaries), prefix, len(flagged)
+        )
+    )
+    for s in flagged:
+        if s["outlier_runs"]:
+            print("  outlier: " + s["config"] + ": " + s["outlier_runs"])
+        if s["few_runs_wide"]:
+            print(
+                "  two runs disagree (rerun): "
+                + s["config"]
+                + ": "
+                + s["few_runs_wide"]
+            )
     return 0
 
 
