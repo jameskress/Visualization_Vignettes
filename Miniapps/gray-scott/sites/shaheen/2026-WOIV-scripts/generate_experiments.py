@@ -600,7 +600,27 @@ ghostCells = GhostCells(registrationName='GhostCells', Input=vOnly)
 # ParaView 6.0 (vtkPVContourFilter::ContourUsingSuperclass). Same normals and
 # scalars as Contour; the triangulation of ambiguous cells differs, so about
 # 2% of pixels change by a few levels.
-LoadDistributedPlugin('AcceleratedAlgorithms', remote=False, ns=globals())
+# Load the plugin by its path when it is in the install the job's
+# CATALYST_LIB_DIR (<install>/lib/catalyst) points at, for this ParaView's
+# version. With ParaView 6.2.1, Catalyst does not find the install's plugin
+# list, so loading it by name fails (sites/shaheen/README.md, "Catalyst
+# reader performance"). PV_PLUGIN_CONFIG_FILE would also fix that, but
+# ParaView force-loads every plugin in that list, on every rank. Resolved
+# here, at run time, so the script works whichever host generated it.
+from paraview import servermanager as _gs_sm
+_gs_pv = "paraview-%d.%d" % (
+    _gs_sm.vtkSMProxyManager.GetVersionMajor(),
+    _gs_sm.vtkSMProxyManager.GetVersionMinor(),
+)
+_gs_lib = _gs_os.environ.get("CATALYST_LIB_DIR", "").rstrip("/")
+_gs_aa_plugin = _gs_os.path.join(
+    _gs_os.path.dirname(_gs_lib), _gs_pv, "plugins",
+    "AcceleratedAlgorithms", "AcceleratedAlgorithms.so",
+) if _gs_lib else ""
+if _gs_aa_plugin and _gs_os.path.exists(_gs_aa_plugin):
+    LoadPlugin(_gs_aa_plugin, remote=False, ns=globals())
+else:
+    LoadDistributedPlugin('AcceleratedAlgorithms', remote=False, ns=globals())
 contour = FlyingEdges3D(registrationName='Contour', Input=ghostCells)
 contour.ContourBy = ['POINTS', 'v']
 contour.Isosurfaces = [0.1]
