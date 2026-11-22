@@ -30,9 +30,11 @@ class FakeProc(object):
     def __init__(self, root):
         self.root = root
 
-    def add(self, pid, hwm_kb, step=None):
+    def add(self, pid, hwm_kb, step=None, slurm_step=None):
         base = os.path.join(self.root, str(pid))
         env = "PATH=/bin\0" + ("VV_SLURM_STEP_NAME=%s\0" % step if step else "")
+        if slurm_step is not None:
+            env += "SLURM_STEP_ID=%s\0" % slurm_step
         write(os.path.join(base, "environ"), env)
         write(
             os.path.join(base, "status"),
@@ -67,6 +69,33 @@ class StepHighWaterMark(unittest.TestCase):
             os.rename(os.path.join(root, "10"), os.path.join(root, "x10"))
             node_telemetry.step_hwm_kb("vv-a", proc=root, cache=cache)
             self.assertNotIn(10, cache)
+
+
+class SequentialSteps(unittest.TestCase):
+    """CodeRabbit on #140: VisIt's engines run one after another."""
+
+    def test_groups_come_from_the_slurm_step(self):
+        with tempfile.TemporaryDirectory() as root:
+            proc = FakeProc(root)
+            proc.add(10, 300, "vv-a", slurm_step="4294967291")  # the harness
+            proc.add(11, 1000, "vv-a", slurm_step="72")  # engine 1, rank 0
+            proc.add(12, 1000, "vv-a", slurm_step="72")  # engine 1, rank 1
+            proc.add(13, 1500, "vv-a", slurm_step="73")  # engine 2
+            groups = {}
+            found = node_telemetry.step_hwm_kb("vv-a", proc=root, groups=groups)
+            self.assertEqual(len(found), 4)
+            self.assertEqual(groups[11], "72")
+            total, steps = node_telemetry.peak_over_steps(found, groups, "4294967291")
+            # The harness plus the larger engine step; the two engines never ran
+            # together, so 300 + 2000, not 300 + 2000 + 1500.
+            self.assertEqual(total, (300 + 2000) * 1024)
+            self.assertEqual(steps, 2)
+
+    def test_outside_slurm_everything_is_one_group(self):
+        total, steps = node_telemetry.peak_over_steps(
+            {1: 100, 2: 200}, {1: "", 2: ""}, ""
+        )
+        self.assertEqual((total, steps), (300 * 1024, 0))
 
 
 class PowerAndGpu(unittest.TestCase):

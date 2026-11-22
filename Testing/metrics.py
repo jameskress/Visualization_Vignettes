@@ -180,6 +180,7 @@ TELEMETRY_KEYS = (
     "power_samples",
     "gpu_telemetry",
     "step_hwm_processes",
+    "step_hwm_steps",
     "step_hwm_samples",
     "step_hwm_mean_sample_s",
 )

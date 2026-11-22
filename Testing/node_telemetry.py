@@ -27,8 +27,12 @@
 #            that peaks in its last 0.1 s is under-read. Slurm samples task
 #            memory at most once a second, so a 2 s step gets one sample
 #            (#140). Summed per process like Slurm's figure, so shared pages
-#            count once per process (RSS, not PSS). Only processes on this
-#            node: every suite run is single-node.
+#            count once per process (RSS, not PSS), and like Slurm per job
+#            step: the processes of one srun step run together, but VisIt
+#            starts its engines one after another, each in its own step, so
+#            the run's peak is the largest step's sum plus the harness's own
+#            processes (the step it runs in), never every step added up.
+#            Only processes on this node: every suite run is single-node.
 #
 import hashlib
 import json
@@ -94,13 +98,15 @@ def parse_nvidia_line(line):
     return (int(parts[0]),) + tuple(_number(part) for part in parts[1:])
 
 
-def step_hwm_kb(step_name, proc="/proc", uid=None, cache=None):
+def step_hwm_kb(step_name, proc="/proc", uid=None, cache=None, groups=None):
     """{pid: VmHWM kB} for this user's processes whose environment names the step.
 
-    `cache` maps pid -> matches, so a process's owner and environment are
-    read once, when its pid first appears; after that a matching process
-    costs one read of its status and any other process nothing. A pid
-    reused between two scans 0.1 s apart is not worth guarding against.
+    `cache` maps pid -> False (not ours) or its Slurm step id ("" outside
+    Slurm), so a process's owner and environment are read once, when its
+    pid first appears; after that a matching process costs one read of its
+    status and any other process nothing. `groups`, when given, is filled
+    with pid -> step id for the processes found. A pid reused between two
+    scans 0.1 s apart is not worth guarding against.
     """
     uid = os.getuid() if uid is None else uid
     cache = {} if cache is None else cache
@@ -122,21 +128,48 @@ def step_hwm_kb(step_name, proc="/proc", uid=None, cache=None):
                     matches = False
                 else:
                     with open(os.path.join(base, "environ"), "rb") as handle:
-                        matches = marker in handle.read().split(b"\0")
+                        entries = handle.read().split(b"\0")
+                    matches = marker in entries and _step_id(entries)
             except OSError:
                 continue
             cache[pid] = matches
-        if not matches:
+        if matches is False:
             continue
         try:
             with open(os.path.join(base, "status"), "r") as handle:
                 for line in handle:
                     if line.startswith("VmHWM:"):
                         found[pid] = int(line.split()[1])
+                        if groups is not None:
+                            groups[pid] = matches
                         break
         except (OSError, IndexError, ValueError):
             continue
     return found
+
+
+def _step_id(entries):
+    """The SLURM_STEP_ID in a process's environment entries, "" without one."""
+    for entry in entries:
+        if entry.startswith(b"SLURM_STEP_ID="):
+            return entry[len(b"SLURM_STEP_ID=") :].decode("ascii", "replace")
+    return ""
+
+
+def peak_over_steps(hwm, groups, own_step):
+    """(bytes, steps): the run's peak from per-process VmHWM in kB.
+
+    The processes of the harness's own step (own_step, its SLURM_STEP_ID;
+    "" outside Slurm) ran alongside every other step, so they are added to
+    the largest of the other steps' sums. Steps never overlap within one
+    vignette, so they are not added to each other.
+    """
+    sums = {}
+    for pid, kb in hwm.items():
+        group = groups.get(pid, own_step)
+        sums[group] = sums.get(group, 0) + kb
+    own = sums.pop(own_step, 0)
+    return (own + max(sums.values(), default=0)) * 1024, len(sums)
 
 
 def _read_first_line(path):
@@ -243,6 +276,7 @@ class NodeTelemetry(object):
         self._power = []
         self._gpu = {}
         self._hwm = {}
+        self._groups = {}
         self._memory_samples = 0
         self._memory_cost_s = 0.0
 
@@ -251,7 +285,8 @@ class NodeTelemetry(object):
         cache = {}
         while not self._stop.is_set():
             began = time.time()
-            for pid, kb in step_hwm_kb(self.step_name, cache=cache).items():
+            found = step_hwm_kb(self.step_name, cache=cache, groups=self._groups)
+            for pid, kb in found.items():
                 if kb > self._hwm.get(pid, 0):
                     self._hwm[pid] = kb
             spent = time.time() - began
@@ -337,8 +372,12 @@ class NodeTelemetry(object):
             )
             hwm = dict(self._hwm)
             if hwm:
-                out["step_hwm_bytes"] = sum(hwm.values()) * 1024
+                total, steps = peak_over_steps(
+                    hwm, dict(self._groups), os.environ.get("SLURM_STEP_ID", "")
+                )
+                out["step_hwm_bytes"] = total
                 out["step_hwm_processes"] = len(hwm)
+                out["step_hwm_steps"] = steps
         if self._power:
             for key in ("node_w", "cpu_w", "memory_w"):
                 values = [r[key] for r in self._power if key in r]
