@@ -156,7 +156,12 @@ READER_SMT = True
 # not, and neither do Paper 1's jobs, which keep the setup they ran with (#71).
 READER_MALLOC_ENV = "MALLOC_MMAP_MAX_=0 MALLOC_TRIM_THRESHOLD_=137438953472"
 
-CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
+# Catalyst implementation loaded by every job (catalyst_lib_path, and its
+# lib/ on LD_LIBRARY_PATH). --bin-path must be a Gray-Scott build against the
+# same ParaView: the jobs load both into one process. Runs written before
+# 17 Nov 2026 used the 6.0.1 superbuild (LEGACY_CATALYST_LIB_PATH).
+LEGACY_CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
+CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-6.2.1-gcc13-build/install/lib/catalyst"
 # Darshan (I/O characterization) for --telemetry; --darshan-prefix overrides,
 # --no-darshan leaves it out. Built by software/build-darshan-3.4.7.sh.
 DARSHAN_PREFIX = (
@@ -1484,14 +1489,18 @@ def check_settings_unchanged(output_dir, exp):
 
     The experiment ID includes neither the reader decomposition and
     shared-plane setting (in transit runs) nor the SST EndStep barrier and
-    queue policy (every run), so generations with other values into the
-    same --results-dir share directories, and new settings would sit beside
-    the old run's numbers. Files written before an option existed hold its
-    old behaviour: slab, planes read, no barrier, Block. The initialisation
+    queue policy (every run), nor the ParaView build (catalyst_lib_path), so
+    generations with other values into the same --results-dir share
+    directories, and new settings would sit beside the old run's numbers.
+    Files written before an option existed hold its old behaviour: slab,
+    planes read, no barrier, Block, the 6.0.1 Catalyst. The initialisation
     runs, often shared between results directories, are not checked.
     """
     decomposition, planes = reader_decomposition(exp)
-    checks = [("adios_endstep_barrier", False, ADIOS_ENDSTEP_BARRIER)]
+    checks = [
+        ("adios_endstep_barrier", False, ADIOS_ENDSTEP_BARRIER),
+        ("catalyst_lib_path", LEGACY_CATALYST_LIB_PATH, CATALYST_LIB_PATH),
+    ]
     if exp["type"] == "intransit":
         checks += [
             ("read_decomposition", "slab", decomposition),
@@ -2518,7 +2527,12 @@ def generate_scripts(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo-path", required=True)
-    parser.add_argument("--bin-path", required=True)
+    parser.add_argument(
+        "--bin-path",
+        required=True,
+        help="directory with gray-scott and analysis-reader, built against the "
+        "same ParaView as CATALYST_LIB_PATH (config.bash)",
+    )
     parser.add_argument("--results-dir", required=True)
     parser.add_argument("--output-dir", default="generated_scripts")
     parser.add_argument("--account", default=SYSTEM_CONFIG["account"])
