@@ -3,8 +3,10 @@ import os
 import re
 import xml.etree.ElementTree as ET
 import argparse
+import hashlib
 import json
 import shutil
+import subprocess
 
 # =============================================================================
 # CONFIGURATION: SYSTEM SPECIFICS (Shaheen III)
@@ -182,6 +184,16 @@ ASCENT_TIMINGS = False
 # --no-reader-smt turns it off. Paper 1 jobs never get it (reader_smt).
 READER_SMT = True
 
+# Ascent 0.9.6 renders in 1024 x 1024 tiles by default. At our 2048^2 images
+# that only adds cost: with brick, plane exchange and SMT, the isosurface
+# took 10.08 -> 5.59 s/step untiled at 512 + 32 nodes and 5.14 -> 2.90 at
+# 1024 + 64, slices 5 to 7% less, volume unchanged; compositing is the same
+# and only silhouette-edge pixels differ (sites/shaheen/README.md, "In
+# transit reader costs"). So every Paper 2 Ascent render turns it off and the
+# run's settings record it (ascent_tiled_rendering); Paper 1's templates stay
+# as they ran (#71). --ascent-tiled-rendering turns tiling back on.
+ASCENT_TILED_RENDERING = False
+
 # The in transit reader's allocator: never mmap, never trim. The job-wide
 # MALLOC_MMAP_THRESHOLD_ (32 MiB) makes every larger block an mmap that is
 # unmapped when freed, so each step the reader faulted the same memory in
@@ -200,6 +212,29 @@ READER_MALLOC_ENV = "MALLOC_MMAP_MAX_=0 MALLOC_TRIM_THRESHOLD_=137438953472"
 # 17 Nov 2026 used the 6.0.1 superbuild (LEGACY_CATALYST_LIB_PATH).
 LEGACY_CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
 CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-6.2.1-gcc13-build/install/lib/catalyst"
+
+# --catalyst-stage: copy ParaView's lib/ to node-local disk on the reader
+# nodes before the run, and load Catalyst from there. The first Catalyst
+# step is mostly Python and VTK paging their .so files in from Lustre: at
+# 512 + 32 nodes the slices' step 0 took 23.4 to 26.4 s from Lustre and 2.8
+# to 2.9 s staged, the isosurface's 44.7 to 51.7 s and 22.1 to 23.7 s, with
+# identical frames (sites/shaheen/README.md, "Catalyst node-local staging").
+# catalyst_lib_path stays the Lustre install, which names the build the run
+# used; the stage is recorded beside it (catalyst_stage). The reader must be
+# built with GS_READER_RUNPATH=ON, or its DT_RPATH keeps loading part of
+# ParaView from Lustre. The tarball is made once per ParaView install by
+# sites/shaheen/build-catalyst-stage.sh. Methods: "tar" (each reader node
+# reads the tarball from Lustre), "sbcast" (Slurm fans it out to the reader
+# nodes), "auto" (tar below CATALYST_STAGE_SBCAST_MIN_NODES reader nodes,
+# sbcast from there), "off". At 32 reader nodes tar took 1.2 to 3.9 s and
+# sbcast 8.3 to 8.8 s; tar reads the tarball once per node from Lustre and
+# sbcast fans it out in a tree, so sbcast should win at some larger count.
+# The threshold is an estimate until it is timed at 64 to 208 reader nodes.
+CATALYST_STAGE = "off"
+CATALYST_STAGE_SBCAST_MIN_NODES = 128
+# One directory per job, so a copy left behind by a job that was killed is
+# never taken for this job's.
+CATALYST_STAGE_DIR = "/tmp/gs-catalyst-$SLURM_JOB_ID"
 # Darshan (I/O characterization) for --telemetry; --darshan-prefix overrides,
 # --no-darshan leaves it out. Built by software/build-darshan-3.4.7.sh.
 DARSHAN_PREFIX = (
@@ -315,6 +350,7 @@ ASCENT_RENDER_TEMPLATE = """
         render1:
           image_width: 2048
           image_height: 2048
+          tiled_rendering: "{tiled_rendering}"
           annotations: "on"
           image_prefix: "data/ascent_render_slices"
           camera:
@@ -347,6 +383,7 @@ ASCENT_VOLUME_TEMPLATE = """
         render1:
           image_width: 2048
           image_height: 2048
+          tiled_rendering: "{tiled_rendering}"
           image_prefix: "data/ascent_render_volume"
           camera:
             position: [{cam_x}, {cam_y}, {cam_z}]
@@ -376,6 +413,7 @@ ASCENT_ISOSURFACE_TEMPLATE = """
         render1:
           image_width: 2048
           image_height: 2048
+          tiled_rendering: "{tiled_rendering}"
           image_prefix: "data/ascent_render_iso"
           camera:
             position: [{cam_x}, {cam_y}, {cam_z}]
@@ -600,7 +638,27 @@ ghostCells = GhostCells(registrationName='GhostCells', Input=vOnly)
 # ParaView 6.0 (vtkPVContourFilter::ContourUsingSuperclass). Same normals and
 # scalars as Contour; the triangulation of ambiguous cells differs, so about
 # 2% of pixels change by a few levels.
-LoadDistributedPlugin('AcceleratedAlgorithms', remote=False, ns=globals())
+# Load the plugin by its path when it is in the install the job's
+# CATALYST_LIB_DIR (<install>/lib/catalyst) points at, for this ParaView's
+# version. With ParaView 6.2.1, Catalyst does not find the install's plugin
+# list, so loading it by name fails (sites/shaheen/README.md, "Catalyst
+# reader performance"). PV_PLUGIN_CONFIG_FILE would also fix that, but
+# ParaView force-loads every plugin in that list, on every rank. Resolved
+# here, at run time, so the script works whichever host generated it.
+from paraview import servermanager as _gs_sm
+_gs_pv = "paraview-%d.%d" % (
+    _gs_sm.vtkSMProxyManager.GetVersionMajor(),
+    _gs_sm.vtkSMProxyManager.GetVersionMinor(),
+)
+_gs_lib = _gs_os.environ.get("CATALYST_LIB_DIR", "").rstrip("/")
+_gs_aa_plugin = _gs_os.path.join(
+    _gs_os.path.dirname(_gs_lib), _gs_pv, "plugins",
+    "AcceleratedAlgorithms", "AcceleratedAlgorithms.so",
+) if _gs_lib else ""
+if _gs_aa_plugin and _gs_os.path.exists(_gs_aa_plugin):
+    LoadPlugin(_gs_aa_plugin, remote=False, ns=globals())
+else:
+    LoadDistributedPlugin('AcceleratedAlgorithms', remote=False, ns=globals())
 contour = FlyingEdges3D(registrationName='Contour', Input=ghostCells)
 contour.ContourBy = ['POINTS', 'v']
 contour.Isosurfaces = [0.1]
@@ -1094,12 +1152,12 @@ mkdir -p "{results_dir}" || exit 1
 cp "$0" "{results_dir}/{id}_job.sbat" || exit 1
 # pipefail in a subshell, so a failure anywhere in the pipeline stops the job.
 (set -o pipefail; env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_|GALLIUM_|LP_)' | sort) > "{results_dir}/{id}_env.txt" || exit 1
-{telemetry_start}echo "PHASE run_start $(date +%s.%N)"
+{stage_setup}{telemetry_start}echo "PHASE run_start $(date +%s.%N)"
 
 {command}
 RUN_RC=$?
 echo "PHASE run_end $(date +%s.%N)"
-{telemetry_stop}echo "Run exit status: $RUN_RC"
+{stage_cleanup}{telemetry_stop}echo "Run exit status: $RUN_RC"
 
 # =============================================================================
 # POST-PROCESSING in its own one-node job (#72)
@@ -1321,7 +1379,8 @@ scontrol show topology > $TEL/topology.txt 2>&1
 # driver, governor and boost, memory, NUMA nodes, NIC firmware and link),
 # so a node that differs is visible, and the full detail of one node. Each
 # probe is limited to 120 s, so a hung tool on a bad node cannot hold the
-# allocation; these steps shift Slurm's step numbers (the run is step 3).
+# allocation; these steps shift Slurm's step numbers (the run is step 3, or
+# later when --catalyst-stage adds its copy steps before them).
 PLATFORM={repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/node_platform.sh
 srun --overlap --network=no_vni --mpi=none \\
     --nodes=$SLURM_NNODES --ntasks=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
@@ -1537,31 +1596,44 @@ def check_settings_unchanged(output_dir, exp):
     """Refuse to regenerate a run with different recorded settings.
 
     The experiment ID includes neither the reader decomposition and
-    shared-plane setting (in transit runs) nor the SST EndStep barrier and
-    queue policy (every run), nor the ParaView build (catalyst_lib_path), so
-    generations with other values into the same --results-dir share
-    directories, and new settings would sit beside the old run's numbers.
-    Files written before an option existed hold its old behaviour: slab,
-    planes read, no barrier, Block, the 6.0.1 Catalyst. The initialisation
-    runs, often shared between results directories, are not checked.
+    shared-plane setting (in transit runs), the SST EndStep barrier and
+    queue policy (every run), the ParaView build (catalyst_lib_path) nor
+    Ascent's tiled rendering, so generations with other values into the same
+    --results-dir share directories, and new settings would sit beside the
+    old run's numbers. Files written before an option existed hold its old
+    behaviour: slab, planes read, no barrier, Block, the 6.0.1 Catalyst,
+    Ascent's default tiling. The initialisation runs, often shared between
+    results directories, are not checked.
     """
     decomposition, planes = reader_decomposition(exp)
     checks = [
         ("adios_endstep_barrier", False, ADIOS_ENDSTEP_BARRIER),
         ("catalyst_lib_path", LEGACY_CATALYST_LIB_PATH, CATALYST_LIB_PATH),
+        ("catalyst_stage", {"enabled": False}, catalyst_stage(exp)),
     ]
     if exp["type"] == "intransit":
         checks += [
             ("read_decomposition", "slab", decomposition),
             ("reader_shared_planes", "read", planes),
         ]
+    # Ascent's tiled rendering is recorded in the file that holds the Ascent
+    # options; a file without it was written for Ascent's default (tiled in
+    # 0.9.6).
+    tiled_file = (
+        "settings-stage.json" if exp["type"] == "intransit" else "settings.json"
+    )
     for name in ("settings.json", "settings-stage.json"):
         path = os.path.join(output_dir, name)
         if not os.path.exists(path):
             continue
         with open(path) as f:
             settings = json.load(f)
-        for key, legacy, current in checks:
+        file_checks = list(checks)
+        if name == tiled_file and ascent_renders(exp):
+            file_checks.append(
+                ("ascent_tiled_rendering", "Ascent default", ASCENT_TILED_RENDERING)
+            )
+        for key, legacy, current in file_checks:
             old = settings.get(key, legacy)
             if old != current:
                 raise SystemExit(
@@ -1629,6 +1701,19 @@ def reader_smt(exp):
     return READER_SMT and exp.get("paper") != "paper1"
 
 
+def ascent_renders(exp):
+    """Whether a run renders with a Paper 2 Ascent template (tiled_rendering set)."""
+    if exp.get("paper") == "paper1" or exp["workload"] == "initialization":
+        return False
+    if exp["type"] == "intransit":
+        backend = exp.get("stage_pipeline", "adios_data").split("_")[0]
+    else:
+        backend = exp["backend"]
+    return backend == "ascent" and any(
+        w in exp["workload"] for w in ("rendering", "volume", "isosurface")
+    )
+
+
 def reader_env(exp):
     """Environment for an in transit run's reader srun (see above).
 
@@ -1650,7 +1735,238 @@ def reader_env(exp):
                 "OMP_NUM_THREADS=24 OMP_PLACES=cores",
                 "OMP_NUM_THREADS=48 OMP_PLACES=threads",
             )
-    return env + " " + READER_MALLOC_ENV
+    env = env + " " + READER_MALLOC_ENV
+    if catalyst_stage(exp)["enabled"]:
+        # PREFER_ENV puts CATALYST_IMPLEMENTATION_PATHS before the reader's
+        # catalyst_load/search_paths (catalyst_lib_path, the Lustre install);
+        # CATALYST_LIB_DIR is where the Catalyst scripts find ParaView's
+        # plugins; LD_LIBRARY_PATH (with GS_READER_RUNPATH) the libraries.
+        lib = CATALYST_STAGE_DIR + "/lib"
+        env += (
+            f" CATALYST_IMPLEMENTATION_PREFER_ENV=1 CATALYST_IMPLEMENTATION_PATHS={lib}/catalyst"
+            f" CATALYST_LIB_DIR={lib}/catalyst LD_LIBRARY_PATH={lib}:$LD_LIBRARY_PATH"
+        )
+    return env
+
+
+def catalyst_stage_tarball():
+    """The staging tarball for CATALYST_LIB_PATH's install and its sha256.
+
+    build-catalyst-stage.sh writes <build dir>-lib.tar and .sha256 beside the
+    build directory holding <install>/lib/catalyst. The checksum is checked
+    against the tarball once per generation, so a tarball changed after it
+    was recorded is never staged under the old checksum.
+    """
+    if "tarball" not in _STAGE_CACHE:
+        install = os.path.dirname(os.path.dirname(CATALYST_LIB_PATH.rstrip("/")))
+        tarball = os.path.dirname(install) + "-lib.tar"
+        try:
+            with open(tarball + ".sha256") as f:
+                recorded = f.read().split()[0]
+        except (OSError, IndexError):
+            raise SystemExit(
+                f"--catalyst-stage needs {tarball} and its .sha256: run "
+                f"sites/shaheen/build-catalyst-stage.sh {install}"
+            )
+        digest = hashlib.sha256()
+        with open(tarball, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 24), b""):
+                digest.update(chunk)
+        if digest.hexdigest() != recorded:
+            raise SystemExit(
+                f"{tarball} does not match its .sha256 ({recorded}); rebuild it "
+                "with build-catalyst-stage.sh rather than reuse it"
+            )
+        _STAGE_CACHE["tarball"] = (tarball, recorded)
+    return _STAGE_CACHE["tarball"]
+
+
+_STAGE_CACHE = {}
+
+# The reader that staged runs use (--bin-path), set in __main__.
+READER_BIN_PATH = None
+
+
+def check_reader_runpath():
+    """Refuse to stage for a reader whose library path is a DT_RPATH.
+
+    Its DT_RPATH names the Lustre install and is searched before
+    LD_LIBRARY_PATH, so part of ParaView would still load from Lustre while
+    the settings say the run was staged. Build it with GS_READER_RUNPATH=ON.
+    """
+    if "runpath" in _STAGE_CACHE:
+        return
+    reader = os.path.join(READER_BIN_PATH or "", "analysis-reader")
+    try:
+        dynamic = subprocess.run(
+            ["readelf", "-d", reader],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as err:
+        raise SystemExit(
+            f"--catalyst-stage: cannot read {reader}'s dynamic section ({err})"
+        )
+    if "(RUNPATH)" not in dynamic:
+        raise SystemExit(
+            f"--catalyst-stage: {reader} has no DT_RUNPATH; rebuild it with "
+            "-DGS_READER_RUNPATH=ON, or its DT_RPATH loads ParaView from Lustre"
+        )
+    _STAGE_CACHE["runpath"] = True
+
+
+def catalyst_stage(exp):
+    """The run's catalyst_stage record: {"enabled": False}, or the stage.
+
+    Only in transit Catalyst readers are staged, and never Paper 1's jobs
+    (as run, #71). The copy goes to the reader nodes alone, which the MPMD
+    launch places last. The two-step launch does not fix the reader's nodes,
+    so its runs are not staged, and their settings say so.
+    """
+    if (
+        CATALYST_STAGE == "off"
+        or exp["type"] != "intransit"
+        or exp.get("paper") == "paper1"
+        or not exp.get("stage_pipeline", "").startswith("catalyst_")
+        or exp.get("launch") == "steps"
+    ):
+        return {"enabled": False}
+    # By name, ParaView finds the AcceleratedAlgorithms plugin only in the
+    # install it was built in; a staged isosurface needs the script to load
+    # it by path from CATALYST_LIB_DIR (#126).
+    if (
+        exp["stage_pipeline"] == "catalyst_isosurface"
+        and "CATALYST_LIB_DIR" not in CATALYST_ISOSURFACE_TEMPLATE
+    ):
+        raise SystemExit(
+            f"{exp['id']}: a staged isosurface needs the plugin loaded by path "
+            "from CATALYST_LIB_DIR (#126); merge it first"
+        )
+    method = CATALYST_STAGE
+    if method == "auto":
+        method = (
+            "sbcast" if exp["stage_nodes"] >= CATALYST_STAGE_SBCAST_MIN_NODES else "tar"
+        )
+    check_reader_runpath()
+    tarball, sha256 = catalyst_stage_tarball()
+    return {
+        "enabled": True,
+        "method": method,
+        "dir": CATALYST_STAGE_DIR,
+        "tarball": tarball,
+        "sha256": sha256,
+    }
+
+
+# Runs before the run's PHASE run_start, so the copy is timed on its own
+# (PHASE stage_start / stage_end) and not as the run's start-up. One task per
+# reader node: the MPMD launch puts the readers on the job's last nodes.
+STAGE_SRUN = (
+    "srun --overlap --network=no_vni --mpi=none --nodes={stage_nodes} "
+    "--relative={sim_nodes} --ntasks={stage_nodes} --ntasks-per-node=1 "
+    "--cpus-per-task=1 --mem=4G"
+)
+
+# Run on each reader node once the tarball is in the stage directory: check
+# its bytes against the recorded sha256 (the tarball could have changed since
+# generation), unpack it, and check the copy holds Catalyst's libraries (a
+# copy without them would not fail the run: the loader would quietly take
+# them from the Lustre install). The directory is created here with mode 700
+# and must not exist yet, so nothing another user left in /tmp is loaded.
+STAGE_MKDIR = "mkdir -m 700 $CATALYST_STAGE_DIR"
+STAGE_UNPACK = (
+    'echo \\"{sha256}  $CATALYST_STAGE_DIR/stage.tar\\" | sha256sum -c --quiet '
+    "&& tar -C $CATALYST_STAGE_DIR -xf $CATALYST_STAGE_DIR/stage.tar "
+    "&& rm -f $CATALYST_STAGE_DIR/stage.tar "
+    "&& test -f $CATALYST_STAGE_DIR/lib/catalyst/libcatalyst-paraview.so "
+    "&& test -f $CATALYST_STAGE_DIR/lib/libcatalyst.so.3"
+)
+
+STAGE_SETUP_TAR = """# --- Catalyst node-local staging (--catalyst-stage tar) ---
+CATALYST_STAGE_DIR={dir}
+ST0=$(date +%s.%N); echo "PHASE stage_start $ST0"
+# Each reader node copies the tarball from Lustre and unpacks it.
+if ! {srun} bash -c "{mkdir} && cp {tarball} $CATALYST_STAGE_DIR/stage.tar && {unpack}"; then
+    echo "JOB ABORTED: staging {tarball} to $CATALYST_STAGE_DIR failed."
+    {srun} rm -rf -- $CATALYST_STAGE_DIR
+    exit 1
+fi
+"""
+
+STAGE_SETUP_SBCAST = """# --- Catalyst node-local staging (--catalyst-stage sbcast) ---
+CATALYST_STAGE_DIR={dir}
+ST0=$(date +%s.%N); echo "PHASE stage_start $ST0"
+# sbcast copies to a job step's nodes. A step that only sleeps holds the
+# reader nodes and writes its step ID, so the tarball reaches those nodes
+# alone; then each unpacks its copy.
+# sbcast does not create the directory it writes to, so every reader node
+# makes it first, in a step of its own that must finish before the copy.
+STEP_FILE=$OUTPUT_DIR/stage_step.$SLURM_JOB_ID
+rm -f $STEP_FILE
+STAGE_OK=0
+HOLD_PID=
+if {srun} bash -c "{mkdir}"; then
+    {srun} bash -c "[ \\$SLURM_PROCID = 0 ] && echo \\$SLURM_STEP_ID > $STEP_FILE; exec sleep 3600" &
+    HOLD_PID=$!
+    for i in $(seq 1 600); do [ -s $STEP_FILE ] && break; sleep 0.1; done
+fi
+if [ -s $STEP_FILE ] \\
+    && sbcast --jobid=$SLURM_JOB_ID.$(cat $STEP_FILE) -f {tarball} $CATALYST_STAGE_DIR/stage.tar \\
+    && {srun} bash -c "{unpack}"; then
+    STAGE_OK=1
+fi
+if [ -n "$HOLD_PID" ]; then kill $HOLD_PID 2>/dev/null; wait $HOLD_PID 2>/dev/null; fi
+rm -f $STEP_FILE
+if [ $STAGE_OK != 1 ]; then
+    echo "JOB ABORTED: staging {tarball} to $CATALYST_STAGE_DIR failed."
+    {srun} rm -rf -- $CATALYST_STAGE_DIR
+    exit 1
+fi
+"""
+
+# After either method: the copy's time and what the reader resolves from the
+# stage, beside the results (the telemetry's ldd.txt and env.txt show the
+# job-wide environment, which names the Lustre install).
+STAGE_RECORD = """ST1=$(date +%s.%N); echo "PHASE stage_end $ST1"
+{{
+    echo "catalyst_stage {method}: $CATALYST_STAGE_DIR from {tarball} (sha256 {sha256})"
+    echo "stage_start $ST0"
+    echo "stage_end $ST1"
+    echo "== ldd of the reader on a reader node, the stage first on LD_LIBRARY_PATH"
+    {srun1} env LD_LIBRARY_PATH=$CATALYST_STAGE_DIR/lib:$LD_LIBRARY_PATH ldd $EXE_STAGE
+}} > "{results_dir}/{id}_stage.txt" 2>&1
+"""
+
+STAGE_CLEANUP = """# Remove the node-local copy, so the next job on these nodes starts clean.
+{srun} rm -rf -- $CATALYST_STAGE_DIR || echo "Could not remove $CATALYST_STAGE_DIR on every reader node"
+"""
+
+
+def stage_scripts(exp, results_dir):
+    """The job's staging and clean-up blocks ("" when not staged)."""
+    stage = catalyst_stage(exp)
+    if not stage["enabled"]:
+        return "", ""
+    srun = STAGE_SRUN.format(stage_nodes=exp["stage_nodes"], sim_nodes=exp["sim_nodes"])
+    srun1 = STAGE_SRUN.format(stage_nodes=1, sim_nodes=exp["sim_nodes"])
+    template = STAGE_SETUP_SBCAST if stage["method"] == "sbcast" else STAGE_SETUP_TAR
+    setup = template.format(
+        dir=stage["dir"],
+        tarball=stage["tarball"],
+        srun=srun,
+        mkdir=STAGE_MKDIR,
+        unpack=STAGE_UNPACK.format(sha256=stage["sha256"]),
+    ) + STAGE_RECORD.format(
+        method=stage["method"],
+        tarball=stage["tarball"],
+        sha256=stage["sha256"],
+        srun1=srun1,
+        results_dir=results_dir,
+        id=exp["id"],
+    )
+    return setup, STAGE_CLEANUP.format(srun=srun)
 
 
 def generate_settings_json(exp, output_dir, copied_files, args):
@@ -1692,6 +2008,8 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         "overwrite_last_step": overwrite,
         "catalyst_script_path": "",
         "catalyst_lib_path": CATALYST_LIB_PATH,
+        # Where the reader loaded ParaView from, when staged (--catalyst-stage).
+        "catalyst_stage": catalyst_stage(exp),
         "kombynelite_script_path": "",
         "adios_config": f"{output_dir}/adios2.xml",
         "adios_span": False,
@@ -1733,6 +2051,8 @@ def generate_settings_json(exp, output_dir, copied_files, args):
 
         if stage_backend == "ascent":
             config_stage["ascent_options"] = f"{output_dir}/ascent_options.yaml"
+            if ascent_renders(exp):
+                config_stage["ascent_tiled_rendering"] = ASCENT_TILED_RENDERING
         elif (
             stage_backend == "catalyst"
             and config_stage["output_type"] == "catalyst_insitu"
@@ -1749,6 +2069,8 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         elif exp["backend"] == "ascent":
             config["output_type"] = "ascent"
             config["ascent_options"] = f"{output_dir}/ascent_options.yaml"
+            if ascent_renders(exp):
+                config["ascent_tiled_rendering"] = ASCENT_TILED_RENDERING
         elif exp["backend"] == "catalyst":
             if exp["workload"] == "data_save":
                 config["output_type"] = "catalyst_io"
@@ -1869,6 +2191,7 @@ def copy_pipeline_files(exp, output_dir, repo_root):
         "volume_samples": int(
             math.ceil(VOLUME_SAMPLES_PER_CELL * math.sqrt(3) * exp["grid_size"])
         ),
+        "tiled_rendering": "true" if ASCENT_TILED_RENDERING else "false",
     }
 
     if exp["paper"] == "paper1":
@@ -2533,6 +2856,7 @@ def generate_scripts(args):
             reader_hint="" if reader_smt(exp) else "--hint=nomultithread",
         )
 
+        stage_setup, stage_cleanup = stage_scripts(exp, args.results_dir)
         time_limit = exp.get("time_limit", SYSTEM_CONFIG["time_limit"])
         large = total_nodes > WORKQ_MAX_NODES
         if large and _minutes(time_limit) < _minutes(LARGE_RUN_MIN_TIME):
@@ -2564,6 +2888,8 @@ def generate_scripts(args):
             repo_path=args.repo_path,
             bin_path=args.bin_path,
             command=command,
+            stage_setup=stage_setup,
+            stage_cleanup=stage_cleanup,
             telemetry_start=TELEMETRY_START.format(
                 repo_path=args.repo_path,
                 darshan_start=""
@@ -2668,6 +2994,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Turn on Ascent's per-filter timings (ascent_options.yaml `timings`)",
     )
+    parser.add_argument(
+        "--ascent-tiled-rendering",
+        action="store_true",
+        help="Keep Ascent 0.9.6's default tiled rendering in Paper 2 renders "
+        "(off by default; for A/B runs)",
+    )
     # Python 3.6 on the login nodes has no BooleanOptionalAction.
     parser.add_argument(
         "--reader-smt",
@@ -2682,6 +3014,15 @@ if __name__ == "__main__":
         help="Run the in transit reader with 24 threads, one per core",
     )
     parser.set_defaults(reader_smt=READER_SMT)
+    parser.add_argument(
+        "--catalyst-stage",
+        choices=("off", "tar", "sbcast", "auto"),
+        default=CATALYST_STAGE,
+        help="Copy ParaView's lib/ to node-local /tmp on the in transit Catalyst reader nodes and load it "
+        "from there: tar (each node reads the tarball from Lustre), sbcast (Slurm fans it out), auto "
+        f"(sbcast from {CATALYST_STAGE_SBCAST_MIN_NODES} reader nodes). Needs a reader built with "
+        "GS_READER_RUNPATH=ON and the tarball from build-catalyst-stage.sh (default off)",
+    )
     parser.add_argument(
         "--repeats",
         type=int,
@@ -2726,7 +3067,10 @@ if __name__ == "__main__":
     ADIOS_ENDSTEP_BARRIER = args.adios_endstep_barrier
     QUEUE_FULL_POLICY = args.adios_queue_full_policy
     ASCENT_TIMINGS = args.ascent_timings
+    ASCENT_TILED_RENDERING = args.ascent_tiled_rendering
     READER_SMT = args.reader_smt
+    CATALYST_STAGE = args.catalyst_stage
+    READER_BIN_PATH = args.bin_path
     if args.repeats < 1 or args.repeats > 99:
         parser.error("--repeats must be between 1 and 99")
     generate_scripts(args)

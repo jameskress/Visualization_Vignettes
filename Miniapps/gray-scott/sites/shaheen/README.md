@@ -31,6 +31,33 @@ The simulation alone (`output_type: none`) is unaffected; only the Catalyst
 render path needs it. A 256^3 run on one node (64 ranks x 3 threads) with a
 JPG every 10 steps is the HPC Saudi 2026 live demo.
 
+# Running ctest
+
+Run the tests in a one-node job, not on a login node. `MPIEXEC_EXECUTABLE`
+is `srun` here, and the render and ghost-volume checks take its
+`MPIEXEC_NUMPROC_FLAG` (`-n`) from CMake (#139). Two things the job needs:
+
+- the OSMesa window, as above, or the render check's default EGL window fails;
+- Python packages for the checks: the tests use `/usr/bin/python3.11` with
+  numpy, Pillow and h5py from the user site, but `~/.local` on a compute
+  node is `/scratch/<user>/.local`, not the login node's. Install them there,
+  or point `PYTHONUSERBASE` at a copy of the login node's user site.
+
+```bash
+#SBATCH --nodes=1
+source sites/shaheen/MODULES.sh
+export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow GALLIUM_DRIVER=llvmpipe
+# Once, from a login node: copy the login node's user site where jobs see it.
+#   mkdir -p /scratch/$USER/pyuser/lib/python3.11
+#   cp -a ~/.local/lib/python3.11/site-packages /scratch/$USER/pyuser/lib/python3.11/
+export PYTHONUSERBASE=/scratch/$USER/pyuser
+unset DISPLAY
+cd build && ctest --output-on-failure
+```
+
+All 17 tests passed this way on 22 Nov 2026 (ParaView 6.2.1 superbuild dev
+tree, 1 to 4 ranks).
+
 # Building Ascent
 Ascent was not properly passing the `cc` and `CC` compiler wrappers to all of its sub builds. Below is what worked on the last build.
 
@@ -362,6 +389,49 @@ reader now uses it. So it is on by default (`--no-reader-smt` turns it
 off). It drops the job-wide `--hint=nomultithread` in in transit jobs; the
 simulation's `srun` keeps its own, so the simulation still runs one thread
 per core. Paper 1 jobs keep the setup they ran with.
+
+**Tiled rendering is off** (Ascent 0.9.6, 20 Nov 2026). Ascent 0.9.6
+renders in 1024 x 1024 tiles by default; 0.9.5 did not tile. At our
+2048 x 2048 images tiling only costs time, so every Paper 2 Ascent render
+(slices, volume, isosurface) sets `tiled_rendering: "false"`
+(`ASCENT_TILED_RENDERING` in the generator; `--ascent-tiled-rendering`
+turns tiling back on for A/B runs), and the run's settings record
+it as `ascent_tiled_rendering` (`settings-stage.json` in transit,
+`settings.json` inline, and so in the reader's and simulation's
+`metadata.json`, and the corpus index's `ascent_tiled_rendering` column),
+so tiled and untiled runs can be told apart. Paper 1's
+templates stay as they ran (#71). The key needs Ascent 0.9.6; regenerating
+into a results directory written before it stops with an error, so use a
+new `--results-dir`. Reader `total_step` in seconds, two runs
+per arm, shuffled; 64 + 4 nodes with slab, planes read and no SMT, the
+larger runs with the current defaults (brick, plane exchange, SMT):
+
+| Nodes | Pipeline | 0.9.5 | 0.9.6 tiled (default) | 0.9.6 untiled |
+|---|---|---|---|---|
+| 64 + 4 | Slices | 3.02 | 3.42 | 3.02 |
+| 64 + 4 | Volume | 3.06 | 3.09 | 3.08 |
+| 64 + 4 | Isosurface | 6.43 | 10.68 | 6.09 |
+| 512 + 32 | Slices | | 3.11 | 2.89 |
+| 512 + 32 | Volume | | 2.80 | 2.82 |
+| 512 + 32 | Isosurface | | 10.08 | 5.59 |
+| 1024 + 64 | Slices | | 1.73 | 1.60 |
+| 1024 + 64 | Volume | | 1.58 | 1.58 |
+| 1024 + 64 | Isosurface | | 5.14 | 2.90 |
+
+The cost is all in rendering on each rank. The isosurface's
+`exec_main_scene` (render plus composite, `--ascent-timings`), mean / max
+over ranks, falls from 6.05 / 6.36 to 1.58 / 1.89 s at 512 + 32 nodes and
+from 3.04 / 3.33 to 0.82 / 1.11 s at 1024 + 64; the contour is unchanged.
+The gap between the slowest rank and the mean, where compositing and
+waiting show up, is the same with and without tiles (0.31 s at 512 + 32,
+0.29 s at 1024 + 64), so compositing is unchanged and tiling makes each
+rank's local render 3.7 to 3.8 times slower. Images: tiled and untiled
+frames differ in about 420 pixels per 2048^2 slice frame and 1,170 per
+isosurface frame, all on silhouette edges (not tile seams), the same at
+both scales; volume frames are unaffected. Each setting reproduces its own
+frames run to run. Untiled 0.9.6 slices are bit-identical to 0.9.5; 0.9.6
+volume frames differ from 0.9.5 in 50 to 125 pixels because 0.9.6 fixes
+0.9.5's speckle bug (stray pixels with blue 0).
 
 **Isosurface at 256 + 16 nodes runs out of memory**, before and after:
 each reader holds 4.4 GB per field, and the contour of a surface that fills
@@ -835,7 +905,16 @@ showed Contour 21.7 s, GhostCells 8.4 s and OSPRay 11 to 13 s on rank 0.
   scalars. It is also the algorithm VTK-m's contour (Ascent) uses. About 2%
   of pixels change, by 1 to 3 levels and at most 78, as isolated pixels over
   the surface: flying edges triangulates ambiguous cells differently and
-  keeps degenerate triangles.
+  keeps degenerate triangles. ParaView issue
+  [#23459](https://gitlab.kitware.com/paraview/paraview/-/work_items/23459)
+  reports the `FastMode` bug. The script loads the plugin by its path in the
+  install the job's `CATALYST_LIB_DIR` points at, found at run time for the
+  running ParaView's version: with ParaView 6.2.1, both the Shaheen
+  module and our own GCC 13 superbuild, Catalyst does not find the install's
+  plugin list, so loading it by name stops the run with "Plugin
+  'AcceleratedAlgorithms' not found" (6.0 found it). `PV_PLUGIN_CONFIG_FILE`
+  would also fix that, but ParaView force-loads every plugin in that list on
+  every rank.
 * GhostCells copies every array it is given, and `u` is not drawn. The
   template now passes only `v` and the ghost flags: bit-identical frames,
   44 to 38 s. With both `u` and flying edges' working arrays, a 64 + 4 run
@@ -906,3 +985,94 @@ wait for its peers), and `--kill-on-bad-exit` ends the other program of an
 in transit job. The Python traceback is above the error in the job's
 stderr. A failed run keeps no per-step timings: they are written at the end
 of the run.
+
+## Catalyst node-local staging
+
+The first Catalyst step of an in transit reader costs far more than the
+steps after it, and most of that is start-up: Python starts in the first
+`catalyst_execute`, and importing `paraview.simple` and VTK's extension
+modules pages hundreds of shared libraries in from Lustre. At 64 + 4 nodes
+the slices' step 0 took 21.4 s, of which 11 s were imports (13.2k major page
+faults on one reader rank); `strace` shows only 1.5 s in file system calls,
+because the page-ins of `mmap`ed libraries are not system calls. Node page
+cache left by an earlier job did not predict a fast or slow run.
+
+`generate_experiments.py --catalyst-stage` copies ParaView's `lib/` to
+`/tmp/gs-catalyst-<job ID>` (local disk on Shaheen compute nodes, not tmpfs)
+on the reader nodes alone, before `PHASE run_start`, and removes it after
+the run. The directory is created with mode 700 and must not exist yet;
+each node checks its copy of the tarball against the recorded sha256 before
+unpacking it, and checks that Catalyst's libraries are there after. The copy
+is timed as `PHASE stage_start` / `stage_end` in the job output, apart from
+the run, and `<results>/<id>_stage.txt` records the times, the tarball and
+what the reader resolves from the copy (`ldd` on a reader node; the
+telemetry's `ldd.txt` shows the job-wide environment). The reader then loads Catalyst from the copy:
+`CATALYST_IMPLEMENTATION_PREFER_ENV=1` with `CATALYST_IMPLEMENTATION_PATHS`
+(ahead of the `catalyst_lib_path` the reader passes to `catalyst_initialize`),
+`CATALYST_LIB_DIR` for the plugins (#126) and the copy first on
+`LD_LIBRARY_PATH`. `catalyst_lib_path` in the run's settings stays the
+Lustre install, which names the build; `catalyst_stage` beside it records
+the method, the directory, the tarball and its sha256, and the generator
+refuses to mix staged and unstaged runs in one results directory. Only in
+transit Catalyst readers launched as one MPMD `srun` are staged: the
+two-step launch does not fix which nodes the reader gets.
+
+Three things are needed besides the option:
+
+- **The tarball**, once per ParaView install:
+  `sites/shaheen/build-catalyst-stage.sh <install>` writes
+  `<build dir>-lib.tar` and `.sha256` beside the build directory (for the
+  6.2.1 superbuild, `software/paraview-6.2.1-gcc13-build-lib.tar`, 0.9 GB:
+  `lib/` without `.debug` and static archives). The superbuild's LLVM,
+  OpenVKL, OSPRay modules, Embree, Mesa and `libcatalyst` name the install's
+  `lib/` by its absolute path in their own `DT_RPATH`, which the loader
+  searches before `LD_LIBRARY_PATH`, so the script rewrites those paths in
+  the packed copy to `$ORIGIN`-relative ones (622 libraries). Without that,
+  46 libraries of the staged reader still came from Lustre. The generator
+  checks the tarball against its `.sha256` before recording it.
+- **A reader linked with `DT_RUNPATH`:** add `-DGS_READER_RUNPATH=ON` to the
+  build's CMake options (`config.bash` leaves it off). The reader is linked
+  with `--disable-new-dtags` by default, and its `DT_RPATH`, which names the
+  Lustre install, beats `LD_LIBRARY_PATH`. With `RUNPATH` the job-wide
+  `LD_LIBRARY_PATH` (ParaView's `lib/` first) also decides between libraries
+  that ParaView and Ascent both ship: in practice `libz.so.1`, which then
+  comes from ParaView's zlib 1.3.1 instead of Ascent's (also 1.3.1). Ascent's
+  own libraries carry their own `RPATH`. Ascent slices from the two builds
+  differed by at most one pixel in one frame (channel difference 1 or 2),
+  as much as two runs of one build differ.
+- **#126** for the isosurface: its script loads the AcceleratedAlgorithms
+  plugin by path from `CATALYST_LIB_DIR`. By name, ParaView finds the plugin
+  only from the install it was built in, and a staged isosurface fails in
+  its first step; without #126 the generator refuses to stage it.
+- The generator refuses `--catalyst-stage` for a reader without
+  `DT_RUNPATH` (`readelf -d` on `--bin-path`'s `analysis-reader`).
+
+The methods: `tar` has each reader node read the tarball from Lustre,
+`sbcast` copies it to a placeholder step on the reader nodes (so the other
+nodes get nothing) and each node unpacks it, `auto` picks `sbcast` from
+`CATALYST_STAGE_SBCAST_MIN_NODES` (128) reader nodes. That threshold is an
+estimate: at 32 reader nodes `tar` took 1.2 to 3.9 s and `sbcast` 8.3 to
+8.8 s, and neither has been timed above 32. Those times are from before each
+node checked the tarball's sha256 and the job recorded `ldd`; with both, at
+4 reader nodes, `tar` took 4.5 s and `sbcast` 10.1 s, and the frames stayed
+identical.
+
+Results at 512 + 32 nodes (22 Nov 2026, the RUNPATH build with #126, two
+runs per arm, interleaved; first update is the range over reader ranks of
+the time from `catalyst_initialize` to the first pipeline update):
+
+| Pipeline | Arm | Copy (s) | Step 0 (s) | First update (s) | Steps 1+ (s) |
+| :--- | :--- | ---: | ---: | ---: | ---: |
+| slices | Lustre | | 26.4, 23.4 | 26.8 to 30.4 | 0.88, 0.89 |
+| slices | staged | 3.9 (tar), 8.8 (sbcast) | 2.8, 2.9 | 5.0 to 5.4 | 0.89, 0.88 |
+| isosurface | Lustre | | 44.7, 51.7 | 29.8 to 39.2 | 16.22, 16.78 |
+| isosurface | staged | 1.2 (tar), 8.3 (sbcast) | 22.1, 23.7 | 5.0 to 6.4 | 16.38, 16.44 |
+
+Every frame of every run was byte-identical within each pipeline, staged or
+not. A probe of one reader's `/proc/<pid>/maps` found 362 or 363 files of the
+6.2.1 install mapped from Lustre in each Lustre run and none in each staged run
+(all from `/tmp`). Staging takes 20 to 30 s off the first step, the steady
+state is unchanged, and the isosurface's first step still costs 6 to 7 s
+more than its later ones. At 64 + 4 nodes the slices' step 0 went from 21.4 s
+to 6.5 to 7.8 s with an earlier, partial stage (46 libraries still from
+Lustre); the fully staged isosurface's step 0 was 20.3 to 20.5 s.

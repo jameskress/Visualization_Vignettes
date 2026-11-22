@@ -20,25 +20,27 @@ on:
     branches: [ master ]
     paths:
       - '**/performance_metrics_*.json'
+      - 'Testing/check_submission.py'
+      - '*_Vignettes/*/Testing/Baseline/**'
       - 'Testing/dashboard.py'
       - 'Testing/retired_configurations.json'
       - 'ParaView_Vignettes/*/*.py'
       - 'VisIt_Vignettes/*/*.py'
       - 'Testing/drift.py'
       - 'Testing/site_pages.py'
-      - '*_Vignettes/*/Testing/Baseline/**'
       - '.github/workflows/dashboard.yml'
   pull_request:
     branches: [ '**' ]
     paths:
       - '**/performance_metrics_*.json'
+      - 'Testing/check_submission.py'
+      - '*_Vignettes/*/Testing/Baseline/**'
       - 'Testing/dashboard.py'
       - 'Testing/retired_configurations.json'
       - 'ParaView_Vignettes/*/*.py'
       - 'VisIt_Vignettes/*/*.py'
       - 'Testing/drift.py'
       - 'Testing/site_pages.py'
-      - '*_Vignettes/*/Testing/Baseline/**'
       - '.github/workflows/dashboard.yml'
   workflow_dispatch:
 
@@ -65,6 +67,22 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      # What a pull request of results must pass (Testing/ADD_YOUR_SITE.md):
+      # every history file parses and carries public names, and the
+      # records it adds come from a current test_suite.py. A push to
+      # master has no base, so it checks the structure only, and reports
+      # without stopping the publish: dashboard.py skips a file it cannot
+      # read, and the rest of the dashboard should still go out.
+      - name: Check the records
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          if [ -n "$BASE" ]; then
+            python3 Testing/check_submission.py --base "origin/$BASE"
+          else
+            python3 Testing/check_submission.py
+          fi
       - name: Generate
         run: python3 Testing/dashboard.py --out _site/dashboard
       # The landing page and the gallery. Pillow makes the gallery's small
