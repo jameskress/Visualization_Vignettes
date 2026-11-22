@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import shutil
+import subprocess
 
 # =============================================================================
 # CONFIGURATION: SYSTEM SPECIFICS (Shaheen III)
@@ -1345,7 +1346,8 @@ scontrol show topology > $TEL/topology.txt 2>&1
 # driver, governor and boost, memory, NUMA nodes, NIC firmware and link),
 # so a node that differs is visible, and the full detail of one node. Each
 # probe is limited to 120 s, so a hung tool on a bad node cannot hold the
-# allocation; these steps shift Slurm's step numbers (the run is step 3).
+# allocation; these steps shift Slurm's step numbers (the run is step 3, or
+# later when --catalyst-stage adds its copy steps before them).
 PLATFORM={repo_path}/Miniapps/gray-scott/sites/shaheen/2026-WOIV-scripts/node_platform.sh
 srun --overlap --network=no_vni --mpi=none \\
     --nodes=$SLURM_NNODES --ntasks=$SLURM_NNODES --ntasks-per-node=1 --cpus-per-task=1 --mem=1G \\
@@ -1723,6 +1725,39 @@ def catalyst_stage_tarball():
 
 _STAGE_CACHE = {}
 
+# The reader that staged runs use (--bin-path), set in __main__.
+READER_BIN_PATH = None
+
+
+def check_reader_runpath():
+    """Refuse to stage for a reader whose library path is a DT_RPATH.
+
+    Its DT_RPATH names the Lustre install and is searched before
+    LD_LIBRARY_PATH, so part of ParaView would still load from Lustre while
+    the settings say the run was staged. Build it with GS_READER_RUNPATH=ON.
+    """
+    if "runpath" in _STAGE_CACHE:
+        return
+    reader = os.path.join(READER_BIN_PATH or "", "analysis-reader")
+    try:
+        dynamic = subprocess.run(
+            ["readelf", "-d", reader],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as err:
+        raise SystemExit(
+            f"--catalyst-stage: cannot read {reader}'s dynamic section ({err})"
+        )
+    if "(RUNPATH)" not in dynamic:
+        raise SystemExit(
+            f"--catalyst-stage: {reader} has no DT_RUNPATH; rebuild it with "
+            "-DGS_READER_RUNPATH=ON, or its DT_RPATH loads ParaView from Lustre"
+        )
+    _STAGE_CACHE["runpath"] = True
+
 
 def catalyst_stage(exp):
     """The run's catalyst_stage record: {"enabled": False}, or the stage.
@@ -1745,6 +1780,7 @@ def catalyst_stage(exp):
         method = (
             "sbcast" if exp["stage_nodes"] >= CATALYST_STAGE_SBCAST_MIN_NODES else "tar"
         )
+    check_reader_runpath()
     tarball, sha256 = catalyst_stage_tarball()
     return {
         "enabled": True,
@@ -1764,21 +1800,28 @@ STAGE_SRUN = (
     "--cpus-per-task=1 --mem=4G"
 )
 
+# Run on each reader node after unpacking: a copy without Catalyst's
+# libraries would not fail the run, the loader would quietly take them from
+# the Lustre install instead.
+STAGE_COMPLETE = (
+    "test -f $CATALYST_STAGE_DIR/lib/catalyst/libcatalyst-paraview.so "
+    "&& test -f $CATALYST_STAGE_DIR/lib/libcatalyst.so.3"
+)
+
 STAGE_SETUP_TAR = """# --- Catalyst node-local staging (--catalyst-stage tar) ---
 CATALYST_STAGE_DIR={dir}
-echo "PHASE stage_start $(date +%s.%N)"
+ST0=$(date +%s.%N); echo "PHASE stage_start $ST0"
 # Each reader node reads the tarball from Lustre and unpacks it.
-if ! {srun} bash -c "mkdir -p $CATALYST_STAGE_DIR && tar -C $CATALYST_STAGE_DIR -xf {tarball}"; then
+if ! {srun} bash -c "mkdir -p $CATALYST_STAGE_DIR && tar -C $CATALYST_STAGE_DIR -xf {tarball} && {complete}"; then
     echo "JOB ABORTED: staging {tarball} to $CATALYST_STAGE_DIR failed."
     {srun} rm -rf -- $CATALYST_STAGE_DIR
     exit 1
 fi
-echo "PHASE stage_end $(date +%s.%N)"
 """
 
 STAGE_SETUP_SBCAST = """# --- Catalyst node-local staging (--catalyst-stage sbcast) ---
 CATALYST_STAGE_DIR={dir}
-echo "PHASE stage_start $(date +%s.%N)"
+ST0=$(date +%s.%N); echo "PHASE stage_start $ST0"
 # sbcast copies to a job step's nodes. A step that only sleeps holds the
 # reader nodes and writes its step ID, so the tarball reaches those nodes
 # alone; then each unpacks its copy.
@@ -1790,7 +1833,7 @@ for i in $(seq 1 600); do [ -s $STEP_FILE ] && break; sleep 0.1; done
 STAGE_OK=0
 if [ -s $STEP_FILE ] \\
     && sbcast --jobid=$SLURM_JOB_ID.$(cat $STEP_FILE) -f {tarball} $CATALYST_STAGE_DIR.tar \\
-    && {srun} bash -c "mkdir -p $CATALYST_STAGE_DIR && tar -C $CATALYST_STAGE_DIR -xf $CATALYST_STAGE_DIR.tar && rm -f $CATALYST_STAGE_DIR.tar"; then
+    && {srun} bash -c "mkdir -p $CATALYST_STAGE_DIR && tar -C $CATALYST_STAGE_DIR -xf $CATALYST_STAGE_DIR.tar && rm -f $CATALYST_STAGE_DIR.tar && {complete}"; then
     STAGE_OK=1
 fi
 kill $HOLD_PID 2>/dev/null; wait $HOLD_PID 2>/dev/null
@@ -1800,7 +1843,19 @@ if [ $STAGE_OK != 1 ]; then
     {srun} rm -rf -- $CATALYST_STAGE_DIR $CATALYST_STAGE_DIR.tar
     exit 1
 fi
-echo "PHASE stage_end $(date +%s.%N)"
+"""
+
+# After either method: the copy's time and what the reader resolves from the
+# stage, beside the results (the telemetry's ldd.txt and env.txt show the
+# job-wide environment, which names the Lustre install).
+STAGE_RECORD = """ST1=$(date +%s.%N); echo "PHASE stage_end $ST1"
+{{
+    echo "catalyst_stage {method}: $CATALYST_STAGE_DIR from {tarball} (sha256 {sha256})"
+    echo "stage_start $ST0"
+    echo "stage_end $ST1"
+    echo "== ldd of the reader on a reader node, the stage first on LD_LIBRARY_PATH"
+    {srun1} env LD_LIBRARY_PATH=$CATALYST_STAGE_DIR/lib:$LD_LIBRARY_PATH ldd $EXE_STAGE
+}} > "{results_dir}/{id}_stage.txt" 2>&1
 """
 
 STAGE_CLEANUP = """# Remove the node-local copy, so the next job on these nodes starts clean.
@@ -1808,14 +1863,24 @@ STAGE_CLEANUP = """# Remove the node-local copy, so the next job on these nodes 
 """
 
 
-def stage_scripts(exp):
+def stage_scripts(exp, results_dir):
     """The job's staging and clean-up blocks ("" when not staged)."""
     stage = catalyst_stage(exp)
     if not stage["enabled"]:
         return "", ""
     srun = STAGE_SRUN.format(stage_nodes=exp["stage_nodes"], sim_nodes=exp["sim_nodes"])
+    srun1 = STAGE_SRUN.format(stage_nodes=1, sim_nodes=exp["sim_nodes"])
     template = STAGE_SETUP_SBCAST if stage["method"] == "sbcast" else STAGE_SETUP_TAR
-    setup = template.format(dir=stage["dir"], tarball=stage["tarball"], srun=srun)
+    setup = template.format(
+        dir=stage["dir"], tarball=stage["tarball"], srun=srun, complete=STAGE_COMPLETE
+    ) + STAGE_RECORD.format(
+        method=stage["method"],
+        tarball=stage["tarball"],
+        sha256=stage["sha256"],
+        srun1=srun1,
+        results_dir=results_dir,
+        id=exp["id"],
+    )
     return setup, STAGE_CLEANUP.format(srun=srun)
 
 
@@ -2701,7 +2766,7 @@ def generate_scripts(args):
             reader_hint="" if reader_smt(exp) else "--hint=nomultithread",
         )
 
-        stage_setup, stage_cleanup = stage_scripts(exp)
+        stage_setup, stage_cleanup = stage_scripts(exp, args.results_dir)
         time_limit = exp.get("time_limit", SYSTEM_CONFIG["time_limit"])
         large = total_nodes > WORKQ_MAX_NODES
         if large and _minutes(time_limit) < _minutes(LARGE_RUN_MIN_TIME):
@@ -2908,6 +2973,7 @@ if __name__ == "__main__":
     ASCENT_TIMINGS = args.ascent_timings
     READER_SMT = args.reader_smt
     CATALYST_STAGE = args.catalyst_stage
+    READER_BIN_PATH = args.bin_path
     if args.repeats < 1 or args.repeats > 99:
         parser.error("--repeats must be between 1 and 99")
     generate_scripts(args)

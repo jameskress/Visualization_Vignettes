@@ -38,10 +38,10 @@ while IFS= read -r -d '' f; do
     case "$rp" in *"$L"*) ;; *) continue ;; esac
     rel=$(realpath --relative-to="$(dirname "$f")" "$W/lib")
     if [ "$rel" = . ]; then o="\$ORIGIN"; else o="\$ORIGIN/$rel"; fi
-    chrpath -r "${rp//$L/$o}" "$f" >/dev/null
+    chrpath -r "${rp//"$L"/$o}" "$f" >/dev/null
     n=$((n + 1))
 done < <(find "$W/lib" -type f -name '*.so*' -print0)
-left=$(find "$W/lib" -type f -name '*.so*' -exec chrpath -l {} + 2>/dev/null | grep -c "$L" || true)
+left=$(find "$W/lib" -type f -name '*.so*' -exec chrpath -l {} + 2>/dev/null | grep -cF "$L" || true)
 if [ "$left" != 0 ]; then
     echo "$left libraries still name $L in their library path" >&2
     exit 1
