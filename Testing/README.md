@@ -2,6 +2,11 @@
 
 This `test_suite.py` script runs performance and regression tests for **VisIt** and **ParaView** on **Ibex** and **Shaheen**. It also provides a convenient method to run all examples in the **ParaView** or **VisIt** directories without running each one manually.
 
+**Results:** the [results dashboard](https://jameskress.github.io/Visualization_Vignettes/dashboard/)
+shows the latest result of every vignette on every configuration and how its
+measurements moved across tool versions and runs, rebuilt from the committed
+history on every change ([how it works](#the-results-dashboard)).
+
 > ⚠️ **Important:** In all examples below, replace paths like `~/Visualization_Vignettes/` with the actual path to your cloned repository. HPC paths are written using variables like `$SCRATCH` to be easily copy-pasted.
 > ⚠️ **Important:** You must use the `fetchData.sh` script before running these tests for them all to work.
 
@@ -175,196 +180,103 @@ python test_suite.py <base_directory> --test_type <type> --machine_name <name> .
 
 ## 🧪 Running the Tests
 
-### Local Machine
+The suite is pinned to **ParaView 6.2.1** and **VisIt 3.5.0** (`CURRENT_PINS`
+in `dashboard.py`; on the clusters `ParaView_Vignettes/MODULES.sh` and
+`VisIt_Vignettes/MODULES.sh` load them). [`RUNBOOK.md`](RUNBOOK.md) covers
+every machine in full, including air-gapped use; the short versions follow.
 
-This assumes you have a local `venv` (e.g., `~/testing_paraview_env`) and the repo is in your home directory.
+Every run compares; only a run without `--no-metrics` appends to the
+committed history. Use `--no-metrics` while experimenting, and record one run
+per configuration with `--run-id <id> --repeat 3` (see
+[The performance history](#the-performance-history)).
+
+### Local machine
+
+This assumes a `venv` per tool (e.g., `~/testing_paraview_env`) and the repo in
+your home directory.
 
 #### ParaView
 
 ```bash
-export PARAVIEW_PATH="<path-to-your-paraview-install>/bin"
+export PARAVIEW_PATH="<path-to-your-paraview-6.2.1>/bin"
 source ~/testing_paraview_env/bin/activate
 cd ~/Visualization_Vignettes/Testing
 python test_suite.py ~/Visualization_Vignettes/ \
   --test_type ParaView \
-  --paraview_version 6.0.1 \
-  --machine_name local-machine
+  --paraview_version 6.2.1 \
+  --machine_name local-machine --no-metrics
 ```
 
 #### VisIt
 
 ```bash
-export VISIT_PATH="<path-to-your-visit-install>/bin/"
+export VISIT_PATH="<path-to-your-visit-3.5.0>/bin/"
 source ~/testing_visit_env/bin/activate
 cd ~/Visualization_Vignettes/Testing
 python test_suite.py ~/Visualization_Vignettes/ \
   --test_type VisIt \
-  --visit_version 3.4.1 \
-  --machine_name local-machine
+  --visit_version 3.5.0 \
+  --machine_name local-machine --no-metrics
 ```
+
+A recorded run of both tools, three repeats, ex11 under Xvfb, from the same
+`Testing/` directory: `./record_local_run.sh <run-id> <machine_name>` (RUNBOOK
+section 4).
 
 ---
 
-### Ibex
+### Clusters: the batch scripts
 
-#### Ibex CPU (ParaView)
+The normal way to run the suite on Ibex and Shaheen is one batch script per
+tool and machine, submitted from `Testing/` in the clone. Each loads the pinned
+modules through `MODULES.sh`, prepares the fixtures, runs every vignette, and
+runs ex11 under Xvfb where the node has it.
 
-```bash
-# 1. Load module
-module load paraview/6.0.1-gnu-mesa    # or whatever `module avail paraview` shows
-
-# 2. Request an interactive job
-srun --cpus-per-task=12 --ntasks=1 --time=00:40:00 --mem=100G --pty /bin/bash
-
-# 3. Once in the job, run the tests
-source $SCRATCH/testing_paraview_env/bin/activate
-cd $SCRATCH/Visualization_Vignettes/Testing
-python test_suite.py $SCRATCH/Visualization_Vignettes/ \
-  --test_type ParaView \
-  --paraview_version 6.0.1 \
-  --machine_name ibex-cpu \
-  --non_gpu_machine
-```
-
-#### Ibex CPU (VisIt)
-
-```bash
-# 1. Load modules
-module load visit/3.4.1
-module load ffmpeg
-
-# 2. Request an interactive job
-srun --cpus-per-task=12 --ntasks=1 --time=00:40:00 --mem=100G --pty /bin/bash
-
-# 3. Once in the job, run the tests
-source $SCRATCH/testing_visit_env/bin/activate
-cd $SCRATCH/Visualization_Vignettes/Testing
-python test_suite.py $SCRATCH/Visualization_Vignettes/ \
-  --test_type VisIt \
-  --visit_version 3.4.1 \
-  --machine_name ibex-cpu
-```
-
-#### Ibex GPU (ParaView)
-
-```bash
-# 1. Load module
-module load paraview/6.0.1-gnu-egl     # or whatever `module avail paraview` shows
-
-# 2. Request an interactive GPU job (use table below)
-srun <gpu-flag> --cpus-per-task=12 --ntasks=1 --time=00:40:00 --mem=100G --pty /bin/bash
-
-# 3. Once in the job, run the tests (use table below)
-source $SCRATCH/testing_paraview_env/bin/activate
-cd $SCRATCH/Visualization_Vignettes/Testing
-python test_suite.py $SCRATCH/Visualization_Vignettes/ \
-  --test_type ParaView \
-  --paraview_version 6.0.1 \
-  --machine_name <machine-name>
-```
-
-**GPU Options:**
-
-| GPU Type | `srun` Flag (`<gpu-flag>`) | Python Flag (`<machine-name>`) |
+| Configuration (`--machine_name`) | ParaView | VisIt |
 | :--- | :--- | :--- |
-| v100 | `--gres=gpu:v100:1` | `ibex-egl-v100` |
-| a100 | `--gres=gpu:a100:1` | `ibex-egl-a100` |
-| rtx2080ti | `--gres=gpu:rtx2080ti:1` | `ibex-egl-rtx2080ti` |
-| p6000 | `--gres=gpu:p6000:1` | `ibex-egl-p6000` |
-| p100 | `--gres=gpu:p100:1` | `ibex-egl-p100` |
-| gtx1080ti | `--gres=gpu:gtx1080ti:1` | `ibex-egl-gtx1080ti` |
+| Ibex CPU (`ibex-cpu`) | `sbatch ibex_pv_suite.sbat` | `sbatch ibex_visit_suite.sbat` |
+| Ibex GPU (`ibex-egl-<gpu>`; VisIt `ibex-gpu`) | `sbatch --gres=gpu:1 --constraint=<gpu> --ntasks=4 --cpus-per-task=4 --export=ALL,VARIANT=egl,GPU=<gpu> ibex_pv_suite.sbat` | `sbatch --gres=gpu:1 --constraint=a100 --ntasks=8 --cpus-per-task=2 --mem=90G --export=ALL,VARIANT=gpu ibex_visit_suite.sbat` |
+| Shaheen `workq` (`shaheen3-cpu`) | `sbatch shaheen_pv_suite.sbat` | `sbatch shaheen_visit_suite.sbat` |
+| Shaheen `ppn`, Mesa (`shaheen3-mesa-ppn`) | `sbatch --export=ALL,VARIANT=mesa shaheen_ppn_pv_suite.sbat` | |
+| Shaheen `ppn`, GPU (`shaheen3-ppn-gpu-L40`; VisIt `shaheen3-ppn`) | `sbatch shaheen_ppn_pv_suite.sbat` | `sbatch shaheen_ppn_visit_suite.sbat` |
 
-#### Ibex GPU (VisIt)
+* The scripts do not use the environments from the setup above. They
+  activate their own: on Ibex `$VV_IBEX_SW/venvs/vv` (default
+  `/ibex/scratch/$USER/hpcsaudi`), on Shaheen
+  `$SCRATCH_IOPS/sw/testing_paraview_env` and `testing_visit_env`, with numpy
+  for ParaView's Python in `sw/pv-site` beside them. Make them once per
+  machine before the first submission: RUNBOOK section 5 (Ibex), 6 and 7
+  (Shaheen).
+* VisIt does not build the shared fixtures (`data/topologies`,
+  `data/varying_series_xml`); ParaView's preparation does. Run the ParaView
+  suite in the clone first and let it finish, or copy those directories from
+  a clone that has them (RUNBOOK section 5). Submitting both at once does not
+  order them.
+* Ibex GPUs: `a100`, `v100`, `p100`, `rtx2080ti`, `gtx1080ti` (`p6000` is
+  retired). Ibex caps CPUs per GPU (16 on an A100, 6 on a V100: use
+  `--ntasks=2 --cpus-per-task=3` there); a GPU job takes no `--partition`.
+* The default is `--no-metrics`. For the one recorded run, add
+  `EXTRA="--run-id <configuration>-$(date +%F) --repeat 3"` (with `--export`,
+  inside it). `TESTS="5 6"` runs a subset.
+* `VV_PARAVIEW_MODULE` / `VV_VISIT_MODULE` select another build. Test each
+  build in its own clone: the generated fixtures are per ParaView version.
+* Three repeats triple the time; the longest current suite is 11 minutes,
+  within the scripts' 2-hour limit.
 
-```bash
-# 1. Load modules
-module load visit/3.4.1
-module load ffmpeg
-
-# 2. Request an interactive job (any GPU)
-srun --gres=gpu:1 --cpus-per-task=12 --ntasks=1 --time=00:40:00 --mem=100G --pty /bin/bash
-
-# 3. Once in the job, run the tests
-source $SCRATCH/testing_visit_env/bin/activate
-cd $SCRATCH/Visualization_Vignettes/Testing
-python test_suite.py $SCRATCH/Visualization_Vignettes/ \
-  --test_type VisIt \
-  --visit_version 3.4.1 \
-  --machine_name ibex-gpu
-```
-
----
-
-### Shaheen3
-
-#### Shaheen3 CPU (ParaView)
-
-```bash
-# 1. Load module
-module load paraview/6.0.1-mesa
-
-# 2. Request an interactive job (use table below)
-srun <srun-flags> --pty /bin/bash
-
-# 3. Once in the job, run the tests
-source $SCRATCH/testing_paraview_env/bin/activate
-cd $SCRATCH/Visualization_Vignettes/Testing
-python test_suite.py $SCRATCH/Visualization_Vignettes/ \
-  --test_type ParaView \
-  --paraview_version 6.0.1 \
-  --machine_name <machine-name> \
-  --non_gpu_machine
-```
-
-**CPU Options:**
-
-| Node Type | `srun` Flags (`<srun-flags>`) | Python Flag (`<machine-name>`) |
-| :--- | :--- | :--- |
-| workq | `--cpus-per-task=32 --ntasks=2 -p workq --time=00:40:00 --mem=200G -A k01` | `shaheen3-cpu` |
-| ppn | `--cpus-per-task=32 --ntasks=2 -p ppn --time=00:40:00 --mem=200G -A k01` | `shaheen3-mesa-ppn` |
-
-#### Shaheen3 CPU (VisIt)
+### Clusters: interactive, for debugging
 
 ```bash
-# 1. Load module
-module load visit/3.4.1
-
-# 2. Request an interactive job (use table below)
-srun <srun-flags> --pty /bin/bash
-
-# 3. Once in the job, run the tests
-source $SCRATCH/testing_visit_env/bin/activate
-cd $SCRATCH/Visualization_Vignettes/Testing
-python3 test_suite.py $SCRATCH/Visualization_Vignettes/ \
-  --test_type VisIt \
-  --visit_version 3.4.1 \
-  --machine_name <machine-name>
+srun <the resources from the table, as srun flags> --pty /bin/bash
+cd $SCRATCH/Visualization_Vignettes
+source ParaView_Vignettes/MODULES.sh mesa     # or egl; VisIt: source VisIt_Vignettes/MODULES.sh
+cd Testing
+python test_suite.py ../ --test_type ParaView --paraview_version 6.2.1 \
+  --machine_name <configuration> --test_number 3 --no-metrics
 ```
 
-**CPU Options:**
-
-| Node Type | `srun` Flags (`<srun-flags>`) | Python Flag (`<machine-name>`) |
-| :--- | :--- | :--- |
-| workq | `--cpus-per-task=32 --ntasks=2 -p workq --time=00:40:00 --mem=300G -A k01` | `shaheen3-cpu` |
-| ppn | `--cpus-per-task=32 --ntasks=2 -p ppn --time=00:40:00 --mem=300G -A k01` | `shaheen3-ppn` |
-
-#### Shaheen3 GPU (ParaView)
-
-```bash
-# 1. Load module
-module load paraview/6.0.1-egl
-
-# 2. Request an interactive GPU job
-srun --cpus-per-task=32 --ntasks=1 -p ppn -G 1 --time=00:40:00 --mem=200G -A k01 --pty /bin/bash
-
-# 3. Once in the job, run the tests
-source $SCRATCH/testing_paraview_gpu_env/bin/activate
-cd $SCRATCH/Visualization_Vignettes/Testing
-python test_suite.py $SCRATCH/Visualization_Vignettes/ \
-  --test_type ParaView \
-  --paraview_version 6.0.1 \
-  --machine_name shaheen3-ppn-gpu-L40
-```
+The batch scripts set up a few site details this skips (the ParaView wrapper
+that keeps its `PYTHONPATH` from other Pythons, the Ibex module tree); see
+RUNBOOK sections 5 to 7 before recording anything this way.
 
 ---
 
@@ -537,7 +449,7 @@ In the console the line to read is `Vignette passed (results JSON status=ok)`.
 real parallel engine through VisIt's own bundled `mpirun`:
 
 ```bash
-python test_suite.py ../ --test_type VisIt --visit_version 3.4.2 \
+python test_suite.py ../ --test_type VisIt --visit_version 3.5.0 \
   --machine_name <name>-np8 --ranks 8 --no-metrics
 ```
 
@@ -839,13 +751,18 @@ it (published with `keep_files`, so the badge stays).
 
 ### Harness unit tests
 
-`Testing/test_io_sampler.py` checks the process-tree I/O sum with the reap
-order scripted, plus one real non-dumpable child (Linux). It needs only psutil
-and runs in under a second; `.github/workflows/harness-tests.yml` runs it on a
-GitHub-hosted runner whenever a `Testing/` Python file changes.
+`.github/workflows/harness-tests.yml` runs these on a GitHub-hosted runner
+whenever a `Testing/` Python file, this README or a `MODULES.sh` changes. They
+need only psutil and run in about a second.
+
+| Test | What it checks |
+| :--- | :--- |
+| `test_io_sampler.py` | the process-tree I/O sum, with the reap order scripted, plus one real non-dumpable child (Linux) |
+| `test_repeats.py` | `--repeat` runs folded to their median for the gate and drift |
+| `test_docs_pins.py` | every module name and `--paraview_version` / `--visit_version` in this README's commands, and the default the `MODULES.sh` scripts load, matches `CURRENT_PINS` in `dashboard.py`. Move the pins and the recipes together. |
 
 ```bash
-python3 -m unittest -v Testing/test_io_sampler.py
+python3 -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_docs_pins.py
 ```
 
 ## Drift warnings
