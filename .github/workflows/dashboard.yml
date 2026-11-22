@@ -18,6 +18,7 @@ on:
     paths:
       - '**/performance_metrics_*.json'
       - 'Testing/check_submission.py'
+      - '*_Vignettes/*/Testing/Baseline/**'
       - 'Testing/dashboard.py'
       - 'Testing/retired_configurations.json'
       - 'ParaView_Vignettes/*/*.py'
@@ -29,6 +30,7 @@ on:
     paths:
       - '**/performance_metrics_*.json'
       - 'Testing/check_submission.py'
+      - '*_Vignettes/*/Testing/Baseline/**'
       - 'Testing/dashboard.py'
       - 'Testing/retired_configurations.json'
       - 'ParaView_Vignettes/*/*.py'

@@ -73,16 +73,22 @@ class Checks(unittest.TestCase):
         self.assertIn("does not parse", self.problems(path)[0])
         path = self.write("mycluster-cpu", [record()])
         self.assertIn("not a JSON object", self.problems(path)[0])
+        path = self.write("mycluster-cpu", None, raw="null")
+        self.assertIn("not a JSON object", self.problems(path)[0])
         path = self.write(
             "mycluster-cpu",
             {
                 "yesterday": record(),
+                "2026-02-30T10:00:00": record(),
+                "2026-11-22T10:00:00.123": record(),
                 "2026-11-22T10:00:00": record(test_name="ex02_pvAnimation"),
                 "2026-11-22T11:00:00": "a string",
             },
         )
         found = " | ".join(self.problems(path))
         self.assertIn("[yesterday]: key is not an ISO-8601 timestamp", found)
+        self.assertIn("[2026-02-30T10:00:00]: key is not", found)
+        self.assertNotIn("[2026-11-22T10:00:00.123]: key", found)
         self.assertIn("test_name 'ex02_pvAnimation'", found)
         self.assertIn("record is not an object", found)
 

@@ -60,6 +60,25 @@ TIMESTAMP = re.compile(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?$")
 IMAGE = re.compile(r"\.(png|jpe?g)$", re.IGNORECASE)
 
 
+def valid_timestamp(text):
+    """The record key's shape, and a real date and time (no 30 February)."""
+    return parse_timestamp(text) is not None
+
+
+def parse_timestamp(text):
+    """The record key as a datetime, or None. Any number of fraction digits:
+    Python before 3.11 parses only 3 or 6, so the fraction is padded to 6."""
+    if not TIMESTAMP.match(text):
+        return None
+    whole, _, fraction = text.partition(".")
+    if fraction:
+        whole += "." + (fraction + "000000")[:6]
+    try:
+        return datetime.datetime.fromisoformat(whole)
+    except ValueError:
+        return None
+
+
 def name_problem(name):
     """Why `name` cannot be published as a configuration, or None."""
     if not NAME.match(name):
@@ -130,10 +149,7 @@ def check_new_record(config, timestamp, record, now):
             "the configuration is the host name '{0}': pass --machine_name "
             "with a public name".format(node)
         )
-    try:
-        when = datetime.datetime.fromisoformat(timestamp)
-    except ValueError:
-        when = None
+    when = parse_timestamp(timestamp)
     if when is not None and when > now + datetime.timedelta(days=1):
         problems.append("timestamp is in the future")
     return problems
@@ -165,15 +181,14 @@ def check_file(repo, path, base=None, now=None):
             document = json.load(handle)
     except (OSError, ValueError) as exc:
         problems.append("does not parse: {0}".format(exc))
-        document = None
-    if document is not None and not isinstance(document, dict):
+        return ["{0}: {1}".format(path, p) for p in problems]
+    if not isinstance(document, dict):  # null, a list, a number...
         problems.append("not a JSON object of timestamped records")
-    if not isinstance(document, dict):
         return ["{0}: {1}".format(path, p) for p in problems]
     old = base_document(repo, base, path) if base else None
     for timestamp, record in document.items():
         where = "{0} [{1}]".format(path, timestamp)
-        if not TIMESTAMP.match(timestamp):
+        if not valid_timestamp(timestamp):
             problems.append("{0}: key is not an ISO-8601 timestamp".format(where))
         if not isinstance(record, dict):
             problems.append("{0}: record is not an object".format(where))
