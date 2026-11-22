@@ -55,6 +55,8 @@ try:
 except ImportError:  # pragma: no cover - psutil is in the documented venv
     psutil = None
 
+from node_telemetry import NodeTelemetry  # noqa: E402 - beside this file
+
 
 # Helper scripts that live beside a vignette but are not the vignette.
 HELPER_SUFFIXES = ("_make_state.py", "_validate.py", "_common.py")
@@ -660,6 +662,7 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     returncode = None
 
     sampler = None
+    telemetry = None
     try:
         with open(stdout_path, "w") as stdout_file, open(
             stderr_path, "w"
@@ -671,14 +674,17 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
                 env=env,
             )
             sampler = _PeakRssSampler(process.pid).start()
+            telemetry = NodeTelemetry(step_name=step_name, power=owns_nodes).start()
             try:
                 returncode = process.wait(timeout=timeout)
             finally:
                 sampler.stop()
+                telemetry.stop()
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait()
         sampler.stop()
+        telemetry.stop()
         timed_out = True
         returncode = 124  # conventional timeout status
         with open(stderr_path, "a") as stderr_file:
@@ -721,6 +727,8 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     energy = pm_energy(pm_before, pm_after)
     if energy is not None:
         payload["pm_energy"] = energy
+    if telemetry is not None:
+        payload.update(telemetry.figures())
     # srun hands the ranks to slurmstepd, so they are not in the tree the
     # sampler walked: what it measured was the srun client. VisIt does the
     # same off a workstation, starting its compute engine with srun, and says

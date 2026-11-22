@@ -68,6 +68,7 @@ import uuid
 import pandas as pd
 
 import drift
+from node_telemetry import host_platform
 import verify
 from metrics import child_rusage_snapshot, detect_significant_changes, gather_metrics
 from plot_metrics import generate_individual_graphs
@@ -480,6 +481,7 @@ def host_environment():
             env["cpu_governor"] = handle.read().strip()
     except OSError:
         pass
+    env.update(host_platform())
     smi = shutil.which("nvidia-smi")
     if smi:
         try:

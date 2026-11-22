@@ -52,7 +52,15 @@ except ImportError:  # pragma: no cover - psutil is in the documented venv
 # vignette in one invocation, --repeat), `load_1m_at_end`, and the host's OS
 # release, CPU governor and GPUs with their driver in machine_info. A figure
 # means what it did at 6.
-METRICS_SCHEMA = 7
+#
+# 8 adds fields once more (#140): the node's platform settings in
+# machine_info (boost, SMT, THP, huge pages, NUMA, microcode, a digest of
+# the kernel command line), and what the node did during the vignette
+# (node_telemetry.py): node, CPU and memory power and the peak CPU
+# temperature from pm_counters, per-GPU memory, utilisation and power from
+# nvidia-smi, and the exact peak resident set (VmHWM) of the vignette's
+# processes beside Slurm's sampled figure. Figures mean what they did at 7.
+METRICS_SCHEMA = 8
 MIN_COMPARABLE_SCHEMA = 5
 
 
@@ -147,6 +155,46 @@ def _local_tree_detail(run_result):
         detail["energy_memory_joules"] = float(energy.get("memory_joules") or 0.0)
         detail["energy_scope"] = ENERGY_PM_SCOPE
     return detail
+
+
+TELEMETRY_KEYS = (
+    "power_mean_node_w",
+    "power_peak_node_w",
+    "power_mean_cpu_w",
+    "power_peak_cpu_w",
+    "power_mean_memory_w",
+    "power_peak_memory_w",
+    "cpu_temp_peak_c",
+    "power_samples",
+    "gpu_telemetry",
+    "step_hwm_processes",
+    "step_hwm_samples",
+    "step_hwm_mean_sample_s",
+)
+
+
+def node_telemetry_fields(run_result):
+    """Schema-8 detail from node_telemetry.py, as recorded fields.
+
+    Context and detail, not compared by the gate. The exact peak memory is
+    recorded beside the run's memory figure, not in place of it, until #140
+    has compared the two on every site.
+    """
+    out = {key: run_result[key] for key in TELEMETRY_KEYS if key in run_result}
+    if run_result.get("step_hwm_bytes"):
+        out["memory_step_hwm_mb"] = run_result["step_hwm_bytes"] / MB
+    # The CPU and memory split of the node's energy, for srun runs too, whose
+    # total comes from Slurm's step accounting rather than pm_counters.
+    energy = run_result.get("pm_energy")
+    if run_result.get("ranks_outside_tree") and energy:
+        for key, name in (
+            ("node_joules", "energy_pm_node_joules"),
+            ("cpu_joules", "energy_cpu_joules"),
+            ("memory_joules", "energy_memory_joules"),
+        ):
+            if energy.get(key) is not None:
+                out[name] = float(energy[key])
+    return out
 
 
 def _resource_figures(run_result, after, before, rusage_cpu):
@@ -348,6 +396,7 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
         ):
             if run_result.get(key) is not None:
                 metrics[key] = run_result[key]
+        metrics.update(node_telemetry_fields(run_result))
 
     if psutil is not None:
         try:
