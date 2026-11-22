@@ -205,7 +205,8 @@ CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-
 # --catalyst-stage: copy ParaView's lib/ to node-local disk on the reader
 # nodes before the run, and load Catalyst from there. The first Catalyst
 # step is mostly Python and VTK paging their .so files in from Lustre: at
-# 64 + 4 nodes step 0 took 21.4 s from Lustre and 6.5 to 7.8 s staged, with
+# 512 + 32 nodes the slices' step 0 took 23.4 to 26.4 s from Lustre and 2.8
+# to 2.9 s staged, the isosurface's 44.7 to 51.7 s and 22.1 to 23.7 s, with
 # identical frames (sites/shaheen/README.md, "Catalyst node-local staging").
 # catalyst_lib_path stays the Lustre install, which names the build the run
 # used; the stage is recorded beside it (catalyst_stage). The reader must be
@@ -214,9 +215,12 @@ CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-
 # sites/shaheen/build-catalyst-stage.sh. Methods: "tar" (each reader node
 # reads the tarball from Lustre), "sbcast" (Slurm fans it out to the reader
 # nodes), "auto" (tar below CATALYST_STAGE_SBCAST_MIN_NODES reader nodes,
-# sbcast from there), "off".
+# sbcast from there), "off". At 32 reader nodes tar took 1.2 to 3.9 s and
+# sbcast 8.3 to 8.8 s; tar reads the tarball once per node from Lustre and
+# sbcast fans it out in a tree, so sbcast should win at some larger count.
+# The threshold is an estimate until it is timed at 64 to 208 reader nodes.
 CATALYST_STAGE = "off"
-CATALYST_STAGE_SBCAST_MIN_NODES = 64
+CATALYST_STAGE_SBCAST_MIN_NODES = 128
 # One directory per job, so a copy left behind by a job that was killed is
 # never taken for this job's.
 CATALYST_STAGE_DIR = "/tmp/gs-catalyst-$SLURM_JOB_ID"

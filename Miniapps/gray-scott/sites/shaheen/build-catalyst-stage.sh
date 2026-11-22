@@ -24,7 +24,7 @@ fi
 W=$(mktemp -d "$T.work.XXXXXX")
 trap 'rm -rf "$W" "$T.tmp"' EXIT
 # .debug (separate debug info) and *.a (static archives) are never loaded at
-# run time and more than double the size (2.4 GB with them, 1.1 GB without).
+# run time and more than double the size (2.4 GB with them, 0.9 GB without).
 tar -C "$I" -cf - --exclude=.debug --exclude='*.a' lib | tar -C "$W" -xf -
 # Some superbuild libraries (LLVM, OpenVKL, OSPRay's modules, Embree, Mesa,
 # libcatalyst) name the install's lib/ by its absolute path in their
