@@ -29,6 +29,7 @@
 # Author: James Kress, <james@jameskress.com>
 
 import argparse
+import datetime
 import os
 import re
 import shutil
@@ -36,67 +37,123 @@ import sys
 from urllib.parse import quote
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from dashboard import REPO_ROOT, SUITES, VIGNETTE_RE, css, esc  # noqa: E402
+import dashboard  # noqa: E402
+from dashboard import (  # noqa: E402
+    ABOUT,
+    REPO_ROOT,
+    REPO_URL,
+    SUITES,
+    VIGNETTE_RE,
+    css,
+    esc,
+    site_header,
+)
 
-REPO_URL = "https://github.com/jameskress/Visualization_Vignettes"
 IMAGE = re.compile(r"\.(png|jpe?g)$", re.IGNORECASE)
 PREVIEW_PX = 480
+TOOLS = [tool for tool, _ in SUITES]
 
-# What each vignette number shows, in words that fit both tools. A vignette
-# not listed here still appears, under its directory name.
-ABOUT = {
-    0: ("Query", "Loads a dataset and checks its mesh statistics and metadata."),
-    1: ("Screenshot", "The basic rendering pipeline, saved as an image."),
-    2: ("Camera animation", "A camera path around the data, frame by frame."),
-    3: ("Isosurface animation", "An isovalue swept through the field."),
-    4: ("Streamlines", "Flow visualization with seeded streamlines."),
-    5: ("Time series", "One rendering per time step of a multi-step file."),
-    6: ("Large data", "A large dataset rendered in parallel."),
-    7: (
-        "Scaling",
-        "Isosurface extraction across rank counts; geometry must not change.",
-    ),
-    8: ("Backend check", "Fails when a job that asked for a GPU renders in software."),
-    9: ("Mesh topologies", "One contour pipeline over several mesh types."),
-    10: (
-        "Colormap fidelity",
-        "One field through four transfer functions, each with a legend.",
-    ),
-    11: ("State verification", "A saved session reloaded headlessly and stepped."),
-    12: ("Extract regression", "Image, data and numeric extracts side by side."),
-}
+
+def natural_key(name):
+    """frame_2 before frame_10: digit runs compare as numbers."""
+    return [
+        int(part) if part.isdigit() else part.lower()
+        for part in re.split(r"(\d+)", name)
+    ]
+
 
 SITE_CSS = """
-.hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;
-margin:16px 0 4px}
-.hero img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;display:block;
-background:var(--na)}
-.links{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;
-margin:16px 0}
-.links a.card{display:block;text-decoration:none;margin:0}
-.links a.card:hover,.links a.card:focus-visible{border-color:var(--ink2)}
-.links .card p{margin:4px 0 0;color:var(--ink2)}
-.toc{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;margin:8px 0}
+.toc{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13.5px;margin:8px 0 4px}
+.toc b{font-weight:600;margin-right:4px}
 .vig{scroll-margin-top:12px}
-.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
-.pair h4{margin:6px 0 4px;font-size:13px;font-weight:600}
-.frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:4px}
-.frames.one{grid-template-columns:minmax(0,360px)}
+.frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.frames.one{grid-template-columns:minmax(0,420px)}
 .frames a{display:block}
-.frames img{width:100%;height:auto;display:block;border-radius:4px;background:var(--na)}
+.frames img{width:100%;height:auto;display:block;border-radius:5px;background:var(--na)}
 .frames figure{margin:0}
-.frames figcaption{font-size:11px;color:var(--muted);overflow:hidden;
+.frames figcaption{font-size:11.5px;color:var(--muted);overflow:hidden;
 text-overflow:ellipsis;white-space:nowrap}
+.hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:32px;
+align-items:start}
+.hero .lede{font-size:1.1rem}
+.who{font-size:14.5px;color:var(--ink2);max-width:62ch}
+.who b{color:var(--ink);font-weight:600}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.btn{display:inline-flex;align-items:center;font:600 15px/1 var(--sans);padding:12px 18px;
+border-radius:8px;text-decoration:none;border:1px solid var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;
+background:var(--ring);border:1px solid var(--ring);border-radius:10px;overflow:hidden}
+.stat{background:var(--surface);padding:16px 18px}
+.stat .v{font:500 1.9rem/1.1 var(--mono)}
+.stat .k{font-size:13px;color:var(--ink2);margin-top:4px}
+.stat.wide{grid-column:1/-1}
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.strip a{display:block;position:relative;border-radius:8px;overflow:hidden;
+background:var(--na)}
+.strip img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;
+transition:transform .25s ease}
+.strip a:hover img{transform:scale(1.03)}
+.strip span{position:absolute;left:8px;bottom:8px;background:rgba(8,12,14,.75);color:#fff;
+font:500 11.5px/1.2 var(--mono);padding:4px 7px;border-radius:5px}
+.ctas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.cta{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:var(--ink);
+min-width:0;margin:0}
+a.cta:hover{border-color:var(--accent)}
+.cta.span2{grid-column:span 2}
+.cta.full{grid-column:1/-1}
+.cta p{color:var(--ink2);font-size:14px;margin:0}
+.cta .go{margin-top:auto;color:var(--accent);font-weight:600;font-size:14px}
+.tag{font:500 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;
+color:var(--accent)}
+.cmd{display:flex;gap:8px;align-items:stretch}
+.cmd code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;font:12px/1.5 var(--mono);
+background:var(--na);padding:8px 10px;border-radius:6px}
+.cmd button{font:600 12px var(--sans);border:1px solid var(--ring);background:var(--surface);
+color:var(--ink);border-radius:6px;padding:0 10px;cursor:pointer}
+.inside{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.inside ol{margin:0;padding:0;list-style:none;font-size:14px}
+.inside li{display:grid;grid-template-columns:2.6em 1fr;gap:6px;padding:4px 0;
+border-bottom:1px solid var(--grid)}
+.inside li:last-child{border-bottom:0}
+.inside .d{color:var(--muted);font-size:13px}
+.kind{font:500 11px/1 var(--mono);color:var(--muted);letter-spacing:.06em;
+text-transform:uppercase;margin:12px 0 6px}
+@media (max-width:860px){.hero{grid-template-columns:minmax(0,1fr)}
+.ctas,.inside{grid-template-columns:repeat(2,minmax(0,1fr))}
+.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.ctas,.inside{grid-template-columns:minmax(0,1fr)}
+.cta.span2{grid-column:auto}}
+@media (prefers-reduced-motion:reduce){.strip img{transition:none}}
 """
 
+COPY_SCRIPT = """<script>
+var b=document.getElementById('copybtn');
+if(b){b.addEventListener('click',function(){var c=document.getElementById('dockercmd');
+function sel(){var r=document.createRange();r.selectNodeContents(c);
+getSelection().removeAllRanges();getSelection().addRange(r);b.textContent='Selected';}
+try{navigator.clipboard.writeText(c.textContent).then(function(){b.textContent='Copied';},sel);}
+catch(e){sel();}});}
+</script>"""
 
-def page(title, body, footer):
+
+def page(title, body, footer, here, script=""):
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>{0}</title><style>{1}{2}</style></head><body><main>{3}"
-        "<footer>{4}</footer></main></body></html>"
-    ).format(esc(title), css(), SITE_CSS, body, footer)
+        "<title>{0}</title>{5}<style>{1}{2}</style></head><body>{6}<main>{3}"
+        "<footer>{4}</footer></main>{7}</body></html>"
+    ).format(
+        esc(title),
+        css(),
+        SITE_CSS,
+        body,
+        footer,
+        dashboard.FONTS,
+        site_header(here, "../" if here == "gallery" else ""),
+        script,
+    )
 
 
 def vignette_number(name):
@@ -122,7 +179,7 @@ def baselines(repo=REPO_ROOT):
                 continue
             entry = found.setdefault(number, {"dir": {}, "images": {}, "sites": {}})
             entry["dir"][tool] = name
-            entries = sorted(os.listdir(base))
+            entries = sorted(os.listdir(base), key=natural_key)
             entry["images"][tool] = [
                 os.path.join(suite, name, "Testing", "Baseline", f)
                 for f in entries
@@ -218,22 +275,38 @@ def describe(n, entry):
     return ABOUT.get(n, (next(iter(entry["dir"].values())), ""))
 
 
-def render_gallery(found, placed):
+def anchor(tool, n):
+    """The gallery anchor of one tool's vignette: paraview-ex03."""
+    return "{0}-ex{1:02d}".format(tool.lower(), n)
+
+
+def render_gallery(found, placed, with_results=None):
+    """ParaView ex00 to ex12, then VisIt ex00 to ex12; frames in order.
+
+    with_results: the vignettes the dashboard has a page for (those with
+    records); others get no Results link. None: link every vignette.
+    """
     numbers = sorted(found)
-    toc = "".join(
-        "<a href='#ex{0:02d}'>ex{0:02d} {1}</a>".format(
-            n, esc(describe(n, found[n])[0])
+    tocs, sections = [], []
+    for tool, suite in SUITES:
+        mine = [n for n in numbers if tool in found[n]["dir"]]
+        if not mine:
+            continue
+        tocs.append(
+            "<nav class='toc'><b>{0}</b>{1}</nav>".format(
+                esc(tool),
+                "".join(
+                    "<a href='#{0}'>ex{1:02d} {2}</a>".format(
+                        anchor(tool, n), n, esc(describe(n, found[n])[0])
+                    )
+                    for n in mine
+                ),
+            )
         )
-        for n in numbers
-    )
-    sections = []
-    for n in numbers:
-        entry = found[n]
-        title, about = describe(n, entry)
-        columns = []
-        for tool, suite in SUITES:
-            if tool not in entry["dir"]:
-                continue
+        cards = []
+        for n in mine:
+            entry = found[n]
+            title, about = describe(n, entry)
             name = entry["dir"][tool]
             sites = entry["sites"].get(tool, 0)
             extra = (
@@ -243,106 +316,267 @@ def render_gallery(found, placed):
                 if sites
                 else ""
             )
-            columns.append(
-                "<div><h4><a href='{0}/tree/master/{1}/{2}'>{3}</a>{4}</h4>{5}</div>".format(
-                    REPO_URL,
-                    suite,
-                    url(name),
-                    esc(name),
+            results = (
+                "<a href='../dashboard/{0}'>Results</a> &middot; ".format(
+                    url(dashboard.vignette_page(name))
+                )
+                if with_results is None or name in with_results
+                else ""
+            )
+            cards.append(
+                "<section class='card vig' id='{0}'><h3>{1} ex{2:02d} {3}{4}</h3>"
+                "<p class='note'>{5} {6}"
+                "<a href='{7}/tree/master/{8}/{9}'>source</a></p>{10}</section>".format(
+                    anchor(tool, n),
+                    esc(tool),
+                    n,
+                    esc(title),
                     extra,
+                    esc(about),
+                    results,
+                    REPO_URL,
+                    esc(suite),
+                    url(name),
                     _frames(entry["images"].get(tool, []), placed, tool, title),
                 )
             )
         sections.append(
-            "<section class='card vig' id='ex{0:02d}'><h3>ex{0:02d} {1}</h3>"
-            "<p class='note'>{2}</p><div class='pair'>{3}</div></section>".format(
-                n, esc(title), esc(about), "".join(columns)
+            "<h2 id='{0}'>{1}</h2>{2}".format(
+                esc(tool.lower()), esc(tool), "".join(cards)
             )
         )
     body = (
-        "<p class='note'><a href='../'>Visualization Vignettes</a> &rsaquo; Gallery</p>"
-        "<h1>Gallery</h1>"
-        "<p class='lede'>What each vignette draws: the baseline images the "
-        "regression suite compares every run against. Select an image for "
-        "the full size.</p>"
-        "<nav class='toc'>{0}</nav>{1}"
-    ).format(toc, "".join(sections))
+        "<p class='eyebrow'>Gallery</p><h1>What each vignette draws</h1>"
+        "<p class='lede'>The baseline images the regression suite compares every "
+        "run against, ParaView first, then VisIt, in vignette order. Select an image "
+        "for the full size.</p>{0}{1}"
+    ).format("".join(tocs), "".join(sections))
     footer = (
         "Built from the Testing/Baseline images in jameskress/Visualization_Vignettes "
         "by Testing/site_pages.py. Results of every run: "
         "<a href='../dashboard/'>dashboard</a>."
     )
-    return page("Gallery - Visualization Vignettes", body, footer)
+    return page("Gallery - Visualization Vignettes", body, footer, "gallery")
 
 
-# A few baselines for the landing page's strip, chosen to show the range.
+# The landing page's strip: one image of each, in order, ParaView then VisIt.
 HERO = (
-    (3, "ParaView"),
-    (4, "ParaView"),
-    (9, "ParaView"),
-    (10, "VisIt"),
-    (6, "VisIt"),
-    (2, "VisIt"),
+    ("ParaView", 3),
+    ("ParaView", 4),
+    ("ParaView", 6),
+    ("ParaView", 9),
+    ("VisIt", 2),
+    ("VisIt", 6),
+    ("VisIt", 10),
+    ("VisIt", 12),
 )
 
 
 def hero_images(found, placed):
     picks = []
-    for n, tool in HERO:
+    for tool, n in sorted(HERO, key=lambda h: (TOOLS.index(h[0]), h[1])):
         paths = found.get(n, {}).get("images", {}).get(tool) or []
-        if paths:
-            title = ABOUT.get(n, ("", ""))[0]
-            # The middle frame: a sequence's first frame is often sparse.
-            middle = paths[len(paths) // 2]
-            picks.append(
-                "<a href='gallery/#ex{0:02d}'><img src='gallery/{1}' loading='lazy' "
-                "alt='{2} ex{0:02d} {3}'></a>".format(
-                    n, url(placed[middle][1]), esc(tool), esc(title)
-                )
+        if not paths:
+            continue
+        title = describe(n, found[n])[0]
+        # The middle frame: a sequence's first frame is often sparse.
+        middle = paths[len(paths) // 2]
+        label = "{0} ex{1:02d} {2}".format(tool, n, title)
+        picks.append(
+            "<a href='gallery/#{0}' title='{1}: open in the gallery'><img src='gallery/{2}' "
+            "loading='lazy' alt='{1} baseline image'><span>{1}</span></a>".format(
+                anchor(tool, n), esc(label), url(placed[middle][1])
             )
-    return "<div class='hero'>{0}</div>".format("".join(picks)) if picks else ""
-
-
-def render_landing(found, placed):
-    cards = (
-        (
-            "dashboard/",
-            "Results dashboard",
-            "The latest result of every vignette on every site and GPU "
-            "configuration, and how time and memory moved across versions.",
-        ),
-        (
-            "gallery/",
-            "Gallery",
-            "What each ParaView and VisIt vignette draws, from the images the "
-            "regression suite checks against.",
-        ),
-        (
-            REPO_URL,
-            "Source and docs",
-            "The vignettes, batch scripts for Ibex and Shaheen, the in situ "
-            "examples and the test harness.",
-        ),
-    )
-    links = "".join(
-        "<a class='card' href='{0}'><h3>{1}</h3><p>{2}</p></a>".format(
-            esc(href), esc(title), esc(text)
         )
-        for href, title, text in cards
+    return "<div class='strip'>{0}</div>".format("".join(picks)) if picks else ""
+
+
+def headline(repo):
+    """The landing page's numbers, from the committed records."""
+    histories = dashboard.publish_names(dashboard.load_histories(repo))
+    now = datetime.datetime.now()
+    retired = {
+        dashboard.public_text(c): e for c, e in dashboard.load_retired(repo).items()
+    }
+    states = {
+        key: dashboard.config_state(key[1], vs, now, retired.get(key[0]))
+        for key, vs in histories.items()
+    }
+    active = {c for (c, t), st in states.items() if not st["retired"]}
+    counts = [st["counts"] for st in states.values() if not st["retired"]]
+    versions = {
+        tool: sorted(
+            {
+                dashboard.drift.tool_version(rec)
+                for (_, t), vs in histories.items()
+                if t == tool
+                for rows in vs.values()
+                for _, rec in rows
+                if dashboard.drift.tool_version(rec)
+            },
+            key=dashboard.version_key,
+        )
+        for tool in TOOLS
+    }
+    first = min(
+        (ts for vs in histories.values() for rows in vs.values() for ts, _ in rows),
+        default="",
     )
-    body = (
-        "<h1>Visualization Vignettes</h1>"
-        "<p class='lede'>A cookbook of examples, best practices and training "
-        "material for scientific and in situ visualization: runnable ParaView "
-        "and VisIt vignettes, often tailored for HPC systems. Each vignette is "
-        "also a regression test, run on every site and tool version.</p>"
-        "{0}<div class='links'>{1}</div>"
-    ).format(hero_images(found, placed), links)
+    return {
+        "with_results": {v for vs in histories.values() for v in vs},
+        "vignettes": len({v for vs in histories.values() for v in vs}),
+        "configurations": len(active),
+        "sites": len({dashboard.site_of(c) for c in active} - {"Other"}),
+        "versions": versions,
+        "passing": sum(c["pass"] for c in counts),
+        "results": sum(sum(c.values()) for c in counts),
+        "records": sum(len(rows) for vs in histories.values() for rows in vs.values()),
+        "since": first[:7],
+    }
+
+
+DOCKER_CMD = (
+    'mkdir "$HOME/vv-try" && docker run --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) '
+    '-v "$HOME/vv-try:/work" ghcr.io/jameskress/visualization_vignettes:latest bash -c '
+    "'cd /work && cp -r /app/Testing /app/data . && mkdir -p ParaView_Vignettes && "
+    "cp -r /app/ParaView_Vignettes/ex01_pvScreenshot ParaView_Vignettes/ && pvbatch "
+    "--force-offscreen-rendering ParaView_Vignettes/ex01_pvScreenshot/ex01_pvScreenshot.py'"
+)
+
+
+def render_landing(found, placed, numbers):
+    pv, vi = numbers["versions"]["ParaView"], numbers["versions"]["VisIt"]
+    stats = [
+        (numbers["vignettes"], "vignettes, the same 13 in each tool"),
+        (
+            numbers["configurations"],
+            "machine configurations at {0} sites".format(numbers["sites"]),
+        ),
+        (
+            len(pv) + len(vi),
+            "tool versions tracked: ParaView {0} to {1}, VisIt {2} to {3}".format(
+                pv[0] if pv else "-",
+                pv[-1] if pv else "-",
+                vi[0] if vi else "-",
+                vi[-1] if vi else "-",
+            ),
+        ),
+        (
+            "{0:.1f}%".format(100.0 * numbers["passing"] / numbers["results"])
+            if numbers["results"]
+            else "-",
+            "{0} of {1} latest results pass".format(
+                numbers["passing"], numbers["results"]
+            ),
+        ),
+    ]
+    stat_html = "".join(
+        "<div class='stat'><div class='v'>{0}</div><div class='k'>{1}</div></div>".format(
+            esc(v), esc(k)
+        )
+        for v, k in stats
+    ) + (
+        "<div class='stat wide'><div class='k'>{0:,} recorded runs since {1}, every "
+        "one public in the repository.</div></div>".format(
+            numbers["records"], esc(numbers["since"])
+        )
+    )
+
+    def item(n):
+        return (
+            "<li><span class='n'>ex{0:02d}</span><span>{1}<br><span class='d'>{2}"
+            "</span></span></li>".format(n, esc(ABOUT[n][0]), esc(ABOUT[n][1]))
+        )
+
+    body = """
+<section class='hero' style='margin-top:8px'>
+ <div>
+  <p class='eyebrow'>ParaView &middot; VisIt &middot; in situ &middot; HPC</p>
+  <h1>Small, tested examples of scientific visualization, from a laptop to a
+  supercomputer</h1>
+  <p class='lede'>Visualization Vignettes is a cookbook of runnable ParaView and VisIt
+  scripts, batch scripts for real clusters, and an in situ miniapp. Every vignette is
+  also a regression test, run on each site and tool version, so you can see that it
+  still works and how fast it runs.</p>
+  <p class='who'><b>For</b> researchers and students learning to visualize large data
+  on HPC systems, <b>for</b> HPC centres checking a new ParaView or VisIt build, and
+  <b>for</b> developers of in situ tools.</p>
+  <div class='btns'><a class='btn primary' href='#try'>Run a vignette in two
+  minutes</a><a class='btn ghost' href='dashboard/'>Browse the results</a></div>
+ </div>
+ <div class='stats'>{stats}</div>
+</section>
+<section>{strip}<p class='note' style='margin-top:8px'>The baseline images every run is
+compared against, ParaView then VisIt. Select one to open it in the gallery.</p></section>
+<section id='try'>
+ <p class='eyebrow'>Start here</p><h2>What you can do</h2>
+ <div class='ctas'>
+  <div class='card cta span2'><span class='tag'>2 minutes &middot; Docker</span>
+   <h3>Run a vignette</h3>
+   <p>Pulls the published image (ParaView {pin}, about 4.5 GB) and renders
+   <code>ex01_pvScreenshot</code> into a new folder, <code>~/vv-try</code>. Linux or
+   macOS:</p>
+   <div class='cmd'><code id='dockercmd'>{docker}</code><button type='button'
+   id='copybtn'>Copy</button></div>
+   <p>The folder must not exist yet, so nothing is overwritten. To try again after
+   a failed pull, use another name in both places, or remove the empty folder.</p>
+   <a class='go' href='https://codespaces.new/jameskress/Visualization_Vignettes?quickstart=1'>Or
+   open it in GitHub Codespaces &rarr;</a></div>
+  <a class='card cta' href='dashboard/'><span class='tag'>Results</span>
+   <h3>Browse the dashboard</h3><p>The latest result of every vignette on every
+   machine, what each tool upgrade changed, and each machine's history.</p>
+   <span class='go'>Open the dashboard &rarr;</span></a>
+  <a class='card cta' href='gallery/'><span class='tag'>Gallery</span>
+   <h3>See what each vignette draws</h3><p>Every baseline image, ParaView then VisIt,
+   in vignette order.</p><span class='go'>Open the gallery &rarr;</span></a>
+  <a class='card cta' href='{blob}Testing/ADD_YOUR_SITE.md'><span class='tag'>Contribute</span>
+   <h3>Add your site</h3><p>Run the suite on your workstation or cluster and send the
+   results in a pull request. A check keeps names public and records valid.</p>
+   <span class='go'>Read the guide &rarr;</span></a>
+  <a class='card cta' href='{blob}Miniapps/gray-scott/README.md'><span class='tag'>In situ</span>
+   <h3>Gray-Scott miniapp</h3><p>A reaction-diffusion simulation that renders while it
+   runs, with Ascent, Catalyst2, ADIOS2 and Kombyne back ends.</p>
+   <span class='go'>Open the miniapp &rarr;</span></a>
+  <a class='card cta full' href='{blob}CITATION.cff'><span class='tag'>Cite</span>
+   <h3>Cite Visualization Vignettes</h3><p>Citation metadata is in
+   <code>CITATION.cff</code>; GitHub's "Cite this repository" button gives BibTeX and
+   APA. A Zenodo DOI comes with release 1.1.0.</p>
+   <span class='go'>Get the citation &rarr;</span></a>
+ </div>
+</section>
+<section>
+ <p class='eyebrow'>What's inside</p><h2>Thirteen vignettes in each tool, and in situ
+ examples</h2>
+ <p class='note'>Each number is the same exercise in ParaView and in VisIt, with batch
+ scripts for Ibex and Shaheen. ex00 to ex06 show how to do a thing; ex07 to ex12 check
+ that a thing still works and fail the suite when it changes.</p>
+ <div class='inside'>
+  <div class='card'><h3>How to do a thing</h3><ol>{how}</ol></div>
+  <div class='card'><h3>Checks that it still works</h3><ol>{checks}</ol></div>
+  <div class='card'><h3>In situ</h3>
+   <div class='kind'>Miniapp</div><p class='note'>Gray-Scott reaction-diffusion, C++
+   and MPI, rendering in situ or in transit.</p>
+   <div class='kind'>Back ends</div><p class='note'>Ascent, Catalyst2 (ParaView),
+   ADIOS2, Kombyne.</p>
+   <div class='kind'>Vignettes</div><p class='note'><code>is00</code> zero-copy
+   adapter: hand a simulation's arrays to a visualization library without copying.</p>
+   <div class='kind'>Runs on</div><p class='note'>Docker, Codespaces, a workstation,
+   Ibex and Shaheen III.</p></div>
+ </div>
+</section>""".format(
+        stats=stat_html,
+        strip=hero_images(found, placed),
+        pin=esc(dashboard.CURRENT_PINS["ParaView"]),
+        docker=esc(DOCKER_CMD),
+        blob=REPO_URL + "/blob/master/",
+        how="".join(item(n) for n in range(0, 7)),
+        checks="".join(item(n) for n in range(7, 13)),
+    )
     footer = (
         "Built by Testing/site_pages.py from "
         "<a href='{0}'>jameskress/Visualization_Vignettes</a>.".format(REPO_URL)
     )
-    return page("Visualization Vignettes", body, footer)
+    return page("Visualization Vignettes", body, footer, "home", COPY_SCRIPT)
 
 
 def build(out, repo=REPO_ROOT):
@@ -353,11 +587,12 @@ def build(out, repo=REPO_ROOT):
         shutil.rmtree(directory, ignore_errors=True)
         os.makedirs(directory)
     placed = copy_images(found, gallery, repo)
+    numbers = headline(repo)
     with open(os.path.join(gallery, "index.html"), "w", encoding="utf-8") as fh:
-        fh.write(render_gallery(found, placed))
+        fh.write(render_gallery(found, placed, numbers["with_results"]))
     # The landing page links its strip into the gallery beside it.
     with open(os.path.join(root, "index.html"), "w", encoding="utf-8") as fh:
-        fh.write(render_landing(found, placed))
+        fh.write(render_landing(found, placed, numbers))
     return len(found), len(placed)
 
 

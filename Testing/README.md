@@ -649,36 +649,59 @@ node, one `git log` per vignette, and one `nvidia-smi` query per invocation.
 Beside it, `Testing/site_pages.py` writes the Pages landing page and the
 [gallery](https://jameskress.github.io/Visualization_Vignettes/gallery/):
 each vignette's default baseline images (`Testing/Baseline/*.png|jpg`),
-ParaView and VisIt side by side, with small previews when Pillow is
-installed. Per-site baseline sets are counted, not shown. A new vignette
-number needs its one-line description in `ABOUT` there;
+ParaView ex00 to ex12 first, then VisIt ex00 to ex12, frames in their
+natural order, with small previews when Pillow is installed. Per-site
+baseline sets are counted, not shown. The landing page says what the project
+is, gives the headline numbers from the records (vignettes, configurations,
+tool versions, the latest pass rate) and links to everything else. A new
+vignette number needs its one-line description in `ABOUT` in `dashboard.py`;
 `test_site_pages.py` fails until it has one. `.github/workflows/dashboard.yml`
-publishes all three, and rebuilds them when a baseline changes.
+publishes all three, and rebuilds them when a baseline changes. The design
+(#106) was agreed from a mock-up, after a look at Codespeed, ASV, Perfherder,
+LNT and ReFrame.
 
-Every chart puts the **tool version on the x axis**, oldest on the left. A
-configuration runs on a handful of days a year, so a date axis left most of
-each chart blank; dates are in the tooltips and the tables instead. Within a
-version's band the runs sit in date order, and a bar across the band marks
-their median.
+The **index** leads with a summary line (latest passes, failures, stale
+configurations, drift warnings, the pinned builds) and a short "How to read
+this". A tool switch shows one tool at a time; without script both show.
+Then:
 
-The **index** leads with a summary line, tiles (active, stale and retired
-configurations, latest passes and failures, drift warnings) and a short
-"How to read this" key, then answers four questions:
-
+* *What the upgrade changed.* One version pair for every machine, named in
+  the heading (for example ParaView 6.0.1 &rarr; 6.2.1), with a selector for
+  the other pairs against the pinned build. Each cell is the vignette's median
+  time at the pinned build against its median at the older version, from runs
+  of the same vignette code, as a percentage. A cell is coloured only when the
+  change is real: at least 10% (`MIN_CHANGE`) and Welch's t-test on the runs at
+  the two versions gives p below 0.05 (`SIG_P`), the rule Perfherder uses.
+  Five steps: dark and light blue faster (more than 20%, 10 to 20%), no fill
+  within the noise, light and dark red slower. A dotted number had one run at
+  a version, so there is no spread to test it against; `--repeat 3` fixes
+  that. A change exactly at 10% counts, and one whose mean moved the other way
+  from its median is not coloured, since the t-test compares means. Below it,
+  the **biggest changes**: the real ones, largest first, as in ASV, each
+  linking to the vignette's page.
+* *Speed by version.* The whole suite's time at each version against the
+  same machine's current one, the geometric mean over vignettes of the
+  median-time ratio. One chart puts every machine on a shared axis, coloured
+  by site and labelled directly; then one panel per machine on its own scale,
+  never narrower than 0.8&times; to 1.25&times; so noise does not look like a
+  cliff, with the 1&times; line always drawn.
 * *Did everything pass?* A heatmap per tool of vignette by configuration,
   grouped by site: the latest result of each vignette there.
-* *Speed by tool version.* One small panel per machine, all on the tool's
-  shared scale: how long each earlier version took against the machine's
-  newest, the geometric mean over vignettes of the median-time ratio, with
-  the number of vignettes compared beside each point.
-* *What changed in the last upgrade?* Per vignette and machine, the median
-  time at the machine's newest version over its median at the version before,
-  as a percentage on a diverging scale (blue faster, red slower, grey within
-  10%), with a one-line summary of how many pairs moved. A pair whose vignette
-  changed between the two versions shows &ne; and is not compared.
+* *System changes.* The 20 most recent OS, kernel, GPU driver and CPU
+  governor changes on active configurations, from both tools' records
+  (`PLATFORM_FIELDS`); every change is also marked on the run histories. A
+  setting seen for the first time is not a change.
 * *Which machine is fastest?* Each vignette's latest time on every active
   configuration at the pinned version, on a log scale, coloured by site. Only
   runs of the vignette's newest known revision are set side by side.
+
+Run histories, on vignette and configuration pages, follow the layout of
+`plot_metrics.py`: **x is the machine's own run number**, so the months
+between runs leave no gaps (dates are in the tooltips and the tables). Colour
+and marker shape are the tool version: one blue ramp, light for old and dark
+for new, with a shape per version, so versions read in colour, shape and
+print. A hollow marker is not comparable with the latest run. A dashed amber
+line marks the first run after a system change; hover it for what changed.
 
 **Only runs of the same vignette revision are compared.** The vignettes
 change too: ex00 to ex06 were rewritten on 17 September 2026 and several
@@ -695,8 +718,7 @@ is a change to the vignette's own Python files that changes their code
 (compared as syntax trees, so comments, docstrings and layout do not count).
 Generated data fixtures (`data/*.py`) are not followed. Both summary charts
 compare within one revision; on a configuration page the runs of older
-revisions are drawn faded and left out of the median bars, and drift is
-judged within a revision. Each run's revision is in its table and in
+revisions are drawn hollow, and drift is judged within a revision. Each run's revision is in its table and in
 `records.json` (`vignette_revision`). The build needs the git history; in a
 copy without it every run is compared, and the build says so.
 
@@ -707,10 +729,12 @@ builds on today's vignettes, recorded later, does not replace it.
 Then the table of active configurations (last run, version, latest results,
 drift count) and the table of retired ones.
 
-Each **configuration page** has, per vignette, the run history, a chart per
-metric over the version axis (runs measured differently from the latest drawn
-faded; metrics whose every value is under 1 MB or 1 J left out as noise),
-drift, and every run with its build and baselines. `records.json` holds every
+Each **vignette page** (`v-<vignette>.html`) shows one vignette on every
+active machine: its latest result there, and a run-history panel per machine
+for execution time and for peak memory. Each **configuration page** has, per
+vignette, the result strip, a run-history chart per metric (metrics whose
+every value is under 1 MB or 1 J left out as noise), drift, and every run with
+its build and baselines. `records.json` holds every
 record flattened with its configuration, site, tool and vignette, for analysis
 elsewhere. The host name each record carries (`machine_info.node`, a compute
 node on the clusters) is left out of all of it, as are executable paths.
@@ -730,7 +754,7 @@ How to read the results:
 | unknown | the oldest records, which say neither |
 | drift n/a | no vignette there has the three earlier comparable runs the drift rule needs |
 | stale | no run for 30 days, or the last run used an older version than the suite pins (`CURRENT_PINS` in `dashboard.py`; move it with the pinned builds) |
-| &ne; | the vignette's code changed between the two versions' runs: different tests, not compared |
+| &middot; in the upgrade table | no runs of the same vignette code at both versions on that machine: not compared |
 | retired | listed in `Testing/retired_configurations.json`: never stale, left out of the summary charts, history and page kept |
 
 Nodes and GPU types come and go while the vignettes stay. When one leaves the
@@ -744,8 +768,11 @@ putting every retired configuration back on the front page as stale.
 ```
 
 ```bash
-python3 Testing/dashboard.py --out _site      # standard library only
-python3 -m http.server --directory _site      # look at it
+# The Pages layout: the landing page at the root, dashboard/ and gallery/
+python3 Testing/dashboard.py --out _site/dashboard   # standard library only
+python3 Testing/site_pages.py --out _site            # Pillow optional
+cp _site/root/index.html _site/
+python3 -m http.server --directory _site             # look at it
 ```
 
 `.github/workflows/dashboard.yml` builds it on a GitHub-hosted runner and
@@ -755,8 +782,8 @@ retired list or a vignette script; a pull
 request builds it and attaches the site as an artifact. Pages serves the
 `gh-pages` branch, which also holds the Docker badge at its root; each
 workflow replaces only its own files there. The dashboard workflow replaces
-`dashboard/` whole and writes a root `index.html` that sends visitors to
-it (published with `keep_files`, so the badge stays).
+`dashboard/` and `gallery/` whole and writes the landing page as the root
+`index.html` (published with `keep_files`, so the badge stays).
 
 ### Harness unit tests
 
@@ -771,9 +798,10 @@ need only psutil and run in about a second.
 | `test_docs_pins.py` | every module name and `--paraview_version` / `--visit_version` in the commands of this README and `ADD_YOUR_SITE.md`, and the default the `MODULES.sh` scripts load, matches `CURRENT_PINS` in `dashboard.py`. Move the pins and the recipes together. |
 | `test_check_submission.py` | `check_submission.py`, the checks a pull request of results must pass ([Add your site](ADD_YOUR_SITE.md)), and that every committed history file passes them |
 | `test_site_pages.py` | the gallery and landing page generator: default baseline set only, previews that never collide with each other or an image, URL-encoded paths, and every vignette number has its description in `ABOUT` |
+| `test_dashboard_redesign.py` | the dashboard's Welch t-test (checked against SciPy), the five change classes, system changes per run and their markers on the run charts, the version colour ramp, and the upgrade table's like-for-like cells |
 
 ```bash
-python3 -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_docs_pins.py Testing/test_check_submission.py Testing/test_site_pages.py
+python3 -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_docs_pins.py Testing/test_check_submission.py Testing/test_site_pages.py Testing/test_dashboard_redesign.py
 ```
 
 ## Drift warnings
