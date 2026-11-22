@@ -185,6 +185,51 @@ Knobs to turn during scale testing:
   keeps the image free of banding that changes with the rank count, which
   is 63,851 samples at 4096^3. Fewer is cheaper.
 
+## Repeats and large runs
+
+Every measured run is generated three times (`--repeats`, default 3), as
+`<id>_r01`, `<id>_r02` and `<id>_r03`, each with its own results directory
+and job; Paper 1's runs and the initialisations stay single (the repeats
+share the checkpoint). Each run's settings record `repeat_of`, `repeat`
+and `repeats`. One run is easily skewed by a noisy node or a busy file
+system (the Catalyst start-up swings between 6 and 25 s on the same
+build, Catalyst reader performance below), so a configuration is judged by
+the median of its repeats, as the regression suite does with `--repeat`.
+
+`orchestrate.py --submit` shuffles the submission order (the seed is
+printed; `--seed` reproduces an order, `--no-shuffle` keeps name order), so
+one configuration's repeats are spread over time rather than run back to
+back. It appends one line per submission (time, seed, run, nodes, Slurm job)
+to `<results-dir>/submissions.tsv`.
+
+`corpus_index.py` writes `<prefix>_repeats.csv` next to the index: per
+configuration, the number of runs and, for the reader and writer step,
+`Vis_Time`, `ADIOS_Wait` and io times, the median, minimum, maximum, spread
+and the outlier runs (further from the median than 3 scaled median absolute
+deviations, at least 10% of the median and at least 50 ms). With only two
+usable runs (a repeat failed) a spread over 25% is flagged instead. It prints the configurations
+with an outlier. Rerun an outlier as a fourth repeat rather than dropping
+it, and keep it in the corpus with its flag.
+
+Large runs (since 21 Nov 2026):
+* `workq` caps a job at 2048 nodes; the generator adds `#SBATCH --qos=ex`
+  to larger jobs and gives them at least an hour (start-up grows with the
+  node count).
+* James's standing OK covers jobs up to about 3500 nodes, and a few over
+  (the 3536-node 3328 + 208 layout: its ADIOS2 transport run was clean on
+  21 Nov 2026, job 16126972, 6 min 38 s; validate one Ascent and one Catalyst
+  run at that size before queueing its repeats). `orchestrate.py` holds anything
+  above 3500 nodes except the sizes in `APPROVED_SIZES` (3536) (the 4096-node strong, weak, hero and staging-sweep
+  runs) unless `--allow-over-limit <name part>` names it, which needs his
+  approval for those runs.
+* The in transit ladders (`SCALE_CONFIGS`, `PIPE_CONFIGS`,
+  `ADIOS_SWEEP_CONFIGS`) run to 2048 + 128, 3072 + 192 and 3328 + 208 nodes
+  (13 dragonfly groups), 4096^3 inline strong scaling adds 2048, 3072 and 3328 nodes, and `hero3072` (3072 +
+  192 at 8192^3) is the strong-scaling point below the 4096-node hero run.
+  3072 is exactly 12 of Shaheen III's 256-node dragonfly groups. A node
+  count that is not a power of two splits L unevenly by at most one cell
+  per rank (at 3072 nodes, 85 or 86 cells in z at 4096^3).
+
 ## Transport matrix (#72 step 1)
 `--paper xport` selects 16 short in transit jobs (101 steps, 6 outputs):
 
