@@ -1493,32 +1493,35 @@ def platform_of(record):
 
 
 def platform_changes(rows_by_vignette):
-    """[(timestamp, [(label, old, new)])]: every run where a setting changed.
+    """[(timestamp, [(label, old, new)])]: every run in which a setting changed.
 
-    rows_by_vignette: {vignette: [(ts, record)]}, one configuration. One
-    entry per run (its first record). A setting seen for the first time is
-    not a change; a run that does not record a setting (an older schema)
-    neither.
+    rows_by_vignette: {key: [(ts, record)]}, one configuration; key a
+    vignette or (tool, vignette). Every record is read in time order, so a
+    change seen only in a later record of a run (the VisIt half of a run id
+    shared with ParaView) still counts. A change is dated by its run's first
+    record. A setting seen for the first time is not a change; a record that
+    does not carry a setting (an older schema) neither.
     """
-    first_of_run = {}
-    for rows in rows_by_vignette.values():
-        for ts, record in rows:
-            key = record.get("run_id") or ts
-            if key not in first_of_run or ts < first_of_run[key][0]:
-                first_of_run[key] = (ts, record)
-    known, out = {}, []
-    for ts, record in sorted(first_of_run.values(), key=lambda item: item[0]):
-        changes = []
+    # By time only: two records with one timestamp must not compare dicts.
+    records = sorted(
+        ((ts, record) for rows in rows_by_vignette.values() for ts, record in rows),
+        key=lambda item: item[0],
+    )
+    run_start = {}
+    for ts, record in records:
+        run_start.setdefault(record.get("run_id") or ts, ts)
+    known, by_run = {}, {}
+    for ts, record in records:
+        values = platform_of(record)
         for field, label in PLATFORM_FIELDS:
-            value = platform_of(record).get(field)
+            value = values.get(field)
             if value is None:
                 continue
             if field in known and known[field] != value:
-                changes.append((label, known[field], value))
+                run = run_start[record.get("run_id") or ts]
+                by_run.setdefault(run, []).append((label, known[field], value))
             known[field] = value
-        if changes:
-            out.append((ts, changes))
-    return out
+    return sorted(by_run.items())
 
 
 def change_text(changes):
@@ -2159,7 +2162,28 @@ def render_speed(histories, states):
     out = []
     for tool in TOOLS:
         series = speed_series(histories, states, tool)
+        compared = {c for c, _ in series}
+        without = sorted(
+            (
+                c
+                for (c, t), st in histories.items()
+                if t == tool and not states[(c, t)]["retired"] and c not in compared
+            ),
+            key=site_order,
+        )
+        note = (
+            "<p class='note'>Not charted: {0}. Each has runs of today's vignettes "
+            "at one version only, so there is nothing to compare yet.</p>".format(
+                esc(", ".join(without))
+            )
+            if without
+            else ""
+        )
         if not series:
+            if without:
+                out.append(
+                    "<div data-tool='{0}'><h3>{0}</h3>{1}</div>".format(esc(tool), note)
+                )
             continue
         sites = sorted({site_of(c) for c, _ in series}, key=SITES.index)
         panels = "".join(
@@ -2175,12 +2199,13 @@ def render_speed(histories, states):
         )
         out.append(
             "<div data-tool='{0}'><h3>{0}</h3>{1}<div class='card scroll'>{2}</div>"
-            "<h4 class='sub-h'>Each machine on its own scale</h4>"
+            "{4}<h4 class='sub-h'>Each machine on its own scale</h4>"
             "<div class='panels'>{3}</div></div>".format(
                 esc(tool),
                 legend([(SITE_SLOT[s], s) for s in sites]),
                 svg_speed_combined(tool, series),
                 panels,
+                note,
             )
         )
     return "".join(out)
@@ -2195,7 +2220,10 @@ def render_system_changes(histories, states, limit=20):
     for (config, tool), vignettes in histories.items():
         if states[(config, tool)]["retired"]:
             continue
-        by_config.setdefault(config, {}).update(vignettes)
+        # (tool, vignette): one tool's history must not replace the other's.
+        by_config.setdefault(config, {}).update(
+            ((tool, v), rows) for v, rows in vignettes.items()
+        )
     for config, vignettes in by_config.items():
         for ts, changes in platform_changes(vignettes):
             for label, old, new in changes:
@@ -2237,7 +2265,9 @@ def vignette_label_html(vignette):
     return "<span class='n'>ex{0:02d}</span>{1}".format(n, esc(ABOUT[n][0]))
 
 
-def render_vignette_page(tool, vignette, histories, states, generated):
+def render_vignette_page(tool, vignette, histories, states, generated, style=None):
+    """One vignette on every active machine. style: the tool's VersionStyle
+    (build_site's), so a version has the same marker on every page."""
     n = vignette_number(vignette)
     about = ABOUT.get(n, ("", ""))[1]
     configs = sorted(
@@ -2248,11 +2278,12 @@ def render_vignette_page(tool, vignette, histories, states, generated):
         ),
         key=site_order,
     )
-    style = VersionStyle(
+    shown = {
         drift.tool_version(rec) or "unknown"
         for c in configs
         for _, rec in histories[(c, tool)][vignette]
-    )
+    }
+    style = style or VersionStyle(shown)
     latest = []
     for c in configs:
         for v, ts, record, _, _ in states[(c, tool)]["latest"]:
@@ -2344,7 +2375,7 @@ def render_vignette_page(tool, vignette, histories, states, generated):
             esc(vignette_title(vignette)),
             esc(about),
             "".join(latest),
-            version_legend(style),
+            version_legend(style, versions=shown),
             "".join(sections),
             "{0}-ex{1:02d}".format(tool.lower(), n if n is not None else 0),
             "https://github.com/jameskress/Visualization_Vignettes",
@@ -3013,7 +3044,9 @@ def render_config(config, tools, states, styles, generated):
         ),
         None,
     )
-    system = platform_changes({v: r for vs in tools.values() for v, r in vs.items()})
+    system = platform_changes(
+        {(t, v): r for t, vs in tools.items() for v, r in vs.items()}
+    )
     body = [
         "<p class='crumbs'><a href='index.html'>Results</a> &rsaquo; {0}</p>".format(
             esc(config)
@@ -3119,7 +3152,9 @@ def build_site(out_dir, repo_root=REPO_ROOT, generated=None, now=None):
                 continue
             with open(os.path.join(out_dir, vignette_page(vignette)), "w") as handle:
                 handle.write(
-                    render_vignette_page(tool, vignette, histories, states, generated)
+                    render_vignette_page(
+                        tool, vignette, histories, states, generated, styles[tool]
+                    )
                 )
             vignette_pages += 1
 

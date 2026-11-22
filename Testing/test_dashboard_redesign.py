@@ -82,6 +82,24 @@ class SystemChanges(unittest.TestCase):
         self.assertIn(("kernel", "5.14", "6.4"), what)
         self.assertIn(("GPU driver", "570", "575"), what)
 
+    def test_a_change_in_the_second_tool_of_a_shared_run_counts(self):
+        # ParaView and VisIt share run id r2; only VisIt's record, later in
+        # the run, shows the new kernel.
+        rows = {
+            ("ParaView", "ex00_pvQuery"): [
+                ("2026-10-01T10:00:00", record("r1", "5.14")),
+                ("2026-11-01T10:00:00", record("r2", "5.14")),
+            ],
+            ("VisIt", "ex00_visitQuery"): [
+                ("2026-10-01T11:00:00", record("r1", "5.14")),
+                ("2026-11-01T12:00:00", record("r2", "6.4")),
+            ],
+        }
+        changes = dashboard.platform_changes(rows)
+        self.assertEqual(
+            changes, [("2026-11-01T10:00:00", [("kernel", "5.14", "6.4")])]
+        )
+
     def test_run_chart_marks_the_first_run_after_a_change(self):
         # The change is dated by another vignette's record (10:00); this
         # vignette ran at 10:05 in the same run.
