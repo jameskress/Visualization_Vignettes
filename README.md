@@ -69,7 +69,17 @@ This repository is broadly divided into two sections:
 
 ## Getting Started
 
-There are two primary ways to use this repository, depending on your goals.
+There are two primary ways to use this repository, depending on your goals. To look around first, either of the quick options below needs nothing but Docker or a browser.
+
+**Run a vignette in two minutes.** With Docker installed, this pulls the published image (about 4.5 GB, ParaView 6.2.1) and renders `ex01_pvScreenshot` into a new folder on your computer, at `~/vv-try/ParaView_Vignettes/ex01_pvScreenshot/output/ex01_pvScreenshot.png`. It copies the vignette, the shared `Testing/` helpers and the bundled `data/` into that folder and runs it there, so the folder ends up holding the script, its results JSON and the image. If `~/vv-try` exists, pick another name. On Linux or macOS:
+
+```bash
+mkdir "$HOME/vv-try" && docker run --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v "$HOME/vv-try:/work" ghcr.io/jameskress/visualization_vignettes:latest bash -c 'cd /work && cp -r /app/Testing /app/data . && mkdir -p ParaView_Vignettes && cp -r /app/ParaView_Vignettes/ex01_pvScreenshot ParaView_Vignettes/ && pvbatch --force-offscreen-rendering ParaView_Vignettes/ex01_pvScreenshot/ex01_pvScreenshot.py'
+```
+
+`ex02_pvAnimation` (five frames, about a minute) and `ex10_pvColormapFidelity` run the same way with their folder names in place of `ex01_pvScreenshot`. The vignettes that read Silo (`ex03`, `ex04`) report themselves skipped, because the image's ParaView is built without the VisIt bridge, and VisIt itself is not in the image.
+
+**Open it in the browser.** [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/jameskress/Visualization_Vignettes?quickstart=1) starts the same image as a dev container with the miniapp built from the checkout. Choose the 4-core machine; [`.devcontainer/README.md`](./.devcontainer/README.md) lists what to run, and the same folder opens locally with VS Code Dev Containers.
 
 ### 1. Exploring ParaView & VisIt Vignettes
 
