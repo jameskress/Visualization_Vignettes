@@ -119,7 +119,8 @@ class Baselines(unittest.TestCase):
             )
         )
         # A vignette without a description falls back to its directory name.
-        self.assertIn("ex99 ex99_visitNew", gallery)
+        self.assertIn("ex99 ex99_visitNew</h3>", gallery)
+        self.assertIn("ex99 ex99_visitNew</a>", gallery)
         landing = read(os.path.join(out, "root", "index.html"))
         self.assertIn("href='dashboard/'", landing)
         self.assertIn("href='gallery/'", landing)
@@ -132,7 +133,7 @@ class Baselines(unittest.TestCase):
         out = os.path.join(self.repo, "_site")
         site_pages.build(out, self.repo)
         gallery = read(os.path.join(out, "gallery", "index.html"))
-        self.assertIn("ex01.preview.jpg' width='1' height='1'", gallery)
+        self.assertIn("ex01.png.preview.jpg' width='1' height='1'", gallery)
 
     def test_rebuild_drops_old_images(self):
         out = os.path.join(self.repo, "_site")

@@ -11,8 +11,9 @@ name: Results dashboard
 # dashboard/, gallery/ and the root index.html, and main.yml keeps every
 # file but its badge, so neither removes the other's.
 #
-# Runs on a GitHub-hosted runner: the generator is standard-library Python
-# and puts no load on the shared self-hosted runner. A pull request builds
+# Runs on a GitHub-hosted runner: the generators are standard-library
+# Python (plus Pillow from PyPI for the gallery's previews) and put no load
+# on the shared self-hosted runner. A pull request builds
 # the site and attaches it as an artifact to look at; only master publishes.
 on:
   push:

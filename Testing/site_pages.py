@@ -33,11 +33,9 @@ import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from dashboard import css, esc  # noqa: E402
+from dashboard import REPO_ROOT, SUITES, VIGNETTE_RE, css, esc  # noqa: E402
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REPO_URL = "https://github.com/jameskress/Visualization_Vignettes"
-SUITES = (("ParaView", "ParaView_Vignettes"), ("VisIt", "VisIt_Vignettes"))
 IMAGE = re.compile(r"\.(png|jpe?g)$", re.IGNORECASE)
 PREVIEW_PX = 480
 
@@ -99,7 +97,7 @@ def page(title, body, footer):
 
 
 def vignette_number(name):
-    match = re.match(r"ex(\d+)_", name)
+    match = VIGNETTE_RE.match(name)
     return int(match.group(1)) if match else None
 
 
@@ -173,7 +171,8 @@ def copy_images(found, out, repo=REPO_ROOT):
                 target = os.path.join(out, full)
                 os.makedirs(os.path.dirname(target), exist_ok=True)
                 shutil.copyfile(os.path.join(repo, path), target)
-                preview = os.path.splitext(full)[0] + ".preview.jpg"
+                # The whole name, extension too: foo.png and foo.jpg differ.
+                preview = full + ".preview.jpg"
                 size = _preview(target, os.path.join(out, preview))
                 if size is None:
                     preview = full
@@ -202,18 +201,23 @@ def _frames(paths, placed, tool, title):
     return "<div class='frames{0}'>{1}</div>".format(one, "".join(figures))
 
 
+def describe(n, entry):
+    """(title, sentence) for vignette n; an undescribed one goes by its name."""
+    return ABOUT.get(n, (next(iter(entry["dir"].values())), ""))
+
+
 def render_gallery(found, placed):
     numbers = sorted(found)
     toc = "".join(
         "<a href='#ex{0:02d}'>ex{0:02d} {1}</a>".format(
-            n, esc(ABOUT.get(n, ("", ""))[0])
+            n, esc(describe(n, found[n])[0])
         )
         for n in numbers
     )
     sections = []
     for n in numbers:
         entry = found[n]
-        title, about = ABOUT.get(n, (next(iter(entry["dir"].values())), ""))
+        title, about = describe(n, entry)
         columns = []
         for tool, suite in SUITES:
             if tool not in entry["dir"]:
