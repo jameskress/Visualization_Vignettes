@@ -219,8 +219,9 @@ python test_suite.py ~/Visualization_Vignettes/ \
   --machine_name local-machine --no-metrics
 ```
 
-A recorded run of both tools, three repeats, ex11 under Xvfb:
-`Testing/record_local_run.sh <run-id> <machine_name>` (RUNBOOK section 4).
+A recorded run of both tools, three repeats, ex11 under Xvfb, from the same
+`Testing/` directory: `./record_local_run.sh <run-id> <machine_name>` (RUNBOOK
+section 4).
 
 ---
 
@@ -239,6 +240,18 @@ runs ex11 under Xvfb where the node has it.
 | Shaheen `ppn`, Mesa (`shaheen3-mesa-ppn`) | `sbatch --export=ALL,VARIANT=mesa shaheen_ppn_pv_suite.sbat` | |
 | Shaheen `ppn`, GPU (`shaheen3-ppn-gpu-L40`; VisIt `shaheen3-ppn`) | `sbatch shaheen_ppn_pv_suite.sbat` | `sbatch shaheen_ppn_visit_suite.sbat` |
 
+* The scripts do not use the environments from the setup above. They
+  activate their own: on Ibex `$VV_IBEX_SW/venvs/vv` (default
+  `/ibex/scratch/$USER/hpcsaudi`), on Shaheen
+  `$SCRATCH_IOPS/sw/testing_paraview_env` and `testing_visit_env`, with numpy
+  for ParaView's Python in `sw/pv-site` beside them. Make them once per
+  machine before the first submission: RUNBOOK section 5 (Ibex), 6 and 7
+  (Shaheen).
+* VisIt does not build the shared fixtures (`data/topologies`,
+  `data/varying_series_xml`); ParaView's preparation does. Run the ParaView
+  suite in the clone first and let it finish, or copy those directories from
+  a clone that has them (RUNBOOK section 5). Submitting both at once does not
+  order them.
 * Ibex GPUs: `a100`, `v100`, `p100`, `rtx2080ti`, `gtx1080ti` (`p6000` is
   retired). Ibex caps CPUs per GPU (16 on an A100, 6 on a V100: use
   `--ntasks=2 --cpus-per-task=3` there); a GPU job takes no `--partition`.
