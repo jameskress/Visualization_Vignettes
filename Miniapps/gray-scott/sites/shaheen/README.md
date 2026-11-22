@@ -371,7 +371,8 @@ renders in 1024 x 1024 tiles by default; 0.9.5 did not tile. At our
 turns tiling back on for A/B runs), and the run's settings record
 it as `ascent_tiled_rendering` (`settings-stage.json` in transit,
 `settings.json` inline, and so in the reader's and simulation's
-`metadata.json`), so tiled and untiled runs can be told apart. Paper 1's
+`metadata.json`, and the corpus index's `ascent_tiled_rendering` column),
+so tiled and untiled runs can be told apart. Paper 1's
 templates stay as they ran (#71). The key needs Ascent 0.9.6; regenerating
 into a results directory written before it stops with an error, so use a
 new `--results-dir`. Reader `total_step` in seconds, two runs
