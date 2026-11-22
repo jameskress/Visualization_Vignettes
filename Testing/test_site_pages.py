@@ -135,6 +135,27 @@ class Baselines(unittest.TestCase):
         gallery = read(os.path.join(out, "gallery", "index.html"))
         self.assertIn("ex01.png.preview.jpg' width='1' height='1'", gallery)
 
+    def test_shared_stem_gets_two_previews(self):
+        """frame.png and frame.jpg must not write the same preview."""
+        base = os.path.join(
+            self.repo, "ParaView_Vignettes", "ex01_pvScreenshot", "Testing", "Baseline"
+        )
+        with open(os.path.join(base, "ex01.jpg"), "wb") as fh:
+            fh.write(PNG)
+        out = os.path.join(self.repo, "_site")
+        written = []
+
+        def preview(source, target):
+            written.append(target)
+            return (1, 1)
+
+        with mock.patch.object(site_pages, "_preview", side_effect=preview):
+            site_pages.build(out, self.repo)
+        previews = [os.path.basename(t) for t in written if "ex01." in t]
+        self.assertEqual(
+            sorted(previews), ["ex01.jpg.preview.jpg", "ex01.png.preview.jpg"]
+        )
+
     def test_rebuild_drops_old_images(self):
         out = os.path.join(self.repo, "_site")
         stale = os.path.join(out, "gallery", "img", "gone.png")
