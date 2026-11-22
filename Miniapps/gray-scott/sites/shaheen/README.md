@@ -973,7 +973,10 @@ The methods: `tar` has each reader node read the tarball from Lustre,
 nodes get nothing) and each node unpacks it, `auto` picks `sbcast` from
 `CATALYST_STAGE_SBCAST_MIN_NODES` (128) reader nodes. That threshold is an
 estimate: at 32 reader nodes `tar` took 1.2 to 3.9 s and `sbcast` 8.3 to
-8.8 s, and neither has been timed above 32.
+8.8 s, and neither has been timed above 32. Those times are from before each
+node checked the tarball's sha256 and the job recorded `ldd`; with both, at
+4 reader nodes, `tar` took 4.5 s and `sbcast` 10.1 s, and the frames stayed
+identical.
 
 Results at 512 + 32 nodes (22 Nov 2026, the RUNPATH build with #126, two
 runs per arm, interleaved; first update is the range over reader ranks of
