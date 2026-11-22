@@ -60,6 +60,7 @@ import json
 import math
 import os
 import re
+import shutil
 import statistics
 import subprocess
 import sys
@@ -1145,7 +1146,7 @@ align-items:center;padding-block:12px;padding-left:max(16px,env(safe-area-inset-
 padding-right:max(16px,env(safe-area-inset-right,0px))}
 .brand{font-weight:700;color:var(--ink);text-decoration:none;display:flex;gap:9px;
 align-items:center}
-.brand svg{width:22px;height:22px}
+.brand img{width:32px;height:32px;display:block}
 .sitebar nav{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px}
 .sitebar nav a{color:var(--ink2);text-decoration:none}
 .sitebar nav a.on{color:var(--ink);font-weight:600}
@@ -1284,14 +1285,23 @@ def css():
 FONTS = (
     "<link rel='stylesheet' href='https://fonts.googleapis.com/css2?family="
     "IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700"
-    "&display=swap'>"
+    "&display=swap'><link rel='icon' type='image/png' href='vv_logo.png'>"
 )
-BRAND_SVG = (
-    "<svg viewBox='0 0 24 24' aria-hidden='true'><circle cx='12' cy='12' r='10' "
-    "fill='none' stroke='currentColor' stroke-width='1.6'/><path d='M4 15c3-6 6 2 "
-    "9-3s5-3 7-1' fill='none' stroke='var(--accent)' stroke-width='2' "
-    "stroke-linecap='round'/></svg>"
-)
+# The project's mark (the multi-coloured V of the README banner), cut out of
+# data/images/visualization_vignettes_promo.png. Each generator copies it
+# next to its pages, so every page names it the same way.
+LOGO_FILE = os.path.join("data", "images", "vv_logo.png")
+LOGO_NAME = "vv_logo.png"
+BRAND_IMG = "<img src='{0}' alt='' width='32' height='32'>".format(LOGO_NAME)
+
+
+def copy_logo(out_dir, repo_root=REPO_ROOT):
+    """Put the logo beside the pages written to out_dir."""
+    source = os.path.join(repo_root, LOGO_FILE)
+    if os.path.isfile(source):
+        shutil.copyfile(source, os.path.join(out_dir, LOGO_NAME))
+
+
 REPO_URL = "https://github.com/jameskress/Visualization_Vignettes"
 
 
@@ -1309,7 +1319,7 @@ def site_header(here, root="../"):
         "Visualization Vignettes</a><nav aria-label='Site'>{2}</nav></div></header>"
     ).format(
         esc(root),
-        BRAND_SVG,
+        BRAND_IMG,
         "".join(
             "<a href='{0}'{1}>{2}</a>".format(
                 esc(href),
@@ -3166,6 +3176,7 @@ def build_site(out_dir, repo_root=REPO_ROOT, generated=None, now=None):
     with open(os.path.join(out_dir, "records.json"), "w") as handle:
         json.dump(records, handle, indent=1, sort_keys=True)
         handle.write("\n")
+    copy_logo(out_dir, repo_root)
     # GitHub Pages runs Jekyll on an upload unless told not to.
     open(os.path.join(out_dir, ".nojekyll"), "w").close()
     return len(by_config), len(records)
