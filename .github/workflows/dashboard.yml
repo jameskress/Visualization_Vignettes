@@ -2,12 +2,14 @@ name: Results dashboard
 
 # Builds the vignette results dashboard (Testing/dashboard.py) from the
 # committed performance_metrics records and publishes it to GitHub Pages at
-# https://jameskress.github.io/Visualization_Vignettes/dashboard/.
+# https://jameskress.github.io/Visualization_Vignettes/dashboard/, with the
+# landing page at the root and the gallery of baseline images at gallery/
+# (Testing/site_pages.py).
 #
 # Pages is served from the gh-pages branch, which also holds the Docker
 # badge that main.yml publishes at its root. This workflow replaces only
-# dashboard/, and main.yml keeps every file but its badge, so neither
-# removes the other's.
+# dashboard/, gallery/ and the root index.html, and main.yml keeps every
+# file but its badge, so neither removes the other's.
 #
 # Runs on a GitHub-hosted runner: the generator is standard-library Python
 # and puts no load on the shared self-hosted runner. A pull request builds
@@ -22,6 +24,8 @@ on:
       - 'ParaView_Vignettes/*/*.py'
       - 'VisIt_Vignettes/*/*.py'
       - 'Testing/drift.py'
+      - 'Testing/site_pages.py'
+      - '*_Vignettes/*/Testing/Baseline/**'
       - '.github/workflows/dashboard.yml'
   pull_request:
     branches: [ '**' ]
@@ -32,6 +36,8 @@ on:
       - 'ParaView_Vignettes/*/*.py'
       - 'VisIt_Vignettes/*/*.py'
       - 'Testing/drift.py'
+      - 'Testing/site_pages.py'
+      - '*_Vignettes/*/Testing/Baseline/**'
       - '.github/workflows/dashboard.yml'
   workflow_dispatch:
 
@@ -60,25 +66,12 @@ jobs:
           python-version: '3.12'
       - name: Generate
         run: python3 Testing/dashboard.py --out _site/dashboard
-      # The Pages root had no page (404); the site lives under dashboard/.
-      # A small page there sends visitors on. Published on its own, with
-      # keep_files, so the badge beside it stays.
-      - name: Root page
+      # The landing page and the gallery. Pillow makes the gallery's small
+      # previews; the generator still works without it, linking full images.
+      - name: Landing page and gallery
         run: |
-          mkdir -p _site/root
-          cat > _site/root/index.html <<'HTML'
-          <!doctype html>
-          <html lang="en"><head><meta charset="utf-8">
-          <meta name="viewport" content="width=device-width,initial-scale=1">
-          <title>Visualization Vignettes</title>
-          <meta http-equiv="refresh" content="0; url=dashboard/">
-          <link rel="canonical" href="dashboard/">
-          <style>body{font:16px/1.5 system-ui,sans-serif;margin:3em auto;max-width:40em;padding:0 1em}</style>
-          </head><body>
-          <h1>Visualization Vignettes</h1>
-          <p>The regression suite's results are on the <a href="dashboard/">dashboard</a>.</p>
-          </body></html>
-          HTML
+          python3 -m pip install --quiet 'pillow==11.2.1'
+          python3 Testing/site_pages.py --out _site
       - uses: actions/upload-artifact@v7
         with:
           name: dashboard
@@ -114,6 +107,7 @@ jobs:
             ':(glob)**/performance_metrics_*.json' Testing/dashboard.py \
             Testing/retired_configurations.json Testing/drift.py \
             ':(glob)ParaView_Vignettes/*/*.py' ':(glob)VisIt_Vignettes/*/*.py' \
+            Testing/site_pages.py ':(glob)*_Vignettes/*/Testing/Baseline/**' \
             .github/workflows/dashboard.yml)
           if git -C tip merge-base --is-ancestor "$NEWEST" "$SHA"; then
             echo "newest=true" >> "$GITHUB_OUTPUT"
@@ -150,6 +144,27 @@ jobs:
           publish_dir: site/dashboard
           destination_dir: dashboard
           commit_message: 'dashboard: ${{ github.sha }}'
+      # The gallery replaces gallery/ whole, like the dashboard.
+      - name: Publish the gallery
+        id: gallery
+        if: ${{ steps.tip.outputs.newest == 'true' }}
+        continue-on-error: true
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: site/gallery
+          destination_dir: gallery
+          commit_message: 'gallery: ${{ github.sha }}'
+      - name: Publish the gallery again if the branch moved
+        if: ${{ steps.tip.outputs.newest == 'true' && steps.gallery.outcome == 'failure' }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: site/gallery
+          destination_dir: gallery
+          commit_message: 'gallery: ${{ github.sha }}'
       # The root page, beside the badge: keep_files leaves every other file
       # on the branch alone. The dashboard steps above replace dashboard/
       # whole, so a page that is no longer generated disappears with it.

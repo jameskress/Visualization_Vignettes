@@ -28,7 +28,7 @@ This repository is broadly divided into two sections:
 
 ## Results dashboard
 
-Every vignette is also a regression test. The [**results dashboard**](https://jameskress.github.io/Visualization_Vignettes/dashboard/) shows the latest result of all 13 ParaView and 13 VisIt vignettes on every site and GPU configuration (a workstation, Ibex and Shaheen), and how each one's time, memory and other measurements moved across tool versions and runs. It is rebuilt from the committed records on every change.
+Every vignette is also a regression test. The [**results dashboard**](https://jameskress.github.io/Visualization_Vignettes/dashboard/) shows the latest result of all 13 ParaView and 13 VisIt vignettes on every site and GPU configuration (a workstation, Ibex and Shaheen), and how each one's time, memory and other measurements moved across tool versions and runs. It is rebuilt from the committed records on every change. The [**gallery**](https://jameskress.github.io/Visualization_Vignettes/gallery/) shows what each vignette draws, from the baseline images the suite compares every run against.
 
 <p align="center">
   <a href="https://jameskress.github.io/Visualization_Vignettes/dashboard/"><img src="data/images/dashboard_overview.png" alt="The results dashboard: summary tiles and every ParaView vignette passing on every configuration" width="720"></a>
@@ -59,6 +59,10 @@ Every vignette is also a regression test. The [**results dashboard**](https://ja
   * [**Results dashboard**](https://jameskress.github.io/Visualization_Vignettes/dashboard/)
 
     * The latest result of every vignette on every configuration, and how each one's measurements moved across tool versions and runs.
+
+  * [**Gallery**](https://jameskress.github.io/Visualization_Vignettes/gallery/)
+
+    * Every vignette's baseline images, ParaView and VisIt side by side.
 
   * [**Test Suite**](./Testing/README.md)
 
