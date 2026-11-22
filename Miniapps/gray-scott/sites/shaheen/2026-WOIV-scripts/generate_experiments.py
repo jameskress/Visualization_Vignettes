@@ -1184,6 +1184,62 @@ echo "PHASE post_end $(date +%s.%N)"
 exit $RUN_RC
 """
 
+# Backends that write one file per simulation rank (Catalyst's .vtpd, Ascent's
+# Blueprint domains, the baseline's .pvti) leave about 64 files per node: a
+# 3328-node Catalyst data run left 213,025, and the sweep's data runs would
+# fill the 2M-inode /scratch quota on their own (22 Nov 2026). The timings
+# are in the timers; the output is not read afterwards. The reduction job
+# records how many files and bytes the run wrote in <id>_data_output.json,
+# then deletes data/. ADIOS2 output (a few aggregated files) and render
+# images are kept.
+DATA_CLEANUP = """
+# 1a. Record and delete the run's per-rank output (DATA_CLEANUP). The record is
+#     written to a temporary file and renamed before anything is deleted; a
+#     retry for the same job keeps the first, complete record.
+DATA_RECORD="{results_dir}/{id}_data_output.json"
+if [ -d $OUTPUT_DIR/data ]; then
+    if [ -n "${{RUN_JOB_ID:-}}" ] && grep -q "\\"job\\": \\"${{RUN_JOB_ID}}\\"" "$DATA_RECORD" 2>/dev/null; then
+        echo "Output of job $RUN_JOB_ID already recorded; finishing its deletion."
+        RECORDED=1
+    else
+        echo "Counting the run's output in $OUTPUT_DIR/data..."
+        RECORDED=0
+        if find $OUTPUT_DIR/data -type f -printf '%s\\n' > $OUTPUT_DIR/data_sizes.txt \\
+            && awk -v job="${{RUN_JOB_ID:-}}" -v when="$(date +%FT%T)" \\
+                '{{n++; b+=$1}} END {{printf "{{\\"job\\": \\"%s\\", \\"files\\": %d, \\"bytes\\": %.0f, \\"deleted\\": \\"%s\\"}}\\n", job, n, b, when}}' \\
+                $OUTPUT_DIR/data_sizes.txt > "$DATA_RECORD.tmp" \\
+            && mv "$DATA_RECORD.tmp" "$DATA_RECORD"; then
+            RECORDED=1
+            cat "$DATA_RECORD"
+        else
+            echo "Could not record $OUTPUT_DIR/data; keeping it."
+            rm -f "$DATA_RECORD.tmp"
+        fi
+        rm -f $OUTPUT_DIR/data_sizes.txt
+    fi
+    if [ "$RECORDED" = 1 ]; then
+        echo "Deleting $OUTPUT_DIR/data..."
+        find $OUTPUT_DIR/data -type f -print0 | xargs -0 -r -n 2000 -P 16 rm -f
+        rm -rf $OUTPUT_DIR/data
+    fi
+fi
+"""
+
+
+def drops_data_output(exp):
+    """True for runs whose output is one file per rank (see DATA_CLEANUP)."""
+    if exp["workload"] == "initialization":
+        return False
+    if exp["backend"] == "baseline":
+        return True
+    backend = (
+        exp.get("stage_pipeline", "adios_data").split("_")[0]
+        if exp["type"] == "intransit"
+        else exp["backend"]
+    )
+    return exp["workload"] == "data_save" and backend != "adios"
+
+
 # One-node job that reduces a run's per-rank timings (#72). Written next to
 # each run as reduce.sbat and submitted by the run's job when it ends.
 REDUCE_TEMPLATE = """#!/bin/bash
@@ -1218,7 +1274,7 @@ if ! mkdir $LOCK 2>/dev/null; then
 fi
 echo "$SLURM_JOB_ID" > $LOCK/job
 trap 'rm -rf $LOCK' EXIT
-
+{data_cleanup}
 # Archive a directory atomically: write the archive under a temporary name,
 # rename it, then remove the directory.
 archive() {{
@@ -2912,6 +2968,9 @@ def generate_scripts(args):
             results_dir=args.results_dir,
             perf_env=args.perf_env,
             repo_path=args.repo_path,
+            data_cleanup=DATA_CLEANUP.format(results_dir=args.results_dir, id=exp["id"])
+            if drops_data_output(exp)
+            else "",
             telemetry_reduce=TELEMETRY_REDUCE.format(
                 repo_path=args.repo_path,
                 results_dir=args.results_dir,
