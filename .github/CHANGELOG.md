@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Highlights since 1.0.0
+
+Merged since 1.0.0 (March to November 2026; extend this list up to the
+release's last PR when cutting it). The sections
+after this one keep the detailed notes from the local validation work.
+
+**Gray-Scott miniapp**
+- A core library with CTest numerical regression on 1, 2 and 4 ranks, CMake
+  presets, a sanitizer preset with clean ASan/UBSan runs, and reproducible
+  noise from seed, step and global position (#47, #50, #53, #54).
+- One shared Blueprint mesh and ghost rules for every in situ backend
+  (Ascent, Catalyst, Kombyne-lite, PVTI, ADIOS2), with zero-copy checks,
+  per-step allocation counts and backend render checks (#62 to #67).
+- The in transit analysis reader: an ADIOS2 writer backend, deferred reads,
+  brick decomposition with shared planes exchanged between readers (now the
+  default), persistent field buffers, and engine parameters read from the
+  XML (#81, #91, #103, #110, #111, #119).
+- A structured performance log for every run, one step file per node,
+  opt-in telemetry (power, NIC, Darshan), the SST write-path split (EndStep
+  barrier and delivery latency), and provenance, platform and network
+  placement recorded for every run (#56, #109, #115, #122, #124).
+- Docs written for people: a rewritten README, a getting-started guide, a
+  tested Docker quick start, and `docs/in-situ-backends.md` (#49, #68, #87,
+  #105).
+
+**Regression suite and dashboard**
+- Baselines and recorded performance for ParaView 6.2.1 and VisIt 3.5.0 on
+  the workstation, Ibex (CPU and six GPU types) and Shaheen III (#95 to #102).
+- Trustworthy CPU and memory figures (PSS locally, Slurm accounting under
+  srun), `--repeat N` judged by the median, and the host environment in each
+  record (#104, #125).
+- The results dashboard, published at
+  <https://jameskress.github.io/Visualization_Vignettes/dashboard/>, with drift
+  warnings, a tool-version axis, like-for-like vignette revisions and retired
+  configurations (#107, #112, #116).
+
+**Docker image and CI**
+- The image moves to ParaView 6.2.1, ADIOS2 `release_213` at 8d7270164 and
+  Ascent 0.9.6 (#6, #127).
+- CI runs only what a change can affect, runs pre-commit on changed files,
+  and builds the arm64 image natively on GitHub's hosted arm64 runner, off
+  the shared self-hosted runner (#58, #70, #89, #121, #129).
+
+**Paper 2 tooling (Shaheen III)**
+- The experiment generator, orchestrator and large-run tools, with SST
+  transport and launch options, scaling matrices, phase timestamps and
+  per-job limits (#82, #84, #90, #94, #118).
+
+
+### Local validation notes
+
 Local validation of both suites against ParaView 6.1.0, VisIt 3.4.2 and
 VisIt 3.4.1, before taking them to Shaheen. `Testing/LOCAL_VALIDATION.md`
 carries the measurement behind each item below.

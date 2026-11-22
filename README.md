@@ -114,6 +114,8 @@ A step-by-step [**quick start with Docker**](./Miniapps/gray-scott/README.md#qui
 
 If you use this repository for your research, publications, or projects, we kindly ask that you cite it. This helps us track the impact of our work and justify its continued development.
 
+To cite the exact version you used, cite its release: each `vX.Y.Z` release on the [releases page](https://github.com/jameskress/Visualization_Vignettes/releases) has its notes and, once archived, a DOI ([how releases are made](./.github/RELEASING.md)).
+
 You can use the "Cite this repository" feature on the GitHub sidebar, which uses the included `CITATION.cff` file to generate formatted citations. For your convenience, here is a BibTeX entry you can copy directly:
 
 ```bibtex

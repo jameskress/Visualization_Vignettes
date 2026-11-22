@@ -1,0 +1,58 @@
+name: Release
+
+# Publishes a GitHub release when a version tag (vX.Y.Z) is pushed. The notes
+# are that version's section of .github/CHANGELOG.md, and the tag must match
+# CITATION.cff, which Zenodo reads to mint the release's DOI
+# (.github/RELEASING.md). Nothing here builds or tests; master's CI already has.
+on:
+  push:
+    tags: [ 'v[0-9]+.[0-9]+.[0-9]+' ]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish the release
+    runs-on: ubuntu-latest   # GitHub-hosted; keeps it off the shared runner
+    timeout-minutes: 10
+    permissions:
+      contents: write        # to create the release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0       # to check the tag is on master
+          persist-credentials: false
+      # A release (and its DOI) is permanent, so only a reviewed commit on
+      # master may become one.
+      - name: Check the tag is on master
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/master || { echo "::error::$GITHUB_REF_NAME is not on master"; exit 1; }
+      - name: Check CITATION.cff and the changelog against the tag
+        id: notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION=${TAG#v}
+          # A top-level CFF scalar, unquoted or in single or double quotes.
+          cff_field() {
+            sed -n "s/^$1: *[\"']\{0,1\}\([^\"']*\)[\"']\{0,1\} *\$/\1/p" CITATION.cff
+          }
+          CFF_VERSION=$(cff_field version)
+          CFF_DATE=$(cff_field date-released)
+          [ "$CFF_VERSION" = "$VERSION" ] || { echo "::error::CITATION.cff has version $CFF_VERSION, the tag is $TAG"; exit 1; }
+          echo "CITATION.cff: version $CFF_VERSION, released $CFF_DATE"
+          # The section from "## [X.Y.Z]" up to the next "## [".
+          # Compared as plain text, not a regex (the dots in X.Y.Z).
+          awk -v h="## [$VERSION]" '
+            index($0, h) == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' .github/CHANGELOG.md > notes.md
+          [ -s notes.md ] || { echo "::error::.github/CHANGELOG.md has no section ## [$VERSION]"; exit 1; }
+          grep -q "^## \[$VERSION\] - $CFF_DATE" .github/CHANGELOG.md \
+            || echo "::warning::the changelog date for $VERSION differs from CITATION.cff's date-released ($CFF_DATE)"
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" --title "$TAG" --notes-file notes.md --verify-tag
