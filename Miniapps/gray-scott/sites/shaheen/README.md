@@ -470,6 +470,14 @@ writes `reduce-<jobid>.out` and produces:
   Catalyst runs; see "Catalyst reader performance");
 * `perf/`, `reader_timers/` and `catalyst_timers/` are then compressed to
   `.tar.gz`, to save inodes.
+* for runs whose output is one file per simulation rank (Catalyst and
+  Ascent data runs, inline and in transit, and the baselines), the run's
+  `data/` is deleted first, after its file count and bytes are written to
+  `<results>/<id>_data_output.json`. A 3328-node Catalyst data run left
+  213,025 files (one per rank), and the data runs of one sweep would fill
+  the 2M-inode `/scratch` quota on their own (22 Nov 2026). The write cost
+  is in the timers; the output itself is not read afterwards. ADIOS2 output
+  (a few aggregated files) and render images are kept.
 
 `large-runs/audit_runs.py --results-dir <results>` lists runs that are missing, failed
 (time limit, out of memory, crash) or still running. If a run's reduction
