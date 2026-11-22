@@ -9,6 +9,10 @@ set(GS_GOLDEN ${CMAKE_CURRENT_SOURCE_DIR}/golden/regression_L64_s500.txt)
 # Extra mpiexec flags, e.g. --oversubscribe on a machine with fewer than 4 cores.
 set(GS_TEST_MPIEXEC_PREFLAGS "" CACHE STRING "Extra flags placed before the test executable in mpiexec")
 separate_arguments(_gs_preflags UNIX_COMMAND "${GS_TEST_MPIEXEC_PREFLAGS}")
+# The same flags, and FindMPI's MPIEXEC_PREFLAGS, as one string for the Python
+# checks (render, ghost volume), which build their own launch command (#139).
+list(JOIN MPIEXEC_PREFLAGS " " _gs_mpi_preflags)
+string(STRIP "${_gs_mpi_preflags} ${GS_TEST_MPIEXEC_PREFLAGS}" _gs_py_preflags)
 
 set(_gs_hashes "")
 foreach(np 1 2 4)
@@ -47,7 +51,8 @@ endif()
 set(_gs_gv_dir ${CMAKE_CURRENT_BINARY_DIR}/ghost_volume)
 set(_gs_gv ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/ghost_volume/ghost_volume.py
            --exe $<TARGET_FILE:gray-scott> --workdir ${_gs_gv_dir}
-           --mpiexec ${MPIEXEC_EXECUTABLE} "--mpiexec-preflags=${GS_TEST_MPIEXEC_PREFLAGS}")
+           --mpiexec ${MPIEXEC_EXECUTABLE} "--mpiexec-numproc-flag=${MPIEXEC_NUMPROC_FLAG}"
+           "--mpiexec-preflags=${_gs_py_preflags}")
 set(_gs_gv_backends "")
 if(Python3_Interpreter_FOUND)
   if(ENABLE_CATALYST)
@@ -106,7 +111,8 @@ set(_gs_rc_backends "")
 if(Python3_Interpreter_FOUND AND _gs_no_pil EQUAL 0)
   set(_gs_rc ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/render/render_check.py
              --exe $<TARGET_FILE:gray-scott> --workdir ${CMAKE_CURRENT_BINARY_DIR}/render
-             --mpiexec ${MPIEXEC_EXECUTABLE} "--mpiexec-preflags=${GS_TEST_MPIEXEC_PREFLAGS}")
+             --mpiexec ${MPIEXEC_EXECUTABLE} "--mpiexec-numproc-flag=${MPIEXEC_NUMPROC_FLAG}"
+             "--mpiexec-preflags=${_gs_py_preflags}")
   if(ENABLE_CATALYST)
     add_test(NAME gs_render_catalyst COMMAND ${_gs_rc} --backend catalyst --catalyst-lib ${GS_CATALYST_IMPLEMENTATION_DIR})
     list(APPEND _gs_rc_backends catalyst)

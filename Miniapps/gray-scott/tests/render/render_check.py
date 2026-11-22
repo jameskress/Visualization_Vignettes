@@ -198,7 +198,9 @@ VIEWS = {
 def headless_env():
     env = dict(os.environ)
     env.pop("DISPLAY", None)
-    env["VTK_DEFAULT_OPENGL_WINDOW"] = "vtkEGLRenderWindow"
+    # EGL unless the caller chose a window: a ParaView built for OSMesa
+    # (Shaheen) has no EGL window (#139).
+    env.setdefault("VTK_DEFAULT_OPENGL_WINDOW", "vtkEGLRenderWindow")
     env["OMP_NUM_THREADS"] = env.get("OMP_NUM_THREADS", "2")
     return env
 
@@ -266,7 +268,11 @@ def run(args, np_):
         s.update(output_type="kombyne", kombynelite_script_path="render.yaml")
     (d / "settings.json").write_text(json.dumps(s, indent=1))
     env = headless_env()
-    cmd = [args.mpiexec, "-np", str(np_)] + args.mpiexec_preflags.split()
+    cmd = [
+        args.mpiexec,
+        args.mpiexec_numproc_flag,
+        str(np_),
+    ] + args.mpiexec_preflags.split()
     # -x (forward an environment variable) is Open MPI's option; MPICH and
     # Intel MPI reject it. Local ranks inherit env either way.
     if is_open_mpi(args.mpiexec):
@@ -337,6 +343,8 @@ def main():
     ap.add_argument("--ranks", type=int, default=4)
     ap.add_argument("--mpiexec", default="mpirun")
     ap.add_argument("--mpiexec-preflags", default="--oversubscribe")
+    # CMake passes MPIEXEC_NUMPROC_FLAG: srun takes -n, and reads -np as "-n p" (#139).
+    ap.add_argument("--mpiexec-numproc-flag", default="-np")
     ap.add_argument("--pvpython", default="pvpython")
     ap.add_argument("--catalyst-lib", default="")
     ap.add_argument("--tolerance", type=int, default=24)
