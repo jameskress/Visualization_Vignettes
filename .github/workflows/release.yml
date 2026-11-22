@@ -33,8 +33,12 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           VERSION=${TAG#v}
-          CFF_VERSION=$(sed -n 's/^version: *"\{0,1\}\([^"]*\)"\{0,1\} *$/\1/p' CITATION.cff)
-          CFF_DATE=$(sed -n 's/^date-released: *"\{0,1\}\([^"]*\)"\{0,1\} *$/\1/p' CITATION.cff)
+          # A top-level CFF scalar, unquoted or in single or double quotes.
+          cff_field() {
+            sed -n "s/^$1: *[\"']\{0,1\}\([^\"']*\)[\"']\{0,1\} *\$/\1/p" CITATION.cff
+          }
+          CFF_VERSION=$(cff_field version)
+          CFF_DATE=$(cff_field date-released)
           [ "$CFF_VERSION" = "$VERSION" ] || { echo "::error::CITATION.cff has version $CFF_VERSION, the tag is $TAG"; exit 1; }
           echo "CITATION.cff: version $CFF_VERSION, released $CFF_DATE"
           # The section from "## [X.Y.Z]" up to the next "## [".

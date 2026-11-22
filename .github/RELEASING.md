@@ -38,7 +38,9 @@ used (the Docker image of that commit is `ghcr.io/jameskress/visualization_vigne
 4. `.github/workflows/release.yml` checks that `CITATION.cff` matches the tag
    and that the changelog has the section, then publishes the release with that
    section as its notes. Zenodo picks the release up within minutes. If no DOI
-   appears on the first release, re-run the archive from Zenodo's GitHub page.
+   appears and Zenodo's GitHub page lists the release as failed, re-run it from
+   there. If the page does not list the release at all, Zenodo never received
+   it: contact Zenodo support with the repository and the tag.
 
 Tags such as `baselines/...` are not releases; the workflow only reacts to
 `vX.Y.Z`.
