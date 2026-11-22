@@ -1,20 +1,30 @@
-<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Visualization Vignettes</title><style>
-:root{color-scheme:light;--page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;
---ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--axis:#c3c2b7;
---ring:rgba(11,11,11,.10);--good:#0ca30c;--warn:#fab219;--bad:#d03b3b;
---good-soft:#d6f0d6;--bad-soft:#f7d9d9;--na:#efeee9;--mid:#f0efec;
---r-3:#1c5cab;--r-2:#5598e7;--r-1:#b7d3f6;--r1:#f5c2c1;--r2:#ec8584;--r3:#b8302f;
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Visualization Vignettes</title><link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap'><style>
+:root{color-scheme:light;--page:#f6f7f8;--surface:#ffffff;--ink:#0e1214;
+--ink2:#475057;--muted:#7b848a;--grid:#e1e4e6;--axis:#c2c8cc;
+--ring:rgba(14,18,20,.10);--good:#0ca30c;--warn:#fab219;--bad:#d03b3b;
+--good-soft:#d6f0d6;--bad-soft:#f7d9d9;--na:#eef1f3;--mid:#eef1f3;
+--accent:#0b5f73;--accent-ink:#ffffff;
+--fast2:#1c5cab;--fast1:#86b6ef;--slow1:#ec8584;--slow2:#b8302f;
+--on-strong:#ffffff;--on-mild:#0e1214;
+--v1:#86b6ef;--v2:#6da7ec;--v3:#5598e7;--v4:#3987e5;--v5:#2a78d6;--v6:#1c5cab;--v7:#0d366b;
+--sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+--mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
 --s0:#2a78d6;--s1:#eb6834;--s2:#1baf7a;--s3:#eda100;--s4:#e87ba4;--s5:#008300;--s6:#6250d6;--s7:#e34948;}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);--good-soft:#173d17;--bad-soft:#4a1d1d;--na:#262624;--mid:#383835;--r-3:#3987e5;--r-2:#256abf;--r-1:#184f95;--r1:#6b2423;--r2:#a83a39;--r3:#e66767;--s0:#3987e5;--s1:#d95926;--s2:#199e70;--s3:#c98500;--s4:#d55181;--s5:#008300;--s6:#9085e9;--s7:#e66767;}}
-:root[data-theme="dark"]{color-scheme:dark;--page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);--good-soft:#173d17;--bad-soft:#4a1d1d;--na:#262624;--mid:#383835;--r-3:#3987e5;--r-2:#256abf;--r-1:#184f95;--r1:#6b2423;--r2:#a83a39;--r3:#e66767;--s0:#3987e5;--s1:#d95926;--s2:#199e70;--s3:#c98500;--s4:#d55181;--s5:#008300;--s6:#9085e9;--s7:#e66767;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--page:#0c0f10;--surface:#15191b;--ink:#eef1f2;--ink2:#b9c1c6;--muted:#848d93;--grid:#262c2f;--axis:#384045;--ring:rgba(255,255,255,.10);--good-soft:#173d17;--bad-soft:#4a1d1d;--na:#1d2326;--mid:#1d2326;--accent:#5fb7c9;--accent-ink:#061417;--fast2:#5598e7;--fast1:#184f95;--slow1:#8f3534;--slow2:#e66767;--on-strong:#0e1214;--on-mild:#eef1f2;--v1:#184f95;--v2:#1c5cab;--v3:#256abf;--v4:#3987e5;--v5:#6da7ec;--v6:#9ec5f4;--v7:#cde2fb;--s0:#3987e5;--s1:#d95926;--s2:#199e70;--s3:#c98500;--s4:#d55181;--s5:#008300;--s6:#9085e9;--s7:#e66767;}}
+:root[data-theme="dark"]{color-scheme:dark;--page:#0c0f10;--surface:#15191b;--ink:#eef1f2;--ink2:#b9c1c6;--muted:#848d93;--grid:#262c2f;--axis:#384045;--ring:rgba(255,255,255,.10);--good-soft:#173d17;--bad-soft:#4a1d1d;--na:#1d2326;--mid:#1d2326;--accent:#5fb7c9;--accent-ink:#061417;--fast2:#5598e7;--fast1:#184f95;--slow1:#8f3534;--slow2:#e66767;--on-strong:#0e1214;--on-mild:#eef1f2;--v1:#184f95;--v2:#1c5cab;--v3:#256abf;--v4:#3987e5;--v5:#6da7ec;--v6:#9ec5f4;--v7:#cde2fb;--s0:#3987e5;--s1:#d95926;--s2:#199e70;--s3:#c98500;--s4:#d55181;--s5:#008300;--s6:#9085e9;--s7:#e66767;}
 *{box-sizing:border-box}
-body{margin:0;background:var(--page);color:var(--ink);
-font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:1240px;margin:0 auto;padding:20px 16px 64px}
-h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:36px 0 6px}
-h3{font-size:15px;margin:0 0 4px}
-p.lede{font-size:15px;color:var(--ink2);margin:4px 0 8px}
-.note{color:var(--ink2);font-size:13px;margin:2px 0 8px}
+body{margin:0;background:var(--page);color:var(--ink);font:14.5px/1.55 var(--sans)}
+main{max-width:76rem;margin:0 auto;padding-block:24px 64px;
+padding-left:max(16px,env(safe-area-inset-left,0px));
+padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{text-wrap:balance;line-height:1.2}
+h1{font-size:clamp(1.6rem,1.3rem + 1.4vw,2.3rem);font-weight:700;margin:0 0 8px;
+letter-spacing:-.01em}
+h2{font-size:1.3rem;font-weight:600;margin:0 0 6px}
+section{margin-top:40px}
+h3{font-size:1rem;font-weight:600;margin:0 0 4px}
+p.lede{font-size:1.05rem;color:var(--ink2);margin:4px 0 10px;max-width:68ch}
+.note{color:var(--ink2);font-size:13.5px;margin:2px 0 10px;max-width:72ch}
 h3 .unit,h4 .unit{color:var(--muted);font-weight:400;font-size:12px}
 .banner{background:var(--na);border-radius:8px;padding:8px 12px;color:var(--ink2)}
 .howto-box summary{color:var(--ink)}
@@ -64,15 +74,9 @@ svg .axis{stroke:var(--axis);stroke-width:1}
 svg .rowline{stroke:var(--grid);stroke-width:1;stroke-dasharray:2 3}
 svg .tick{fill:var(--muted);font-size:10px}
 svg .rowlabel{fill:var(--ink2);font-size:11px}
-svg .band{fill:var(--na);opacity:.7}
-svg .blabel{fill:var(--ink2);font-size:10px}
-svg .med{stroke:var(--ink2);stroke-width:2;stroke-linecap:round}
-svg .trend{fill:none;stroke:var(--axis);stroke-width:2}
 svg .ref{stroke:var(--ink2);stroke-width:1;stroke-dasharray:4 3}
-svg .vallabel{fill:var(--ink2);font-size:10px;font-variant-numeric:tabular-nums}
 svg .line{fill:none;stroke-width:2}
 svg .dot{stroke:var(--surface);stroke-width:2}
-svg .dot.faded{fill-opacity:.25;stroke-opacity:.4}
 svg .dot.drift{stroke:var(--ink);stroke-width:2}
 .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink2);
 margin:6px 0}
@@ -100,17 +104,8 @@ table.heat thead th{position:static}
 table.heat th.site{text-align:center;font-size:11px;border-bottom:2px solid var(--axis)}
 table.heat td.rowh{position:sticky;left:0;background:var(--surface);z-index:1;
 font-size:12px}
-.r-3{background:var(--r-3)}.r-2{background:var(--r-2)}.r-1{background:var(--r-1)}
-.r0{background:var(--mid)}.r1{background:var(--r1)}.r2{background:var(--r2)}
-.r3{background:var(--r3)}.cell.none{background:transparent;color:var(--muted)}
-.r-3,.r3{color:#fff}.r-2,.r-1,.r0,.r1,.r2{color:var(--ink)}
-table.heat td.chg{min-width:44px}
-.cell.changed{background:transparent;color:var(--ink2);outline:1px dashed var(--axis);
-outline-offset:-2px}
+.cell.none{background:transparent;color:var(--muted)}
 .note.empty{margin:24px 8px;color:var(--muted)}
-table.heat td.chg .cell{width:42px;font-size:11px;font-variant-numeric:tabular-nums}
-table.heat th.from{font-size:10px;font-weight:400;color:var(--muted);text-align:center;
-padding:2px}
 #tip{position:fixed;pointer-events:none;background:var(--surface);color:var(--ink);
 border:1px solid var(--ring);border-radius:6px;padding:4px 8px;font-size:12px;
 box-shadow:0 2px 8px rgba(0,0,0,.15);display:none;z-index:9;max-width:340px}
@@ -118,24 +113,238 @@ footer{color:var(--muted);font-size:12px;margin-top:40px}
 @media (max-width:600px){h1{font-size:20px}.tile .v{font-size:22px}
 table.heat th.col span{max-height:130px}.grid-charts{grid-template-columns:1fr}}
 .s0{stroke:var(--s0)}circle.s0,rect.s0{fill:var(--s0)}.swatch.s0{background:var(--s0)}.s1{stroke:var(--s1)}circle.s1,rect.s1{fill:var(--s1)}.swatch.s1{background:var(--s1)}.s2{stroke:var(--s2)}circle.s2,rect.s2{fill:var(--s2)}.swatch.s2{background:var(--s2)}.s3{stroke:var(--s3)}circle.s3,rect.s3{fill:var(--s3)}.swatch.s3{background:var(--s3)}.s4{stroke:var(--s4)}circle.s4,rect.s4{fill:var(--s4)}.swatch.s4{background:var(--s4)}.s5{stroke:var(--s5)}circle.s5,rect.s5{fill:var(--s5)}.swatch.s5{background:var(--s5)}.s6{stroke:var(--s6)}circle.s6,rect.s6{fill:var(--s6)}.swatch.s6{background:var(--s6)}.s7{stroke:var(--s7)}circle.s7,rect.s7{fill:var(--s7)}.swatch.s7{background:var(--s7)}
-.hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;
-margin:16px 0 4px}
-.hero img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;display:block;
-background:var(--na)}
-.links{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;
-margin:16px 0}
-.links a.card{display:block;text-decoration:none;margin:0}
-.links a.card:hover,.links a.card:focus-visible{border-color:var(--ink2)}
-.links .card p{margin:4px 0 0;color:var(--ink2)}
-.toc{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;margin:8px 0}
+[hidden]{display:none!important}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--accent);
+outline-offset:2px}
+.sitebar{background:var(--surface);border-bottom:1px solid var(--ring)}
+.sitebar .in{max-width:76rem;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px 22px;
+align-items:center;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));
+padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{font-weight:700;color:var(--ink);text-decoration:none;display:flex;gap:9px;
+align-items:center}
+.brand svg{width:22px;height:22px}
+.sitebar nav{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px}
+.sitebar nav a{color:var(--ink2);text-decoration:none}
+.sitebar nav a.on{color:var(--ink);font-weight:600}
+.eyebrow{font:500 11.5px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;
+color:var(--muted);margin:0 0 8px}
+.crumbs{font-size:13px;color:var(--muted);margin:0 0 10px}
+.summary{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:baseline;margin:6px 0 18px}
+.summary .big{font:500 2rem/1 var(--mono)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:3px 10px;
+border-radius:999px;background:var(--na);color:var(--ink2)}
+.pill .dot{width:8px;height:8px;border-radius:50%}
+.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}
+.js-only{display:none}
+.js .js-only{display:flex}
+.controls{flex-wrap:wrap;gap:10px 16px;align-items:center;margin:14px 0 10px}
+.seg{display:inline-flex;border:1px solid var(--ring);border-radius:8px;overflow:hidden}
+.seg button{font:500 14px var(--sans);padding:7px 14px;border:0;background:var(--surface);
+color:var(--ink2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+select{font:500 14px var(--sans);padding:7px 10px;border-radius:8px;
+border:1px solid var(--ring);background:var(--surface);color:var(--ink)}
+label.inline{display:inline-flex;gap:8px;align-items:center;font-size:14px;color:var(--ink2)}
+.pairtitle{font-size:1.05rem;margin:4px 0 8px}
+.pairview h3:not(.pairtitle){margin-top:22px}
+table.matrix{font-size:13px}
+table.matrix td.rowh{white-space:nowrap;padding:0 12px 0 0;position:sticky;left:0;
+background:var(--surface);z-index:1}
+table.matrix td.rowh a{color:var(--ink);text-decoration:none}
+table.matrix td.rowh a:hover{text-decoration:underline}
+.n{font-family:var(--mono);color:var(--muted);margin-right:6px}
+td.c{text-align:center;padding:0}
+td.c span{display:block;margin:2px;min-width:52px;height:30px;line-height:30px;
+border-radius:4px;font:12.5px var(--mono);color:var(--ink2)}
+td.c span.fast2,.key i.fast2,.bar b.fast2{background:var(--fast2);color:var(--on-strong)}
+td.c span.fast1,.key i.fast1,.bar b.fast1{background:var(--fast1);color:var(--on-mild)}
+td.c span.slow1,.key i.slow1,.bar b.slow1{background:var(--slow1);color:var(--on-mild)}
+td.c span.slow2,.key i.slow2,.bar b.slow2{background:var(--slow2);color:var(--on-strong)}
+td.c span.one,.key .one{text-decoration:underline dotted var(--muted);
+text-underline-offset:3px}
+td.c span.none{color:var(--axis)}
+.key{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:13px;
+color:var(--ink2);margin:10px 0 2px}
+.key i{display:inline-block;width:26px;height:14px;border-radius:3px;vertical-align:-2px;
+margin-right:6px}
+.key i.plain{border:1px solid var(--axis)}
+table.list{width:100%;font-size:13.5px}
+table.list th{font-weight:500;color:var(--muted);font-size:12px;border-bottom:1px solid var(--axis)}
+.bar{display:inline-block;position:relative;width:110px;height:12px;vertical-align:-1px}
+.bar::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;
+background:var(--axis)}
+.bar b{position:absolute;top:0;height:12px;border-radius:2px}
+.panels{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));
+gap:12px}
+.panels.wide{grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr))}
+.panel{background:var(--surface);border:1px solid var(--ring);border-radius:8px;
+padding:10px 12px 6px;min-width:0}
+.panel h4{display:flex;gap:6px;align-items:center}
+.panel .sub{font-size:12px;color:var(--muted)}
+.sub-h{font-size:14px;margin:18px 0 8px}
+svg.chart.wide{min-width:640px}
+svg .dlabel{fill:var(--ink2);font-size:11px}
+.howto{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 28px;font-size:13.5px}
+.howto div{display:grid;grid-template-columns:8.5rem minmax(0,1fr);gap:10px}
+.howto dt{flex:none}
+@media (max-width:760px){.howto{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:480px){.howto div{grid-template-columns:minmax(0,1fr);gap:2px}}
+svg .leader{fill:none;stroke-width:1;opacity:.55}
+svg .sys{stroke:var(--warn);stroke-width:1.5;stroke-dasharray:3 3}
+svg .hit{fill:transparent}
+svg .hollow{fill:none;stroke-width:1.4;stroke:var(--ink2)}
+.vs1{fill:var(--v1);stroke:var(--surface);stroke-width:1}.hollow.vh1{stroke:var(--v1)}.vs2{fill:var(--v2);stroke:var(--surface);stroke-width:1}.hollow.vh2{stroke:var(--v2)}.vs3{fill:var(--v3);stroke:var(--surface);stroke-width:1}.hollow.vh3{stroke:var(--v3)}.vs4{fill:var(--v4);stroke:var(--surface);stroke-width:1}.hollow.vh4{stroke:var(--v4)}.vs5{fill:var(--v5);stroke:var(--surface);stroke-width:1}.hollow.vh5{stroke:var(--v5)}.vs6{fill:var(--v6);stroke:var(--surface);stroke-width:1}.hollow.vh6{stroke:var(--v6)}.vs7{fill:var(--v7);stroke:var(--surface);stroke-width:1}.hollow.vh7{stroke:var(--v7)}
+svg .drift{stroke:var(--ink);stroke-width:2}
+svg.mk{width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px}
+.chip{font:12.5px var(--mono);padding:3px 8px;border-radius:5px;background:var(--na)}
+.chip .sym{font-weight:600}.chip.pass .sym{color:var(--good)}
+.chip.fail .sym,.chip.run-failed .sym{color:var(--bad)}
+
+.toc{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13.5px;margin:8px 0 4px}
+.toc b{font-weight:600;margin-right:4px}
 .vig{scroll-margin-top:12px}
-.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
-.pair h4{margin:6px 0 4px;font-size:13px;font-weight:600}
-.frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:4px}
-.frames.one{grid-template-columns:minmax(0,360px)}
+.frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.frames.one{grid-template-columns:minmax(0,420px)}
 .frames a{display:block}
-.frames img{width:100%;height:auto;display:block;border-radius:4px;background:var(--na)}
+.frames img{width:100%;height:auto;display:block;border-radius:5px;background:var(--na)}
 .frames figure{margin:0}
-.frames figcaption{font-size:11px;color:var(--muted);overflow:hidden;
+.frames figcaption{font-size:11.5px;color:var(--muted);overflow:hidden;
 text-overflow:ellipsis;white-space:nowrap}
-</style></head><body><main><h1>Visualization Vignettes</h1><p class='lede'>A cookbook of examples, best practices and training material for scientific and in situ visualization: runnable ParaView and VisIt vignettes, often tailored for HPC systems. Each vignette is also a regression test, run on every site and tool version.</p><div class='hero'><a href='gallery/#ex03'><img src='gallery/preview/ParaView_Vignettes/ex03_pvIsosurfaceAnimation/Testing/Baseline/ex03_contour_0002.png.jpg' loading='lazy' alt='ParaView ex03 Isosurface animation'></a><a href='gallery/#ex04'><img src='gallery/preview/ParaView_Vignettes/ex04_pvStreamlineAnimation/Testing/Baseline/ex04_0002.png.jpg' loading='lazy' alt='ParaView ex04 Streamlines'></a><a href='gallery/#ex09'><img src='gallery/preview/ParaView_Vignettes/ex09_pvMeshTopologies/Testing/Baseline/ex09_pvMeshTopologies_ragged.png.jpg' loading='lazy' alt='ParaView ex09 Mesh topologies'></a><a href='gallery/#ex10'><img src='gallery/preview/VisIt_Vignettes/ex10_visitColormapFidelity/Testing/Baseline/ex10_visitColormapFidelity_log.png.jpg' loading='lazy' alt='VisIt ex10 Colormap fidelity'></a><a href='gallery/#ex06'><img src='gallery/preview/VisIt_Vignettes/ex06_visitLargeData/Testing/Baseline/ex06_visit.png.jpeg.jpg' loading='lazy' alt='VisIt ex06 Large data'></a><a href='gallery/#ex02'><img src='gallery/preview/VisIt_Vignettes/ex02_visitAnimation/Testing/Baseline/ex02_visit_0002.png.jpg' loading='lazy' alt='VisIt ex02 Camera animation'></a></div><div class='links'><a class='card' href='dashboard/'><h3>Results dashboard</h3><p>The latest result of every vignette on every site and GPU configuration, and how time and memory moved across versions.</p></a><a class='card' href='gallery/'><h3>Gallery</h3><p>What each ParaView and VisIt vignette draws, from the images the regression suite checks against.</p></a><a class='card' href='https://github.com/jameskress/Visualization_Vignettes'><h3>Source and docs</h3><p>The vignettes, batch scripts for Ibex and Shaheen, the in situ examples and the test harness.</p></a></div><footer>Built by Testing/site_pages.py from <a href='https://github.com/jameskress/Visualization_Vignettes'>jameskress/Visualization_Vignettes</a>.</footer></main></body></html>
+.hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:32px;
+align-items:start}
+.hero .lede{font-size:1.1rem}
+.who{font-size:14.5px;color:var(--ink2);max-width:62ch}
+.who b{color:var(--ink);font-weight:600}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.btn{display:inline-flex;align-items:center;font:600 15px/1 var(--sans);padding:12px 18px;
+border-radius:8px;text-decoration:none;border:1px solid var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.ghost{color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;
+background:var(--ring);border:1px solid var(--ring);border-radius:10px;overflow:hidden}
+.stat{background:var(--surface);padding:16px 18px}
+.stat .v{font:500 1.9rem/1.1 var(--mono)}
+.stat .k{font-size:13px;color:var(--ink2);margin-top:4px}
+.stat.wide{grid-column:1/-1}
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.strip a{display:block;position:relative;border-radius:8px;overflow:hidden;
+background:var(--na)}
+.strip img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;
+transition:transform .25s ease}
+.strip a:hover img{transform:scale(1.03)}
+.strip span{position:absolute;left:8px;bottom:8px;background:rgba(8,12,14,.75);color:#fff;
+font:500 11.5px/1.2 var(--mono);padding:4px 7px;border-radius:5px}
+.ctas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.cta{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:var(--ink);
+min-width:0;margin:0}
+a.cta:hover{border-color:var(--accent)}
+.cta.span2{grid-column:span 2}
+.cta.full{grid-column:1/-1}
+.cta p{color:var(--ink2);font-size:14px;margin:0}
+.cta .go{margin-top:auto;color:var(--accent);font-weight:600;font-size:14px}
+.tag{font:500 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;
+color:var(--accent)}
+.cmd{display:flex;gap:8px;align-items:stretch}
+.cmd code{flex:1;min-width:0;overflow-x:auto;white-space:nowrap;font:12px/1.5 var(--mono);
+background:var(--na);padding:8px 10px;border-radius:6px}
+.cmd button{font:600 12px var(--sans);border:1px solid var(--ring);background:var(--surface);
+color:var(--ink);border-radius:6px;padding:0 10px;cursor:pointer}
+.inside{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.inside ol{margin:0;padding:0;list-style:none;font-size:14px}
+.inside li{display:grid;grid-template-columns:2.6em 1fr;gap:6px;padding:4px 0;
+border-bottom:1px solid var(--grid)}
+.inside li:last-child{border-bottom:0}
+.inside .d{color:var(--muted);font-size:13px}
+.kind{font:500 11px/1 var(--mono);color:var(--muted);letter-spacing:.06em;
+text-transform:uppercase;margin:12px 0 6px}
+@media (max-width:860px){.hero{grid-template-columns:minmax(0,1fr)}
+.ctas,.inside{grid-template-columns:repeat(2,minmax(0,1fr))}
+.strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.ctas,.inside{grid-template-columns:minmax(0,1fr)}
+.cta.span2{grid-column:auto}}
+@media (prefers-reduced-motion:reduce){.strip img{transition:none}}
+</style></head><body><header class='sitebar'><div class='in'><a class='brand' href=''><svg viewBox='0 0 24 24' aria-hidden='true'><circle cx='12' cy='12' r='10' fill='none' stroke='currentColor' stroke-width='1.6'/><path d='M4 15c3-6 6 2 9-3s5-3 7-1' fill='none' stroke='var(--accent)' stroke-width='2' stroke-linecap='round'/></svg>Visualization Vignettes</a><nav aria-label='Site'><a href='' class='on' aria-current='page'>Home</a><a href='dashboard/'>Results</a><a href='gallery/'>Gallery</a><a href='https://github.com/jameskress/Visualization_Vignettes/blob/master/Testing/ADD_YOUR_SITE.md'>Add your site</a><a href='https://github.com/jameskress/Visualization_Vignettes'>GitHub</a></nav></div></header><main>
+<section class='hero' style='margin-top:8px'>
+ <div>
+  <p class='eyebrow'>ParaView &middot; VisIt &middot; in situ &middot; HPC</p>
+  <h1>Small, tested examples of scientific visualization, from a laptop to a
+  supercomputer</h1>
+  <p class='lede'>Visualization Vignettes is a cookbook of runnable ParaView and VisIt
+  scripts, batch scripts for real clusters, and an in situ miniapp. Every vignette is
+  also a regression test, run on each site and tool version, so you can see that it
+  still works and how fast it runs.</p>
+  <p class='who'><b>For</b> researchers and students learning to visualize large data
+  on HPC systems, <b>for</b> HPC centres checking a new ParaView or VisIt build, and
+  <b>for</b> developers of in situ tools.</p>
+  <div class='btns'><a class='btn primary' href='#try'>Run a vignette in two
+  minutes</a><a class='btn ghost' href='dashboard/'>Browse the results</a></div>
+ </div>
+ <div class='stats'><div class='stat'><div class='v'>26</div><div class='k'>vignettes, the same 13 in each tool</div></div><div class='stat'><div class='v'>12</div><div class='k'>machine configurations at 3 sites</div></div><div class='stat'><div class='v'>10</div><div class='k'>tool versions tracked: ParaView 5.13.1 to 6.2.1, VisIt 3.4.1 to 3.5.0</div></div><div class='stat'><div class='v'>98.9%</div><div class='k'>187 of 189 latest results pass</div></div><div class='stat wide'><div class='k'>1,876 recorded runs since 2024-10, every one public in the repository.</div></div></div>
+</section>
+<section><div class='strip'><a href='gallery/#paraview-ex03' title='ParaView ex03 Isosurface animation: open in the gallery'><img src='gallery/preview/ParaView_Vignettes/ex03_pvIsosurfaceAnimation/Testing/Baseline/ex03_contour_0002.png.jpg' loading='lazy' alt='ParaView ex03 Isosurface animation baseline image'><span>ParaView ex03 Isosurface animation</span></a><a href='gallery/#paraview-ex04' title='ParaView ex04 Streamlines: open in the gallery'><img src='gallery/preview/ParaView_Vignettes/ex04_pvStreamlineAnimation/Testing/Baseline/ex04_0002.png.jpg' loading='lazy' alt='ParaView ex04 Streamlines baseline image'><span>ParaView ex04 Streamlines</span></a><a href='gallery/#paraview-ex06' title='ParaView ex06 Large data: open in the gallery'><img src='gallery/preview/ParaView_Vignettes/ex06_pvLargeData/Testing/Baseline/ex06.png.jpg' loading='lazy' alt='ParaView ex06 Large data baseline image'><span>ParaView ex06 Large data</span></a><a href='gallery/#paraview-ex09' title='ParaView ex09 Mesh topologies: open in the gallery'><img src='gallery/preview/ParaView_Vignettes/ex09_pvMeshTopologies/Testing/Baseline/ex09_pvMeshTopologies_ragged.png.jpg' loading='lazy' alt='ParaView ex09 Mesh topologies baseline image'><span>ParaView ex09 Mesh topologies</span></a><a href='gallery/#visit-ex02' title='VisIt ex02 Camera animation: open in the gallery'><img src='gallery/preview/VisIt_Vignettes/ex02_visitAnimation/Testing/Baseline/ex02_visit_0002.png.jpg' loading='lazy' alt='VisIt ex02 Camera animation baseline image'><span>VisIt ex02 Camera animation</span></a><a href='gallery/#visit-ex06' title='VisIt ex06 Large data: open in the gallery'><img src='gallery/preview/VisIt_Vignettes/ex06_visitLargeData/Testing/Baseline/ex06_visit.png.jpeg.jpg' loading='lazy' alt='VisIt ex06 Large data baseline image'><span>VisIt ex06 Large data</span></a><a href='gallery/#visit-ex10' title='VisIt ex10 Colormap fidelity: open in the gallery'><img src='gallery/preview/VisIt_Vignettes/ex10_visitColormapFidelity/Testing/Baseline/ex10_visitColormapFidelity_log.png.jpg' loading='lazy' alt='VisIt ex10 Colormap fidelity baseline image'><span>VisIt ex10 Colormap fidelity</span></a><a href='gallery/#visit-ex12' title='VisIt ex12 Extract regression: open in the gallery'><img src='gallery/preview/VisIt_Vignettes/ex12_visitExtractRegression/Testing/Baseline/ex12_visitExtractRegression_frame_000001.png.jpg' loading='lazy' alt='VisIt ex12 Extract regression baseline image'><span>VisIt ex12 Extract regression</span></a></div><p class='note' style='margin-top:8px'>The baseline images every run is
+compared against, ParaView then VisIt. Select one to open it in the gallery.</p></section>
+<section id='try'>
+ <p class='eyebrow'>Start here</p><h2>What you can do</h2>
+ <div class='ctas'>
+  <div class='card cta span2'><span class='tag'>2 minutes &middot; Docker</span>
+   <h3>Run a vignette</h3>
+   <p>Pulls the published image (ParaView 6.2.1, about 4.5 GB) and renders
+   <code>ex01_pvScreenshot</code> into a new folder, <code>~/vv-try</code>. Linux or
+   macOS:</p>
+   <div class='cmd'><code id='dockercmd'>mkdir &quot;$HOME/vv-try&quot; &amp;&amp; docker run --rm -e HOST_UID=$(id -u) -e HOST_GID=$(id -g) -v &quot;$HOME/vv-try:/work&quot; ghcr.io/jameskress/visualization_vignettes:latest bash -c &#x27;cd /work &amp;&amp; cp -r /app/Testing /app/data . &amp;&amp; mkdir -p ParaView_Vignettes &amp;&amp; cp -r /app/ParaView_Vignettes/ex01_pvScreenshot ParaView_Vignettes/ &amp;&amp; pvbatch --force-offscreen-rendering ParaView_Vignettes/ex01_pvScreenshot/ex01_pvScreenshot.py&#x27;</code><button type='button'
+   id='copybtn'>Copy</button></div>
+   <p>The folder must not exist yet, so nothing is overwritten. To try again after
+   a failed pull, use another name in both places, or remove the empty folder.</p>
+   <a class='go' href='https://codespaces.new/jameskress/Visualization_Vignettes?quickstart=1'>Or
+   open it in GitHub Codespaces &rarr;</a></div>
+  <a class='card cta' href='dashboard/'><span class='tag'>Results</span>
+   <h3>Browse the dashboard</h3><p>The latest result of every vignette on every
+   machine, what each tool upgrade changed, and each machine's history.</p>
+   <span class='go'>Open the dashboard &rarr;</span></a>
+  <a class='card cta' href='gallery/'><span class='tag'>Gallery</span>
+   <h3>See what each vignette draws</h3><p>Every baseline image, ParaView then VisIt,
+   in vignette order.</p><span class='go'>Open the gallery &rarr;</span></a>
+  <a class='card cta' href='https://github.com/jameskress/Visualization_Vignettes/blob/master/Testing/ADD_YOUR_SITE.md'><span class='tag'>Contribute</span>
+   <h3>Add your site</h3><p>Run the suite on your workstation or cluster and send the
+   results in a pull request. A check keeps names public and records valid.</p>
+   <span class='go'>Read the guide &rarr;</span></a>
+  <a class='card cta' href='https://github.com/jameskress/Visualization_Vignettes/blob/master/Miniapps/gray-scott/README.md'><span class='tag'>In situ</span>
+   <h3>Gray-Scott miniapp</h3><p>A reaction-diffusion simulation that renders while it
+   runs, with Ascent, Catalyst2, ADIOS2 and Kombyne back ends.</p>
+   <span class='go'>Open the miniapp &rarr;</span></a>
+  <a class='card cta full' href='https://github.com/jameskress/Visualization_Vignettes/blob/master/CITATION.cff'><span class='tag'>Cite</span>
+   <h3>Cite Visualization Vignettes</h3><p>Citation metadata is in
+   <code>CITATION.cff</code>; GitHub's "Cite this repository" button gives BibTeX and
+   APA. A Zenodo DOI comes with release 1.1.0.</p>
+   <span class='go'>Get the citation &rarr;</span></a>
+ </div>
+</section>
+<section>
+ <p class='eyebrow'>What's inside</p><h2>Thirteen vignettes in each tool, and in situ
+ examples</h2>
+ <p class='note'>Each number is the same exercise in ParaView and in VisIt, with batch
+ scripts for Ibex and Shaheen. ex00 to ex06 show how to do a thing; ex07 to ex12 check
+ that a thing still works and fail the suite when it changes.</p>
+ <div class='inside'>
+  <div class='card'><h3>How to do a thing</h3><ol><li><span class='n'>ex00</span><span>Query<br><span class='d'>Loads a dataset and checks its mesh statistics and metadata.</span></span></li><li><span class='n'>ex01</span><span>Screenshot<br><span class='d'>The basic rendering pipeline, saved as an image.</span></span></li><li><span class='n'>ex02</span><span>Camera animation<br><span class='d'>A camera path around the data, frame by frame.</span></span></li><li><span class='n'>ex03</span><span>Isosurface animation<br><span class='d'>An isovalue swept through the field.</span></span></li><li><span class='n'>ex04</span><span>Streamlines<br><span class='d'>Flow visualization with seeded streamlines.</span></span></li><li><span class='n'>ex05</span><span>Time series<br><span class='d'>One rendering per time step of a multi-step file.</span></span></li><li><span class='n'>ex06</span><span>Large data<br><span class='d'>A large dataset rendered in parallel.</span></span></li></ol></div>
+  <div class='card'><h3>Checks that it still works</h3><ol><li><span class='n'>ex07</span><span>Scaling<br><span class='d'>Isosurface extraction across rank counts; geometry must not change.</span></span></li><li><span class='n'>ex08</span><span>Backend check<br><span class='d'>Fails when a job that asked for a GPU renders in software.</span></span></li><li><span class='n'>ex09</span><span>Mesh topologies<br><span class='d'>One contour pipeline over several mesh types.</span></span></li><li><span class='n'>ex10</span><span>Colormap fidelity<br><span class='d'>One field through four transfer functions, each with a legend.</span></span></li><li><span class='n'>ex11</span><span>State verification<br><span class='d'>A saved session reloaded headlessly and stepped.</span></span></li><li><span class='n'>ex12</span><span>Extract regression<br><span class='d'>Image, data and numeric extracts side by side.</span></span></li></ol></div>
+  <div class='card'><h3>In situ</h3>
+   <div class='kind'>Miniapp</div><p class='note'>Gray-Scott reaction-diffusion, C++
+   and MPI, rendering in situ or in transit.</p>
+   <div class='kind'>Back ends</div><p class='note'>Ascent, Catalyst2 (ParaView),
+   ADIOS2, Kombyne.</p>
+   <div class='kind'>Vignettes</div><p class='note'><code>is00</code> zero-copy
+   adapter: hand a simulation's arrays to a visualization library without copying.</p>
+   <div class='kind'>Runs on</div><p class='note'>Docker, Codespaces, a workstation,
+   Ibex and Shaheen III.</p></div>
+ </div>
+</section><footer>Built by Testing/site_pages.py from <a href='https://github.com/jameskress/Visualization_Vignettes'>jameskress/Visualization_Vignettes</a>.</footer></main><script>
+var b=document.getElementById('copybtn');
+if(b){b.addEventListener('click',function(){var c=document.getElementById('dockercmd');
+function sel(){var r=document.createRange();r.selectNodeContents(c);
+getSelection().removeAllRanges();getSelection().addRange(r);b.textContent='Selected';}
+try{navigator.clipboard.writeText(c.textContent).then(function(){b.textContent='Copied';},sel);}
+catch(e){sel();}});}
+</script></body></html>
