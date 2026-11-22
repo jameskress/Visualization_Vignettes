@@ -42,7 +42,9 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - name: Install psutil
-        run: python -m pip install psutil
+      # Pillow (the version the Pages workflow pins) so the gallery's real
+      # preview path runs; test_previews_are_sized skips without it.
+      - name: Install test dependencies
+        run: python -m pip install psutil 'pillow==11.2.1'
       - name: Run
         run: python -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_dashboard_names.py Testing/test_docs_pins.py Testing/test_check_submission.py Testing/test_site_pages.py
