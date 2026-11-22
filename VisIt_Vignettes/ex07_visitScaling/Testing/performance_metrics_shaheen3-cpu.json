@@ -154,5 +154,239 @@
             "memory_total_gb": 376.4
         },
         "run_id": "shaheen3-cpu-2026-11-15"
+    },
+    "2026-11-17T06:23:01.654780": {
+        "test_name": "ex07_visitScaling",
+        "metrics_schema": 7,
+        "execution_time": 5.333505575180055,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 29.298,
+        "cpu_usage_percent": 549.3197595281583,
+        "cpu_user_seconds": 27.957,
+        "cpu_system_seconds": 1.34,
+        "memory_max_task_mb": 111.0,
+        "disk_read_mb": 188.31558227539062,
+        "disk_write_mb": 9.1552734375e-05,
+        "slurm_steps": [
+            "16037116.7"
+        ],
+        "energy_joules": 1502.0,
+        "energy_scope": "slurm-steps-whole-nodes",
+        "memory_usage_mb": 1049.9111328125,
+        "memory_usage": 1100911616.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.252246,
+        "load_1m_at_start": 2.3,
+        "load_1m_at_end": 2.76,
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 143.984375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ca3fc6b6c01c"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00142",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 384,
+            "cpu_model": "AMD EPYC 9654 96-Core Processor",
+            "memory_total_gb": 376.4,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-cpu-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-17T06:36:01.648409": {
+        "test_name": "ex07_visitScaling",
+        "metrics_schema": 7,
+        "execution_time": 5.558420219421386,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 30.437,
+        "cpu_usage_percent": 547.5836442457457,
+        "cpu_user_seconds": 29.114,
+        "cpu_system_seconds": 1.323,
+        "memory_max_task_mb": 179.67578125,
+        "disk_read_mb": 209.7481346130371,
+        "disk_write_mb": 9.1552734375e-05,
+        "slurm_steps": [
+            "16037116.19"
+        ],
+        "energy_joules": 1554.0,
+        "energy_scope": "slurm-steps-whole-nodes",
+        "memory_usage_mb": 1514.5078125,
+        "memory_usage": 1588076544.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.476166,
+        "load_1m_at_start": 2.88,
+        "load_1m_at_end": 3.29,
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 159.26171875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ca3fc6b6c01c"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00142",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 384,
+            "cpu_model": "AMD EPYC 9654 96-Core Processor",
+            "memory_total_gb": 376.4,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-cpu-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-17T06:49:03.485312": {
+        "test_name": "ex07_visitScaling",
+        "metrics_schema": 7,
+        "execution_time": 5.3134801254272475,
+        "memory_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 29.058,
+        "cpu_usage_percent": 546.8732227103889,
+        "cpu_user_seconds": 27.71,
+        "cpu_system_seconds": 1.347,
+        "memory_max_task_mb": 111.0,
+        "disk_read_mb": 199.03185272216797,
+        "disk_write_mb": 9.1552734375e-05,
+        "slurm_steps": [
+            "16037116.31"
+        ],
+        "energy_joules": 38.0,
+        "energy_scope": "slurm-steps-whole-nodes",
+        "memory_usage_mb": 1058.5966796875,
+        "memory_usage": 1110019072.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.230374,
+        "load_1m_at_start": 2.4,
+        "load_1m_at_end": 2.85,
+        "job_owns_its_nodes": true,
+        "harness_rss_mb": 147.43359375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.4.2",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "ca3fc6b6c01c"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "69ef4f0d086f",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "nid00142",
+            "release": "6.4.0-150700.53.84-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Oct  6 14:42:26 UTC 2026 (c0f83a7)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.4.2",
+            "logical_cpus": 384,
+            "cpu_model": "AMD EPYC 9654 96-Core Processor",
+            "memory_total_gb": 376.4,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance"
+        },
+        "run_id": "shaheen3-cpu-backfill-visit-3.4.2-2026-11-17"
     }
 }
