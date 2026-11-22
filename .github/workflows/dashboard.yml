@@ -28,6 +28,7 @@ on:
       - 'VisIt_Vignettes/*/*.py'
       - 'Testing/drift.py'
       - 'Testing/site_pages.py'
+      - 'data/images/vv_logo.png'
       - '.github/workflows/dashboard.yml'
   pull_request:
     branches: [ '**' ]
@@ -41,6 +42,7 @@ on:
       - 'VisIt_Vignettes/*/*.py'
       - 'Testing/drift.py'
       - 'Testing/site_pages.py'
+      - 'data/images/vv_logo.png'
       - '.github/workflows/dashboard.yml'
   workflow_dispatch:
 
@@ -127,6 +129,7 @@ jobs:
             Testing/retired_configurations.json Testing/drift.py \
             ':(glob)ParaView_Vignettes/*/*.py' ':(glob)VisIt_Vignettes/*/*.py' \
             Testing/site_pages.py ':(glob)*_Vignettes/*/Testing/Baseline/**' \
+            data/images/vv_logo.png \
             .github/workflows/dashboard.yml)
           if git -C tip merge-base --is-ancestor "$NEWEST" "$SHA"; then
             echo "newest=true" >> "$GITHUB_OUTPUT"
