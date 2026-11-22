@@ -376,7 +376,10 @@ class NodeTelemetry(object):
                 sample = parse_nvidia_line(line)
                 if sample is not None:
                     self._gpu.setdefault(sample[0], []).append(sample[1:])
-        except (OSError, ValueError):
+            # Reap it as soon as it ends (at once on a node with no GPU), so
+            # no zombie waits for stop().
+            self._smi.wait()
+        except (OSError, ValueError, subprocess.SubprocessError):
             pass
 
     # -- control -----------------------------------------------------------
