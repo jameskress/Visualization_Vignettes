@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-22
+
 ### Highlights since 1.0.0
 
-Merged since 1.0.0 (March to November 2026; extend this list up to the
-release's last PR when cutting it). The sections
+Merged since 1.0.0 (March to November 2026, up to #144). The sections
 after this one keep the detailed notes from the local validation work.
 
 **Gray-Scott miniapp**
@@ -19,41 +20,64 @@ after this one keep the detailed notes from the local validation work.
   noise from seed, step and global position (#47, #50, #53, #54).
 - One shared Blueprint mesh and ghost rules for every in situ backend
   (Ascent, Catalyst, Kombyne-lite, PVTI, ADIOS2), with zero-copy checks,
-  per-step allocation counts and backend render checks (#62 to #67).
+  per-step allocation counts and backend render checks, after a halo and
+  restart audit (#51, #62 to #67).
 - The in transit analysis reader: an ADIOS2 writer backend, deferred reads,
   brick decomposition with shared planes exchanged between readers (now the
   default), persistent field buffers, and engine parameters read from the
-  XML (#81, #91, #103, #110, #111, #119).
+  XML; a Catalyst reader that renders on all 24 cores and stops the run
+  when a Catalyst script fails (#81, #91, #103, #108, #110, #111, #117,
+  #119).
 - A structured performance log for every run, one step file per node,
   opt-in telemetry (power, NIC, Darshan), the SST write-path split (EndStep
   barrier and delivery latency), and provenance, platform and network
-  placement recorded for every run (#56, #109, #115, #122, #124).
+  placement recorded for every run; the performance log is written before
+  the output closes, and teardown is bounded (#56, #77, #79, #109, #113,
+  #114, #115, #122, #124).
 - Docs written for people: a rewritten README, a getting-started guide, a
   tested Docker quick start, and `docs/in-situ-backends.md` (#49, #68, #87,
-  #105).
+  #105, #135).
+- The render and ghost-volume tests launch through CMake's MPI settings, so
+  ctest passes under srun on Shaheen (#55, #141).
 
 **Regression suite and dashboard**
 - Baselines and recorded performance for ParaView 6.2.1 and VisIt 3.5.0 on
-  the workstation, Ibex (CPU and six GPU types) and Shaheen III (#95 to #102).
+  the workstation, Ibex (CPU and six GPU types) and Shaheen III, with
+  `VV_VISIT_MODULE` and `--baseline-ref` for testing other builds, and
+  records backfilled for older ParaView and VisIt builds (#93, #95 to #102,
+  #123, #128, #131).
 - Trustworthy CPU and memory figures (PSS locally, Slurm accounting under
   srun), `--repeat N` judged by the median, and the host environment in each
   record (#104, #125).
 - The results dashboard, published at
   <https://jameskress.github.io/Visualization_Vignettes/dashboard/>, with drift
   warnings, a tool-version axis, like-for-like vignette revisions and retired
-  configurations (#107, #112, #116).
+  configurations, with no host names on the public site (#107, #112, #116,
+  #132).
+- A Pages landing page and a gallery of the baseline images, and an "add
+  your site" guide with the checks its pull request runs (#137, #142, #143).
 
 **Docker image and CI**
 - The image moves to ParaView 6.2.1, ADIOS2 `release_213` at 8d7270164 and
   Ascent 0.9.6 (#6, #127).
 - CI runs only what a change can affect, runs pre-commit on changed files,
   and builds the arm64 image natively on GitHub's hosted arm64 runner, off
-  the shared self-hosted runner (#58, #70, #89, #121, #129).
+  the shared self-hosted runner (#58, #61, #70, #74, #89, #121, #129).
+- Releases: this changelog, a release workflow on `vX.Y.Z` tags and Zenodo
+  archiving through `CITATION.cff` (#133).
 
 **Paper 2 tooling (Shaheen III)**
 - The experiment generator, orchestrator and large-run tools, with SST
   transport and launch options, scaling matrices, phase timestamps and
-  per-job limits (#82, #84, #90, #94, #118).
+  per-job limits, and a local harness for the generator's jobs (#80, #82,
+  #83, #84, #90, #94, #118).
+- The Shaheen stack moves to ParaView 6.2.1 (GCC 13), ADIOS2 8d7270164 and
+  Ascent 0.9.6, with Catalyst fixes (OSPRay, AcceleratedAlgorithms) and
+  Ascent's tiled rendering off in Paper 2 renders (#85, #126, #130, #134).
+- Sweeps: three repeats per configuration with outlier flags, `--qos=ex`
+  runs up to 3,536 nodes, Catalyst libraries staged on node-local disk, and
+  per-rank data output recorded and deleted after each run (#136, #138,
+  #144).
 
 
 ### Local validation notes
