@@ -62,7 +62,7 @@ Every vignette is also a regression test. The [**results dashboard**](https://ja
 
   * [**Gallery**](https://jameskress.github.io/Visualization_Vignettes/gallery/)
 
-    * Every vignette's baseline images, ParaView and VisIt side by side.
+    * Every vignette's baseline images, ParaView then VisIt, in vignette order.
 
   * [**Add your site**](./Testing/ADD_YOUR_SITE.md)
 

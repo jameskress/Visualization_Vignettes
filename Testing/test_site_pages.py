@@ -125,6 +125,32 @@ class Baselines(unittest.TestCase):
         self.assertIn("href='dashboard/'", landing)
         self.assertIn("href='gallery/'", landing)
 
+    def test_gallery_order(self):
+        """ParaView before VisIt, vignettes ex00 up, frames in natural order."""
+        base = os.path.join(
+            self.repo, "VisIt_Vignettes", "ex01_visitScreenshot", "Testing", "Baseline"
+        )
+        for name in ("f_10.png", "f_2.png"):
+            with open(os.path.join(base, name), "wb") as fh:
+                fh.write(PNG)
+        out = os.path.join(self.repo, "_site")
+        with mock.patch.object(site_pages, "_preview", return_value=None):
+            site_pages.build(out, self.repo)
+        gallery = read(os.path.join(out, "gallery", "index.html"))
+        order = [
+            gallery.index(marker)
+            for marker in (
+                "id='paraview-ex00'",
+                "id='paraview-ex01'",
+                "id='visit-ex01'",
+                "id='visit-ex99'",
+            )
+        ]
+        self.assertEqual(order, sorted(order))
+        self.assertLess(gallery.index("f_2.png"), gallery.index("f_10.png"))
+        # Each frame's caption names its vignette in the alt text.
+        self.assertIn("alt='VisIt Screenshot baseline: f_2.png'", gallery)
+
     def test_previews_are_sized(self):
         try:
             import PIL  # noqa: F401
@@ -208,8 +234,8 @@ class Baselines(unittest.TestCase):
             1: {"dir": {"VisIt": "ex01_<b>"}, "images": {"VisIt": []}, "sites": {}}
         }
         page = site_pages.render_gallery(found, {})
-        self.assertNotIn("<b>", page)
-        self.assertIn("ex01_&lt;b&gt;", page)
+        self.assertNotIn("ex01_<b>", page)
+        self.assertIn("ex01_%3Cb%3E", page)
 
 
 class RealRepository(unittest.TestCase):
