@@ -958,3 +958,94 @@ wait for its peers), and `--kill-on-bad-exit` ends the other program of an
 in transit job. The Python traceback is above the error in the job's
 stderr. A failed run keeps no per-step timings: they are written at the end
 of the run.
+
+## Catalyst node-local staging
+
+The first Catalyst step of an in transit reader costs far more than the
+steps after it, and most of that is start-up: Python starts in the first
+`catalyst_execute`, and importing `paraview.simple` and VTK's extension
+modules pages hundreds of shared libraries in from Lustre. At 64 + 4 nodes
+the slices' step 0 took 21.4 s, of which 11 s were imports (13.2k major page
+faults on one reader rank); `strace` shows only 1.5 s in file system calls,
+because the page-ins of `mmap`ed libraries are not system calls. Node page
+cache left by an earlier job did not predict a fast or slow run.
+
+`generate_experiments.py --catalyst-stage` copies ParaView's `lib/` to
+`/tmp/gs-catalyst-<job ID>` (local disk on Shaheen compute nodes, not tmpfs)
+on the reader nodes alone, before `PHASE run_start`, and removes it after
+the run. The directory is created with mode 700 and must not exist yet;
+each node checks its copy of the tarball against the recorded sha256 before
+unpacking it, and checks that Catalyst's libraries are there after. The copy
+is timed as `PHASE stage_start` / `stage_end` in the job output, apart from
+the run, and `<results>/<id>_stage.txt` records the times, the tarball and
+what the reader resolves from the copy (`ldd` on a reader node; the
+telemetry's `ldd.txt` shows the job-wide environment). The reader then loads Catalyst from the copy:
+`CATALYST_IMPLEMENTATION_PREFER_ENV=1` with `CATALYST_IMPLEMENTATION_PATHS`
+(ahead of the `catalyst_lib_path` the reader passes to `catalyst_initialize`),
+`CATALYST_LIB_DIR` for the plugins (#126) and the copy first on
+`LD_LIBRARY_PATH`. `catalyst_lib_path` in the run's settings stays the
+Lustre install, which names the build; `catalyst_stage` beside it records
+the method, the directory, the tarball and its sha256, and the generator
+refuses to mix staged and unstaged runs in one results directory. Only in
+transit Catalyst readers launched as one MPMD `srun` are staged: the
+two-step launch does not fix which nodes the reader gets.
+
+Three things are needed besides the option:
+
+- **The tarball**, once per ParaView install:
+  `sites/shaheen/build-catalyst-stage.sh <install>` writes
+  `<build dir>-lib.tar` and `.sha256` beside the build directory (for the
+  6.2.1 superbuild, `software/paraview-6.2.1-gcc13-build-lib.tar`, 0.9 GB:
+  `lib/` without `.debug` and static archives). The superbuild's LLVM,
+  OpenVKL, OSPRay modules, Embree, Mesa and `libcatalyst` name the install's
+  `lib/` by its absolute path in their own `DT_RPATH`, which the loader
+  searches before `LD_LIBRARY_PATH`, so the script rewrites those paths in
+  the packed copy to `$ORIGIN`-relative ones (622 libraries). Without that,
+  46 libraries of the staged reader still came from Lustre. The generator
+  checks the tarball against its `.sha256` before recording it.
+- **A reader linked with `DT_RUNPATH`:** add `-DGS_READER_RUNPATH=ON` to the
+  build's CMake options (`config.bash` leaves it off). The reader is linked
+  with `--disable-new-dtags` by default, and its `DT_RPATH`, which names the
+  Lustre install, beats `LD_LIBRARY_PATH`. With `RUNPATH` the job-wide
+  `LD_LIBRARY_PATH` (ParaView's `lib/` first) also decides between libraries
+  that ParaView and Ascent both ship: in practice `libz.so.1`, which then
+  comes from ParaView's zlib 1.3.1 instead of Ascent's (also 1.3.1). Ascent's
+  own libraries carry their own `RPATH`. Ascent slices from the two builds
+  differed by at most one pixel in one frame (channel difference 1 or 2),
+  as much as two runs of one build differ.
+- **#126** for the isosurface: its script loads the AcceleratedAlgorithms
+  plugin by path from `CATALYST_LIB_DIR`. By name, ParaView finds the plugin
+  only from the install it was built in, and a staged isosurface fails in
+  its first step; without #126 the generator refuses to stage it.
+- The generator refuses `--catalyst-stage` for a reader without
+  `DT_RUNPATH` (`readelf -d` on `--bin-path`'s `analysis-reader`).
+
+The methods: `tar` has each reader node read the tarball from Lustre,
+`sbcast` copies it to a placeholder step on the reader nodes (so the other
+nodes get nothing) and each node unpacks it, `auto` picks `sbcast` from
+`CATALYST_STAGE_SBCAST_MIN_NODES` (128) reader nodes. That threshold is an
+estimate: at 32 reader nodes `tar` took 1.2 to 3.9 s and `sbcast` 8.3 to
+8.8 s, and neither has been timed above 32. Those times are from before each
+node checked the tarball's sha256 and the job recorded `ldd`; with both, at
+4 reader nodes, `tar` took 4.5 s and `sbcast` 10.1 s, and the frames stayed
+identical.
+
+Results at 512 + 32 nodes (22 Nov 2026, the RUNPATH build with #126, two
+runs per arm, interleaved; first update is the range over reader ranks of
+the time from `catalyst_initialize` to the first pipeline update):
+
+| Pipeline | Arm | Copy (s) | Step 0 (s) | First update (s) | Steps 1+ (s) |
+| :--- | :--- | ---: | ---: | ---: | ---: |
+| slices | Lustre | | 26.4, 23.4 | 26.8 to 30.4 | 0.88, 0.89 |
+| slices | staged | 3.9 (tar), 8.8 (sbcast) | 2.8, 2.9 | 5.0 to 5.4 | 0.89, 0.88 |
+| isosurface | Lustre | | 44.7, 51.7 | 29.8 to 39.2 | 16.22, 16.78 |
+| isosurface | staged | 1.2 (tar), 8.3 (sbcast) | 22.1, 23.7 | 5.0 to 6.4 | 16.38, 16.44 |
+
+Every frame of every run was byte-identical within each pipeline, staged or
+not. A probe of one reader's `/proc/<pid>/maps` found 362 or 363 files of the
+6.2.1 install mapped from Lustre in each Lustre run and none in each staged run
+(all from `/tmp`). Staging takes 20 to 30 s off the first step, the steady
+state is unchanged, and the isosurface's first step still costs 6 to 7 s
+more than its later ones. At 64 + 4 nodes the slices' step 0 went from 21.4 s
+to 6.5 to 7.8 s with an earlier, partial stage (46 libraries still from
+Lustre); the fully staged isosurface's step 0 was 20.3 to 20.5 s.

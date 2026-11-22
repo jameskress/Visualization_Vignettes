@@ -43,7 +43,18 @@ add_executable(analysis-reader
   backend_factory.cpp
 )
 
-target_link_options(analysis-reader PRIVATE "-Wl,--disable-new-dtags")
+# The reader's library path is a DT_RPATH by default, which the dynamic
+# loader searches before LD_LIBRARY_PATH. GS_READER_RUNPATH writes a
+# DT_RUNPATH instead, searched after LD_LIBRARY_PATH, so a job can load
+# ParaView from a node-local copy put first on LD_LIBRARY_PATH
+# (generate_experiments.py --catalyst-stage). Off by default; turn it on only
+# in builds used with staging.
+option(GS_READER_RUNPATH "Link analysis-reader with DT_RUNPATH (LD_LIBRARY_PATH wins) instead of DT_RPATH" OFF)
+if(GS_READER_RUNPATH)
+  target_link_options(analysis-reader PRIVATE "-Wl,--enable-new-dtags")
+else()
+  target_link_options(analysis-reader PRIVATE "-Wl,--disable-new-dtags")
+endif()
 
 # Include directories from targets
 target_include_directories(analysis-reader PRIVATE
