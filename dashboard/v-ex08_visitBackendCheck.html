@@ -1,0 +1,237 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>VisIt ex08 Backend check</title><link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap'><style>
+:root{color-scheme:light;--page:#f6f7f8;--surface:#ffffff;--ink:#0e1214;
+--ink2:#475057;--muted:#7b848a;--grid:#e1e4e6;--axis:#c2c8cc;
+--ring:rgba(14,18,20,.10);--good:#0ca30c;--warn:#fab219;--bad:#d03b3b;
+--good-soft:#d6f0d6;--bad-soft:#f7d9d9;--na:#eef1f3;--mid:#eef1f3;
+--accent:#0b5f73;--accent-ink:#ffffff;
+--fast2:#1c5cab;--fast1:#86b6ef;--slow1:#ec8584;--slow2:#b8302f;
+--on-strong:#ffffff;--on-mild:#0e1214;
+--v1:#86b6ef;--v2:#6da7ec;--v3:#5598e7;--v4:#3987e5;--v5:#2a78d6;--v6:#1c5cab;--v7:#0d366b;
+--sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+--mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+--s0:#2a78d6;--s1:#eb6834;--s2:#1baf7a;--s3:#eda100;--s4:#e87ba4;--s5:#008300;--s6:#6250d6;--s7:#e34948;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--page:#0c0f10;--surface:#15191b;--ink:#eef1f2;--ink2:#b9c1c6;--muted:#848d93;--grid:#262c2f;--axis:#384045;--ring:rgba(255,255,255,.10);--good-soft:#173d17;--bad-soft:#4a1d1d;--na:#1d2326;--mid:#1d2326;--accent:#5fb7c9;--accent-ink:#061417;--fast2:#5598e7;--fast1:#184f95;--slow1:#8f3534;--slow2:#e66767;--on-strong:#0e1214;--on-mild:#eef1f2;--v1:#184f95;--v2:#1c5cab;--v3:#256abf;--v4:#3987e5;--v5:#6da7ec;--v6:#9ec5f4;--v7:#cde2fb;--s0:#3987e5;--s1:#d95926;--s2:#199e70;--s3:#c98500;--s4:#d55181;--s5:#008300;--s6:#9085e9;--s7:#e66767;}}
+:root[data-theme="dark"]{color-scheme:dark;--page:#0c0f10;--surface:#15191b;--ink:#eef1f2;--ink2:#b9c1c6;--muted:#848d93;--grid:#262c2f;--axis:#384045;--ring:rgba(255,255,255,.10);--good-soft:#173d17;--bad-soft:#4a1d1d;--na:#1d2326;--mid:#1d2326;--accent:#5fb7c9;--accent-ink:#061417;--fast2:#5598e7;--fast1:#184f95;--slow1:#8f3534;--slow2:#e66767;--on-strong:#0e1214;--on-mild:#eef1f2;--v1:#184f95;--v2:#1c5cab;--v3:#256abf;--v4:#3987e5;--v5:#6da7ec;--v6:#9ec5f4;--v7:#cde2fb;--s0:#3987e5;--s1:#d95926;--s2:#199e70;--s3:#c98500;--s4:#d55181;--s5:#008300;--s6:#9085e9;--s7:#e66767;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:14.5px/1.55 var(--sans)}
+main{max-width:76rem;margin:0 auto;padding-block:24px 64px;
+padding-left:max(16px,env(safe-area-inset-left,0px));
+padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{text-wrap:balance;line-height:1.2}
+h1{font-size:clamp(1.6rem,1.3rem + 1.4vw,2.3rem);font-weight:700;margin:0 0 8px;
+letter-spacing:-.01em}
+h2{font-size:1.3rem;font-weight:600;margin:0 0 6px}
+section{margin-top:40px}
+h3{font-size:1rem;font-weight:600;margin:0 0 4px}
+p.lede{font-size:1.05rem;color:var(--ink2);margin:4px 0 10px;max-width:68ch}
+.note{color:var(--ink2);font-size:13.5px;margin:2px 0 10px;max-width:72ch}
+h3 .unit,h4 .unit{color:var(--muted);font-weight:400;font-size:12px}
+.banner{background:var(--na);border-radius:8px;padding:8px 12px;color:var(--ink2)}
+.howto-box summary{color:var(--ink)}
+.howto{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+gap:6px 24px;margin:8px 0 0;font-size:13px}
+.howto div{display:flex;gap:10px}.howto dt{flex:0 0 96px;font-weight:600;color:var(--ink)}
+.howto dd{margin:0;color:var(--ink2)}
+.multiples{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+gap:10px;margin-top:6px}
+.panel h4{margin:0;font-size:13px;font-weight:600}.panel h4 a{text-decoration:none}
+.muted{color:var(--muted)}
+a{color:var(--ink)}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:10px;
+padding:12px 14px;margin:10px 0}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tall{max-height:72vh;overflow:auto}
+table{border-collapse:separate;border-spacing:0;width:100%;
+font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--grid);
+white-space:nowrap;vertical-align:top}
+thead th{position:sticky;top:0;background:var(--surface);z-index:2;
+color:var(--ink2);font-weight:600;font-size:12px}
+td.num,th.num{text-align:right}
+tr.stale td{color:var(--muted)}
+.badge{display:inline-block;font-size:11px;font-weight:400;border-radius:4px;
+padding:0 6px;margin-left:8px;border:1px solid var(--axis);color:var(--ink2);
+white-space:nowrap;vertical-align:middle}
+.badge.stale{background:var(--na)}
+.st{font-size:12px;white-space:nowrap}
+.st-pass{color:var(--good)}.st-fail{color:var(--bad);font-weight:600}
+.st-ran-ok{color:var(--ink2)}.st-run-failed{color:var(--bad)}.st-unknown{color:var(--muted)}
+.drift-flag{color:var(--ink);background:color-mix(in srgb,var(--warn) 35%,transparent);
+border-radius:4px;padding:0 5px;font-size:12px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;
+margin:14px 0}
+.tile{background:var(--surface);border:1px solid var(--ring);border-radius:10px;
+padding:10px 12px}
+.tile .v{font-size:26px;font-weight:600;line-height:1.2}
+.tile .k{font-size:12px;color:var(--ink2)}
+.grid-charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));
+gap:12px;margin-top:8px}
+.chart-box h4{margin:0;font-size:13px;font-weight:600}
+svg.chart{width:100%;height:auto;display:block}
+svg.chart.rows{max-width:860px}
+svg .grid{stroke:var(--grid);stroke-width:1}
+svg .axis{stroke:var(--axis);stroke-width:1}
+svg .rowline{stroke:var(--grid);stroke-width:1;stroke-dasharray:2 3}
+svg .tick{fill:var(--muted);font-size:10px}
+svg .rowlabel{fill:var(--ink2);font-size:11px}
+svg .ref{stroke:var(--ink2);stroke-width:1;stroke-dasharray:4 3}
+svg .line{fill:none;stroke-width:2}
+svg .dot{stroke:var(--surface);stroke-width:2}
+svg .dot.drift{stroke:var(--ink);stroke-width:2}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--ink2);
+margin:6px 0}
+.key{display:inline-flex;align-items:center;gap:6px}
+.swatch{width:10px;height:10px;border-radius:50%;display:inline-block}
+details{margin:8px 0}summary{cursor:pointer;color:var(--ink2)}
+.strip{display:flex;gap:2px;flex-wrap:nowrap}
+.cell{width:16px;height:16px;border-radius:3px;display:inline-block;
+font-size:10px;line-height:16px;text-align:center}
+.c-pass{background:var(--good);color:#fff}.c-fail{background:var(--bad);color:#fff}
+.c-ran-ok{background:var(--good-soft);color:var(--ink2)}
+.c-run-failed{background:var(--bad-soft);color:var(--bad)}
+.c-unknown{background:var(--na);color:var(--muted)}
+.cell.drift,td.hm.drift .cell{outline:2px solid var(--warn);outline-offset:-1px}
+table.heat{width:auto}
+table.heat td.hm{text-align:center;padding:2px;min-width:26px}
+table.heat td.hm .cell{width:22px;height:20px;line-height:20px;font-size:11px}
+table.heat th.col{text-align:center;vertical-align:bottom;padding:6px 2px;
+font-weight:600;font-size:12px}
+table.heat th.col span{display:inline-block;writing-mode:vertical-rl;
+transform:rotate(180deg);white-space:nowrap;overflow:hidden;
+text-overflow:ellipsis;max-height:210px}
+table.heat th.col.stale,table.heat th.col.stale a{color:var(--muted);font-weight:400}
+table.heat thead th{position:static}
+table.heat th.site{text-align:center;font-size:11px;border-bottom:2px solid var(--axis)}
+table.heat td.rowh{position:sticky;left:0;background:var(--surface);z-index:1;
+font-size:12px}
+.cell.none{background:transparent;color:var(--muted)}
+.note.empty{margin:24px 8px;color:var(--muted)}
+#tip{position:fixed;pointer-events:none;background:var(--surface);color:var(--ink);
+border:1px solid var(--ring);border-radius:6px;padding:4px 8px;font-size:12px;
+box-shadow:0 2px 8px rgba(0,0,0,.15);display:none;z-index:9;max-width:340px}
+footer{color:var(--muted);font-size:12px;margin-top:40px}
+@media (max-width:600px){h1{font-size:20px}.tile .v{font-size:22px}
+table.heat th.col span{max-height:130px}.grid-charts{grid-template-columns:1fr}}
+.s0{stroke:var(--s0)}circle.s0,rect.s0{fill:var(--s0)}.swatch.s0{background:var(--s0)}.s1{stroke:var(--s1)}circle.s1,rect.s1{fill:var(--s1)}.swatch.s1{background:var(--s1)}.s2{stroke:var(--s2)}circle.s2,rect.s2{fill:var(--s2)}.swatch.s2{background:var(--s2)}.s3{stroke:var(--s3)}circle.s3,rect.s3{fill:var(--s3)}.swatch.s3{background:var(--s3)}.s4{stroke:var(--s4)}circle.s4,rect.s4{fill:var(--s4)}.swatch.s4{background:var(--s4)}.s5{stroke:var(--s5)}circle.s5,rect.s5{fill:var(--s5)}.swatch.s5{background:var(--s5)}.s6{stroke:var(--s6)}circle.s6,rect.s6{fill:var(--s6)}.swatch.s6{background:var(--s6)}.s7{stroke:var(--s7)}circle.s7,rect.s7{fill:var(--s7)}.swatch.s7{background:var(--s7)}
+[hidden]{display:none!important}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--accent);
+outline-offset:2px}
+.sitebar{background:var(--surface);border-bottom:1px solid var(--ring)}
+.sitebar .in{max-width:76rem;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px 22px;
+align-items:center;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));
+padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{font-weight:700;color:var(--ink);text-decoration:none;display:flex;gap:9px;
+align-items:center}
+.brand svg{width:22px;height:22px}
+.sitebar nav{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px}
+.sitebar nav a{color:var(--ink2);text-decoration:none}
+.sitebar nav a.on{color:var(--ink);font-weight:600}
+.eyebrow{font:500 11.5px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;
+color:var(--muted);margin:0 0 8px}
+.crumbs{font-size:13px;color:var(--muted);margin:0 0 10px}
+.summary{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:baseline;margin:6px 0 18px}
+.summary .big{font:500 2rem/1 var(--mono)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:3px 10px;
+border-radius:999px;background:var(--na);color:var(--ink2)}
+.pill .dot{width:8px;height:8px;border-radius:50%}
+.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}
+.js-only{display:none}
+.js .js-only{display:flex}
+.controls{flex-wrap:wrap;gap:10px 16px;align-items:center;margin:14px 0 10px}
+.seg{display:inline-flex;border:1px solid var(--ring);border-radius:8px;overflow:hidden}
+.seg button{font:500 14px var(--sans);padding:7px 14px;border:0;background:var(--surface);
+color:var(--ink2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+select{font:500 14px var(--sans);padding:7px 10px;border-radius:8px;
+border:1px solid var(--ring);background:var(--surface);color:var(--ink)}
+label.inline{display:inline-flex;gap:8px;align-items:center;font-size:14px;color:var(--ink2)}
+.pairtitle{font-size:1.05rem;margin:4px 0 8px}
+.pairview h3:not(.pairtitle){margin-top:22px}
+table.matrix{font-size:13px}
+table.matrix td.rowh{white-space:nowrap;padding:0 12px 0 0;position:sticky;left:0;
+background:var(--surface);z-index:1}
+table.matrix td.rowh a{color:var(--ink);text-decoration:none}
+table.matrix td.rowh a:hover{text-decoration:underline}
+.n{font-family:var(--mono);color:var(--muted);margin-right:6px}
+td.c{text-align:center;padding:0}
+td.c span{display:block;margin:2px;min-width:52px;height:30px;line-height:30px;
+border-radius:4px;font:12.5px var(--mono);color:var(--ink2)}
+td.c span.fast2,.key i.fast2,.bar b.fast2{background:var(--fast2);color:var(--on-strong)}
+td.c span.fast1,.key i.fast1,.bar b.fast1{background:var(--fast1);color:var(--on-mild)}
+td.c span.slow1,.key i.slow1,.bar b.slow1{background:var(--slow1);color:var(--on-mild)}
+td.c span.slow2,.key i.slow2,.bar b.slow2{background:var(--slow2);color:var(--on-strong)}
+td.c span.one,.key .one{text-decoration:underline dotted var(--muted);
+text-underline-offset:3px}
+td.c span.none{color:var(--axis)}
+.key{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:13px;
+color:var(--ink2);margin:10px 0 2px}
+.key i{display:inline-block;width:26px;height:14px;border-radius:3px;vertical-align:-2px;
+margin-right:6px}
+.key i.plain{border:1px solid var(--axis)}
+table.list{width:100%;font-size:13.5px}
+table.list th{font-weight:500;color:var(--muted);font-size:12px;border-bottom:1px solid var(--axis)}
+.bar{display:inline-block;position:relative;width:110px;height:12px;vertical-align:-1px}
+.bar::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;
+background:var(--axis)}
+.bar b{position:absolute;top:0;height:12px;border-radius:2px}
+.panels{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));
+gap:12px}
+.panels.wide{grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr))}
+.panel{background:var(--surface);border:1px solid var(--ring);border-radius:8px;
+padding:10px 12px 6px;min-width:0}
+.panel h4{display:flex;gap:6px;align-items:center}
+.panel .sub{font-size:12px;color:var(--muted)}
+.sub-h{font-size:14px;margin:18px 0 8px}
+svg.chart.wide{min-width:640px}
+svg .dlabel{fill:var(--ink2);font-size:11px}
+.howto{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 28px;font-size:13.5px}
+.howto div{display:grid;grid-template-columns:8.5rem minmax(0,1fr);gap:10px}
+.howto dt{flex:none}
+@media (max-width:760px){.howto{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:480px){.howto div{grid-template-columns:minmax(0,1fr);gap:2px}}
+svg .leader{fill:none;stroke-width:1;opacity:.55}
+svg .sys{stroke:var(--warn);stroke-width:1.5;stroke-dasharray:3 3}
+svg .hit{fill:transparent}
+svg .hollow{fill:none;stroke-width:1.4;stroke:var(--ink2)}
+.vs1{fill:var(--v1);stroke:var(--surface);stroke-width:1}.hollow.vh1{stroke:var(--v1)}.vs2{fill:var(--v2);stroke:var(--surface);stroke-width:1}.hollow.vh2{stroke:var(--v2)}.vs3{fill:var(--v3);stroke:var(--surface);stroke-width:1}.hollow.vh3{stroke:var(--v3)}.vs4{fill:var(--v4);stroke:var(--surface);stroke-width:1}.hollow.vh4{stroke:var(--v4)}.vs5{fill:var(--v5);stroke:var(--surface);stroke-width:1}.hollow.vh5{stroke:var(--v5)}.vs6{fill:var(--v6);stroke:var(--surface);stroke-width:1}.hollow.vh6{stroke:var(--v6)}.vs7{fill:var(--v7);stroke:var(--surface);stroke-width:1}.hollow.vh7{stroke:var(--v7)}
+svg .drift{stroke:var(--ink);stroke-width:2}
+svg.mk{width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px}
+.chip{font:12.5px var(--mono);padding:3px 8px;border-radius:5px;background:var(--na)}
+.chip .sym{font-weight:600}.chip.pass .sym{color:var(--good)}
+.chip.fail .sym,.chip.run-failed .sym{color:var(--bad)}
+</style></head><body><header class='sitebar'><div class='in'><a class='brand' href='../'><svg viewBox='0 0 24 24' aria-hidden='true'><circle cx='12' cy='12' r='10' fill='none' stroke='currentColor' stroke-width='1.6'/><path d='M4 15c3-6 6 2 9-3s5-3 7-1' fill='none' stroke='var(--accent)' stroke-width='2' stroke-linecap='round'/></svg>Visualization Vignettes</a><nav aria-label='Site'><a href='../'>Home</a><a href='../dashboard/' class='on' aria-current='page'>Results</a><a href='../gallery/'>Gallery</a><a href='https://github.com/jameskress/Visualization_Vignettes/blob/master/Testing/ADD_YOUR_SITE.md'>Add your site</a><a href='https://github.com/jameskress/Visualization_Vignettes'>GitHub</a></nav></div></header><main><p class='crumbs'><a href='index.html'>Results</a> &rsaquo; VisIt</p><h1>VisIt ex08 Backend check</h1><p class='lede'>Fails when a job that asked for a GPU renders in software.</p><p><a href='../gallery/#visit-ex08'>Baseline images in the gallery</a> &middot; source: <a href='https://github.com/jameskress/Visualization_Vignettes/tree/master/VisIt_Vignettes/ex08_visitBackendCheck'>ex08_visitBackendCheck</a></p><h2>Latest result on each machine</h2><div class='chips'><span class='chip pass' title='all gates passed'><span class='sym'>&#10003;</span> workstation v3.5.0</span><span class='chip pass' title='all gates passed'><span class='sym'>&#10003;</span> ibex-cpu v3.5.0</span><span class='chip pass' title='all gates passed'><span class='sym'>&#10003;</span> ibex-gpu v3.5.0</span><span class='chip pass' title='all gates passed'><span class='sym'>&#10003;</span> shaheen3-cpu v3.5.0</span><span class='chip pass' title='all gates passed'><span class='sym'>&#10003;</span> shaheen3-ppn v3.5.0</span></div><p class='note'>One panel per machine, x its own run number, so months without runs leave no gaps. Colour and shape are the tool version. Hollow: not comparable with the latest run. A dashed amber line is a system change (OS, kernel, GPU driver); hover it for what changed.</p><div class="legend"><span class="key"><svg class="mk" viewBox="0 0 14 14" aria-hidden="true"><circle class="vs5" cx="7.0" cy="7.0" r="4.5"></circle></svg>v3.4.1</span><span class="key"><svg class="mk" viewBox="0 0 14 14" aria-hidden="true"><rect class="vs6" x="3.0" y="3.0" width="8.1" height="8.1"></rect></svg>v3.4.2</span><span class="key"><svg class="mk" viewBox="0 0 14 14" aria-hidden="true"><polygon class="vs7" points="7.0,1.6 12.2,10.6 1.8,10.6"></polygon></svg>v3.5.0</span><span class="key"><svg class="mk" viewBox="0 0 14 14" aria-hidden="true"><circle class="hollow" cx="7" cy="7" r="4.5"/></svg>not comparable (older vignette code or measured differently)</span><span class="key"><svg class="mk" viewBox="0 0 14 14" aria-hidden="true"><line class="sys" x1="7" x2="7" y1="0" y2="14"/></svg>system changed</span></div><h2>Execution time</h2><div class='panels wide'><div class='panel'><h4><span class='swatch s0'></span><a href='workstation.html#VisIt-ex08_visitBackendCheck'>workstation</a></h4><div class='sub'>8 runs &middot; 2026-09-21 to 2026-11-16 &middot; s</div><svg class="chart" viewBox="0 0 340 172" role="img" aria-label="Execution time per run"><line class="grid" x1="46" x2="330" y1="142.6" y2="142.6"/><text class="tick" x="41" y="146.1" text-anchor="end">1.8</text><line class="grid" x1="46" x2="330" y1="95.5" y2="95.5"/><text class="tick" x="41" y="99.0" text-anchor="end">2</text><line class="grid" x1="46" x2="330" y1="48.4" y2="48.4"/><text class="tick" x="41" y="51.9" text-anchor="end">2.2</text><line class="axis" x1="46" x2="330" y1="148" y2="148"/><text class="tick" x="86.6" y="165" text-anchor="middle">run 2</text><text class="tick" x="167.7" y="165" text-anchor="middle">run 4</text><text class="tick" x="248.9" y="165" text-anchor="middle">run 6</text><text class="tick" x="330.0" y="165" text-anchor="middle">run 8</text><rect class="hollow vh6" x="42.4" y="100.1" width="7.2" height="7.2" data-tip="Run 1 | 21 Sep 2026 | v3.4.2 | 1.97 s | not comparable: an older revision of the vignette, a4fdc7c (21 Sep 2026)"><title>Run 1 | 21 Sep 2026 | v3.4.2 | 1.97 s | not comparable: an older revision of the vignette, a4fdc7c (21 Sep 2026)</title></rect><circle class="hollow vh5" cx="86.6" cy="108.1" r="4" data-tip="Run 2 | 21 Sep 2026 | v3.4.1 | 1.95 s | not comparable: an older revision of the vignette, a4fdc7c (21 Sep 2026)"><title>Run 2 | 21 Sep 2026 | v3.4.1 | 1.95 s | not comparable: an older revision of the vignette, a4fdc7c (21 Sep 2026)</title></circle><rect class="hollow vh6" x="123.5" y="84.4" width="7.2" height="7.2" data-tip="Run 3 | 21 Oct 2026 | v3.4.2 | 2.03 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 3 | 21 Oct 2026 | v3.4.2 | 2.03 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></rect><polygon class="hollow vh7" points="167.7,85.3 172.3,93.3 163.1,93.3" data-tip="Run 4 | 13 Nov 2026 | v3.5.0 | 2.02 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 4 | 13 Nov 2026 | v3.5.0 | 2.02 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="208.3,49.1 212.9,57.1 203.7,57.1" data-tip="Run 5 | 14 Nov 2026 | v3.5.0 | 2.18 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 5 | 14 Nov 2026 | v3.5.0 | 2.18 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="248.9,61.1 253.5,69.1 244.3,69.1" data-tip="Run 6 | 15 Nov 2026 | v3.5.0 | 2.13 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 6 | 15 Nov 2026 | v3.5.0 | 2.13 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><circle class="vs5" cx="289.4" cy="101.4" r="4" data-tip="Run 7 | 16 Nov 2026 | v3.4.1 | 1.98 s"><title>Run 7 | 16 Nov 2026 | v3.4.1 | 1.98 s</title></circle><rect class="vs6" x="326.4" y="98.5" width="7.2" height="7.2" data-tip="Run 8 | 16 Nov 2026 | v3.4.2 | 1.97 s"><title>Run 8 | 16 Nov 2026 | v3.4.2 | 1.97 s</title></rect></svg></div><div class='panel'><h4><span class='swatch s1'></span><a href='ibex-cpu.html#VisIt-ex08_visitBackendCheck'>ibex-cpu</a></h4><div class='sub'>7 runs &middot; 2026-10-25 to 2026-11-17 &middot; s</div><svg class="chart" viewBox="0 0 340 172" role="img" aria-label="Execution time per run"><line class="grid" x1="46" x2="330" y1="120.2" y2="120.2"/><text class="tick" x="41" y="123.7" text-anchor="end">2.5</text><line class="grid" x1="46" x2="330" y1="69.6" y2="69.6"/><text class="tick" x="41" y="73.1" text-anchor="end">3</text><line class="grid" x1="46" x2="330" y1="19.0" y2="19.0"/><text class="tick" x="41" y="22.5" text-anchor="end">3.5</text><line class="axis" x1="46" x2="330" y1="148" y2="148"/><text class="tick" x="93.3" y="165" text-anchor="middle">run 2</text><text class="tick" x="188.0" y="165" text-anchor="middle">run 4</text><text class="tick" x="282.7" y="165" text-anchor="middle">run 6</text><rect class="hollow vh6" x="42.4" y="135.7" width="7.2" height="7.2" data-tip="Run 1 | 25 Oct 2026 | v3.4.2 | 2.31 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 1 | 25 Oct 2026 | v3.4.2 | 2.31 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></rect><polygon class="hollow vh7" points="93.3,28.0 97.9,36.0 88.7,36.0" data-tip="Run 2 | 13 Nov 2026 | v3.5.0 | 3.36 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 2 | 13 Nov 2026 | v3.5.0 | 3.36 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="140.7,131.3 145.3,139.3 136.1,139.3" data-tip="Run 3 | 14 Nov 2026 | v3.5.0 | 2.34 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 3 | 14 Nov 2026 | v3.5.0 | 2.34 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="188.0,133.0 192.6,141.0 183.4,141.0" data-tip="Run 4 | 15 Nov 2026 | v3.5.0 | 2.33 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 4 | 15 Nov 2026 | v3.5.0 | 2.33 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><rect class="vs6" x="231.7" y="43.6" width="7.2" height="7.2" data-tip="Run 5 | 17 Nov 2026 | v3.4.2 | 3.22 s"><title>Run 5 | 17 Nov 2026 | v3.4.2 | 3.22 s</title></rect><rect class="vs6" x="279.1" y="39.4" width="7.2" height="7.2" data-tip="Run 6 | 17 Nov 2026 | v3.4.2 | 3.26 s"><title>Run 6 | 17 Nov 2026 | v3.4.2 | 3.26 s</title></rect><rect class="vs6" x="326.4" y="19.1" width="7.2" height="7.2" data-tip="Run 7 | 17 Nov 2026 | v3.4.2 | 3.46 s"><title>Run 7 | 17 Nov 2026 | v3.4.2 | 3.46 s</title></rect></svg></div><div class='panel'><h4><span class='swatch s1'></span><a href='ibex-gpu.html#VisIt-ex08_visitBackendCheck'>ibex-gpu</a></h4><div class='sub'>4 runs &middot; 2026-11-15 to 2026-11-18 &middot; s</div><svg class="chart" viewBox="0 0 340 172" role="img" aria-label="Execution time per run"><line class="grid" x1="46" x2="330" y1="96.2" y2="96.2"/><text class="tick" x="41" y="99.7" text-anchor="end">20</text><line class="axis" x1="46" x2="330" y1="148" y2="148"/><text class="tick" x="46.0" y="165" text-anchor="middle">run 1</text><text class="tick" x="140.7" y="165" text-anchor="middle">run 2</text><text class="tick" x="235.3" y="165" text-anchor="middle">run 3</text><text class="tick" x="330.0" y="165" text-anchor="middle">run 4</text><polygon class="vs7" points="46.0,134.5 50.6,142.5 41.4,142.5" data-tip="Run 1 | 15 Nov 2026 | v3.5.0 | 9.72 s"><title>Run 1 | 15 Nov 2026 | v3.5.0 | 9.72 s</title></polygon><rect class="vs6" x="137.1" y="19.1" width="7.2" height="7.2" data-tip="Run 2 | 18 Nov 2026 | v3.4.2 | 37.6 s"><title>Run 2 | 18 Nov 2026 | v3.4.2 | 37.6 s</title></rect><rect class="vs6" x="231.7" y="19.8" width="7.2" height="7.2" data-tip="Run 3 | 18 Nov 2026 | v3.4.2 | 37.4 s"><title>Run 3 | 18 Nov 2026 | v3.4.2 | 37.4 s</title></rect><rect class="vs6" x="326.4" y="31.1" width="7.2" height="7.2" data-tip="Run 4 | 18 Nov 2026 | v3.4.2 | 34.7 s"><title>Run 4 | 18 Nov 2026 | v3.4.2 | 34.7 s</title></rect></svg></div><div class='panel'><h4><span class='swatch s2'></span><a href='shaheen3-cpu.html#VisIt-ex08_visitBackendCheck'>shaheen3-cpu</a></h4><div class='sub'>7 runs &middot; 2026-10-21 to 2026-11-17 &middot; s</div><svg class="chart" viewBox="0 0 340 172" role="img" aria-label="Execution time per run"><line class="grid" x1="46" x2="330" y1="109.2" y2="109.2"/><text class="tick" x="41" y="112.7" text-anchor="end">2.25</text><line class="grid" x1="46" x2="330" y1="58.4" y2="58.4"/><text class="tick" x="41" y="61.9" text-anchor="end">2.5</text><line class="axis" x1="46" x2="330" y1="148" y2="148"/><text class="tick" x="93.3" y="165" text-anchor="middle">run 2</text><text class="tick" x="188.0" y="165" text-anchor="middle">run 4</text><text class="tick" x="282.7" y="165" text-anchor="middle">run 6</text><g data-tip="System changed before run 2 (2026-11-13): kernel 6.4.0-150700.53.81-default → 6.4.0-150700.53.84-default"><title>System changed before run 2 (2026-11-13): kernel 6.4.0-150700.53.81-default → 6.4.0-150700.53.84-default</title><line class="sys" x1="69.7" x2="69.7" y1="8" y2="148"/><rect class="hit" x="64.7" y="8" width="10" height="140"/></g><rect class="hollow vh6" x="42.4" y="79.8" width="7.2" height="7.2" data-tip="Run 1 | 21 Oct 2026 | v3.4.2 | 2.38 s | not comparable: an older revision of the vignette, uncertain: a4fdc7c (21 Sep 2026) or later, the vignette changed before this run was committed"><title>Run 1 | 21 Oct 2026 | v3.4.2 | 2.38 s | not comparable: an older revision of the vignette, uncertain: a4fdc7c (21 Sep 2026) or later, the vignette changed before this run was committed</title></rect><polygon class="hollow vh7" points="93.3,89.0 97.9,97.0 88.7,97.0" data-tip="Run 2 | 13 Nov 2026 | v3.5.0 | 2.33 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 2 | 13 Nov 2026 | v3.5.0 | 2.33 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="140.7,66.4 145.3,74.4 136.1,74.4" data-tip="Run 3 | 14 Nov 2026 | v3.5.0 | 2.44 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 3 | 14 Nov 2026 | v3.5.0 | 2.44 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="188.0,64.1 192.6,72.1 183.4,72.1" data-tip="Run 4 | 15 Nov 2026 | v3.5.0 | 2.45 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 4 | 15 Nov 2026 | v3.5.0 | 2.45 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><rect class="vs6" x="231.7" y="64.8" width="7.2" height="7.2" data-tip="Run 5 | 17 Nov 2026 | v3.4.2 | 2.45 s"><title>Run 5 | 17 Nov 2026 | v3.4.2 | 2.45 s</title></rect><rect class="vs6" x="279.1" y="64.6" width="7.2" height="7.2" data-tip="Run 6 | 17 Nov 2026 | v3.4.2 | 2.45 s"><title>Run 6 | 17 Nov 2026 | v3.4.2 | 2.45 s</title></rect><rect class="vs6" x="326.4" y="74.9" width="7.2" height="7.2" data-tip="Run 7 | 17 Nov 2026 | v3.4.2 | 2.4 s"><title>Run 7 | 17 Nov 2026 | v3.4.2 | 2.4 s</title></rect></svg></div><div class='panel'><h4><span class='swatch s2'></span><a href='shaheen3-ppn.html#VisIt-ex08_visitBackendCheck'>shaheen3-ppn</a></h4><div class='sub'>7 runs &middot; 2026-10-25 to 2026-11-17 &middot; s</div><svg class="chart" viewBox="0 0 340 172" role="img" aria-label="Execution time per run"><line class="grid" x1="46" x2="330" y1="112.9" y2="112.9"/><text class="tick" x="41" y="116.4" text-anchor="end">2.25</text><line class="grid" x1="46" x2="330" y1="62.5" y2="62.5"/><text class="tick" x="41" y="66.0" text-anchor="end">2.5</text><line class="axis" x1="46" x2="330" y1="148" y2="148"/><text class="tick" x="93.3" y="165" text-anchor="middle">run 2</text><text class="tick" x="188.0" y="165" text-anchor="middle">run 4</text><text class="tick" x="282.7" y="165" text-anchor="middle">run 6</text><g data-tip="System changed before run 2 (2026-11-13): kernel 6.4.0-150700.53.81-default → 6.4.0-150700.53.84-default"><title>System changed before run 2 (2026-11-13): kernel 6.4.0-150700.53.81-default → 6.4.0-150700.53.84-default</title><line class="sys" x1="69.7" x2="69.7" y1="8" y2="148"/><rect class="hit" x="64.7" y="8" width="10" height="140"/></g><rect class="hollow vh6" x="42.4" y="83.4" width="7.2" height="7.2" data-tip="Run 1 | 25 Oct 2026 | v3.4.2 | 2.38 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 1 | 25 Oct 2026 | v3.4.2 | 2.38 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></rect><polygon class="hollow vh7" points="93.3,61.0 97.9,69.0 88.7,69.0" data-tip="Run 2 | 13 Nov 2026 | v3.5.0 | 2.48 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 2 | 13 Nov 2026 | v3.5.0 | 2.48 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="140.7,67.7 145.3,75.7 136.1,75.7" data-tip="Run 3 | 14 Nov 2026 | v3.5.0 | 2.45 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 3 | 14 Nov 2026 | v3.5.0 | 2.45 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="188.0,81.0 192.6,89.0 183.4,89.0" data-tip="Run 4 | 15 Nov 2026 | v3.5.0 | 2.38 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 4 | 15 Nov 2026 | v3.5.0 | 2.38 s | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><rect class="vs6" x="231.7" y="92.6" width="7.2" height="7.2" data-tip="Run 5 | 17 Nov 2026 | v3.4.2 | 2.33 s"><title>Run 5 | 17 Nov 2026 | v3.4.2 | 2.33 s</title></rect><rect class="vs6" x="279.1" y="78.9" width="7.2" height="7.2" data-tip="Run 6 | 17 Nov 2026 | v3.4.2 | 2.4 s"><title>Run 6 | 17 Nov 2026 | v3.4.2 | 2.4 s</title></rect><rect class="vs6" x="326.4" y="92.3" width="7.2" height="7.2" data-tip="Run 7 | 17 Nov 2026 | v3.4.2 | 2.33 s"><title>Run 7 | 17 Nov 2026 | v3.4.2 | 2.33 s</title></rect></svg></div></div><h2>Peak memory</h2><div class='panels wide'><div class='panel'><h4><span class='swatch s0'></span><a href='workstation.html#VisIt-ex08_visitBackendCheck'>workstation</a></h4><div class='sub'>8 runs &middot; 2026-09-21 to 2026-11-16 &middot; MB</div><svg class="chart" viewBox="0 0 340 172" role="img" aria-label="Peak memory per run"><line class="grid" x1="46" x2="330" y1="140.3" y2="140.3"/><text class="tick" x="41" y="143.8" text-anchor="end">300</text><line class="grid" x1="46" x2="330" y1="83.5" y2="83.5"/><text class="tick" x="41" y="87.0" text-anchor="end">400</text><line class="grid" x1="46" x2="330" y1="26.7" y2="26.7"/><text class="tick" x="41" y="30.2" text-anchor="end">500</text><line class="axis" x1="46" x2="330" y1="148" y2="148"/><text class="tick" x="86.6" y="165" text-anchor="middle">run 2</text><text class="tick" x="167.7" y="165" text-anchor="middle">run 4</text><text class="tick" x="248.9" y="165" text-anchor="middle">run 6</text><text class="tick" x="330.0" y="165" text-anchor="middle">run 8</text><rect class="hollow vh6" x="42.4" y="66.0" width="7.2" height="7.2" data-tip="Run 1 | 21 Sep 2026 | v3.4.2 | 424 MB | not comparable: an older revision of the vignette, a4fdc7c (21 Sep 2026)"><title>Run 1 | 21 Sep 2026 | v3.4.2 | 424 MB | not comparable: an older revision of the vignette, a4fdc7c (21 Sep 2026)</title></rect><circle class="hollow vh5" cx="86.6" cy="76.8" r="4" data-tip="Run 2 | 21 Sep 2026 | v3.4.1 | 412 MB | not comparable: an older revision of the vignette, a4fdc7c (21 Sep 2026)"><title>Run 2 | 21 Sep 2026 | v3.4.1 | 412 MB | not comparable: an older revision of the vignette, a4fdc7c (21 Sep 2026)</title></circle><rect class="hollow vh6" x="123.5" y="43.4" width="7.2" height="7.2" data-tip="Run 3 | 21 Oct 2026 | v3.4.2 | 464 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 3 | 21 Oct 2026 | v3.4.2 | 464 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></rect><polygon class="hollow vh7" points="167.7,17.9 172.3,25.9 163.1,25.9" data-tip="Run 4 | 13 Nov 2026 | v3.5.0 | 507 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 4 | 13 Nov 2026 | v3.5.0 | 507 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="208.3,91.4 212.9,99.4 203.7,99.4" data-tip="Run 5 | 14 Nov 2026 | v3.5.0 | 378 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 5 | 14 Nov 2026 | v3.5.0 | 378 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="248.9,108.9 253.5,116.9 244.3,116.9" data-tip="Run 6 | 15 Nov 2026 | v3.5.0 | 347 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 6 | 15 Nov 2026 | v3.5.0 | 347 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><circle class="vs5" cx="289.4" cy="139.3" r="4" data-tip="Run 7 | 16 Nov 2026 | v3.4.1 | 302 MB"><title>Run 7 | 16 Nov 2026 | v3.4.1 | 302 MB</title></circle><rect class="vs6" x="326.4" y="132.6" width="7.2" height="7.2" data-tip="Run 8 | 16 Nov 2026 | v3.4.2 | 307 MB"><title>Run 8 | 16 Nov 2026 | v3.4.2 | 307 MB</title></rect></svg></div><div class='panel'><h4><span class='swatch s1'></span><a href='ibex-cpu.html#VisIt-ex08_visitBackendCheck'>ibex-cpu</a></h4><div class='sub'>6 runs &middot; 2026-10-25 to 2026-11-17 &middot; MB</div><svg class="chart" viewBox="0 0 340 172" role="img" aria-label="Peak memory per run"><line class="grid" x1="46" x2="330" y1="102.8" y2="102.8"/><text class="tick" x="41" y="106.3" text-anchor="end">500</text><line class="grid" x1="46" x2="330" y1="28.2" y2="28.2"/><text class="tick" x="41" y="31.7" text-anchor="end">1,000</text><line class="axis" x1="46" x2="330" y1="148" y2="148"/><text class="tick" x="93.3" y="165" text-anchor="middle">run 2</text><text class="tick" x="188.0" y="165" text-anchor="middle">run 4</text><text class="tick" x="282.7" y="165" text-anchor="middle">run 6</text><rect class="hollow vh6" x="42.4" y="135.7" width="7.2" height="7.2" data-tip="Run 1 | 25 Oct 2026 | v3.4.2 | 256 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 1 | 25 Oct 2026 | v3.4.2 | 256 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></rect><polygon class="hollow vh7" points="140.7,18.7 145.3,26.7 136.1,26.7" data-tip="Run 3 | 14 Nov 2026 | v3.5.0 | 1.03e+03 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 3 | 14 Nov 2026 | v3.5.0 | 1.03e+03 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="188.0,24.4 192.6,32.4 183.4,32.4" data-tip="Run 4 | 15 Nov 2026 | v3.5.0 | 993 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 4 | 15 Nov 2026 | v3.5.0 | 993 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><rect class="vs6" x="231.7" y="19.2" width="7.2" height="7.2" data-tip="Run 5 | 17 Nov 2026 | v3.4.2 | 1.04e+03 MB"><title>Run 5 | 17 Nov 2026 | v3.4.2 | 1.04e+03 MB</title></rect><rect class="vs6" x="279.1" y="19.1" width="7.2" height="7.2" data-tip="Run 6 | 17 Nov 2026 | v3.4.2 | 1.04e+03 MB"><title>Run 6 | 17 Nov 2026 | v3.4.2 | 1.04e+03 MB</title></rect><rect class="vs6" x="326.4" y="19.9" width="7.2" height="7.2" data-tip="Run 7 | 17 Nov 2026 | v3.4.2 | 1.03e+03 MB"><title>Run 7 | 17 Nov 2026 | v3.4.2 | 1.03e+03 MB</title></rect></svg></div><div class='panel'><h4><span class='swatch s1'></span><a href='ibex-gpu.html#VisIt-ex08_visitBackendCheck'>ibex-gpu</a></h4><div class='sub'>1 runs &middot; 2026-11-15 to 2026-11-15 &middot; MB</div><svg class="chart" viewBox="0 0 340 172" role="img" aria-label="Peak memory per run"><line class="grid" x1="46" x2="330" y1="145.7" y2="145.7"/><text class="tick" x="41" y="149.2" text-anchor="end">800</text><line class="grid" x1="46" x2="330" y1="93.1" y2="93.1"/><text class="tick" x="41" y="96.6" text-anchor="end">900</text><line class="grid" x1="46" x2="330" y1="40.5" y2="40.5"/><text class="tick" x="41" y="44.0" text-anchor="end">1,000</text><line class="axis" x1="46" x2="330" y1="148" y2="148"/><text class="tick" x="46.0" y="165" text-anchor="middle">run 1</text><text class="tick" x="140.7" y="165" text-anchor="middle">run 2</text><text class="tick" x="235.3" y="165" text-anchor="middle">run 3</text><text class="tick" x="330.0" y="165" text-anchor="middle">run 4</text><polygon class="hollow vh7" points="46.0,76.2 50.6,84.2 41.4,84.2" data-tip="Run 1 | 15 Nov 2026 | v3.5.0 | 923 MB | not comparable: measured differently (an older schema or scope)"><title>Run 1 | 15 Nov 2026 | v3.5.0 | 923 MB | not comparable: measured differently (an older schema or scope)</title></polygon></svg></div><div class='panel'><h4><span class='swatch s2'></span><a href='shaheen3-cpu.html#VisIt-ex08_visitBackendCheck'>shaheen3-cpu</a></h4><div class='sub'>3 runs &middot; 2026-10-21 to 2026-11-15 &middot; MB</div><svg class="chart" viewBox="0 0 340 172" role="img" aria-label="Peak memory per run"><line class="grid" x1="46" x2="330" y1="120.2" y2="120.2"/><text class="tick" x="41" y="123.7" text-anchor="end">500</text><line class="grid" x1="46" x2="330" y1="71.6" y2="71.6"/><text class="tick" x="41" y="75.1" text-anchor="end">1,000</text><line class="grid" x1="46" x2="330" y1="23.0" y2="23.0"/><text class="tick" x="41" y="26.5" text-anchor="end">1,500</text><line class="axis" x1="46" x2="330" y1="148" y2="148"/><text class="tick" x="93.3" y="165" text-anchor="middle">run 2</text><text class="tick" x="188.0" y="165" text-anchor="middle">run 4</text><text class="tick" x="282.7" y="165" text-anchor="middle">run 6</text><g data-tip="System changed before run 2 (2026-11-13): kernel 6.4.0-150700.53.81-default → 6.4.0-150700.53.84-default"><title>System changed before run 2 (2026-11-13): kernel 6.4.0-150700.53.81-default → 6.4.0-150700.53.84-default</title><line class="sys" x1="69.7" x2="69.7" y1="8" y2="148"/><rect class="hit" x="64.7" y="8" width="10" height="140"/></g><rect class="hollow vh6" x="42.4" y="135.7" width="7.2" height="7.2" data-tip="Run 1 | 21 Oct 2026 | v3.4.2 | 304 MB | not comparable: an older revision of the vignette, uncertain: a4fdc7c (21 Sep 2026) or later, the vignette changed before this run was committed"><title>Run 1 | 21 Oct 2026 | v3.4.2 | 304 MB | not comparable: an older revision of the vignette, uncertain: a4fdc7c (21 Sep 2026) or later, the vignette changed before this run was committed</title></rect><polygon class="hollow vh7" points="140.7,17.9 145.3,25.9 136.1,25.9" data-tip="Run 3 | 14 Nov 2026 | v3.5.0 | 1.5e+03 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 3 | 14 Nov 2026 | v3.5.0 | 1.5e+03 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="188.0,18.5 192.6,26.5 183.4,26.5" data-tip="Run 4 | 15 Nov 2026 | v3.5.0 | 1.5e+03 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 4 | 15 Nov 2026 | v3.5.0 | 1.5e+03 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon></svg></div><div class='panel'><h4><span class='swatch s2'></span><a href='shaheen3-ppn.html#VisIt-ex08_visitBackendCheck'>shaheen3-ppn</a></h4><div class='sub'>6 runs &middot; 2026-10-25 to 2026-11-17 &middot; MB</div><svg class="chart" viewBox="0 0 340 172" role="img" aria-label="Peak memory per run"><line class="grid" x1="46" x2="330" y1="137.1" y2="137.1"/><text class="tick" x="41" y="140.6" text-anchor="end">250</text><line class="grid" x1="46" x2="330" y1="70.5" y2="70.5"/><text class="tick" x="41" y="74.0" text-anchor="end">300</text><line class="axis" x1="46" x2="330" y1="148" y2="148"/><text class="tick" x="93.3" y="165" text-anchor="middle">run 2</text><text class="tick" x="188.0" y="165" text-anchor="middle">run 4</text><text class="tick" x="282.7" y="165" text-anchor="middle">run 6</text><g data-tip="System changed before run 2 (2026-11-13): kernel 6.4.0-150700.53.81-default → 6.4.0-150700.53.84-default"><title>System changed before run 2 (2026-11-13): kernel 6.4.0-150700.53.81-default → 6.4.0-150700.53.84-default</title><line class="sys" x1="69.7" x2="69.7" y1="8" y2="148"/><rect class="hit" x="64.7" y="8" width="10" height="140"/></g><rect class="hollow vh6" x="42.4" y="19.1" width="7.2" height="7.2" data-tip="Run 1 | 25 Oct 2026 | v3.4.2 | 336 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 1 | 25 Oct 2026 | v3.4.2 | 336 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></rect><polygon class="hollow vh7" points="140.7,112.0 145.3,120.0 136.1,120.0" data-tip="Run 3 | 14 Nov 2026 | v3.5.0 | 265 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 3 | 14 Nov 2026 | v3.5.0 | 265 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><polygon class="hollow vh7" points="188.0,110.2 192.6,118.2 183.4,118.2" data-tip="Run 4 | 15 Nov 2026 | v3.5.0 | 267 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)"><title>Run 4 | 15 Nov 2026 | v3.5.0 | 267 MB | not comparable: an older revision of the vignette, ad4c485 (21 Oct 2026)</title></polygon><rect class="vs6" x="231.7" y="127.6" width="7.2" height="7.2" data-tip="Run 5 | 17 Nov 2026 | v3.4.2 | 254 MB"><title>Run 5 | 17 Nov 2026 | v3.4.2 | 254 MB</title></rect><rect class="vs6" x="279.1" y="135.7" width="7.2" height="7.2" data-tip="Run 6 | 17 Nov 2026 | v3.4.2 | 248 MB"><title>Run 6 | 17 Nov 2026 | v3.4.2 | 248 MB</title></rect><rect class="vs6" x="326.4" y="121.6" width="7.2" height="7.2" data-tip="Run 7 | 17 Nov 2026 | v3.4.2 | 259 MB"><title>Run 7 | 17 Nov 2026 | v3.4.2 | 259 MB</title></rect></svg></div></div><footer>Generated 2026-11-22 13:46 from the performance_metrics records in jameskress/Visualization_Vignettes by Testing/dashboard.py. Drift rule and record fields: Testing/README.md.</footer></main>
+<div id="tip"></div>
+<script>
+document.documentElement.classList.add('js');
+(function(){
+// The tool switch shows one tool's blocks; each tool's selector shows one
+// of that tool's version pairs.
+var seg=document.getElementById('toolseg');
+function showPair(sel){var tool=sel.value.split('|')[0];
+ document.querySelectorAll('.pairview').forEach(function(v){
+  if(v.dataset.tool===tool){v.hidden=v.dataset.pair!==sel.value;}});}
+function pick(tool){
+ document.querySelectorAll('[data-tool]').forEach(function(e){
+  if(e.tagName==='BUTTON'){e.setAttribute('aria-pressed',e.dataset.tool===tool);return;}
+  if(e.classList.contains('pairview')){if(e.dataset.tool!==tool){e.hidden=true;}return;}
+  e.hidden=e.dataset.tool!==tool;});
+ document.querySelectorAll('select.pairsel').forEach(function(s){
+  if(s.value.split('|')[0]===tool){showPair(s);}});
+}
+document.querySelectorAll('select.pairsel').forEach(function(s){
+ s.addEventListener('change',function(){showPair(s);});});
+if(seg){seg.addEventListener('click',function(e){var b=e.target.closest('button');
+ if(b){pick(b.dataset.tool);}});pick(seg.querySelector('button').dataset.tool);}
+})();
+(function(){var t=document.getElementById('tip');
+document.addEventListener('mouseover',function(e){var d=e.target.closest('[data-tip]');
+if(!d){t.style.display='none';return;}t.textContent=d.getAttribute('data-tip');
+t.style.display='block';});
+document.addEventListener('mousemove',function(e){var x=e.clientX+12;
+if(x+t.offsetWidth>innerWidth-8){x=e.clientX-t.offsetWidth-12;}
+t.style.left=x+'px';t.style.top=(e.clientY+12)+'px';});
+})();
+</script>
+</body></html>
