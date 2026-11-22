@@ -587,6 +587,8 @@ def build(out, repo=REPO_ROOT):
         shutil.rmtree(directory, ignore_errors=True)
         os.makedirs(directory)
     placed = copy_images(found, gallery, repo)
+    for directory in (gallery, root):
+        dashboard.copy_logo(directory, repo)
     numbers = headline(repo)
     with open(os.path.join(gallery, "index.html"), "w", encoding="utf-8") as fh:
         fh.write(render_gallery(found, placed, numbers["with_results"]))
