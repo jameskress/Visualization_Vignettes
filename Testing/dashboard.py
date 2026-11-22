@@ -106,7 +106,13 @@ CHARTS = [
     ("power_mean_node_w", "Mean node power", "W", 1.0),
     ("gpu_memory_peak_mib", "Peak GPU memory", "MiB", 1.0),
 ]
-SCOPE_FIELD = {metric: drift.scope_of(metric) for metric in drift.METRICS}
+# Every compared or charted figure that has a scope: a chart fades points
+# measured another way than the latest run (slurm_memory_mb included).
+SCOPE_FIELD = {
+    metric: drift.scope_of(metric)
+    for metric in list(drift.METRICS) + [chart[0] for chart in CHARTS]
+    if drift.scope_of(metric)
+}
 
 # Categorical slots in fixed order (dataviz reference palette). A tool
 # version, a site or a configuration keeps its slot on every page: colour

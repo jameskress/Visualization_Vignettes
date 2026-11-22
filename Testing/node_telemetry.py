@@ -266,7 +266,12 @@ class NodeTelemetry(object):
                 self._power.append(reading)
             self._stop.wait(self.POWER_PERIOD_S)
 
-    def _gpu_loop(self):
+    def _start_smi(self):
+        """Start nvidia-smi here, before any thread, so stop() always sees it.
+
+        Started inside the reading thread, it could begin after a quick
+        vignette's stop() had already looked for it, and poll forever.
+        """
         try:
             self._smi = subprocess.Popen(
                 [
@@ -280,6 +285,12 @@ class NodeTelemetry(object):
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
             )
+        except (OSError, ValueError):
+            self._smi = None
+        return self._smi is not None
+
+    def _gpu_loop(self):
+        try:
             for line in self._smi.stdout:
                 sample = parse_nvidia_line(line)
                 if sample is not None:
@@ -294,7 +305,7 @@ class NodeTelemetry(object):
             loops.append(self._memory_loop)
         if self.power:
             loops.append(self._power_loop)
-        if self.gpu:
+        if self.gpu and self._start_smi():
             loops.append(self._gpu_loop)
         for loop in loops:
             thread = threading.Thread(target=loop)
@@ -324,9 +335,10 @@ class NodeTelemetry(object):
             out["step_hwm_mean_sample_s"] = round(
                 self._memory_cost_s / self._memory_samples, 5
             )
-            if self._hwm:
-                out["step_hwm_bytes"] = sum(self._hwm.values()) * 1024
-                out["step_hwm_processes"] = len(self._hwm)
+            hwm = dict(self._hwm)
+            if hwm:
+                out["step_hwm_bytes"] = sum(hwm.values()) * 1024
+                out["step_hwm_processes"] = len(hwm)
         if self._power:
             for key in ("node_w", "cpu_w", "memory_w"):
                 values = [r[key] for r in self._power if key in r]
@@ -339,8 +351,9 @@ class NodeTelemetry(object):
             out["power_samples"] = len(self._power)
         if self._gpu:
             gpus = []
-            for index in sorted(self._gpu):
-                samples = self._gpu[index]
+            # Copies: a thread that outlived stop()'s join may still append.
+            for index, samples in sorted(dict(self._gpu).items()):
+                samples = list(samples)
                 one = {"index": index, "samples": len(samples)}
                 for position, peak_key, mean_key in (
                     (0, "memory_peak_mib", None),

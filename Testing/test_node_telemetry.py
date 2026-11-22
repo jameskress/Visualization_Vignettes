@@ -200,6 +200,26 @@ class DashboardSystemSettings(unittest.TestCase):
         )
 
 
+class NvidiaSmiLifetime(unittest.TestCase):
+    def test_an_immediate_stop_still_ends_nvidia_smi(self):
+        """stop() right after start() must not leave nvidia-smi polling."""
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = os.path.join(tmp, "nvidia-smi")
+            with open(fake, "w") as fh:
+                fh.write(
+                    "#!/bin/sh\nwhile true; do echo '0, 10, 5, 50'; sleep 0.05; done\n"
+                )
+            os.chmod(fake, 0o755)
+            with mock.patch.object(node_telemetry.shutil, "which", return_value=fake):
+                telemetry = node_telemetry.NodeTelemetry(gpu=True)
+                telemetry.start().stop()
+            self.assertIsNotNone(telemetry._smi)
+            self.assertIsNotNone(telemetry._smi.poll(), "nvidia-smi still running")
+            telemetry.figures()  # no error after an instant stop
+
+
 class ExactPeakAsMemory(unittest.TestCase):
     """metrics.prefer_exact_peak: which runs take their memory from VmHWM."""
 
