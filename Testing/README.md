@@ -768,9 +768,10 @@ need only psutil and run in about a second.
 | `test_io_sampler.py` | the process-tree I/O sum, with the reap order scripted, plus one real non-dumpable child (Linux) |
 | `test_repeats.py` | `--repeat` runs folded to their median for the gate and drift |
 | `test_docs_pins.py` | every module name and `--paraview_version` / `--visit_version` in this README's commands, and the default the `MODULES.sh` scripts load, matches `CURRENT_PINS` in `dashboard.py`. Move the pins and the recipes together. |
+| `test_site_pages.py` | the gallery and landing page generator: default baseline set only, previews named per source image, and every vignette number has its description in `ABOUT` |
 
 ```bash
-python3 -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_docs_pins.py
+python3 -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_docs_pins.py Testing/test_site_pages.py
 ```
 
 ## Drift warnings
