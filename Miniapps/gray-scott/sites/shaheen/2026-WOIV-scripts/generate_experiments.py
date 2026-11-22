@@ -3,6 +3,7 @@ import os
 import re
 import xml.etree.ElementTree as ET
 import argparse
+import hashlib
 import json
 import shutil
 
@@ -200,6 +201,25 @@ READER_MALLOC_ENV = "MALLOC_MMAP_MAX_=0 MALLOC_TRIM_THRESHOLD_=137438953472"
 # 17 Nov 2026 used the 6.0.1 superbuild (LEGACY_CATALYST_LIB_PATH).
 LEGACY_CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-build/install/lib/catalyst"
 CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-6.2.1-gcc13-build/install/lib/catalyst"
+
+# --catalyst-stage: copy ParaView's lib/ to node-local disk on the reader
+# nodes before the run, and load Catalyst from there. The first Catalyst
+# step is mostly Python and VTK paging their .so files in from Lustre: at
+# 64 + 4 nodes step 0 took 21.4 s from Lustre and 6.5 to 7.8 s staged, with
+# identical frames (sites/shaheen/README.md, "Catalyst node-local staging").
+# catalyst_lib_path stays the Lustre install, which names the build the run
+# used; the stage is recorded beside it (catalyst_stage). The reader must be
+# built with GS_READER_RUNPATH=ON, or its DT_RPATH keeps loading part of
+# ParaView from Lustre. The tarball is made once per ParaView install by
+# sites/shaheen/build-catalyst-stage.sh. Methods: "tar" (each reader node
+# reads the tarball from Lustre), "sbcast" (Slurm fans it out to the reader
+# nodes), "auto" (tar below CATALYST_STAGE_SBCAST_MIN_NODES reader nodes,
+# sbcast from there), "off".
+CATALYST_STAGE = "off"
+CATALYST_STAGE_SBCAST_MIN_NODES = 64
+# One directory per job, so a copy left behind by a job that was killed is
+# never taken for this job's.
+CATALYST_STAGE_DIR = "/tmp/gs-catalyst-$SLURM_JOB_ID"
 # Darshan (I/O characterization) for --telemetry; --darshan-prefix overrides,
 # --no-darshan leaves it out. Built by software/build-darshan-3.4.7.sh.
 DARSHAN_PREFIX = (
@@ -1094,12 +1114,12 @@ mkdir -p "{results_dir}" || exit 1
 cp "$0" "{results_dir}/{id}_job.sbat" || exit 1
 # pipefail in a subshell, so a failure anywhere in the pipeline stops the job.
 (set -o pipefail; env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_|GALLIUM_|LP_)' | sort) > "{results_dir}/{id}_env.txt" || exit 1
-{telemetry_start}echo "PHASE run_start $(date +%s.%N)"
+{stage_setup}{telemetry_start}echo "PHASE run_start $(date +%s.%N)"
 
 {command}
 RUN_RC=$?
 echo "PHASE run_end $(date +%s.%N)"
-{telemetry_stop}echo "Run exit status: $RUN_RC"
+{stage_cleanup}{telemetry_stop}echo "Run exit status: $RUN_RC"
 
 # =============================================================================
 # POST-PROCESSING in its own one-node job (#72)
@@ -1549,6 +1569,7 @@ def check_settings_unchanged(output_dir, exp):
     checks = [
         ("adios_endstep_barrier", False, ADIOS_ENDSTEP_BARRIER),
         ("catalyst_lib_path", LEGACY_CATALYST_LIB_PATH, CATALYST_LIB_PATH),
+        ("catalyst_stage", {"enabled": False}, catalyst_stage(exp)),
     ]
     if exp["type"] == "intransit":
         checks += [
@@ -1650,7 +1671,151 @@ def reader_env(exp):
                 "OMP_NUM_THREADS=24 OMP_PLACES=cores",
                 "OMP_NUM_THREADS=48 OMP_PLACES=threads",
             )
-    return env + " " + READER_MALLOC_ENV
+    env = env + " " + READER_MALLOC_ENV
+    if catalyst_stage(exp)["enabled"]:
+        # PREFER_ENV puts CATALYST_IMPLEMENTATION_PATHS before the reader's
+        # catalyst_load/search_paths (catalyst_lib_path, the Lustre install);
+        # CATALYST_LIB_DIR is where the Catalyst scripts find ParaView's
+        # plugins; LD_LIBRARY_PATH (with GS_READER_RUNPATH) the libraries.
+        lib = CATALYST_STAGE_DIR + "/lib"
+        env += (
+            f" CATALYST_IMPLEMENTATION_PREFER_ENV=1 CATALYST_IMPLEMENTATION_PATHS={lib}/catalyst"
+            f" CATALYST_LIB_DIR={lib}/catalyst LD_LIBRARY_PATH={lib}:$LD_LIBRARY_PATH"
+        )
+    return env
+
+
+def catalyst_stage_tarball():
+    """The staging tarball for CATALYST_LIB_PATH's install and its sha256.
+
+    build-catalyst-stage.sh writes <build dir>-lib.tar and .sha256 beside the
+    build directory holding <install>/lib/catalyst. The checksum is checked
+    against the tarball once per generation, so a tarball changed after it
+    was recorded is never staged under the old checksum.
+    """
+    if "tarball" not in _STAGE_CACHE:
+        install = os.path.dirname(os.path.dirname(CATALYST_LIB_PATH.rstrip("/")))
+        tarball = os.path.dirname(install) + "-lib.tar"
+        try:
+            with open(tarball + ".sha256") as f:
+                recorded = f.read().split()[0]
+        except (OSError, IndexError):
+            raise SystemExit(
+                f"--catalyst-stage needs {tarball} and its .sha256: run "
+                f"sites/shaheen/build-catalyst-stage.sh {install}"
+            )
+        digest = hashlib.sha256()
+        with open(tarball, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 24), b""):
+                digest.update(chunk)
+        if digest.hexdigest() != recorded:
+            raise SystemExit(
+                f"{tarball} does not match its .sha256 ({recorded}); rebuild it "
+                "with build-catalyst-stage.sh rather than reuse it"
+            )
+        _STAGE_CACHE["tarball"] = (tarball, recorded)
+    return _STAGE_CACHE["tarball"]
+
+
+_STAGE_CACHE = {}
+
+
+def catalyst_stage(exp):
+    """The run's catalyst_stage record: {"enabled": False}, or the stage.
+
+    Only in transit Catalyst readers are staged, and never Paper 1's jobs
+    (as run, #71). The copy goes to the reader nodes alone, which the MPMD
+    launch places last; the two-step launch does not fix the reader's nodes.
+    """
+    if (
+        CATALYST_STAGE == "off"
+        or exp["type"] != "intransit"
+        or exp.get("paper") == "paper1"
+        or not exp.get("stage_pipeline", "").startswith("catalyst_")
+    ):
+        return {"enabled": False}
+    if exp.get("launch") == "steps":
+        raise SystemExit(
+            f"{exp['id']}: --catalyst-stage needs the MPMD launch (the reader nodes "
+            "of the two-step launch are not known when the copy is made)"
+        )
+    method = CATALYST_STAGE
+    if method == "auto":
+        method = (
+            "sbcast" if exp["stage_nodes"] >= CATALYST_STAGE_SBCAST_MIN_NODES else "tar"
+        )
+    tarball, sha256 = catalyst_stage_tarball()
+    return {
+        "enabled": True,
+        "method": method,
+        "dir": CATALYST_STAGE_DIR,
+        "tarball": tarball,
+        "sha256": sha256,
+    }
+
+
+# Runs before the run's PHASE run_start, so the copy is timed on its own
+# (PHASE stage_start / stage_end) and not as the run's start-up. One task per
+# reader node: the MPMD launch puts the readers on the job's last nodes.
+STAGE_SRUN = (
+    "srun --overlap --network=no_vni --mpi=none --nodes={stage_nodes} "
+    "--relative={sim_nodes} --ntasks={stage_nodes} --ntasks-per-node=1 "
+    "--cpus-per-task=1 --mem=4G"
+)
+
+STAGE_SETUP_TAR = """# --- Catalyst node-local staging (--catalyst-stage tar) ---
+CATALYST_STAGE_DIR={dir}
+echo "PHASE stage_start $(date +%s.%N)"
+# Each reader node reads the tarball from Lustre and unpacks it.
+if ! {srun} bash -c "mkdir -p $CATALYST_STAGE_DIR && tar -C $CATALYST_STAGE_DIR -xf {tarball}"; then
+    echo "JOB ABORTED: staging {tarball} to $CATALYST_STAGE_DIR failed."
+    {srun} rm -rf -- $CATALYST_STAGE_DIR
+    exit 1
+fi
+echo "PHASE stage_end $(date +%s.%N)"
+"""
+
+STAGE_SETUP_SBCAST = """# --- Catalyst node-local staging (--catalyst-stage sbcast) ---
+CATALYST_STAGE_DIR={dir}
+echo "PHASE stage_start $(date +%s.%N)"
+# sbcast copies to a job step's nodes. A step that only sleeps holds the
+# reader nodes and writes its step ID, so the tarball reaches those nodes
+# alone; then each unpacks its copy.
+STEP_FILE=$OUTPUT_DIR/stage_step.$SLURM_JOB_ID
+rm -f $STEP_FILE
+{srun} bash -c "[ \\$SLURM_PROCID = 0 ] && echo \\$SLURM_STEP_ID > $STEP_FILE; exec sleep 3600" &
+HOLD_PID=$!
+for i in $(seq 1 600); do [ -s $STEP_FILE ] && break; sleep 0.1; done
+STAGE_OK=0
+if [ -s $STEP_FILE ] \\
+    && sbcast --jobid=$SLURM_JOB_ID.$(cat $STEP_FILE) -f {tarball} $CATALYST_STAGE_DIR.tar \\
+    && {srun} bash -c "mkdir -p $CATALYST_STAGE_DIR && tar -C $CATALYST_STAGE_DIR -xf $CATALYST_STAGE_DIR.tar && rm -f $CATALYST_STAGE_DIR.tar"; then
+    STAGE_OK=1
+fi
+kill $HOLD_PID 2>/dev/null; wait $HOLD_PID 2>/dev/null
+rm -f $STEP_FILE
+if [ $STAGE_OK != 1 ]; then
+    echo "JOB ABORTED: staging {tarball} to $CATALYST_STAGE_DIR failed."
+    {srun} rm -rf -- $CATALYST_STAGE_DIR $CATALYST_STAGE_DIR.tar
+    exit 1
+fi
+echo "PHASE stage_end $(date +%s.%N)"
+"""
+
+STAGE_CLEANUP = """# Remove the node-local copy, so the next job on these nodes starts clean.
+{srun} rm -rf -- $CATALYST_STAGE_DIR || echo "Could not remove $CATALYST_STAGE_DIR on every reader node"
+"""
+
+
+def stage_scripts(exp):
+    """The job's staging and clean-up blocks ("" when not staged)."""
+    stage = catalyst_stage(exp)
+    if not stage["enabled"]:
+        return "", ""
+    srun = STAGE_SRUN.format(stage_nodes=exp["stage_nodes"], sim_nodes=exp["sim_nodes"])
+    template = STAGE_SETUP_SBCAST if stage["method"] == "sbcast" else STAGE_SETUP_TAR
+    setup = template.format(dir=stage["dir"], tarball=stage["tarball"], srun=srun)
+    return setup, STAGE_CLEANUP.format(srun=srun)
 
 
 def generate_settings_json(exp, output_dir, copied_files, args):
@@ -1692,6 +1857,8 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         "overwrite_last_step": overwrite,
         "catalyst_script_path": "",
         "catalyst_lib_path": CATALYST_LIB_PATH,
+        # Where the reader loaded ParaView from, when staged (--catalyst-stage).
+        "catalyst_stage": catalyst_stage(exp),
         "kombynelite_script_path": "",
         "adios_config": f"{output_dir}/adios2.xml",
         "adios_span": False,
@@ -2533,6 +2700,7 @@ def generate_scripts(args):
             reader_hint="" if reader_smt(exp) else "--hint=nomultithread",
         )
 
+        stage_setup, stage_cleanup = stage_scripts(exp)
         time_limit = exp.get("time_limit", SYSTEM_CONFIG["time_limit"])
         large = total_nodes > WORKQ_MAX_NODES
         if large and _minutes(time_limit) < _minutes(LARGE_RUN_MIN_TIME):
@@ -2564,6 +2732,8 @@ def generate_scripts(args):
             repo_path=args.repo_path,
             bin_path=args.bin_path,
             command=command,
+            stage_setup=stage_setup,
+            stage_cleanup=stage_cleanup,
             telemetry_start=TELEMETRY_START.format(
                 repo_path=args.repo_path,
                 darshan_start=""
@@ -2683,6 +2853,15 @@ if __name__ == "__main__":
     )
     parser.set_defaults(reader_smt=READER_SMT)
     parser.add_argument(
+        "--catalyst-stage",
+        choices=("off", "tar", "sbcast", "auto"),
+        default=CATALYST_STAGE,
+        help="Copy ParaView's lib/ to node-local /tmp on the in transit Catalyst reader nodes and load it "
+        "from there: tar (each node reads the tarball from Lustre), sbcast (Slurm fans it out), auto "
+        f"(sbcast from {CATALYST_STAGE_SBCAST_MIN_NODES} reader nodes). Needs a reader built with "
+        "GS_READER_RUNPATH=ON and the tarball from build-catalyst-stage.sh (default off)",
+    )
+    parser.add_argument(
         "--repeats",
         type=int,
         default=REPEATS,
@@ -2727,6 +2906,7 @@ if __name__ == "__main__":
     QUEUE_FULL_POLICY = args.adios_queue_full_policy
     ASCENT_TIMINGS = args.ascent_timings
     READER_SMT = args.reader_smt
+    CATALYST_STAGE = args.catalyst_stage
     if args.repeats < 1 or args.repeats > 99:
         parser.error("--repeats must be between 1 and 99")
     generate_scripts(args)
