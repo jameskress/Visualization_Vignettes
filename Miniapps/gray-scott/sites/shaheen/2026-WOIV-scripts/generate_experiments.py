@@ -1901,18 +1901,23 @@ ST0=$(date +%s.%N); echo "PHASE stage_start $ST0"
 # sbcast copies to a job step's nodes. A step that only sleeps holds the
 # reader nodes and writes its step ID, so the tarball reaches those nodes
 # alone; then each unpacks its copy.
+# sbcast does not create the directory it writes to, so every reader node
+# makes it first, in a step of its own that must finish before the copy.
 STEP_FILE=$OUTPUT_DIR/stage_step.$SLURM_JOB_ID
 rm -f $STEP_FILE
-{srun} bash -c "{mkdir} || exit 1; [ \\$SLURM_PROCID = 0 ] && echo \\$SLURM_STEP_ID > $STEP_FILE; exec sleep 3600" &
-HOLD_PID=$!
-for i in $(seq 1 600); do [ -s $STEP_FILE ] && break; sleep 0.1; done
 STAGE_OK=0
+HOLD_PID=
+if {srun} bash -c "{mkdir}"; then
+    {srun} bash -c "[ \\$SLURM_PROCID = 0 ] && echo \\$SLURM_STEP_ID > $STEP_FILE; exec sleep 3600" &
+    HOLD_PID=$!
+    for i in $(seq 1 600); do [ -s $STEP_FILE ] && break; sleep 0.1; done
+fi
 if [ -s $STEP_FILE ] \\
     && sbcast --jobid=$SLURM_JOB_ID.$(cat $STEP_FILE) -f {tarball} $CATALYST_STAGE_DIR/stage.tar \\
     && {srun} bash -c "{unpack}"; then
     STAGE_OK=1
 fi
-kill $HOLD_PID 2>/dev/null; wait $HOLD_PID 2>/dev/null
+if [ -n "$HOLD_PID" ]; then kill $HOLD_PID 2>/dev/null; wait $HOLD_PID 2>/dev/null; fi
 rm -f $STEP_FILE
 if [ $STAGE_OK != 1 ]; then
     echo "JOB ABORTED: staging {tarball} to $CATALYST_STAGE_DIR failed."
