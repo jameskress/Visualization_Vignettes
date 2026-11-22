@@ -22,8 +22,8 @@ details behind each step are in [README.md](README.md) (the suite) and
 rendering, for example `mycluster-cpu` or `mycluster-egl-a100`. It names
 your files and your row on the dashboard, so choose it once and keep it:
 
-* letters, digits, `.`, `_` and `-` only, and no dots in practice
-  (a name with a dot is taken for a host name and refused);
+* letters, digits, `_` and `-` only. A dot is a legal character, but a
+  name with one is taken for a host name and refused;
 * not a host name. Without `--machine_name` the suite falls back to the
   host name, so always pass it;
 * the tool version does not go in it. Both ParaView and VisIt records,

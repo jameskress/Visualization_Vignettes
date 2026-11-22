@@ -147,6 +147,25 @@ class Checks(unittest.TestCase):
         open(os.path.join(site, "ex01.png"), "w").close()
         self.assertIn("looks like a host name", cs.baseline_problems(self.repo)[0])
 
+    def test_a_misplaced_file_is_found(self):
+        stray = os.path.join("ParaView_Vignettes", "ex01_pvScreenshot")
+        with open(
+            os.path.join(self.repo, stray, "performance_metrics_mycluster-cpu.json"),
+            "w",
+        ) as fh:
+            json.dump({"2026-11-22T10:00:00": record()}, fh)
+        files = cs.history_files(self.repo)
+        self.assertEqual(
+            files, [os.path.join(stray, "performance_metrics_mycluster-cpu.json")]
+        )
+        self.assertIn("so nothing reads it", self.problems(files[0])[0])
+
+    def test_a_bad_file_reports_name_and_parse(self):
+        path = self.write("node7.example.org", None, raw="{")
+        found = " | ".join(self.problems(path))
+        self.assertIn("looks like a host name", found)
+        self.assertIn("does not parse", found)
+
     def test_main_exit_codes(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):

@@ -72,10 +72,21 @@ def name_problem(name):
 
 
 def history_files(repo):
-    for _tool, suite in SUITES:
-        pattern = os.path.join(repo, suite, "*", "Testing", PREFIX + "*.json")
-        for path in sorted(glob.glob(pattern)):
-            yield os.path.relpath(path, repo)
+    """Every history file in the tree, wherever it is, relative to `repo`.
+
+    The whole tree, not just the vignettes' Testing/ directories: a file
+    committed anywhere else is read by nothing, so it is a problem to report,
+    not one to miss. Hidden directories and build output are skipped.
+    """
+    found = []
+    for directory, subdirs, files in os.walk(repo):
+        subdirs[:] = [
+            d for d in subdirs if not d.startswith((".", "_site")) and d != "output"
+        ]
+        for name in files:
+            if name.startswith(PREFIX) and name.endswith(".json"):
+                found.append(os.path.relpath(os.path.join(directory, name), repo))
+    return sorted(found)
 
 
 def base_document(repo, base, path):
@@ -105,7 +116,7 @@ def check_new_record(config, timestamp, record, now):
             "(schema {1} or newer)".format(schema, MIN_COMPARABLE_SCHEMA)
         )
     if not isinstance(record.get("run_id"), str) or not record["run_id"]:
-        problems.append("no run_id: record with --run-id")
+        problems.append("no run_id: record with the current test_suite.py")
     elapsed = record.get("execution_time")
     if isinstance(elapsed, bool) or not isinstance(elapsed, (int, float)):
         problems.append("execution_time is not a number")
@@ -135,8 +146,17 @@ def check_file(repo, path, base=None, now=None):
     vignette = parts[-3] if len(parts) >= 4 else ""
     config = os.path.basename(path)[len(PREFIX) : -len(".json")]
     problems = []
-    if parts[-2:-1] != ["Testing"] or not VIGNETTE_RE.match(vignette):
-        problems.append("not in a vignette's Testing/ directory")
+    suites = {suite for _tool, suite in SUITES}
+    if (
+        len(parts) != 4
+        or parts[0] not in suites
+        or parts[2] != "Testing"
+        or not VIGNETTE_RE.match(vignette)
+    ):
+        problems.append(
+            "not in a vignette's Testing/ directory "
+            "(<suite>/<vignette>/Testing/), so nothing reads it"
+        )
     reason = name_problem(config)
     if reason:
         problems.append("configuration name '{0}': {1}".format(config, reason))
@@ -144,9 +164,12 @@ def check_file(repo, path, base=None, now=None):
         with open(os.path.join(repo, path), encoding="utf-8") as handle:
             document = json.load(handle)
     except (OSError, ValueError) as exc:
-        return ["{0}: does not parse: {1}".format(path, exc)]
+        problems.append("does not parse: {0}".format(exc))
+        document = None
+    if document is not None and not isinstance(document, dict):
+        problems.append("not a JSON object of timestamped records")
     if not isinstance(document, dict):
-        return ["{0}: not a JSON object of timestamped records".format(path)]
+        return ["{0}: {1}".format(path, p) for p in problems]
     old = base_document(repo, base, path) if base else None
     for timestamp, record in document.items():
         where = "{0} [{1}]".format(path, timestamp)

@@ -63,8 +63,11 @@ jobs:
       # What a pull request of results must pass (Testing/ADD_YOUR_SITE.md):
       # every history file parses and carries public names, and the
       # records it adds come from a current test_suite.py. A push to
-      # master has no base, so it checks the structure only.
+      # master has no base, so it checks the structure only, and reports
+      # without stopping the publish: dashboard.py skips a file it cannot
+      # read, and the rest of the dashboard should still go out.
       - name: Check the records
+        continue-on-error: ${{ github.event_name != 'pull_request' }}
         env:
           BASE: ${{ github.base_ref }}
         run: |
