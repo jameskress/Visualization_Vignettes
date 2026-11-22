@@ -27,6 +27,7 @@ differ by more than --tolerance (default 24 of 255) from the 1-rank image.
 import argparse
 import json
 import os
+import shlex
 import shutil
 import signal
 import subprocess
@@ -198,9 +199,11 @@ VIEWS = {
 def headless_env():
     env = dict(os.environ)
     env.pop("DISPLAY", None)
-    # EGL unless the caller chose a window: a ParaView built for OSMesa
-    # (Shaheen) has no EGL window (#139).
-    env.setdefault("VTK_DEFAULT_OPENGL_WINDOW", "vtkEGLRenderWindow")
+    # An offscreen window: EGL, or OSMesa when the caller chose it (a
+    # ParaView built for OSMesa, as on Shaheen, has no EGL window; #139).
+    # Anything else would need the DISPLAY removed above.
+    if env.get("VTK_DEFAULT_OPENGL_WINDOW") != "vtkOSOpenGLRenderWindow":
+        env["VTK_DEFAULT_OPENGL_WINDOW"] = "vtkEGLRenderWindow"
     env["OMP_NUM_THREADS"] = env.get("OMP_NUM_THREADS", "2")
     return env
 
@@ -270,9 +273,9 @@ def run(args, np_):
     env = headless_env()
     cmd = [
         args.mpiexec,
-        args.mpiexec_numproc_flag,
+        args.mpiexec_numproc_flag or "-np",
         str(np_),
-    ] + args.mpiexec_preflags.split()
+    ] + shlex.split(args.mpiexec_preflags)
     # -x (forward an environment variable) is Open MPI's option; MPICH and
     # Intel MPI reject it. Local ranks inherit env either way.
     if is_open_mpi(args.mpiexec):

@@ -34,6 +34,7 @@ Backends and how they count:
 import argparse
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -270,8 +271,8 @@ def run_backend(args):
         d.mkdir(parents=True)
         settings_for(args.backend, args, d)
         cmd = (
-            [args.mpiexec, args.mpiexec_numproc_flag, str(np_)]
-            + args.mpiexec_preflags.split()
+            [args.mpiexec, args.mpiexec_numproc_flag or "-np", str(np_)]
+            + shlex.split(args.mpiexec_preflags)
             + [args.exe, "--settings-file=settings.json"]
         )
         p = subprocess.run(cmd, cwd=d, capture_output=True, text=True, timeout=600)

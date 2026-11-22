@@ -47,7 +47,10 @@ is `srun` here, and the render and ghost-volume checks take its
 #SBATCH --nodes=1
 source sites/shaheen/MODULES.sh
 export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow GALLIUM_DRIVER=llvmpipe
-export PYTHONUSERBASE=/scratch/$USER/pyuser   # holds lib/python3.11/site-packages
+# Once, from a login node: copy the login node's user site where jobs see it.
+#   mkdir -p /scratch/$USER/pyuser/lib/python3.11
+#   cp -a ~/.local/lib/python3.11/site-packages /scratch/$USER/pyuser/lib/python3.11/
+export PYTHONUSERBASE=/scratch/$USER/pyuser
 unset DISPLAY
 cd build && ctest --output-on-failure
 ```
