@@ -11,7 +11,9 @@
 #                                the repository
 #   <out>/gallery/index.html     every vignette's committed baseline images,
 #                                ParaView and VisIt side by side
-#   <out>/gallery/img/...        the images, and a small preview of each
+#   <out>/gallery/img/...        the images
+#   <out>/gallery/preview/...    a small preview of each, apart from the
+#                                images so no baseline name can collide
 #
 # The images are the baselines the regression suite compares against
 # (<suite>/<vignette>/Testing/Baseline/), so the gallery shows what each
@@ -31,6 +33,7 @@ import os
 import re
 import shutil
 import sys
+from urllib.parse import quote
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from dashboard import REPO_ROOT, SUITES, VIGNETTE_RE, css, esc  # noqa: E402
@@ -171,13 +174,22 @@ def copy_images(found, out, repo=REPO_ROOT):
                 target = os.path.join(out, full)
                 os.makedirs(os.path.dirname(target), exist_ok=True)
                 shutil.copyfile(os.path.join(repo, path), target)
-                # The whole name, extension too: foo.png and foo.jpg differ.
-                preview = full + ".preview.jpg"
+                # In its own tree, so no baseline (frame.png.preview.jpg, say)
+                # can share a name with a preview, and with the whole source
+                # name, extension too: foo.png and foo.jpg differ.
+                preview = "preview/" + full[len("img/") :] + ".jpg"
+                os.makedirs(os.path.dirname(os.path.join(out, preview)), exist_ok=True)
                 size = _preview(target, os.path.join(out, preview))
                 if size is None:
                     preview = full
                 placed[path] = (full, preview, size)
     return placed
+
+
+def url(path):
+    """A relative path for href or src: percent-encoded ('frame#1.png' is not
+    a fragment), separators kept, then HTML-escaped."""
+    return esc(quote(path, safe="/"))
 
 
 def _frames(paths, placed, tool, title):
@@ -194,7 +206,7 @@ def _frames(paths, placed, tool, title):
             "<figure><a href='{0}'><img src='{1}'{2} loading='lazy' "
             "decoding='async' alt='{3} {4} baseline: {5}'></a>"
             "<figcaption title='{5}'>{5}</figcaption></figure>".format(
-                esc(full), esc(preview), dims, esc(tool), esc(title), esc(name)
+                url(full), url(preview), dims, esc(tool), esc(title), esc(name)
             )
         )
     one = " one" if len(paths) == 1 else ""
@@ -235,7 +247,7 @@ def render_gallery(found, placed):
                 "<div><h4><a href='{0}/tree/master/{1}/{2}'>{3}</a>{4}</h4>{5}</div>".format(
                     REPO_URL,
                     suite,
-                    esc(name),
+                    url(name),
                     esc(name),
                     extra,
                     _frames(entry["images"].get(tool, []), placed, tool, title),
@@ -285,7 +297,7 @@ def hero_images(found, placed):
             picks.append(
                 "<a href='gallery/#ex{0:02d}'><img src='gallery/{1}' loading='lazy' "
                 "alt='{2} ex{0:02d} {3}'></a>".format(
-                    n, esc(placed[middle][1]), esc(tool), esc(title)
+                    n, url(placed[middle][1]), esc(tool), esc(title)
                 )
             )
     return "<div class='hero'>{0}</div>".format("".join(picks)) if picks else ""

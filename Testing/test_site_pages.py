@@ -133,15 +133,23 @@ class Baselines(unittest.TestCase):
         out = os.path.join(self.repo, "_site")
         site_pages.build(out, self.repo)
         gallery = read(os.path.join(out, "gallery", "index.html"))
-        self.assertIn("ex01.png.preview.jpg' width='1' height='1'", gallery)
+        self.assertIn(
+            "preview/ParaView_Vignettes/ex01_pvScreenshot/Testing/Baseline/ex01.png.jpg' width='1' height='1'",
+            gallery,
+        )
 
-    def test_shared_stem_gets_two_previews(self):
-        """frame.png and frame.jpg must not write the same preview."""
+    def test_previews_never_collide(self):
+        """No preview shares a path with another preview or with an image.
+
+        frame.png and frame.jpg share a stem; a baseline literally named
+        frame.png.preview.jpg used to be overwritten by frame.png's preview.
+        """
         base = os.path.join(
             self.repo, "ParaView_Vignettes", "ex01_pvScreenshot", "Testing", "Baseline"
         )
-        with open(os.path.join(base, "ex01.jpg"), "wb") as fh:
-            fh.write(PNG)
+        for name in ("ex01.jpg", "ex01.png.preview.jpg"):
+            with open(os.path.join(base, name), "wb") as fh:
+                fh.write(PNG)
         out = os.path.join(self.repo, "_site")
         written = []
 
@@ -151,10 +159,40 @@ class Baselines(unittest.TestCase):
 
         with mock.patch.object(site_pages, "_preview", side_effect=preview):
             site_pages.build(out, self.repo)
-        previews = [os.path.basename(t) for t in written if "ex01." in t]
+        images = {
+            os.path.join(d, f)
+            for d, _, files in os.walk(os.path.join(out, "gallery", "img"))
+            for f in files
+        }
+        self.assertEqual(len(written), len(set(written)))
+        self.assertEqual(set(written) & images, set())
+        names = sorted(os.path.basename(t) for t in written if "ex01." in t)
         self.assertEqual(
-            sorted(previews), ["ex01.jpg.preview.jpg", "ex01.png.preview.jpg"]
+            names, ["ex01.jpg.jpg", "ex01.png.jpg", "ex01.png.preview.jpg.jpg"]
         )
+
+    def test_paths_are_url_encoded(self):
+        base = os.path.join(
+            self.repo,
+            "VisIt_Vignettes",
+            "ex10_visitColormapFidelity",
+            "Testing",
+            "Baseline",
+        )
+        os.makedirs(base)
+        with open(os.path.join(base, "frame#1 a.png"), "wb") as fh:
+            fh.write(PNG)
+        out = os.path.join(self.repo, "_site")
+        with mock.patch.object(site_pages, "_preview", return_value=None):
+            site_pages.build(out, self.repo)
+        gallery = read(os.path.join(out, "gallery", "index.html"))
+        self.assertIn("Baseline/frame%231%20a.png'", gallery)
+        # Only the caption and alt text keep the name as it is.
+        self.assertNotIn("Baseline/frame#1", gallery)
+        # The landing page's strip uses ex10 VisIt, so it is encoded there too.
+        landing = read(os.path.join(out, "root", "index.html"))
+        self.assertIn("src='gallery/img/VisIt_Vignettes/", landing)
+        self.assertIn("frame%231%20a.png'", landing)
 
     def test_rebuild_drops_old_images(self):
         out = os.path.join(self.repo, "_site")
