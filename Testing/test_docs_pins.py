@@ -81,6 +81,15 @@ class RecipesMatchThePins(unittest.TestCase):
             ),
         )
 
+    def test_add_your_site_guide(self):
+        stale = stale_lines(commands(read("Testing", "ADD_YOUR_SITE.md")))
+        self.assertEqual(
+            stale,
+            [],
+            "Testing/ADD_YOUR_SITE.md recipes name builds other than "
+            "CURRENT_PINS {0}".format(PINS),
+        )
+
     def test_modules_scripts_load_the_pinned_builds_by_default(self):
         paraview = read("ParaView_Vignettes", "MODULES.sh")
         versions = set(re.findall(r"^\s*currentVersion=(\S+)", paraview, re.M))

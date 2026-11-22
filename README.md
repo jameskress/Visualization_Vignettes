@@ -60,6 +60,10 @@ Every vignette is also a regression test. The [**results dashboard**](https://ja
 
     * The latest result of every vignette on every configuration, and how each one's measurements moved across tool versions and runs.
 
+  * [**Add your site**](./Testing/ADD_YOUR_SITE.md)
+
+    * Run the suite on your own machine and contribute the results to the dashboard.
+
   * [**Test Suite**](./Testing/README.md)
 
     * Running the suite, the five independent gates each vignette must pass, blessing baselines, and the committed performance history.
