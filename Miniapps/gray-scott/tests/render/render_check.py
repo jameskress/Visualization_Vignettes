@@ -271,11 +271,15 @@ def run(args, np_):
         s.update(output_type="kombyne", kombynelite_script_path="render.yaml")
     (d / "settings.json").write_text(json.dumps(s, indent=1))
     env = headless_env()
-    cmd = [
-        args.mpiexec,
-        args.mpiexec_numproc_flag or "-np",
-        str(np_),
-    ] + shlex.split(args.mpiexec_preflags)
+    cmd = (
+        [
+            args.mpiexec,
+            args.mpiexec_numproc_flag or "-np",
+            str(np_),
+        ]
+        + args.mpiexec_preflag
+        + shlex.split(args.mpiexec_preflags)
+    )
     # -x (forward an environment variable) is Open MPI's option; MPICH and
     # Intel MPI reject it. Local ranks inherit env either way.
     if is_open_mpi(args.mpiexec):
@@ -348,6 +352,8 @@ def main():
     ap.add_argument("--mpiexec-preflags", default="--oversubscribe")
     # CMake passes MPIEXEC_NUMPROC_FLAG: srun takes -n, and reads -np as "-n p" (#139).
     ap.add_argument("--mpiexec-numproc-flag", default="-np")
+    # FindMPI's MPIEXEC_PREFLAGS, one item each, before --mpiexec-preflags.
+    ap.add_argument("--mpiexec-preflag", action="append", default=[])
     ap.add_argument("--pvpython", default="pvpython")
     ap.add_argument("--catalyst-lib", default="")
     ap.add_argument("--tolerance", type=int, default=24)

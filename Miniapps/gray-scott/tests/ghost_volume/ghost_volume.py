@@ -272,6 +272,7 @@ def run_backend(args):
         settings_for(args.backend, args, d)
         cmd = (
             [args.mpiexec, args.mpiexec_numproc_flag or "-np", str(np_)]
+            + args.mpiexec_preflag
             + shlex.split(args.mpiexec_preflags)
             + [args.exe, "--settings-file=settings.json"]
         )
@@ -401,6 +402,8 @@ def main():
     ap.add_argument("--mpiexec-preflags", default="--oversubscribe")
     # CMake passes MPIEXEC_NUMPROC_FLAG: srun takes -n, and reads -np as "-n p" (#139).
     ap.add_argument("--mpiexec-numproc-flag", default="-np")
+    # FindMPI's MPIEXEC_PREFLAGS, one item each, before --mpiexec-preflags.
+    ap.add_argument("--mpiexec-preflag", action="append", default=[])
     ap.add_argument("--pvpython", default="pvpython")
     ap.add_argument("--catalyst-lib", default="")
     ap.add_argument("--bpls", default="bpls")
