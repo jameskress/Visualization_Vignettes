@@ -1725,20 +1725,17 @@ def catalyst_stage(exp):
 
     Only in transit Catalyst readers are staged, and never Paper 1's jobs
     (as run, #71). The copy goes to the reader nodes alone, which the MPMD
-    launch places last; the two-step launch does not fix the reader's nodes.
+    launch places last. The two-step launch does not fix the reader's nodes,
+    so its runs are not staged, and their settings say so.
     """
     if (
         CATALYST_STAGE == "off"
         or exp["type"] != "intransit"
         or exp.get("paper") == "paper1"
         or not exp.get("stage_pipeline", "").startswith("catalyst_")
+        or exp.get("launch") == "steps"
     ):
         return {"enabled": False}
-    if exp.get("launch") == "steps":
-        raise SystemExit(
-            f"{exp['id']}: --catalyst-stage needs the MPMD launch (the reader nodes "
-            "of the two-step launch are not known when the copy is made)"
-        )
     method = CATALYST_STAGE
     if method == "auto":
         method = (
