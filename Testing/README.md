@@ -675,8 +675,10 @@ Then:
   Five steps: dark and light blue faster (more than 20%, 10 to 20%), no fill
   within the noise, light and dark red slower. A dotted number had one run at
   a version, so there is no spread to test it against; `--repeat 3` fixes
-  that. Below it, the **biggest changes**: the real ones, largest first, as in
-  ASV, each linking to the vignette's page.
+  that. A change exactly at 10% counts, and one whose mean moved the other way
+  from its median is not coloured, since the t-test compares means. Below it,
+  the **biggest changes**: the real ones, largest first, as in ASV, each
+  linking to the vignette's page.
 * *Speed by version.* The whole suite's time at each version against the
   same machine's current one, the geometric mean over vignettes of the
   median-time ratio. One chart puts every machine on a shared axis, coloured
@@ -685,9 +687,10 @@ Then:
   cliff, with the 1&times; line always drawn.
 * *Did everything pass?* A heatmap per tool of vignette by configuration,
   grouped by site: the latest result of each vignette there.
-* *System changes.* Every OS, kernel, GPU driver and CPU governor change the
-  records show, newest first (`PLATFORM_FIELDS`). A setting seen for the first
-  time is not a change.
+* *System changes.* The 20 most recent OS, kernel, GPU driver and CPU
+  governor changes on active configurations, from both tools' records
+  (`PLATFORM_FIELDS`); every change is also marked on the run histories. A
+  setting seen for the first time is not a change.
 * *Which machine is fastest?* Each vignette's latest time on every active
   configuration at the pinned version, on a log scale, coloured by site. Only
   runs of the vignette's newest known revision are set side by side.
@@ -765,8 +768,11 @@ putting every retired configuration back on the front page as stale.
 ```
 
 ```bash
-python3 Testing/dashboard.py --out _site      # standard library only
-python3 -m http.server --directory _site      # look at it
+# The Pages layout: the landing page at the root, dashboard/ and gallery/
+python3 Testing/dashboard.py --out _site/dashboard   # standard library only
+python3 Testing/site_pages.py --out _site            # Pillow optional
+cp _site/root/index.html _site/
+python3 -m http.server --directory _site             # look at it
 ```
 
 `.github/workflows/dashboard.yml` builds it on a GitHub-hosted runner and

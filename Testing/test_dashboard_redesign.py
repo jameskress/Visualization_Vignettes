@@ -151,5 +151,55 @@ class UpgradeTable(unittest.TestCase):
         self.assertAlmostEqual(cells["ex02_pvAnimation"]["change"], 40.0 / 60.0 - 1)
 
 
+class Boundaries(unittest.TestCase):
+    def cells(self, old_times, new_times):
+        rows = [
+            ("2026-10-0{0}T10:00:00".format(i + 1), record("o", "k", "6.0.1", t))
+            for i, t in enumerate(old_times)
+        ] + [
+            ("2026-11-0{0}T10:00:00".format(i + 1), record("n", "k", "6.2.1", t))
+            for i, t in enumerate(new_times)
+        ]
+        histories = {("m1", "ParaView"): {"ex02_pvAnimation": rows}}
+        states = {("m1", "ParaView"): {"retired": None}}
+        return dashboard.upgrade_cells(histories, states, "ParaView", "6.0.1", "6.2.1")[
+            0
+        ]
+
+    def test_exactly_ten_percent_counts(self):
+        cell = self.cells([100.0, 100.2, 99.8], [90.0, 90.1, 89.9])
+        self.assertEqual(cell["cls"], "fast1")
+
+    def test_median_and_mean_must_agree(self):
+        # The median got faster (10 -> 8) but the mean got slower.
+        cell = self.cells([10.0, 10.1, 9.9, 10.0, 10.05], [8.0, 8.0, 8.1, 30.0, 30.0])
+        self.assertLess(cell["change"], -0.1)
+        self.assertEqual(cell["cls"], "noise")
+        self.assertIn(
+            "mean moved the other way", dashboard.cell_tip(cell, "6.0.1", "6.2.1")
+        )
+
+    def test_small_significant_change_says_threshold(self):
+        cell = self.cells([100.0, 100.1, 99.9], [95.0, 95.1, 94.9])
+        self.assertEqual(cell["cls"], "noise")
+        self.assertIn(
+            "below the 10% threshold", dashboard.cell_tip(cell, "6.0.1", "6.2.1")
+        )
+
+
+class RunNumbers(unittest.TestCase):
+    def test_a_run_keeps_its_number_when_a_metric_is_missing(self):
+        runs = ["2026-10-01T10:00:00", "2026-10-02T10:00:00", "2026-10-03T10:00:00"]
+        points = [(runs[1], "6.2.1", 5.0, ""), (runs[2], "6.2.1", 6.0, "")]
+        style = dashboard.VersionStyle(["6.2.1"])
+        system = [("2026-10-02T09:00:00", [("kernel", "a", "b")])]
+        svg, _ = dashboard.svg_run_chart(
+            "Memory", "MB", points, style, {}, system, runs
+        )
+        self.assertIn("Run 2 |", svg)
+        self.assertIn("Run 3 |", svg)
+        self.assertIn("System changed before run 2", svg)
+
+
 if __name__ == "__main__":
     unittest.main()

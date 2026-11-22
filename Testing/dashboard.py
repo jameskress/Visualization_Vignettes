@@ -1135,6 +1135,7 @@ DARK = (
 # ordinal blue, light old to dark new, backed by marker shapes.
 CSS_REDESIGN = (
     """
+[hidden]{display:none!important}
 a{color:var(--accent)}
 a:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--accent);
 outline-offset:2px}
@@ -1196,8 +1197,9 @@ table.list th{font-weight:500;color:var(--muted);font-size:12px;border-bottom:1p
 .bar::before{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;
 background:var(--axis)}
 .bar b{position:absolute;top:0;height:12px;border-radius:2px}
-.panels{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
-.panels.wide{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.panels{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));
+gap:12px}
+.panels.wide{grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr))}
 .panel{background:var(--surface);border:1px solid var(--ring);border-radius:8px;
 padding:10px 12px 6px;min-width:0}
 .panel h4{display:flex;gap:6px;align-items:center}
@@ -1225,8 +1227,8 @@ svg .drift{stroke:var(--ink);stroke-width:2}
 svg.mk{width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-right:4px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 14px}
 .chip{font:12.5px var(--mono);padding:3px 8px;border-radius:5px;background:var(--na)}
-.chip.pass::before{content:"\\2713  ";color:var(--good)}
-.chip.fail::before{content:"\\2717  ";color:var(--bad)}
+.chip .sym{font-weight:600}.chip.pass .sym{color:var(--good)}
+.chip.fail .sym,.chip.run-failed .sym{color:var(--bad)}
 """
 )
 
@@ -1436,16 +1438,18 @@ def welch_p(xs, ys):
     return _ibeta(df / 2.0, 0.5, df / (df + t * t))
 
 
-def change_class(change, p):
+def change_class(change, p, agree=True):
     """The five-step class of one comparison: blue faster, red slower.
 
     'one': a version has one run, so there is nothing to test. 'noise':
-    under MIN_CHANGE, or p at or above SIG_P. Otherwise fast1/fast2 or
-    slow1/slow2, the 2 for more than 20%.
+    under MIN_CHANGE, p at or above SIG_P, or (agree False) the mean the
+    t-test compared moved the other way from the median shown, so the test
+    does not speak for the number. Otherwise fast1/fast2 or slow1/slow2, the
+    2 for more than 20%. A change exactly at MIN_CHANGE counts.
     """
     if p is None:
         return "one"
-    if p >= SIG_P or abs(change) < MIN_CHANGE:
+    if p >= SIG_P or abs(change) < MIN_CHANGE - 1e-9 or not agree:
         return "noise"
     if change < 0:
         return "fast2" if change <= -0.20 else "fast1"
@@ -1583,9 +1587,15 @@ def svg_marker(shape, x, y, r, cls, tip=""):
     )
 
 
-def version_legend(style, extra=True):
+def version_legend(style, extra=True, versions=None):
+    """The legend of a chart drawn with `style`; versions: the ones it shows.
+
+    The encodings always come from the tool's whole style, so a chart that
+    shows only some versions draws them exactly as its legend does.
+    """
+    shown = [v for v in style.versions if versions is None or v in versions]
     keys = []
-    for version in style.versions:
+    for version in shown:
         keys.append(
             '<span class="key"><svg class="mk" viewBox="0 0 14 14" aria-hidden="true">'
             "{0}</svg>v{1}</span>".format(
@@ -1631,7 +1641,7 @@ def range_ticks(lo, hi, target=3):
     return out
 
 
-def svg_run_chart(title, unit, points, style, drifted, system, width=340):
+def svg_run_chart(title, unit, points, style, drifted, system, runs=None, width=340):
     """One metric over a machine's runs, x the run number (no date gaps).
 
     points: [(ts, version, value, why)] in run order, why as comparable_rows
@@ -1639,17 +1649,21 @@ def svg_run_chart(title, unit, points, style, drifted, system, width=340):
     system: platform_changes() of the machine, [(ts, [(label, old, new)])]:
     a dashed line before the first of these runs after each change. The
     change is dated by its run's first record, usually another vignette's.
+    runs: every run's timestamp, in order, metric or not, so a run keeps
+    its number on every chart of the vignette (default: the points').
     """
     height = 172
     left, right, top, bottom = 46, 10, 14, 24
+    runs = list(runs) if runs else [p[0] for p in points]
+    number = {ts: i + 1 for i, ts in enumerate(runs)}
     unit_shown, factor = display_unit(unit, [p[2] for p in points])
     values = [p[2] * factor for p in points]
     lo, hi = axis_range(values)
-    n = len(points)
+    n = len(runs)
     bottom_y = height - bottom
 
-    def sx(index):
-        return left + (width - left - right) * (index / float(max(1, n - 1)))
+    def sx(run):
+        return left + (width - left - right) * ((run - 1) / float(max(1, n - 1)))
 
     def sy(value):
         return top + (bottom_y - top) * (1 - (value - lo) / (hi - lo))
@@ -1668,35 +1682,37 @@ def svg_run_chart(title, unit, points, style, drifted, system, width=340):
             left, width - right, bottom_y
         )
     )
-    for index in range_ticks(1, max(2, n), 4):
-        if float(index).is_integer() and 1 <= index <= n:
+    for run in range_ticks(1, max(2, n), 4):
+        if float(run).is_integer() and 1 <= run <= n:
             out.append(
                 '<text class="tick" x="{0:.1f}" y="{1}" text-anchor="middle">run {2}'
-                "</text>".format(sx(index - 1), height - 7, int(index))
+                "</text>".format(sx(run), height - 7, int(run))
             )
     marks = {}
     for when, changes in system:
-        index = next((i for i, p in enumerate(points) if p[0] >= when), None)
-        if index is not None and index > 0:
-            marks.setdefault(index, []).extend(changes)
-    for index, (ts, _, _, _) in enumerate(points):
-        changes = marks.get(index)
-        if changes:
-            x = sx(index) - (sx(1) - sx(0)) / 2.0 if index else sx(index) - 4
-            tip = "System changed before run {0} ({1}): {2}".format(
-                index + 1, short_date(ts), change_text(changes)
+        run = next((i + 1 for i, ts in enumerate(runs) if ts >= when), None)
+        if run is not None and run > 1:
+            marks.setdefault(run, []).extend(changes)
+    step = (sx(2) - sx(1)) / 2.0 if n > 1 else 4
+    for run, changes in sorted(marks.items()):
+        x = sx(run) - step
+        tip = "System changed before run {0} ({1}): {2}".format(
+            run, short_date(runs[run - 1]), change_text(changes)
+        )
+        out.append(
+            '<g data-tip="{3}"><title>{3}</title><line class="sys" x1="{0:.1f}" '
+            'x2="{0:.1f}" y1="{1}" y2="{2}"/><rect class="hit" x="{4:.1f}" y="{1}" '
+            'width="10" height="{5}"/></g>'.format(
+                x, top - 6, bottom_y, esc(tip), x - 5, bottom_y - top + 6
             )
-            out.append(
-                '<g data-tip="{3}"><title>{3}</title><line class="sys" x1="{0:.1f}" '
-                'x2="{0:.1f}" y1="{1}" y2="{2}"/><rect class="hit" x="{4:.1f}" y="{1}" '
-                'width="10" height="{5}"/></g>'.format(
-                    x, top - 6, bottom_y, esc(tip), x - 5, bottom_y - top + 6
-                )
-            )
-    for index, (ts, version, value, why) in enumerate(points):
+        )
+    for ts, version, value, why in points:
+        run = number.get(ts)
+        if run is None:
+            continue
         note = drifted.get(ts)
         tip = "Run {0} | {1} | v{2} | {3:,.3g} {4}{5}{6}".format(
-            index + 1,
+            run,
             long_date(ts),
             version,
             value * factor,
@@ -1708,7 +1724,7 @@ def svg_run_chart(title, unit, points, style, drifted, system, width=340):
             " drift" if note else ""
         )
         out.append(
-            svg_marker(style.shape(version), sx(index), sy(value * factor), 4, cls, tip)
+            svg_marker(style.shape(version), sx(run), sy(value * factor), 4, cls, tip)
         )
     out.append("</svg>")
     return "".join(out), unit_shown
@@ -1733,8 +1749,12 @@ def upgrade_cells(histories, states, tool, old, new):
                 continue
             before, after, _ = pair
             m_old, m_new = statistics.median(before), statistics.median(after)
-            change = m_new / m_old - 1.0
+            change = (m_new - m_old) / m_old
             p = welch_p(before, after)
+            # The t-test compares means; it confirms the median's change only
+            # when the mean moved the same way.
+            mean_shift = statistics.mean(after) - statistics.mean(before)
+            agree = mean_shift == 0 or (mean_shift < 0) == (change < 0)
             cells.append(
                 {
                     "config": config,
@@ -1745,7 +1765,8 @@ def upgrade_cells(histories, states, tool, old, new):
                     "n_new": len(after),
                     "change": change,
                     "p": p,
-                    "cls": change_class(change, p),
+                    "cls": change_class(change, p, agree),
+                    "agree": agree,
                 }
             )
     return cells
@@ -1778,6 +1799,12 @@ def cell_tip(cell, old, new):
     cls = cell["cls"]
     if cls == "one":
         why = "one run at a version: no way to tell a change from noise yet"
+    elif cls == "noise" and not cell.get("agree", True):
+        why = "not confirmed: the mean moved the other way (p = {0:.3f})".format(
+            cell["p"]
+        )
+    elif cls == "noise" and cell["p"] < SIG_P:
+        why = "below the 10% threshold (p = {0:.3f})".format(cell["p"])
     elif cls == "noise":
         why = "within the noise (p = {0:.3f})".format(cell["p"])
     else:
@@ -2232,16 +2259,30 @@ def render_vignette_page(tool, vignette, histories, states, generated):
             if v == vignette:
                 status, detail = status_of(record)
                 latest.append(
-                    "<span class='chip {0}' title='{1}'>{2} v{3}</span>".format(
+                    "<span class='chip {0}' title='{1}'><span class='sym'>{2}</span> "
+                    "{3} v{4}</span>".format(
                         status_class(status),
                         esc(detail),
+                        STATUS[status][0],
                         esc(c),
                         esc(drift.tool_version(record)),
                     )
                 )
     # Per machine once: its drift and its system changes.
     drifts = {c: drift_by_record(histories[(c, tool)][vignette]) for c in configs}
-    systems = {c: platform_changes(histories[(c, tool)]) for c in configs}
+    # The machine's whole record, both tools: a change first seen in the
+    # other tool's runs is still a change.
+    systems = {
+        c: platform_changes(
+            {
+                (t, v): rows
+                for (cc, t), vs in histories.items()
+                if cc == c
+                for v, rows in vs.items()
+            }
+        )
+        for c in configs
+    }
     sections = []
     for metric, title, unit in (
         ("execution_time", "Execution time", "s"),
@@ -2264,7 +2305,9 @@ def render_vignette_page(tool, vignette, histories, states, generated):
                 (ts, drift.tool_version(rec) or "unknown", value, why)
                 for ts, rec, value, why in series
             ]
-            svg, unit_shown = svg_run_chart(title, unit, points, style, drifted, system)
+            svg, unit_shown = svg_run_chart(
+                title, unit, points, style, drifted, system, [ts for ts, _ in rows]
+            )
             panels.append(
                 "<div class='panel'><h4><span class='swatch s{0}'></span>"
                 "<a href='{1}#{2}-{3}'>{4}</a></h4><div class='sub'>{5} runs &middot; "
@@ -2827,13 +2870,15 @@ def render_vignette_card(tool, vignette, rows, style, system):
             for ts, rec, value, why in series
         ]
         versions_seen.update(p[1] for p in points)
-        svg, unit_shown = svg_run_chart(title, unit, points, style, drifted, system)
+        svg, unit_shown = svg_run_chart(
+            title, unit, points, style, drifted, system, [ts for ts, _ in rows]
+        )
         charts.append(
             "<div class='chart-box'><h4>{0} <span class='unit'>({1})</span></h4>"
             "{2}</div>".format(esc(title), esc(unit_shown), svg)
         )
     if charts:
-        out.append(version_legend(VersionStyle(versions_seen)))
+        out.append(version_legend(style, versions=versions_seen))
         out.append("<div class='grid-charts'>{0}</div>".format("".join(charts)))
         out.append(
             "<div class='note'>x is this machine's run number, colour and shape the "

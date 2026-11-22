@@ -102,6 +102,7 @@ font:500 11.5px/1.2 var(--mono);padding:4px 7px;border-radius:5px}
 min-width:0;margin:0}
 a.cta:hover{border-color:var(--accent)}
 .cta.span2{grid-column:span 2}
+.cta.full{grid-column:1/-1}
 .cta p{color:var(--ink2);font-size:14px;margin:0}
 .cta .go{margin-top:auto;color:var(--accent);font-weight:600;font-size:14px}
 .tag{font:500 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;
@@ -279,8 +280,12 @@ def anchor(tool, n):
     return "{0}-ex{1:02d}".format(tool.lower(), n)
 
 
-def render_gallery(found, placed):
-    """ParaView ex00 to ex12, then VisIt ex00 to ex12; frames in order."""
+def render_gallery(found, placed, with_results=None):
+    """ParaView ex00 to ex12, then VisIt ex00 to ex12; frames in order.
+
+    with_results: the vignettes the dashboard has a page for (those with
+    records); others get no Results link. None: link every vignette.
+    """
     numbers = sorted(found)
     tocs, sections = [], []
     for tool, suite in SUITES:
@@ -311,9 +316,16 @@ def render_gallery(found, placed):
                 if sites
                 else ""
             )
+            results = (
+                "<a href='../dashboard/{0}'>Results</a> &middot; ".format(
+                    url(dashboard.vignette_page(name))
+                )
+                if with_results is None or name in with_results
+                else ""
+            )
             cards.append(
                 "<section class='card vig' id='{0}'><h3>{1} ex{2:02d} {3}{4}</h3>"
-                "<p class='note'>{5} <a href='../dashboard/{6}'>Results</a> &middot; "
+                "<p class='note'>{5} {6}"
                 "<a href='{7}/tree/master/{8}/{9}'>source</a></p>{10}</section>".format(
                     anchor(tool, n),
                     esc(tool),
@@ -321,7 +333,7 @@ def render_gallery(found, placed):
                     esc(title),
                     extra,
                     esc(about),
-                    url(dashboard.vignette_page(name)),
+                    results,
                     REPO_URL,
                     esc(suite),
                     url(name),
@@ -411,6 +423,7 @@ def headline(repo):
         default="",
     )
     return {
+        "with_results": {v for vs in histories.values() for v in vs},
         "vignettes": len({v for vs in histories.values() for v in vs}),
         "configurations": len(active),
         "sites": len({dashboard.site_of(c) for c in active} - {"Other"}),
@@ -505,6 +518,8 @@ compared against, ParaView then VisIt. Select one to open it in the gallery.</p>
    macOS:</p>
    <div class='cmd'><code id='dockercmd'>{docker}</code><button type='button'
    id='copybtn'>Copy</button></div>
+   <p>The folder must not exist yet, so nothing is overwritten. To try again after
+   a failed pull, use another name in both places, or remove the empty folder.</p>
    <a class='go' href='https://codespaces.new/jameskress/Visualization_Vignettes?quickstart=1'>Or
    open it in GitHub Codespaces &rarr;</a></div>
   <a class='card cta' href='dashboard/'><span class='tag'>Results</span>
@@ -522,7 +537,7 @@ compared against, ParaView then VisIt. Select one to open it in the gallery.</p>
    <h3>Gray-Scott miniapp</h3><p>A reaction-diffusion simulation that renders while it
    runs, with Ascent, Catalyst2, ADIOS2 and Kombyne back ends.</p>
    <span class='go'>Open the miniapp &rarr;</span></a>
-  <a class='card cta span2' href='{blob}CITATION.cff'><span class='tag'>Cite</span>
+  <a class='card cta full' href='{blob}CITATION.cff'><span class='tag'>Cite</span>
    <h3>Cite Visualization Vignettes</h3><p>Citation metadata is in
    <code>CITATION.cff</code>; GitHub's "Cite this repository" button gives BibTeX and
    APA. A Zenodo DOI comes with release 1.1.0.</p>
@@ -572,11 +587,12 @@ def build(out, repo=REPO_ROOT):
         shutil.rmtree(directory, ignore_errors=True)
         os.makedirs(directory)
     placed = copy_images(found, gallery, repo)
+    numbers = headline(repo)
     with open(os.path.join(gallery, "index.html"), "w", encoding="utf-8") as fh:
-        fh.write(render_gallery(found, placed))
+        fh.write(render_gallery(found, placed, numbers["with_results"]))
     # The landing page links its strip into the gallery beside it.
     with open(os.path.join(root, "index.html"), "w", encoding="utf-8") as fh:
-        fh.write(render_landing(found, placed, headline(repo)))
+        fh.write(render_landing(found, placed, numbers))
     return len(found), len(placed)
 
 
