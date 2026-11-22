@@ -1193,21 +1193,34 @@ exit $RUN_RC
 # then deletes data/. ADIOS2 output (a few aggregated files) and render
 # images are kept.
 DATA_CLEANUP = """
-# 1a. Record and delete the run's per-rank output (DATA_CLEANUP).
+# 1a. Record and delete the run's per-rank output (DATA_CLEANUP). The record is
+#     written to a temporary file and renamed before anything is deleted; a
+#     retry for the same job keeps the first, complete record.
+DATA_RECORD="{results_dir}/{id}_data_output.json"
 if [ -d $OUTPUT_DIR/data ]; then
-    echo "Counting the run's output in $OUTPUT_DIR/data..."
-    if find $OUTPUT_DIR/data -type f -printf '%s\\n' > $OUTPUT_DIR/data_sizes.txt; then
-        awk -v job="${{RUN_JOB_ID:-}}" -v when="$(date +%FT%T)" \\
-            '{{n++; b+=$1}} END {{printf "{{\\"job\\": \\"%s\\", \\"files\\": %d, \\"bytes\\": %.0f, \\"deleted\\": \\"%s\\"}}\\n", job, n, b, when}}' \\
-            $OUTPUT_DIR/data_sizes.txt > "{results_dir}/{id}_data_output.json"
+    if [ -n "${{RUN_JOB_ID:-}}" ] && grep -q "\\"job\\": \\"${{RUN_JOB_ID}}\\"" "$DATA_RECORD" 2>/dev/null; then
+        echo "Output of job $RUN_JOB_ID already recorded; finishing its deletion."
+        RECORDED=1
+    else
+        echo "Counting the run's output in $OUTPUT_DIR/data..."
+        RECORDED=0
+        if find $OUTPUT_DIR/data -type f -printf '%s\\n' > $OUTPUT_DIR/data_sizes.txt \\
+            && awk -v job="${{RUN_JOB_ID:-}}" -v when="$(date +%FT%T)" \\
+                '{{n++; b+=$1}} END {{printf "{{\\"job\\": \\"%s\\", \\"files\\": %d, \\"bytes\\": %.0f, \\"deleted\\": \\"%s\\"}}\\n", job, n, b, when}}' \\
+                $OUTPUT_DIR/data_sizes.txt > "$DATA_RECORD.tmp" \\
+            && mv "$DATA_RECORD.tmp" "$DATA_RECORD"; then
+            RECORDED=1
+            cat "$DATA_RECORD"
+        else
+            echo "Could not record $OUTPUT_DIR/data; keeping it."
+            rm -f "$DATA_RECORD.tmp"
+        fi
         rm -f $OUTPUT_DIR/data_sizes.txt
-        cat "{results_dir}/{id}_data_output.json"
+    fi
+    if [ "$RECORDED" = 1 ]; then
         echo "Deleting $OUTPUT_DIR/data..."
         find $OUTPUT_DIR/data -type f -print0 | xargs -0 -r -n 2000 -P 16 rm -f
         rm -rf $OUTPUT_DIR/data
-    else
-        echo "Could not list $OUTPUT_DIR/data; keeping it."
-        rm -f $OUTPUT_DIR/data_sizes.txt
     fi
 fi
 """
