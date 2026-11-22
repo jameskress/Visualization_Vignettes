@@ -91,6 +91,24 @@ class SequentialSteps(unittest.TestCase):
             self.assertEqual(total, (300 + 2000) * 1024)
             self.assertEqual(steps, 2)
 
+    def test_figures_take_the_largest_step_plus_the_harness(self):
+        from unittest import mock
+
+        telemetry = node_telemetry.NodeTelemetry(step_name="vv-a", gpu=False)
+        telemetry._memory_samples = 1
+        # pid 11 reused in step 73 is a different process from pid 11 in 72.
+        telemetry._hwm = {
+            (10, "b"): 300,
+            (11, "72"): 1000,
+            (12, "72"): 1000,
+            (11, "73"): 1500,
+        }
+        with mock.patch.dict(os.environ, {"SLURM_STEP_ID": "b"}):
+            out = telemetry.figures()
+        self.assertEqual(out["step_hwm_bytes"], (300 + 2000) * 1024)
+        self.assertEqual(out["step_hwm_steps"], 2)
+        self.assertEqual(out["step_hwm_processes"], 4)
+
     def test_outside_slurm_everything_is_one_group(self):
         total, steps = node_telemetry.peak_over_steps(
             {1: 100, 2: 200}, {1: "", 2: ""}, ""
@@ -223,7 +241,7 @@ class DashboardSystemSettings(unittest.TestCase):
             [
                 (
                     "2026-03-01T00:00:00",
-                    [("kernel", "5.14", "6.4"), ("boost", "True", "False")],
+                    [("kernel", "5.14", "6.4"), ("boost", "on", "off")],
                 )
             ],
         )

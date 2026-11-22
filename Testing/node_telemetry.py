@@ -275,8 +275,9 @@ class NodeTelemetry(object):
         self._smi = None
         self._power = []
         self._gpu = {}
+        # (pid, step) -> peak kB: a pid the kernel reuses in another step is
+        # another process.
         self._hwm = {}
-        self._groups = {}
         self._memory_samples = 0
         self._memory_cost_s = 0.0
 
@@ -285,10 +286,12 @@ class NodeTelemetry(object):
         cache = {}
         while not self._stop.is_set():
             began = time.time()
-            found = step_hwm_kb(self.step_name, cache=cache, groups=self._groups)
+            groups = {}
+            found = step_hwm_kb(self.step_name, cache=cache, groups=groups)
             for pid, kb in found.items():
-                if kb > self._hwm.get(pid, 0):
-                    self._hwm[pid] = kb
+                key = (pid, groups.get(pid, ""))
+                if kb > self._hwm.get(key, 0):
+                    self._hwm[key] = kb
             spent = time.time() - began
             self._memory_samples += 1
             self._memory_cost_s += spent
@@ -370,13 +373,15 @@ class NodeTelemetry(object):
             out["step_hwm_mean_sample_s"] = round(
                 self._memory_cost_s / self._memory_samples, 5
             )
-            hwm = dict(self._hwm)
-            if hwm:
+            peaks = dict(self._hwm)
+            if peaks:
+                hwm = {i: kb for i, kb in enumerate(peaks.values())}
+                groups = {i: key[1] for i, key in enumerate(peaks)}
                 total, steps = peak_over_steps(
-                    hwm, dict(self._groups), os.environ.get("SLURM_STEP_ID", "")
+                    hwm, groups, os.environ.get("SLURM_STEP_ID", "")
                 )
                 out["step_hwm_bytes"] = total
-                out["step_hwm_processes"] = len(hwm)
+                out["step_hwm_processes"] = len(peaks)
                 out["step_hwm_steps"] = steps
         if self._power:
             for key in ("node_w", "cpu_w", "memory_w"):

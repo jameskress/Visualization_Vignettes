@@ -1519,6 +1519,8 @@ def platform_of(record):
             )
             if drivers:
                 out[field] = ", ".join(drivers)
+        elif isinstance(info.get(field), bool):
+            out[field] = "on" if info[field] else "off"
         elif info.get(field) is not None:
             out[field] = str(info[field])
     return out
