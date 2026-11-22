@@ -31,6 +31,30 @@ The simulation alone (`output_type: none`) is unaffected; only the Catalyst
 render path needs it. A 256^3 run on one node (64 ranks x 3 threads) with a
 JPG every 10 steps is the HPC Saudi 2026 live demo.
 
+# Running ctest
+
+Run the tests in a one-node job, not on a login node. `MPIEXEC_EXECUTABLE`
+is `srun` here, and the render and ghost-volume checks take its
+`MPIEXEC_NUMPROC_FLAG` (`-n`) from CMake (#139). Two things the job needs:
+
+- the OSMesa window, as above, or the render check's default EGL window fails;
+- Python packages for the checks: the tests use `/usr/bin/python3.11` with
+  numpy, Pillow and h5py from the user site, but `~/.local` on a compute
+  node is `/scratch/<user>/.local`, not the login node's. Install them there,
+  or point `PYTHONUSERBASE` at a copy of the login node's user site.
+
+```bash
+#SBATCH --nodes=1
+source sites/shaheen/MODULES.sh
+export VTK_DEFAULT_OPENGL_WINDOW=vtkOSOpenGLRenderWindow GALLIUM_DRIVER=llvmpipe
+export PYTHONUSERBASE=/scratch/$USER/pyuser   # holds lib/python3.11/site-packages
+unset DISPLAY
+cd build && ctest --output-on-failure
+```
+
+All 17 tests passed this way on 22 Nov 2026 (ParaView 6.2.1 superbuild dev
+tree, 1 to 4 ranks).
+
 # Building Ascent
 Ascent was not properly passing the `cc` and `CC` compiler wrappers to all of its sub builds. Below is what worked on the last build.
 
