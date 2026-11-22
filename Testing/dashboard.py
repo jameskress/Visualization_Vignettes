@@ -139,13 +139,85 @@ CHANGE_BINS = [
 ]
 
 
+# Configurations whose history file is named after a host, and the name the
+# public site uses instead. Host names stay out of anything published: a
+# dotted configuration name with no entry here stops the build (see
+# public_name), so a new one cannot reach the site by accident.
+PUBLIC_NAMES = {"KW61316.kaust.edu.sa": "workstation"}
+
+
+def public_name(config):
+    """The name the site publishes for a configuration."""
+    if config in PUBLIC_NAMES:
+        return PUBLIC_NAMES[config]
+    if "." in config:
+        raise SystemExit(
+            "configuration '{0}' looks like a host name: give it a public name "
+            "in PUBLIC_NAMES (Testing/dashboard.py) before it is published".format(
+                config
+            )
+        )
+    # A dotless name that is a listed host's short name (KW61316) too.
+    return public_text(config)
+
+
+def public_text(text):
+    """`text` with every private configuration name, and its short host name
+    (the part before the first dot), replaced by the public name. Whole
+    tokens only: a longer word that merely contains the short name stays."""
+    text = str(text)
+    for private, public in PUBLIC_NAMES.items():
+        for form in (private, private.split(".", 1)[0]):
+            text = re.sub(
+                r"(?<![A-Za-z0-9]){0}(?![A-Za-z0-9])".format(re.escape(form)),
+                public,
+                text,
+                flags=re.IGNORECASE,
+            )
+    return text
+
+
+def scrub(value):
+    """`value` with public_text applied to every string in it, keys too."""
+    if isinstance(value, str):
+        return public_text(value)
+    if isinstance(value, dict):
+        return {scrub(k): scrub(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [scrub(v) for v in value]
+    return value
+
+
+def publish_names(histories):
+    """Histories keyed by public names, every record scrubbed of host names.
+
+    Runs after the vignette revisions are read, which need the history
+    files' real names. Two configurations with one public name stop the
+    build rather than one silently replacing the other.
+    """
+    out, origin = {}, {}
+    for (config, tool), vignettes in histories.items():
+        key = (public_name(config), tool)
+        if key in out:
+            raise SystemExit(
+                "configurations '{0}' and '{1}' would both be published as "
+                "'{2}'".format(origin[key], config, key[0])
+            )
+        origin[key] = config
+        out[key] = {
+            vignette: [(ts, scrub(record)) for ts, record in rows]
+            for vignette, rows in vignettes.items()
+        }
+    return out
+
+
 def site_of(config):
     lowered = config.lower()
     if lowered.startswith("shaheen"):
         return "Shaheen"
     if lowered.startswith("ibex"):
         return "Ibex"
-    if lowered.startswith("kw61316"):
+    if lowered.startswith(("kw61316", "workstation")):
         return "Workstation"
     return "Other"
 
@@ -2154,11 +2226,17 @@ def build_site(out_dir, repo_root=REPO_ROOT, generated=None, now=None):
             "compared".format(repo_root),
             file=sys.stderr,
         )
+    histories = publish_names(histories)
     now = now or datetime.datetime.now()
     generated = generated or now.strftime("%Y-%m-%d %H:%M")
     os.makedirs(out_dir, exist_ok=True)
 
-    retired = load_retired(repo_root)
+    # PUBLIC_NAMES directly, not public_name: a retired host-named entry
+    # whose history is gone publishes nothing and must not stop the build.
+    retired = {
+        public_text(config): scrub(entry)
+        for config, entry in load_retired(repo_root).items()
+    }
     states = {
         key: config_state(key[1], vs, now, retired.get(key[0]))
         for key, vs in histories.items()

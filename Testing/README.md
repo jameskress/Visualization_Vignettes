@@ -793,8 +793,12 @@ drift, and every run with its build and baselines. `records.json` holds every
 record flattened with its configuration, site, tool and vignette, for analysis
 elsewhere. The host name each record carries (`machine_info.node`, a compute
 node on the clusters) is left out of all of it, as are executable paths.
-Configuration names are the history files' names, already public in the
-repository, so they are shown as they are.
+Configuration names are the history files' names, except where a file is
+named after a host: `PUBLIC_NAMES` in `dashboard.py` gives those a public
+name (`KW61316.kaust.edu.sa` is published as `workstation`), in the page
+names, the tables, `records.json` and the run ids. A dotted configuration
+name with no public name stops the build, so a new host name cannot reach
+the site.
 
 How to read the results:
 
@@ -829,7 +833,9 @@ on every master push that changes a history file, the generator, the
 retired list or a vignette script; a pull
 request builds it and attaches the site as an artifact. Pages serves the
 `gh-pages` branch, which also holds the Docker badge at its root; each
-workflow replaces only its own files there.
+workflow replaces only its own files there. The dashboard workflow replaces
+`dashboard/` whole and writes a root `index.html` that sends visitors to
+it (published with `keep_files`, so the badge stays).
 
 ### Harness unit tests
 

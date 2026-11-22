@@ -60,10 +60,29 @@ jobs:
           python-version: '3.12'
       - name: Generate
         run: python3 Testing/dashboard.py --out _site/dashboard
+      # The Pages root had no page (404); the site lives under dashboard/.
+      # A small page there sends visitors on. Published on its own, with
+      # keep_files, so the badge beside it stays.
+      - name: Root page
+        run: |
+          mkdir -p _site/root
+          cat > _site/root/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en"><head><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>Visualization Vignettes</title>
+          <meta http-equiv="refresh" content="0; url=dashboard/">
+          <link rel="canonical" href="dashboard/">
+          <style>body{font:16px/1.5 system-ui,sans-serif;margin:3em auto;max-width:40em;padding:0 1em}</style>
+          </head><body>
+          <h1>Visualization Vignettes</h1>
+          <p>The regression suite's results are on the <a href="dashboard/">dashboard</a>.</p>
+          </body></html>
+          HTML
       - uses: actions/upload-artifact@v7
         with:
           name: dashboard
-          path: _site/dashboard
+          path: _site
           retention-days: 14
 
   publish:
@@ -106,7 +125,7 @@ jobs:
         if: ${{ steps.tip.outputs.newest == 'true' }}
         with:
           name: dashboard
-          path: dashboard
+          path: site
       - name: Publish
         id: publish
         if: ${{ steps.tip.outputs.newest == 'true' }}
@@ -115,7 +134,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
-          publish_dir: dashboard
+          publish_dir: site/dashboard
           destination_dir: dashboard
           commit_message: 'dashboard: ${{ github.sha }}'
       # main.yml's badge step pushes to the same branch, and the action
@@ -128,6 +147,29 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
-          publish_dir: dashboard
+          publish_dir: site/dashboard
           destination_dir: dashboard
           commit_message: 'dashboard: ${{ github.sha }}'
+      # The root page, beside the badge: keep_files leaves every other file
+      # on the branch alone. The dashboard steps above replace dashboard/
+      # whole, so a page that is no longer generated disappears with it.
+      - name: Publish the root page
+        id: root
+        if: ${{ steps.tip.outputs.newest == 'true' }}
+        continue-on-error: true
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: site/root
+          keep_files: true
+          commit_message: 'root page: ${{ github.sha }}'
+      - name: Publish the root page again if the branch moved
+        if: ${{ steps.tip.outputs.newest == 'true' && steps.root.outcome == 'failure' }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: site/root
+          keep_files: true
+          commit_message: 'root page: ${{ github.sha }}'
