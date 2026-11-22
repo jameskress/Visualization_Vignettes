@@ -5,7 +5,8 @@ This `test_suite.py` script runs performance and regression tests for **VisIt** 
 **Results:** the [results dashboard](https://jameskress.github.io/Visualization_Vignettes/dashboard/)
 shows the latest result of every vignette on every configuration and how its
 measurements moved across tool versions and runs, rebuilt from the committed
-history on every change ([how it works](#the-results-dashboard)).
+history on every change ([how it works](#the-results-dashboard)). To put
+another machine on it, see [Add your site](ADD_YOUR_SITE.md).
 
 > ⚠️ **Important:** In all examples below, replace paths like `~/Visualization_Vignettes/` with the actual path to your cloned repository. HPC paths are written using variables like `$SCRATCH` to be easily copy-pasted.
 > ⚠️ **Important:** You must use the `fetchData.sh` script before running these tests for them all to work.
@@ -759,10 +760,11 @@ need only psutil and run in about a second.
 | :--- | :--- |
 | `test_io_sampler.py` | the process-tree I/O sum, with the reap order scripted, plus one real non-dumpable child (Linux) |
 | `test_repeats.py` | `--repeat` runs folded to their median for the gate and drift |
-| `test_docs_pins.py` | every module name and `--paraview_version` / `--visit_version` in this README's commands, and the default the `MODULES.sh` scripts load, matches `CURRENT_PINS` in `dashboard.py`. Move the pins and the recipes together. |
+| `test_docs_pins.py` | every module name and `--paraview_version` / `--visit_version` in the commands of this README and `ADD_YOUR_SITE.md`, and the default the `MODULES.sh` scripts load, matches `CURRENT_PINS` in `dashboard.py`. Move the pins and the recipes together. |
+| `test_check_submission.py` | `check_submission.py`, the checks a pull request of results must pass ([Add your site](ADD_YOUR_SITE.md)), and that every committed history file passes them |
 
 ```bash
-python3 -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_docs_pins.py
+python3 -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_docs_pins.py Testing/test_check_submission.py
 ```
 
 ## Drift warnings
