@@ -646,6 +646,14 @@ node, one `git log` per vignette, and one `nvidia-smi` query per invocation.
 ## The results dashboard
 
 `Testing/dashboard.py` turns every committed history file into a static site.
+Beside it, `Testing/site_pages.py` writes the Pages landing page and the
+[gallery](https://jameskress.github.io/Visualization_Vignettes/gallery/):
+each vignette's default baseline images (`Testing/Baseline/*.png|jpg`),
+ParaView and VisIt side by side, with small previews when Pillow is
+installed. Per-site baseline sets are counted, not shown. A new vignette
+number needs its one-line description in `ABOUT` there;
+`test_site_pages.py` fails until it has one. `.github/workflows/dashboard.yml`
+publishes all three, and rebuilds them when a baseline changes.
 
 Every chart puts the **tool version on the x axis**, oldest on the left. A
 configuration runs on a handful of days a year, so a date axis left most of
@@ -762,9 +770,10 @@ need only psutil and run in about a second.
 | `test_repeats.py` | `--repeat` runs folded to their median for the gate and drift |
 | `test_docs_pins.py` | every module name and `--paraview_version` / `--visit_version` in the commands of this README and `ADD_YOUR_SITE.md`, and the default the `MODULES.sh` scripts load, matches `CURRENT_PINS` in `dashboard.py`. Move the pins and the recipes together. |
 | `test_check_submission.py` | `check_submission.py`, the checks a pull request of results must pass ([Add your site](ADD_YOUR_SITE.md)), and that every committed history file passes them |
+| `test_site_pages.py` | the gallery and landing page generator: default baseline set only, previews that never collide with each other or an image, URL-encoded paths, and every vignette number has its description in `ABOUT` |
 
 ```bash
-python3 -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_docs_pins.py Testing/test_check_submission.py
+python3 -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_docs_pins.py Testing/test_check_submission.py Testing/test_site_pages.py
 ```
 
 ## Drift warnings
