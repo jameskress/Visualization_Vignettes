@@ -788,10 +788,15 @@ def page_names(configs):
     for config in sorted(configs, key=lambda c: (_safe(c) != c, c)):
         safe = _safe(config)
         digest = hashlib.sha256(config.encode("utf-8")).hexdigest()
-        candidate = safe + ".html" if safe == config else None
+        # "v-" names are the vignette pages' (vignette_page): a configuration
+        # whose name starts so is given "config-" in front.
+        vignette_like = safe.lower().startswith("v-")
+        candidate = safe + ".html" if safe == config and not vignette_like else None
         length = 10
         while candidate is None or candidate.lower() in used:
-            candidate = "{0}-{1}.html".format(safe, digest[:length])
+            candidate = "{0}{1}-{2}.html".format(
+                "config-" if vignette_like else "", safe, digest[:length]
+            )
             length += 2
         used.add(candidate.lower())
         names[config] = candidate
@@ -1230,26 +1235,24 @@ SCRIPT = """
 <script>
 document.documentElement.classList.add('js');
 (function(){
-// The tool switch shows one tool's blocks; the pair selector one version pair.
-var seg=document.getElementById('toolseg'),sel=document.getElementById('pairsel');
+// The tool switch shows one tool's blocks; each tool's selector shows one
+// of that tool's version pairs.
+var seg=document.getElementById('toolseg');
+function showPair(sel){var tool=sel.value.split('|')[0];
+ document.querySelectorAll('.pairview').forEach(function(v){
+  if(v.dataset.tool===tool){v.hidden=v.dataset.pair!==sel.value;}});}
 function pick(tool){
  document.querySelectorAll('[data-tool]').forEach(function(e){
   if(e.tagName==='BUTTON'){e.setAttribute('aria-pressed',e.dataset.tool===tool);return;}
-  if(e.tagName==='OPTION'){e.hidden=e.dataset.tool!==tool;return;}
-  if(!e.classList.contains('pairview')){e.hidden=e.dataset.tool!==tool;}});
- if(sel){var cur=sel.options[sel.selectedIndex];
-  if(!cur||cur.dataset.tool!==tool){var first=null;
-   document.querySelectorAll('.pairview[data-tool="'+tool+'"]').forEach(function(v){
-    if(!v.hidden&&!first){first=v;}});
-   var key=first?first.dataset.pair:null;
-   for(var i=0;i<sel.options.length;i++){if(sel.options[i].value===key){sel.selectedIndex=i;}}}
-  showPair(sel.value);}
+  if(e.classList.contains('pairview')){if(e.dataset.tool!==tool){e.hidden=true;}return;}
+  e.hidden=e.dataset.tool!==tool;});
+ document.querySelectorAll('select.pairsel').forEach(function(s){
+  if(s.value.split('|')[0]===tool){showPair(s);}});
 }
-function showPair(key){document.querySelectorAll('.pairview').forEach(function(v){
- v.hidden=v.dataset.pair!==key;});}
+document.querySelectorAll('select.pairsel').forEach(function(s){
+ s.addEventListener('change',function(){showPair(s);});});
 if(seg){seg.addEventListener('click',function(e){var b=e.target.closest('button');
  if(b){pick(b.dataset.tool);}});pick(seg.querySelector('button').dataset.tool);}
-if(sel){sel.addEventListener('change',function(){showPair(sel.value);});}
 })();
 (function(){var t=document.getElementById('tip');
 document.addEventListener('mouseover',function(e){var d=e.target.closest('[data-tip]');
@@ -1903,25 +1906,26 @@ def render_biggest(tool, old, cells, limit=12):
 
 
 def render_upgrades(histories, states, configs):
-    """The tool switch, the version-pair selector and every pair's views.
+    """Each tool's version-pair selector and every pair's views.
 
     Every pair is rendered; without script the default pair of each tool
-    shows and the rest stay hidden, so the page still reads.
+    shows and the rest stay hidden, so the page still reads. One selector
+    per tool, shown with the tool, so no option ever has to be hidden.
     """
-    options, views = [], []
+    selects, views = [], []
     for tool in TOOLS:
         pairs = upgrade_pairs(histories, states, tool)
         if not pairs:
             continue
         # The default pair is the one most machines can be compared on.
         default = max(pairs, key=lambda old: (len(pairs[old]), version_key(old)))
+        options = []
         for old, cells in pairs.items():
             key = "{0}|{1}".format(tool, old)
             options.append(
-                "<option value='{0}' data-tool='{1}'{2}>{3} → {4} ({5} "
-                "comparisons)</option>".format(
+                "<option value='{0}'{1}>{2} \u2192 {3} ({4} comparisons)"
+                "</option>".format(
                     esc(key),
-                    esc(tool),
                     " selected" if old == default else "",
                     esc(old),
                     esc(CURRENT_PINS[tool]),
@@ -1930,7 +1934,7 @@ def render_upgrades(histories, states, configs):
             )
             views.append(
                 "<div class='pairview' data-tool='{0}' data-pair='{1}'{2}>"
-                "<h3 class='pairtitle'>{0} {3} → {4}</h3>{5}"
+                "<h3 class='pairtitle'>{0} {3} \u2192 {4}</h3>{5}"
                 "<h3>Biggest changes</h3><p class='note'>Changes beyond the noise, "
                 "largest first. Select a vignette for its history.</p>{6}</div>".format(
                     esc(tool),
@@ -1942,13 +1946,16 @@ def render_upgrades(histories, states, configs):
                     render_biggest(tool, old, cells),
                 )
             )
+        selects.append(
+            "<label class='inline' data-tool='{0}' for='pairsel-{1}'>Compare "
+            "<select class='pairsel' id='pairsel-{1}'>{2}</select></label>".format(
+                esc(tool), esc(tool.lower()), "".join(options)
+            )
+        )
     if not views:
         return ""
-    return (
-        "<div class='controls js-only'><label class='inline' for='pairsel'>Compare "
-        "<select id='pairsel'>{0}</select></label></div>{1}".format(
-            "".join(options), "".join(views)
-        )
+    return "<div class='controls js-only'>{0}</div>{1}".format(
+        "".join(selects), "".join(views)
     )
 
 
@@ -2232,6 +2239,9 @@ def render_vignette_page(tool, vignette, histories, states, generated):
                         esc(drift.tool_version(record)),
                     )
                 )
+    # Per machine once: its drift and its system changes.
+    drifts = {c: drift_by_record(histories[(c, tool)][vignette]) for c in configs}
+    systems = {c: platform_changes(histories[(c, tool)]) for c in configs}
     sections = []
     for metric, title, unit in (
         ("execution_time", "Execution time", "s"),
@@ -2245,11 +2255,11 @@ def render_vignette_page(tool, vignette, histories, states, generated):
                 continue
             drifted = {
                 ts: drift.describe(r)
-                for ts, (results, _) in drift_by_record(rows).items()
+                for ts, (results, _) in drifts[c].items()
                 for r in results
                 if r["metric"] == metric
             }
-            system = platform_changes(histories[(c, tool)])
+            system = systems[c]
             points = [
                 (ts, drift.tool_version(rec) or "unknown", value, why)
                 for ts, rec, value, why in series
