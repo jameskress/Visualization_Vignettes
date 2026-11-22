@@ -2172,10 +2172,9 @@ def render_speed(histories, states):
             key=site_order,
         )
         note = (
-            "<p class='note'>Not charted: {0}. Each has runs of today's vignettes "
-            "at one version only, so there is nothing to compare yet.</p>".format(
-                esc(", ".join(without))
-            )
+            "<p class='note'>Not charted: {0}. None has an earlier version with "
+            "runs of the same vignette code as its current one, so there is "
+            "nothing to compare yet.</p>".format(esc(", ".join(without)))
             if without
             else ""
         )
