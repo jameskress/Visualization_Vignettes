@@ -93,7 +93,8 @@ PIPELINE = {
         "direction, then the OpenGL driver ParaView is using.",
         "writes": "Text only, no image.",
         "checked": "The printout is compared line by line with a saved copy, "
-        "which names an NVIDIA driver, so machines without a GPU are excused.",
+        "which names an NVIDIA driver, so a run with --non_gpu_machine "
+        "reports a failure only as a warning.",
     },
     ("VisIt", 0): {
         "reads": _NOISE + ".",
@@ -184,7 +185,8 @@ PIPELINE = {
         "does": "Slices coloured by water vapour; terrain raised by height; "
         "rain and ice volume-rendered; surface wind as line-integral "
         "convolution (a streaky texture that follows the flow) with arrows; "
-        "rainfall on top. Rendered in parallel (8 ranks) with OSPRay.",
+        "rainfall on top. Rendered in parallel with OSPRay (the batch "
+        "scripts use 8 ranks).",
         "writes": "One 2850 × 1750 PNG.",
         "checked": "The image against its baseline, allowing 5% of pixels to "
         "differ because the wind texture varies from run to run.",

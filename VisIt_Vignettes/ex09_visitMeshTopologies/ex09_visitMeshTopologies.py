@@ -16,8 +16,9 @@
 #     uniform       scalar_field.vti          uniform image data
 #     ragged        ragged_multidomain.visit  UNEQUAL multi-domain blocks
 #
-#   The ragged case is the one that earns its keep: blocks with different
-#   spans in every axis, because an even decomposition is exactly what hides
+#   The ragged case is the one that earns its keep: three blocks of unequal
+#   width (split along x at uneven points), because an even decomposition is
+#   exactly what hides
 #   off-by-one errors in partitioned readers.
 #
 #   ParaView's fourth topology is an overlapping AMR hierarchy in a .vth.

@@ -238,7 +238,8 @@ def write_ragged_multiblock(base, output_dir, manifest):
     """Multiblock whose blocks are deliberately different sizes.
 
     Even decompositions hide off-by-one errors. These voxel-of-interest
-    extents share faces but have unequal spans in every axis, so a reader or
+    extents share faces but have unequal spans along x (y and z are whole),
+    so a reader or
     filter that assumes uniform partitioning produces visible seams here.
     """
     lo, hi = WAVELET_EXTENT[0], WAVELET_EXTENT[1]
@@ -526,5 +527,6 @@ if __name__ == "__main__":
     # site 6.0.1 build does, every run, after the files are safely written), and a
     # 139 from a generator reads as "fixture missing" in prepare_machine.py.
     _rc = main()
-    sys.stdout.flush(); sys.stderr.flush()
+    sys.stdout.flush()
+    sys.stderr.flush()
     os._exit(int(_rc or 0))

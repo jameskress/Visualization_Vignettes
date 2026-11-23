@@ -36,8 +36,9 @@
 #
 # DATA
 #
-#   data/varying_data/varying*.vtk, point scalar "temp". Shipped with the
-#   repository.
+#   data/varying_series_xml/series.pvd, point scalar "temp": the XML series
+#   prepare_machine.py builds from the shipped data/varying_data/varying*.vtk
+#   (which carry no time values).
 #
 # RUNNING IT
 #

@@ -240,6 +240,16 @@ class Baselines(unittest.TestCase):
 
 
 class RealRepository(unittest.TestCase):
+    def test_docs_give_the_stale_threshold_in_days(self):
+        """README and ADD_YOUR_SITE state dashboard.STALE_DAYS, not an old value."""
+        for name in ("README.md", "ADD_YOUR_SITE.md"):
+            with open(
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), name),
+                encoding="utf-8",
+            ) as fh:
+                text = " ".join(fh.read().split())
+            self.assertIn("({0} days)".format(dashboard.STALE_DAYS), text, name)
+
     def test_every_vignette_has_a_full_pipeline_description(self):
         """Each tool's vignette says what it reads, does, writes and checks."""
         for tool in ("ParaView", "VisIt"):
