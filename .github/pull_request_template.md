@@ -16,6 +16,18 @@ organized). -->
 
 -
 
+## Pages and charts
+
+<!-- Any change to the dashboard, landing page, gallery or a mock-up
+(AGENTS.md, Conventions: design and language review). Delete if none. -->
+
+- [ ] Every term defined where it first appears
+- [ ] Every ratio, percentage and colour names what it is compared against
+- [ ] Every axis titled, with units; ticks say what they mean
+- [ ] Legend items read on their own; every number has a unit
+- [ ] Shared palette, colour-blind checked; numbers printed where colour matters
+- [ ] Rendered and looked at: light, dark, phone width
+
 ## Docs
 
 <!-- AGENTS.md: docs ship with the change, in the same PR. -->

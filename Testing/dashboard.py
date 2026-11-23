@@ -932,38 +932,6 @@ def status_legend():
 # ---------------------------------------------------------------------------
 
 
-def relative_by_version(vignettes):
-    """[(version, ratio, vignettes compared)] for one configuration.
-
-    ratio: how long an earlier version took against the configuration's
-    newest version, the geometric mean over vignettes of median time there
-    over median time at the newest. Each vignette counts only through runs
-    of one revision of it (like_for_like), so a version that ran only older
-    revisions of the vignettes is absent rather than compared with a
-    different test. The newest version is (newest, 1.0, vignettes timed).
-    """
-    versions = sorted(
-        {v for rows in vignettes.values() for v in versions_timed(rows)},
-        key=version_key,
-    )
-    if not versions:
-        return []
-    newest = versions[-1]
-    out = []
-    for version in versions[:-1]:
-        logs = []
-        for rows in vignettes.values():
-            pair = like_for_like(rows, newest, version)
-            if pair:
-                old, new, _ = pair
-                logs.append(math.log(statistics.median(old) / statistics.median(new)))
-        if logs:
-            out.append((version, math.exp(sum(logs) / len(logs)), len(logs)))
-    timed = sum(1 for rows in vignettes.values() if newest in versions_timed(rows))
-    out.append((newest, 1.0, timed))
-    return out
-
-
 def svg_dot_plot(tool, rows):
     """Each vignette's latest time per configuration, log x, dots by site.
 
@@ -1032,7 +1000,7 @@ CSS = """
 --ring:rgba(14,18,20,.10);--good:#0ca30c;--warn:#fab219;--bad:#d03b3b;
 --good-soft:#d6f0d6;--bad-soft:#f7d9d9;--na:#eef1f3;--mid:#eef1f3;
 --accent:#0b5f73;--accent-ink:#ffffff;
---fast2:#1c5cab;--fast1:#86b6ef;--slow1:#ec8584;--slow2:#b8302f;
+--fast2:#0571b0;--fast1:#92c5de;--slow1:#f4a582;--slow2:#ca0020;
 --on-strong:#ffffff;--on-mild:#0e1214;
 --v1:#86b6ef;--v2:#6da7ec;--v3:#5598e7;--v4:#3987e5;--v5:#2a78d6;--v6:#1c5cab;--v7:#0d366b;
 --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -1152,15 +1120,18 @@ DARK = (
     "--ink2:#b9c1c6;--muted:#848d93;--grid:#262c2f;--axis:#384045;"
     "--ring:rgba(255,255,255,.10);--good-soft:#173d17;--bad-soft:#4a1d1d;"
     "--na:#1d2326;--mid:#1d2326;--accent:#5fb7c9;--accent-ink:#061417;"
-    "--fast2:#5598e7;--fast1:#184f95;--slow1:#8f3534;--slow2:#e66767;"
-    "--on-strong:#0e1214;--on-mild:#eef1f2;"
+    # The change scale is ColorBrewer RdBu in both themes: pale near
+    # nothing changed, strong at the ends, as a diverging scale reads.
+    "--fast2:#0571b0;--fast1:#92c5de;--slow1:#f4a582;--slow2:#ca0020;"
+    "--on-strong:#ffffff;--on-mild:#0e1214;"
     "--v1:#184f95;--v2:#1c5cab;--v3:#256abf;--v4:#3987e5;--v5:#6da7ec;"
     "--v6:#9ec5f4;--v7:#cde2fb;"
 )
 
 # The redesign (#106): site header, upgrade table, run charts, vignette pages.
-# Colours: the five-step change scale is two validated ordinal arms (blue
-# faster, red slower) with no fill between; the version ramp is one validated
+# Colours: the change scale (upgrade table and the every-machine grid) is
+# ColorBrewer RdBu, 5 classes, colour-blind safe, the same in both themes
+# (blue less time, red more), with no fill for "within the noise"; the version ramp is one validated
 # ordinal blue, light old to dark new, backed by marker shapes.
 CSS_REDESIGN = (
     """
@@ -2039,229 +2010,47 @@ def render_upgrades(histories, states, configs):
 
 
 # ---------------------------------------------------------------------------
-# Speed by version: every machine together, then each on its own scale
+# Every machine, every version: the speed index (speed_index.py)
 # ---------------------------------------------------------------------------
-def speed_series(histories, states, tool):
-    out = []
-    for (config, t), vignettes in sorted(
-        histories.items(), key=lambda kv: site_order(kv[0][0])
-    ):
-        if t != tool or states[(config, t)]["retired"]:
-            continue
-        series = relative_by_version(vignettes)
-        if len(series) > 1:
-            out.append((config, series))
-    return out
+def render_speed_index(histories, states):
+    """(section html, script) for the index page."""
+    import speed_index
 
-
-def svg_speed_combined(tool, series):
-    """Every machine on one axis: x the version, y time against its newest."""
-    versions = sorted({v for _, s in series for v, _, _ in s}, key=version_key)
-    width, height = 1000, 380
-    left, right, top, bottom = 190, 24, 16, 34
-    ratios = [r for _, s in series for _, r, _ in s]
-    lo = min([0.8] + ratios) - 0.05
-    hi = max([1.25] + ratios) + 0.05
-    bottom_y = height - bottom
-
-    def sx(version):
-        return left + (width - left - right) * (
-            versions.index(version) / float(max(1, len(versions) - 1))
-        )
-
-    def sy(ratio):
-        return top + (bottom_y - top) * (1 - (ratio - lo) / (hi - lo))
-
-    out = [
-        svg_open(
-            width,
-            height,
-            "{0}: suite time by version, every machine".format(tool),
-            "chart wide",
-        )
-    ]
-    for value in range_ticks(lo, hi, 5):
-        out.append(
-            '<line class="grid" x1="{0}" x2="{1}" y1="{2:.1f}" y2="{2:.1f}"/>'
-            '<text class="tick" x="{0}" y="{3:.1f}">{4}×</text>'.format(
-                left + 4, width - right, sy(value), sy(value) - 4, tick_label(value)
-            )
-        )
-    for version in versions:
-        out.append(
-            '<text class="tick" x="{0:.1f}" y="{1}" text-anchor="middle">v{2}</text>'.format(
-                sx(version), height - 10, esc(version)
-            )
-        )
-    out.append(
-        '<line class="ref" x1="{0}" x2="{1}" y1="{2:.1f}" y2="{2:.1f}"/>'.format(
-            left, width - right, sy(1.0)
-        )
-    )
-    labels = []
-    for config, s in series:
-        slot = SITE_SLOT[site_of(config)]
-        out.append(
-            '<path class="line s{0}" d="{1}"/>'.format(
-                slot,
-                " ".join(
-                    "{0}{1:.1f},{2:.1f}".format("M" if i == 0 else "L", sx(v), sy(r))
-                    for i, (v, r, _) in enumerate(s)
-                ),
-            )
-        )
-        newest = s[-1][0]
-        for v, r, count in s:
-            tip = "{0} | v{1}: {2:.2f}x the time at v{3}, over {4} vignettes".format(
-                config, v, r, newest, count
-            )
-            out.append(svg_dot(slot, sx(v), sy(r), tip))
-        labels.append([sy(s[0][1]), sy(s[0][1]), sx(s[0][0]), config, slot])
-    labels.sort()
-    for i in range(1, len(labels)):
-        labels[i][0] = max(labels[i][0], labels[i - 1][0] + 13)
-    overflow = labels[-1][0] - bottom_y if labels else 0
-    if overflow > 0:
-        for label in labels:
-            label[0] -= overflow
-    for y, y0, x0, config, slot in labels:
-        out.append(
-            '<polyline class="leader s{0}" points="{1:.1f},{2:.1f} {3},{4:.1f} {5},{4:.1f}"/>'
-            '<text class="dlabel" x="{6}" y="{7:.1f}" text-anchor="end">{8}</text>'.format(
-                slot,
-                x0 - 6,
-                y0,
-                left - 30,
-                y,
-                left - 40,
-                left - 44,
-                y + 3.5,
-                esc(config),
-            )
-        )
-    out.append("</svg>")
-    return "".join(out)
-
-
-def svg_speed_panel(config, series):
-    """One machine on its own scale, never narrower than 0.8x to 1.25x."""
-    width, height = 260, 140
-    left, right, top, bottom = 36, 8, 8, 22
-    ratios = [r for _, r, _ in series]
-    lo, hi = min([0.8] + ratios), max([1.25] + ratios)
-    pad = (hi - lo) * 0.06
-    lo, hi = lo - pad, hi + pad
-    bottom_y = height - bottom
-    versions = [v for v, _, _ in series]
-
-    def sx(version):
-        return left + (width - left - right) * (
-            versions.index(version) / float(max(1, len(versions) - 1))
-        )
-
-    def sy(ratio):
-        return top + (bottom_y - top) * (1 - (ratio - lo) / (hi - lo))
-
-    slot = SITE_SLOT[site_of(config)]
-    out = [svg_open(width, height, "{0}: suite time by version".format(config))]
-    for value in range_ticks(lo, hi):
-        out.append(
-            '<line class="grid" x1="{0}" x2="{1}" y1="{2:.1f}" y2="{2:.1f}"/>'
-            '<text class="tick" x="{3}" y="{4:.1f}" text-anchor="end">{5}×</text>'.format(
-                left,
-                width - right,
-                sy(value),
-                left - 4,
-                sy(value) + 3.5,
-                tick_label(value),
-            )
-        )
-    out.append(
-        '<line class="ref" x1="{0}" x2="{1}" y1="{2:.1f}" y2="{2:.1f}"/>'.format(
-            left, width - right, sy(1.0)
-        )
-    )
-    for i, v in enumerate(versions):
-        if len(versions) <= 5 or i % 2 == 0 or i == len(versions) - 1:
-            out.append(
-                '<text class="tick" x="{0:.1f}" y="{1}" text-anchor="middle">{2}</text>'.format(
-                    sx(v), height - 6, esc(v)
-                )
-            )
-    out.append(
-        '<path class="line s{0}" d="{1}"/>'.format(
-            slot,
-            " ".join(
-                "{0}{1:.1f},{2:.1f}".format("M" if i == 0 else "L", sx(v), sy(r))
-                for i, (v, r, _) in enumerate(series)
-            ),
-        )
-    )
-    newest = series[-1][0]
-    for v, r, count in series:
-        tip = "{0} | v{1}: {2:.2f}x the time at v{3}, over {4} vignettes".format(
-            config, v, r, newest, count
-        )
-        out.append(svg_dot(slot, sx(v), sy(r), tip))
-    out.append("</svg>")
-    return "".join(out)
-
-
-def render_speed(histories, states):
-    out = []
+    retired = {c for (c, _), st in states.items() if st["retired"]}
+    tools = {}
     for tool in TOOLS:
-        series = speed_series(histories, states, tool)
-        compared = {c for c, _ in series}
-        without = sorted(
-            (
-                c
-                for (c, t), st in histories.items()
-                if t == tool and not states[(c, t)]["retired"] and c not in compared
-            ),
-            key=site_order,
+        data = speed_index.build(
+            histories, tool, retired, run_ok, version_key, site_order
         )
-        note = (
-            "<p class='note'>Not charted: {0}. None has an earlier version with "
-            "runs of the same vignette code as its current one, so there is "
-            "nothing to compare yet.</p>".format(esc(", ".join(without)))
-            if without
-            else ""
-        )
-        if not series:
-            if without:
-                out.append(
-                    "<div data-tool='{0}'><h3>{0}</h3>{1}</div>".format(esc(tool), note)
-                )
+        if not data["measures"]:
             continue
-        sites = sorted({site_of(c) for c, _ in series}, key=SITES.index)
-        panels = "".join(
-            "<div class='panel'><h4><span class='swatch s{0}'></span>{1}</h4>"
-            "<div class='sub'>{2} &middot; now v{3}</div>{4}</div>".format(
-                SITE_SLOT[site_of(c)],
-                esc(c),
-                esc(site_of(c)),
-                esc(s[-1][0]),
-                svg_speed_panel(c, s),
-            )
-            for c, s in series
-        )
-        out.append(
-            "<div data-tool='{0}'><h3>{0}</h3>{1}<div class='card scroll'>{2}</div>"
-            "{4}<h4 class='sub-h'>Each machine on its own scale</h4>"
-            "<div class='panels'>{3}</div></div>".format(
-                esc(tool),
-                legend([(SITE_SLOT[s], s) for s in sites]),
-                svg_speed_combined(tool, series),
-                panels,
-                note,
-            )
-        )
-    return "".join(out)
+        data["sites"] = {c: site_of(c) for c in data["configs"]}
+        data["links"] = {
+            c: "{0}#{1}".format(page_name(c), tool) for c in data["configs"]
+        }
+        tools[tool] = data
+    names = {v for (_, t), vs in histories.items() for v in vs}
+    payload = {
+        "tools": tools,
+        "until": speed_index.last_day(),
+        "about": {
+            v: ABOUT[vignette_number(v)][0]
+            for v in names
+            if vignette_number(v) in ABOUT
+        },
+        "vlinks": {
+            tool: {
+                v: vignette_page(v)
+                for (_, t), vs in histories.items()
+                if t == tool
+                for v in vs
+            }
+            for tool in TOOLS
+        },
+    }
+    return speed_index.render(payload, esc)
 
 
-# ---------------------------------------------------------------------------
-# System changes on the index
-# ---------------------------------------------------------------------------
 def render_system_changes(histories, states, limit=20):
     rows = []
     by_config = {}
@@ -2448,14 +2237,18 @@ HOW_TO_READ = (
     ),
     (
         "Blue, red",
-        "blue is faster with the newer version, red is slower; darker is more "
-        "than 20%. An uncoloured number is within the noise, and a dotted one had "
-        "a single run at a version, so it cannot be told from noise yet.",
+        "in the upgrade table, blue is faster with the newer version and red "
+        "slower; in the every-machine grid, blue is below the typical run and red "
+        "above. Darker is a bigger change. An uncoloured number is within the "
+        "noise, and a dotted one had a single run, so it cannot be told from "
+        "noise yet.",
     ),
     (
-        "Speed by version",
-        "each machine's whole suite at a version against its current one (the 1x "
-        "line). Above the line, that older version was slower.",
+        "Every machine, every version",
+        "each machine at each tool version against the typical run (1x): per "
+        "vignette, the median over every machine and version, fixed at a stated "
+        "date. 1.25x is 25% more time (or memory or energy), 0.8x is 20% less. "
+        "Coloured only when the repeated runs say it is beyond the noise.",
     ),
     (
         "Run history",
@@ -2468,7 +2261,8 @@ HOW_TO_READ = (
         "\u2713 \u2717",
         "pass / fail over every comparison gate (image, numbers, CSV); \u25cf \u25cb "
         "for older runs that only say whether the vignette finished. Stale: no run "
-        "in {0} days, or not on the pinned build.",
+        "in {0} days, or the last run used an older version than the one the suite "
+        "tests by default.",
     ),
 )
 
@@ -2499,6 +2293,7 @@ def active_configs(states, configs, tool=None):
 
 
 def render_index(histories, states, generated):
+    speed_section, speed_script = render_speed_index(histories, states)
     configs = sorted({config for config, _ in histories}, key=site_order)
     active = active_configs(states, configs)
     retired = [c for c in configs if c not in active]
@@ -2540,7 +2335,7 @@ def render_index(histories, states, generated):
             esc(long_date(last)) if last else "never",
         ),
         "<div class='summary'><span><span class='big'>{0}</span><span class='muted'>"
-        " / {1}</span> latest results pass</span>{2}{3}{4}<span class='pill'>Pinned: "
+        " / {1}</span> latest results pass</span>{2}{3}{4}<span class='pill'>Tested by default: "
         "{5}</span></div>".format(
             totals["pass"],
             sum(totals.values()),
@@ -2569,13 +2364,7 @@ def render_index(histories, states, generated):
         "<section><h2>What the upgrade changed</h2>",
         render_upgrades(histories, states, configs),
         "</section>",
-        "<section><h2>Speed by version</h2><p class='note'>The whole suite's time "
-        "at each version against the same machine's current version (the 1&times; "
-        "line), over the vignettes both versions ran unchanged. The combined chart "
-        "puts every machine on one axis; the panels give each its own scale, never "
-        "narrower than 0.8&times; to 1.25&times;.</p>",
-        render_speed(histories, states),
-        "</section>",
+        speed_section,
         "<section><h2>Did everything pass?</h2><p class='note'>The latest run of "
         "each vignette on each configuration. Select a configuration for its "
         "history.</p>",
@@ -2595,7 +2384,8 @@ def render_index(histories, states, generated):
     )
     body.append(
         "<section><h2>Which machine is fastest?</h2><p class='note'>Each "
-        "vignette's latest time on every active configuration at the pinned build, "
+        "vignette's latest time on every active configuration at the version the "
+        "suite tests by default, "
         "on a log scale, from runs of the same vignette code.</p>"
     )
     for tool in TOOLS:
@@ -2622,6 +2412,7 @@ def render_index(histories, states, generated):
         )
         body.append(render_retired_table(states, retired))
         body.append("</section>")
+    body.append(speed_script)
     return page("Vignette results", "".join(body), generated)
 
 
