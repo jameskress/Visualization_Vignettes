@@ -1190,8 +1190,9 @@ exit $RUN_RC
 # fill the 2M-inode /scratch quota on their own (22 Nov 2026). The timings
 # are in the timers; the output is not read afterwards. The reduction job
 # records how many files and bytes the run wrote in <id>_data_output.json,
-# then deletes data/. ADIOS2 output (a few aggregated files) and render
-# images are kept.
+# then deletes data/. ADIOS2 data runs too: few files but full fields, 12 TB
+# for one 3072 + 192 in transit run, which nearly filled the 31 TiB quota
+# (23 Nov 2026). Render images and the initialisations' checkpoints are kept.
 DATA_CLEANUP = """
 # 1a. Record and delete the run's per-rank output (DATA_CLEANUP). The record is
 #     written to a temporary file and renamed before anything is deleted; a
@@ -1227,17 +1228,12 @@ fi
 
 
 def drops_data_output(exp):
-    """True for runs whose output is one file per rank (see DATA_CLEANUP)."""
+    """True for runs whose data/ output is deleted after the reduction (see
+    DATA_CLEANUP): every data run, any backend, inline or in transit, and the
+    baselines. Never the initialisations, whose data/ holds the checkpoint."""
     if exp["workload"] == "initialization":
         return False
-    if exp["backend"] == "baseline":
-        return True
-    backend = (
-        exp.get("stage_pipeline", "adios_data").split("_")[0]
-        if exp["type"] == "intransit"
-        else exp["backend"]
-    )
-    return exp["workload"] == "data_save" and backend != "adios"
+    return exp["backend"] == "baseline" or exp["workload"] == "data_save"
 
 
 # One-node job that reduces a run's per-rank timings (#72). Written next to
