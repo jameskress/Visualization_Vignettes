@@ -775,6 +775,9 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
             # real. Record no figures instead.
             print("Step count unknown (no results JSON); no step accounting")
         else:
+            # How many srun steps the vignette says it started: the PSS
+            # figure covers the run only if it sampled every one of them.
+            payload["srun_steps_expected"] = expected_steps
             asked = time.time()
             steps = slurm_step_usage(
                 started, ended, expected=expected_steps, step_name=step_name

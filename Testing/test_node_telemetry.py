@@ -469,6 +469,21 @@ class ExactPeakAsMemory(unittest.TestCase):
         self.assertEqual(record["memory_measurement_scope"], metrics.SLURM_SCOPE)
         self.assertEqual(record["memory_usage_mb"], 231.0)
 
+    def test_a_step_neither_scan_saw_keeps_slurms_figure(self):
+        import metrics
+
+        # The vignette started two engine steps; one began and ended between
+        # two scans, so both counts say one.
+        record = self.gather(
+            self.run_result(step_pss_steps=1, step_hwm_steps=1, srun_steps_expected=2)
+        )
+        self.assertEqual(record["memory_measurement_scope"], metrics.SLURM_SCOPE)
+        # Every step the vignette started was sampled: the exact figure.
+        record = self.gather(
+            self.run_result(step_pss_steps=2, step_hwm_steps=2, srun_steps_expected=2)
+        )
+        self.assertEqual(record["memory_measurement_scope"], metrics.STEP_PSS_SCOPE)
+
     def test_the_slurm_figure_has_its_own_scope(self):
         import drift
 
