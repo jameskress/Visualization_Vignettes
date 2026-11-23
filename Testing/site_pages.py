@@ -126,7 +126,7 @@ text-transform:uppercase;margin:12px 0 6px}
 @media (max-width:520px){.ctas,.inside{grid-template-columns:minmax(0,1fr)}
 .cta.span2{grid-column:auto}}
 @media (prefers-reduced-motion:reduce){.strip img{transition:none}}
-.viewer{border:0;padding:0;margin:0;width:100vw;height:100dvh;max-width:none;
+.viewer{border:0;padding:0;margin:0;width:100vw;height:100vh;height:100dvh;max-width:none;
 max-height:none;background:#0b0f11;color:#fff}
 .viewer::backdrop{background:rgba(8,12,14,.6)}
 .viewer[open]{display:grid;grid-template-rows:auto minmax(0,1fr);
@@ -140,7 +140,8 @@ white-space:nowrap}
 .viewer .stage{position:relative;display:flex;align-items:center;
 justify-content:center;min-height:0;padding:0 64px 16px;touch-action:pan-y}
 .viewer .stage img{max-width:100%;max-height:100%;object-fit:contain;
-border-radius:4px;user-select:none;-webkit-user-drag:none}
+border-radius:4px;user-select:none;-webkit-user-drag:none;transition:opacity .15s}
+.viewer .stage img.loading{opacity:.35}
 .viewer button{font:600 15px/1 var(--sans);color:#fff;background:rgba(255,255,255,.12);
 border:1px solid rgba(255,255,255,.28);border-radius:8px;cursor:pointer;
 min-width:44px;min-height:44px}
@@ -149,6 +150,7 @@ min-width:44px;min-height:44px}
 .viewer .prev,.viewer .next{position:absolute;top:50%;transform:translateY(-50%);
 font-size:24px}
 .viewer .prev{left:10px}.viewer .next{right:10px}
+@media (prefers-reduced-motion:reduce){.viewer .stage img{transition:none}}
 @media (max-width:600px){.viewer .stage{padding:0 8px 64px}
 .viewer .prev,.viewer .next{top:auto;bottom:10px;transform:none}}
 """
@@ -177,12 +179,17 @@ set=[],at=0,title='';
 function show(i){
   at=Math.max(0,Math.min(set.length-1,i));
   var a=set[at],t=a.querySelector('img');
-  img.src=a.href;img.alt=t?t.alt:'';
+  if(img.getAttribute('src')!==a.getAttribute('href')){
+    img.classList.add('loading');img.src=a.href;}
+  img.alt=t?t.alt:'';
   var cap=a.parentNode.querySelector('figcaption');
   what.textContent=title+(cap?' \u2014 '+cap.textContent:'');
   count.textContent=set.length>1?(at+1)+' / '+set.length:'';
   full.href=a.href;
+  var lost=document.activeElement;
   prev.disabled=at===0;next.disabled=at===set.length-1;
+  // A disabled button drops focus out of the dialog; keep it inside.
+  if(lost&&lost.disabled)(lost===prev?next:prev).focus();
   prev.hidden=next.hidden=set.length<2;
   [at-1,at+1].forEach(function(j){if(set[j])(new Image()).src=set[j].href;});
 }
@@ -196,19 +203,32 @@ document.addEventListener('click',function(e){
   if(h){h=h.cloneNode(true);[].forEach.call(h.querySelectorAll('.muted'),
     function(m){m.remove();});title=h.textContent.trim();}
   show(set.indexOf(a));d.showModal();
+  // Back (or the phone's back gesture) closes the viewer, not the page.
+  try{history.pushState({viewer:1},'');}catch(err){}
 });
+img.addEventListener('load',function(){img.classList.remove('loading');});
+img.addEventListener('error',function(){img.classList.remove('loading');});
+window.addEventListener('popstate',function(){if(d.open)d.close();});
 prev.onclick=function(){show(at-1);};next.onclick=function(){show(at+1);};
 document.getElementById('vw-close').onclick=function(){d.close();};
-d.addEventListener('keydown',function(e){
+document.addEventListener('keydown',function(e){
+  if(!d.open||e.altKey||e.ctrlKey||e.metaKey)return;
   if(e.key==='ArrowLeft'){show(at-1);e.preventDefault();}
   else if(e.key==='ArrowRight'){show(at+1);e.preventDefault();}
   else if(e.key==='Home'){show(0);e.preventDefault();}
   else if(e.key==='End'){show(set.length-1);e.preventDefault();}
 });
 d.addEventListener('click',function(e){if(e.target===d||e.target.id==='vw-stage')d.close();});
-d.addEventListener('close',function(){img.removeAttribute('src');if(set[at])set[at].focus();});
+d.addEventListener('close',function(){
+  img.removeAttribute('src');
+  if(history.state&&history.state.viewer)history.back();
+  if(set[at])set[at].focus();
+});
 var x0=null;
-d.addEventListener('pointerdown',function(e){x0=e.pointerType==='mouse'?null:e.clientX;});
+d.addEventListener('pointerdown',function(e){
+  // A swipe that starts on a button would also click it: step only once.
+  x0=e.pointerType==='mouse'||e.target.closest('button,a')?null:e.clientX;
+});
 d.addEventListener('pointerup',function(e){
   if(x0===null)return;var dx=e.clientX-x0;x0=null;
   if(Math.abs(dx)>50)show(at+(dx<0?1:-1));
