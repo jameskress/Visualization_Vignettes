@@ -210,8 +210,11 @@ def gpu_energy_j(samples, began=None, ended=None):
     points = sorted((t, w) for t, w in samples if w is not None)
     if not points:
         return None
-    began = points[0][0] if began is None else min(began, points[0][0])
-    ended = points[-1][0] if ended is None else max(ended, points[-1][0])
+    began = points[0][0] if began is None else began
+    ended = points[-1][0] if ended is None else max(ended, began)
+    # A sample timed outside the run (one that reached the reader after
+    # stop()) is moved to the run's edge: the window is the run, never more.
+    points = [(min(max(t, began), ended), w) for t, w in points]
     joules = points[0][1] * (points[0][0] - began)
     joules += points[-1][1] * (ended - points[-1][0])
     for (t0, w0), (t1, w1) in zip(points, points[1:]):

@@ -255,6 +255,9 @@ class PowerAndGpu(unittest.TestCase):
         self.assertAlmostEqual(e([(0.2, 60.0)], 0.0, 0.7), 42.0)
         # A missing power reading ([N/A]) is skipped; none at all is None.
         self.assertAlmostEqual(e([(0.0, 10.0), (1.0, None), (2.0, 10.0)]), 20.0)
+        # A sample timed after the run ended does not stretch the run: 0 to
+        # 1 s at 50 W is 50 J, whatever arrives at 1.2 s.
+        self.assertAlmostEqual(e([(0.2, 50.0), (1.2, 50.0)], 0.0, 1.0), 50.0)
         self.assertIsNone(e([(0.0, None)]))
         self.assertIsNone(e([]))
 
