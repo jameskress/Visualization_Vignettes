@@ -237,6 +237,26 @@ class Baselines(unittest.TestCase):
         self.assertNotIn("ex01_<b>", page)
         self.assertIn("ex01_%3Cb%3E", page)
 
+    def test_gallery_has_the_viewer_and_plain_links(self):
+        """Each frame stays a plain link to its full-size file (works without
+        JavaScript); the viewer dialog and its script come once, after main."""
+        found = {
+            5: {
+                "dir": {"ParaView": "ex05_Time"},
+                "images": {"ParaView": ["a/ex05_1.png", "a/ex05_2.png"]},
+                "sites": {},
+            }
+        }
+        placed = {
+            "a/ex05_1.png": ("img/a/ex05_1.png", "preview/a/ex05_1.png.jpg", None),
+            "a/ex05_2.png": ("img/a/ex05_2.png", "preview/a/ex05_2.png.jpg", None),
+        }
+        page = site_pages.render_gallery(found, placed)
+        self.assertIn("<a href='img/a/ex05_2.png'>", page)
+        self.assertEqual(page.count("id='viewer'"), 1)
+        self.assertLess(page.index("</main>"), page.index("<dialog"))
+        self.assertIn("ArrowRight", page)
+
 
 class RealRepository(unittest.TestCase):
     def test_every_vignette_number_is_described(self):

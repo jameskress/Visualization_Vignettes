@@ -126,7 +126,95 @@ text-transform:uppercase;margin:12px 0 6px}
 @media (max-width:520px){.ctas,.inside{grid-template-columns:minmax(0,1fr)}
 .cta.span2{grid-column:auto}}
 @media (prefers-reduced-motion:reduce){.strip img{transition:none}}
+.viewer{border:0;padding:0;margin:0;width:100vw;height:100dvh;max-width:none;
+max-height:none;background:#0b0f11;color:#fff}
+.viewer::backdrop{background:rgba(8,12,14,.6)}
+.viewer[open]{display:grid;grid-template-rows:auto minmax(0,1fr);
+grid-template-columns:minmax(0,1fr)}
+.viewer .vw-bar{display:flex;align-items:center;gap:12px;padding:10px 14px;
+font:500 13.5px/1.3 var(--sans)}
+.viewer .vw-bar .what{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+white-space:nowrap}
+.viewer .count{font-family:var(--mono);color:#c9d1d4}
+.viewer .vw-bar a{color:#fff}
+.viewer .stage{position:relative;display:flex;align-items:center;
+justify-content:center;min-height:0;padding:0 64px 16px;touch-action:pan-y}
+.viewer .stage img{max-width:100%;max-height:100%;object-fit:contain;
+border-radius:4px;user-select:none;-webkit-user-drag:none}
+.viewer button{font:600 15px/1 var(--sans);color:#fff;background:rgba(255,255,255,.12);
+border:1px solid rgba(255,255,255,.28);border-radius:8px;cursor:pointer;
+min-width:44px;min-height:44px}
+.viewer button:hover,.viewer button:focus-visible{background:rgba(255,255,255,.24)}
+.viewer button:disabled{opacity:.3;cursor:default}
+.viewer .prev,.viewer .next{position:absolute;top:50%;transform:translateY(-50%);
+font-size:24px}
+.viewer .prev{left:10px}.viewer .next{right:10px}
+@media (max-width:600px){.viewer .stage{padding:0 8px 64px}
+.viewer .prev,.viewer .next{top:auto;bottom:10px;transform:none}}
 """
+
+# The gallery's viewer. Without JavaScript each image is a plain link to the
+# full-size file; with it, selecting an image opens it in a dialog that steps
+# through the images of the same vignette (arrow keys, buttons or a swipe).
+VIEWER = """<dialog class='viewer' id='viewer' aria-label='Image viewer'>
+<div class='vw-bar'><span class='what' id='vw-what'></span>
+<span class='count' id='vw-count'></span>
+<a id='vw-full' href='#' target='_blank' rel='noopener'>Full size</a>
+<button type='button' class='close' id='vw-close' aria-label='Close (Esc)'>&times;</button></div>
+<div class='stage' id='vw-stage'>
+<button type='button' class='prev' id='vw-prev' aria-label='Previous image (left arrow)'>&lsaquo;</button>
+<img id='vw-img' alt=''>
+<button type='button' class='next' id='vw-next' aria-label='Next image (right arrow)'>&rsaquo;</button>
+</div></dialog>
+<script>
+(function(){
+var d=document.getElementById('viewer');
+if(!d||!d.showModal)return;
+var img=document.getElementById('vw-img'),what=document.getElementById('vw-what'),
+count=document.getElementById('vw-count'),full=document.getElementById('vw-full'),
+prev=document.getElementById('vw-prev'),next=document.getElementById('vw-next'),
+set=[],at=0,title='';
+function show(i){
+  at=Math.max(0,Math.min(set.length-1,i));
+  var a=set[at],t=a.querySelector('img');
+  img.src=a.href;img.alt=t?t.alt:'';
+  var cap=a.parentNode.querySelector('figcaption');
+  what.textContent=title+(cap?' \u2014 '+cap.textContent:'');
+  count.textContent=set.length>1?(at+1)+' / '+set.length:'';
+  full.href=a.href;
+  prev.disabled=at===0;next.disabled=at===set.length-1;
+  prev.hidden=next.hidden=set.length<2;
+  [at-1,at+1].forEach(function(j){if(set[j])(new Image()).src=set[j].href;});
+}
+document.addEventListener('click',function(e){
+  var a=e.target.closest&&e.target.closest('.frames a');
+  if(!a||e.ctrlKey||e.metaKey||e.shiftKey||e.button)return;
+  e.preventDefault();
+  var box=a.closest('.frames'),card=a.closest('.vig');
+  set=[].slice.call(box.querySelectorAll('a'));
+  var h=card&&card.querySelector('h3');title='';
+  if(h){h=h.cloneNode(true);[].forEach.call(h.querySelectorAll('.muted'),
+    function(m){m.remove();});title=h.textContent.trim();}
+  show(set.indexOf(a));d.showModal();
+});
+prev.onclick=function(){show(at-1);};next.onclick=function(){show(at+1);};
+document.getElementById('vw-close').onclick=function(){d.close();};
+d.addEventListener('keydown',function(e){
+  if(e.key==='ArrowLeft'){show(at-1);e.preventDefault();}
+  else if(e.key==='ArrowRight'){show(at+1);e.preventDefault();}
+  else if(e.key==='Home'){show(0);e.preventDefault();}
+  else if(e.key==='End'){show(set.length-1);e.preventDefault();}
+});
+d.addEventListener('click',function(e){if(e.target===d||e.target.id==='vw-stage')d.close();});
+d.addEventListener('close',function(){img.removeAttribute('src');if(set[at])set[at].focus();});
+var x0=null;
+d.addEventListener('pointerdown',function(e){x0=e.pointerType==='mouse'?null:e.clientX;});
+d.addEventListener('pointerup',function(e){
+  if(x0===null)return;var dx=e.clientX-x0;x0=null;
+  if(Math.abs(dx)>50)show(at+(dx<0?1:-1));
+});
+})();
+</script>"""
 
 COPY_SCRIPT = """<script>
 var b=document.getElementById('copybtn');
@@ -349,14 +437,15 @@ def render_gallery(found, placed, with_results=None):
         "<p class='eyebrow'>Gallery</p><h1>What each vignette draws</h1>"
         "<p class='lede'>The baseline images the regression suite compares every "
         "run against, ParaView first, then VisIt, in vignette order. Select an image "
-        "for the full size.</p>{0}{1}"
+        "to view it large, then step through that vignette's images with the arrow "
+        "keys, the &lsaquo; &rsaquo; buttons or a swipe; Esc closes it.</p>{0}{1}"
     ).format("".join(tocs), "".join(sections))
     footer = (
         "Built from the Testing/Baseline images in jameskress/Visualization_Vignettes "
         "by Testing/site_pages.py. Results of every run: "
         "<a href='../dashboard/'>dashboard</a>."
     )
-    return page("Gallery - Visualization Vignettes", body, footer, "gallery")
+    return page("Gallery - Visualization Vignettes", body, footer, "gallery", VIEWER)
 
 
 # The landing page's strip: one image of each, in order, ParaView then VisIt.
