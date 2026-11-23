@@ -498,5 +498,284 @@
             "os_release": "Rocky Linux 9.4 (Blue Onyx)"
         },
         "run_id": "ibex-cpu-backfill-paraview-6.0.1-2026-11-17"
+    },
+    "2026-11-23T11:11:51.354486": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "metrics_schema": 8,
+        "execution_time": 46.15298342704773,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 249.08,
+        "cpu_usage_percent": 539.6834213192551,
+        "memory_rss_mb": 671.121,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 4.703125,
+        "io_write_mb": 201.44140625,
+        "io_rchar_mb": 57.880032539367676,
+        "io_wchar_mb": 196.70318603515625,
+        "peak_processes": 2,
+        "peak_threads": 105,
+        "cpu_user_seconds": 227.63,
+        "cpu_system_seconds": 21.45,
+        "memory_usage_mb": 650.919,
+        "memory_usage": 682538041.344,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 46.103757,
+        "load_1m_at_start": 73.21,
+        "load_1m_at_end": 71.14,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "step_hwm_processes": 2,
+        "step_hwm_steps": 0,
+        "step_hwm_samples": 461,
+        "step_hwm_mean_sample_s": 0.01199,
+        "step_pss_samples": 459,
+        "step_pss_mean_sample_s": 0.00422,
+        "tool_tree_pss_peak_mb": 650.9189453125,
+        "harness_rss_mb": 184.52734375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "ff70689c9ffc",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn504-21",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 192,
+            "cpu_model": "AMD EPYC 9655 96-Core Processor",
+            "memory_total_gb": 755.5,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "smt_active": false,
+            "numa_nodes": 8,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0xb002162",
+            "kernel_cmdline_digest": "29b097de01ba"
+        },
+        "run_id": "ibex-cpu-2026-11-23"
+    },
+    "2026-11-23T11:17:59.891663": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "metrics_schema": 8,
+        "execution_time": 45.55365180969238,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 227.29,
+        "cpu_usage_percent": 498.9501191903123,
+        "memory_rss_mb": 675.594,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 201.671875,
+        "io_rchar_mb": 57.880154609680176,
+        "io_wchar_mb": 196.93755340576172,
+        "peak_processes": 2,
+        "peak_threads": 105,
+        "cpu_user_seconds": 208.17,
+        "cpu_system_seconds": 19.12,
+        "memory_usage_mb": 649.846,
+        "memory_usage": 681412919.296,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 45.501376,
+        "load_1m_at_start": 76.99,
+        "load_1m_at_end": 78.32,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "step_hwm_processes": 2,
+        "step_hwm_steps": 0,
+        "step_hwm_samples": 455,
+        "step_hwm_mean_sample_s": 0.01183,
+        "step_pss_samples": 454,
+        "step_pss_mean_sample_s": 0.00443,
+        "tool_tree_pss_peak_mb": 649.845703125,
+        "harness_rss_mb": 192.82421875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "ff70689c9ffc",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn504-21",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 192,
+            "cpu_model": "AMD EPYC 9655 96-Core Processor",
+            "memory_total_gb": 755.5,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "smt_active": false,
+            "numa_nodes": 8,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0xb002162",
+            "kernel_cmdline_digest": "29b097de01ba"
+        },
+        "run_id": "ibex-cpu-2026-11-23"
+    },
+    "2026-11-23T11:24:08.774511": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "metrics_schema": 8,
+        "execution_time": 45.699668645858765,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 235.21,
+        "cpu_usage_percent": 514.6864451528455,
+        "memory_rss_mb": 675.0,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 201.546875,
+        "io_rchar_mb": 57.879133224487305,
+        "io_wchar_mb": 196.81256103515625,
+        "peak_processes": 2,
+        "peak_threads": 105,
+        "cpu_user_seconds": 214.27,
+        "cpu_system_seconds": 20.94,
+        "memory_usage_mb": 649.198,
+        "memory_usage": 680733442.048,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 45.651318,
+        "load_1m_at_start": 77.1,
+        "load_1m_at_end": 74.44,
+        "opengl_window": "vtkOSOpenGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "step_hwm_processes": 2,
+        "step_hwm_steps": 0,
+        "step_hwm_samples": 456,
+        "step_hwm_mean_sample_s": 0.01121,
+        "step_pss_samples": 456,
+        "step_pss_mean_sample_s": 0.0042,
+        "tool_tree_pss_peak_mb": 649.2138671875,
+        "harness_rss_mb": 179.328125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkOSOpenGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "ff70689c9ffc",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn504-21",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 192,
+            "cpu_model": "AMD EPYC 9655 96-Core Processor",
+            "memory_total_gb": 755.5,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "smt_active": false,
+            "numa_nodes": 8,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0xb002162",
+            "kernel_cmdline_digest": "29b097de01ba"
+        },
+        "run_id": "ibex-cpu-2026-11-23"
     }
 }

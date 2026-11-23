@@ -502,5 +502,353 @@
             ]
         },
         "run_id": "ibex-egl-rtx2080ti-backfill-paraview-6.0.1-2026-11-17"
+    },
+    "2026-11-23T13:08:02.985127": {
+        "test_name": "ex02_pvAnimation",
+        "metrics_schema": 8,
+        "execution_time": 69.02557373046875,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 67.15,
+        "cpu_usage_percent": 97.28278429413352,
+        "memory_rss_mb": 515.367,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 1.5703125,
+        "io_write_mb": 111.5703125,
+        "io_rchar_mb": 35.77786159515381,
+        "io_wchar_mb": 107.33200073242188,
+        "peak_processes": 2,
+        "peak_threads": 25,
+        "cpu_user_seconds": 64.76,
+        "cpu_system_seconds": 2.39,
+        "memory_usage_mb": 382.443,
+        "memory_usage": 401020551.168,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 68.942873,
+        "load_1m_at_start": 3.78,
+        "load_1m_at_end": 4.12,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 252.0,
+                "power_mean_w": 25.3,
+                "power_peak_w": 61.31,
+                "samples": 69,
+                "util_mean_pct": 6.7,
+                "util_peak_pct": 10.0
+            }
+        ],
+        "step_hwm_processes": 2,
+        "step_hwm_steps": 0,
+        "step_hwm_samples": 689,
+        "step_hwm_mean_sample_s": 0.00573,
+        "step_pss_samples": 688,
+        "step_pss_mean_sample_s": 0.0043,
+        "tool_tree_pss_peak_mb": 382.443359375,
+        "gpu_memory_peak_mib": 252.0,
+        "gpu_power_peak_w": 61.31,
+        "harness_rss_mb": 178.9921875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 5,
+                "NOT BASELINED": 95
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-12",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 32,
+            "cpu_model": "Intel(R) Xeon(R) Gold 6142 CPU @ 2.60GHz",
+            "memory_total_gb": 376.6,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "cpu_driver": "intel_cpufreq",
+            "cpu_max_mhz": 3700,
+            "cpu_boost": true,
+            "smt_active": false,
+            "numa_nodes": 2,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0x2000069",
+            "kernel_cmdline_digest": "7ea15a65da1c",
+            "gpus": [
+                {
+                    "name": "NVIDIA GeForce RTX 2080 Ti",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-egl-rtx2080ti-2026-11-23"
+    },
+    "2026-11-23T13:18:49.138276": {
+        "test_name": "ex02_pvAnimation",
+        "metrics_schema": 8,
+        "execution_time": 65.27027559280396,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 63.75,
+        "cpu_usage_percent": 97.67079948874681,
+        "memory_rss_mb": 510.973,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 111.609375,
+        "io_rchar_mb": 35.77822399139404,
+        "io_wchar_mb": 107.37106323242188,
+        "peak_processes": 2,
+        "peak_threads": 25,
+        "cpu_user_seconds": 61.28,
+        "cpu_system_seconds": 2.47,
+        "memory_usage_mb": 376.236,
+        "memory_usage": 394512039.936,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 65.186863,
+        "load_1m_at_start": 8.85,
+        "load_1m_at_end": 5.2,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 252.0,
+                "power_mean_w": 25.3,
+                "power_peak_w": 59.71,
+                "samples": 65,
+                "util_mean_pct": 6.9,
+                "util_peak_pct": 10.0
+            }
+        ],
+        "step_hwm_processes": 2,
+        "step_hwm_steps": 0,
+        "step_hwm_samples": 651,
+        "step_hwm_mean_sample_s": 0.0054,
+        "step_pss_samples": 650,
+        "step_pss_mean_sample_s": 0.00408,
+        "tool_tree_pss_peak_mb": 376.236328125,
+        "gpu_memory_peak_mib": 252.0,
+        "gpu_power_peak_w": 59.71,
+        "harness_rss_mb": 209.02734375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 5,
+                "NOT BASELINED": 95
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-12",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 32,
+            "cpu_model": "Intel(R) Xeon(R) Gold 6142 CPU @ 2.60GHz",
+            "memory_total_gb": 376.6,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "cpu_driver": "intel_cpufreq",
+            "cpu_max_mhz": 3700,
+            "cpu_boost": true,
+            "smt_active": false,
+            "numa_nodes": 2,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0x2000069",
+            "kernel_cmdline_digest": "7ea15a65da1c",
+            "gpus": [
+                {
+                    "name": "NVIDIA GeForce RTX 2080 Ti",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-egl-rtx2080ti-2026-11-23"
+    },
+    "2026-11-23T13:29:24.012018": {
+        "test_name": "ex02_pvAnimation",
+        "metrics_schema": 8,
+        "execution_time": 65.21256589889526,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 63.84,
+        "cpu_usage_percent": 97.89524322502005,
+        "memory_rss_mb": 507.777,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 111.515625,
+        "io_rchar_mb": 35.78008556365967,
+        "io_wchar_mb": 107.27732849121094,
+        "peak_processes": 2,
+        "peak_threads": 25,
+        "cpu_user_seconds": 61.47,
+        "cpu_system_seconds": 2.37,
+        "memory_usage_mb": 373.769,
+        "memory_usage": 391925202.944,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 65.134001,
+        "load_1m_at_start": 7.75,
+        "load_1m_at_end": 4.72,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 252.0,
+                "power_mean_w": 25.6,
+                "power_peak_w": 59.3,
+                "samples": 65,
+                "util_mean_pct": 6.9,
+                "util_peak_pct": 10.0
+            }
+        ],
+        "step_hwm_processes": 2,
+        "step_hwm_steps": 0,
+        "step_hwm_samples": 651,
+        "step_hwm_mean_sample_s": 0.00552,
+        "step_pss_samples": 650,
+        "step_pss_mean_sample_s": 0.00421,
+        "tool_tree_pss_peak_mb": 383.427734375,
+        "gpu_memory_peak_mib": 252.0,
+        "gpu_power_peak_w": 59.3,
+        "harness_rss_mb": 194.23046875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 5,
+                "NOT BASELINED": 95
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu510-12",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 32,
+            "cpu_model": "Intel(R) Xeon(R) Gold 6142 CPU @ 2.60GHz",
+            "memory_total_gb": 376.6,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "cpu_driver": "intel_cpufreq",
+            "cpu_max_mhz": 3700,
+            "cpu_boost": true,
+            "smt_active": false,
+            "numa_nodes": 2,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0x2000069",
+            "kernel_cmdline_digest": "7ea15a65da1c",
+            "gpus": [
+                {
+                    "name": "NVIDIA GeForce RTX 2080 Ti",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-egl-rtx2080ti-2026-11-23"
     }
 }

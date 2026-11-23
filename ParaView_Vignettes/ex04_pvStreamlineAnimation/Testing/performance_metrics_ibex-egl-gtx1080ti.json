@@ -468,5 +468,353 @@
             ]
         },
         "run_id": "ibex-egl-gtx1080ti-backfill-paraview-6.0.1-2026-11-17"
+    },
+    "2026-11-23T13:00:52.442532": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "metrics_schema": 8,
+        "execution_time": 88.53592324256897,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 164.86,
+        "cpu_usage_percent": 186.2069021953042,
+        "memory_rss_mb": 583.098,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 6.5078125,
+        "io_write_mb": 260.9765625,
+        "io_rchar_mb": 58.17967700958252,
+        "io_wchar_mb": 256.68342876434326,
+        "peak_processes": 2,
+        "peak_threads": 25,
+        "cpu_user_seconds": 149.05,
+        "cpu_system_seconds": 15.81,
+        "memory_usage_mb": 446.473,
+        "memory_usage": 468160872.448,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 88.410344,
+        "load_1m_at_start": 5.26,
+        "load_1m_at_end": 5.66,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 128.0,
+                "power_mean_w": 13.6,
+                "power_peak_w": 58.54,
+                "samples": 89,
+                "util_mean_pct": 4.0,
+                "util_peak_pct": 20.0
+            }
+        ],
+        "step_hwm_processes": 2,
+        "step_hwm_steps": 0,
+        "step_hwm_samples": 883,
+        "step_hwm_mean_sample_s": 0.0058,
+        "step_pss_samples": 882,
+        "step_pss_mean_sample_s": 0.0041,
+        "tool_tree_pss_peak_mb": 446.47265625,
+        "gpu_memory_peak_mib": 128.0,
+        "gpu_power_peak_w": 58.54,
+        "harness_rss_mb": 187.46875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "dgpu501-18",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 36,
+            "cpu_model": "Intel(R) Xeon(R) CPU E5-2699 v3 @ 2.30GHz",
+            "memory_total_gb": 251.8,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "cpu_driver": "intel_cpufreq",
+            "cpu_max_mhz": 3600,
+            "cpu_boost": true,
+            "smt_active": false,
+            "numa_nodes": 2,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0x36",
+            "kernel_cmdline_digest": "f1f21d794bb9",
+            "gpus": [
+                {
+                    "name": "NVIDIA GeForce GTX 1080 Ti",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-egl-gtx1080ti-2026-11-23"
+    },
+    "2026-11-23T13:12:38.860823": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "metrics_schema": 8,
+        "execution_time": 85.16587710380554,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 156.84,
+        "cpu_usage_percent": 184.15826306683076,
+        "memory_rss_mb": 582.992,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 260.7734375,
+        "io_rchar_mb": 58.18200206756592,
+        "io_wchar_mb": 256.4803161621094,
+        "peak_processes": 2,
+        "peak_threads": 25,
+        "cpu_user_seconds": 141.38,
+        "cpu_system_seconds": 15.46,
+        "memory_usage_mb": 446.842,
+        "memory_usage": 468547796.992,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 85.034916,
+        "load_1m_at_start": 7.75,
+        "load_1m_at_end": 6.15,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 128.0,
+                "power_mean_w": 14.7,
+                "power_peak_w": 59.03,
+                "samples": 85,
+                "util_mean_pct": 4.6,
+                "util_peak_pct": 20.0
+            }
+        ],
+        "step_hwm_processes": 2,
+        "step_hwm_steps": 0,
+        "step_hwm_samples": 849,
+        "step_hwm_mean_sample_s": 0.00559,
+        "step_pss_samples": 848,
+        "step_pss_mean_sample_s": 0.00395,
+        "tool_tree_pss_peak_mb": 446.841796875,
+        "gpu_memory_peak_mib": 128.0,
+        "gpu_power_peak_w": 59.03,
+        "harness_rss_mb": 193.546875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "dgpu501-18",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 36,
+            "cpu_model": "Intel(R) Xeon(R) CPU E5-2699 v3 @ 2.30GHz",
+            "memory_total_gb": 251.8,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "cpu_driver": "intel_cpufreq",
+            "cpu_max_mhz": 3600,
+            "cpu_boost": true,
+            "smt_active": false,
+            "numa_nodes": 2,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0x36",
+            "kernel_cmdline_digest": "f1f21d794bb9",
+            "gpus": [
+                {
+                    "name": "NVIDIA GeForce GTX 1080 Ti",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-egl-gtx1080ti-2026-11-23"
+    },
+    "2026-11-23T13:24:36.190232": {
+        "test_name": "ex04_pvStreamlineAnimation",
+        "metrics_schema": 8,
+        "execution_time": 81.631507396698,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 158.37,
+        "cpu_usage_percent": 194.00597275557118,
+        "memory_rss_mb": 583.582,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 261.1953125,
+        "io_rchar_mb": 58.18155479431152,
+        "io_wchar_mb": 256.8943786621094,
+        "peak_processes": 2,
+        "peak_threads": 25,
+        "cpu_user_seconds": 143.0,
+        "cpu_system_seconds": 15.37,
+        "memory_usage_mb": 448.388,
+        "memory_usage": 470168895.488,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 81.504533,
+        "load_1m_at_start": 6.05,
+        "load_1m_at_end": 6.37,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 128.0,
+                "power_mean_w": 14.5,
+                "power_peak_w": 58.93,
+                "samples": 82,
+                "util_mean_pct": 3.9,
+                "util_peak_pct": 20.0
+            }
+        ],
+        "step_hwm_processes": 2,
+        "step_hwm_steps": 0,
+        "step_hwm_samples": 814,
+        "step_hwm_mean_sample_s": 0.0054,
+        "step_pss_samples": 810,
+        "step_pss_mean_sample_s": 0.0038,
+        "tool_tree_pss_peak_mb": 448.3876953125,
+        "gpu_memory_peak_mib": 128.0,
+        "gpu_power_peak_w": 58.93,
+        "harness_rss_mb": 187.15234375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 5,
+                "NOT BASELINED": 120
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 5
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "dgpu501-18",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 36,
+            "cpu_model": "Intel(R) Xeon(R) CPU E5-2699 v3 @ 2.30GHz",
+            "memory_total_gb": 251.8,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "cpu_driver": "intel_cpufreq",
+            "cpu_max_mhz": 3600,
+            "cpu_boost": true,
+            "smt_active": false,
+            "numa_nodes": 2,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0x36",
+            "kernel_cmdline_digest": "f1f21d794bb9",
+            "gpus": [
+                {
+                    "name": "NVIDIA GeForce GTX 1080 Ti",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-egl-gtx1080ti-2026-11-23"
     }
 }
