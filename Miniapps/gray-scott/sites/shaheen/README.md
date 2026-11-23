@@ -1027,6 +1027,18 @@ refuses to mix staged and unstaged runs in one results directory. Only in
 transit Catalyst readers launched as one MPMD `srun` are staged: the
 two-step launch does not fix which nodes the reader gets.
 
+A staged job names each program's nodes: the job's first nodes for the
+simulation and its last for the readers, given as `--nodelist` to both parts
+of the MPMD `srun` and to every staging step (`<id>_stage.txt` lists the
+reader nodes). Without the names, Slurm does not put the second program on
+the job's last nodes. In job 16139690 (64 + 4) the copy went to
+nid02813-02816 and the readers ran on nid02811-02812 and nid02815-02816;
+the 16 readers without a copy loaded ParaView from Lustre, and the
+isosurface failed with `Plugin 'AcceleratedAlgorithms' not found`, since the
+plugin path it takes from `CATALYST_LIB_DIR` did not exist on their nodes.
+With the names, a 4 + 2 test ran the readers on the staged nodes and wrote
+its images.
+
 Three things are needed besides the option:
 
 - **The tarball**, once per ParaView install:
