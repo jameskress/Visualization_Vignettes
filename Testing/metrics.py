@@ -185,6 +185,7 @@ TELEMETRY_KEYS = (
     "step_hwm_samples",
     "step_hwm_mean_sample_s",
     "step_pss_samples",
+    "step_pss_steps",
     "step_pss_mean_sample_s",
 )
 
@@ -362,6 +363,10 @@ def prefer_exact_peak(figures, run_result):
         run_result.get("ranks_outside_tree")
         and run_result.get("job_nodes") == 1
         and run_result.get("step_pss_peak_bytes")
+        # Every srun step the poller saw has a complete PSS sample: a VisIt
+        # engine that ended between PSS polls would leave the figure with
+        # only the steps that were sampled.
+        and run_result.get("step_pss_steps", 0) >= run_result.get("step_hwm_steps", 1)
     ):
         return
     if figures.get("memory_mb") is not None:

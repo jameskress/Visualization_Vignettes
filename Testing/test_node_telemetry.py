@@ -121,6 +121,32 @@ class SequentialSteps(unittest.TestCase):
             self.assertEqual(node_telemetry.pss_kb(7, proc=root), 640)
             self.assertIsNone(node_telemetry.pss_kb(8, proc=root))
 
+    def test_a_partial_poll_does_not_count(self):
+        from unittest import mock
+
+        telemetry = node_telemetry.NodeTelemetry(step_name="vv-a", gpu=False)
+        telemetry._own_step = "b"
+
+        def scan(*a, groups=None, **k):
+            groups.update({1: "72", 2: "72"})
+            return {1: 500, 2: 500}
+
+        import itertools
+
+        # Poll 1: rank 2 unreadable. Poll 2: both read. Later polls: unreadable.
+        reads = itertools.chain([400, None, 300, 350], itertools.repeat(None))
+
+        with mock.patch.object(
+            node_telemetry, "step_hwm_kb", side_effect=scan
+        ), mock.patch.object(
+            node_telemetry, "pss_kb", side_effect=lambda pid, proc="/proc": next(reads)
+        ):
+            telemetry.start()
+            time.sleep(0.35)
+            telemetry.stop()
+        # Only the complete poll (300 + 350) counts, not the partial 400.
+        self.assertEqual(telemetry._step_pss_peak, {"72": 650})
+
     def test_the_pss_poll_paces_itself_on_large_processes(self):
         from unittest import mock
 
@@ -305,6 +331,8 @@ class ExactPeakAsMemory(unittest.TestCase):
             "ranks_outside_tree": True,
             "job_nodes": 1,
             "step_pss_peak_bytes": 541 * self.MB,
+            "step_pss_steps": 1,
+            "step_hwm_steps": 1,
             "step_hwm_bytes": 600 * self.MB,
             "succeeded": True,
             "returncode": 0,
@@ -373,6 +401,14 @@ class ExactPeakAsMemory(unittest.TestCase):
         record = self.gather(local)
         self.assertEqual(record["memory_usage_mb"], 300.0)
         self.assertEqual(record["memory_measurement_scope"], metrics.PSS_SCOPE)
+
+    def test_a_step_without_a_pss_sample_keeps_slurms_figure(self):
+        import metrics
+
+        # Two engine steps seen, only one with a complete PSS sample.
+        record = self.gather(self.run_result(step_pss_steps=1, step_hwm_steps=2))
+        self.assertEqual(record["memory_measurement_scope"], metrics.SLURM_SCOPE)
+        self.assertEqual(record["memory_usage_mb"], 231.0)
 
     def test_the_slurm_figure_has_its_own_scope(self):
         import drift

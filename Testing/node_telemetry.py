@@ -325,12 +325,20 @@ class NodeTelemetry(object):
                     self._hwm[key] = kb
             if found and began >= next_pss:
                 pss_began = time.time()
-                pss = {pid: pss_kb(pid) for pid in found}
-                pss = {pid: kb for pid, kb in pss.items() if kb is not None}
+                read = {pid: pss_kb(pid) for pid in found}
+                # A step counts at this poll only when every one of its
+                # processes was read: a partial sum is not that step's memory.
+                partial = {
+                    groups.get(pid, self._own_step)
+                    for pid, kb in read.items()
+                    if kb is None
+                }
+                pss = {pid: kb for pid, kb in read.items() if kb is not None}
                 for step, kb in step_sums(pss, groups, self._own_step).items():
-                    if kb > self._step_pss_peak.get(step, 0):
+                    if step not in partial and kb > self._step_pss_peak.get(step, 0):
                         self._step_pss_peak[step] = kb
-                self._tree_pss_peak = max(self._tree_pss_peak, sum(pss.values()))
+                if not partial:
+                    self._tree_pss_peak = max(self._tree_pss_peak, sum(pss.values()))
                 cost = time.time() - pss_began
                 self._pss_samples += 1
                 self._pss_cost_s += cost
@@ -432,6 +440,9 @@ class NodeTelemetry(object):
             step_pss = dict(self._step_pss_peak)
             if step_pss:
                 out["step_pss_peak_bytes"] = max(step_pss.values()) * 1024
+                # How many of the steps seen (step_hwm_steps) have a complete
+                # PSS sample; the figure is the run's memory only when all do.
+                out["step_pss_steps"] = len(step_pss)
             if self._tree_pss_peak:
                 out["tool_tree_pss_peak_bytes"] = self._tree_pss_peak * 1024
             if self._pss_samples:
