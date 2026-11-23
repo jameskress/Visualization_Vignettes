@@ -82,8 +82,8 @@ PARTS = (
     ("checked", "Checked"),
 )
 
-_NOISE = "data/noise.silo (a 50 × 50 × 50 grid; the field hardyglobal)"
-_VARYING = "the 20-step varying series (a 50 × 50 × 50 grid; the field temp)"
+_NOISE = "The file data/noise.silo (a 50 × 50 × 50 grid; the field hardyglobal)"
+_VARYING = "The 20-step varying series (a 50 × 50 × 50 grid; the field temp)"
 _FRAMES = "the first five frames are compared with baseline images"
 
 PIPELINE = {

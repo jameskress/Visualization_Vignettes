@@ -1368,9 +1368,7 @@ def pipeline_html(tool, n):
         return ""
     return "<dl class='pipe'>{0}</dl>".format(
         "".join(
-            "<dt>{0}</dt><dd>{1}</dd>".format(
-                label, esc(entry[key][:1].upper() + entry[key][1:])
-            )
+            "<dt>{0}</dt><dd>{1}</dd>".format(label, esc(entry[key]))
             for key, label in PARTS
             if entry.get(key)
         )

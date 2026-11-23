@@ -257,6 +257,9 @@ class RealRepository(unittest.TestCase):
                 entry = dashboard.PIPELINE.get((tool, n), {})
                 for key, _ in dashboard.PARTS:
                     self.assertTrue(entry.get(key), (tool, n, key))
+                    # Written as shown: no automatic capitals, which
+                    # would change a path such as data/noise.silo.
+                    self.assertFalse(entry[key][:1].islower(), (tool, n, key))
                 html = dashboard.pipeline_html(tool, n)
                 self.assertEqual(html.count("<dt>"), len(dashboard.PARTS))
 
