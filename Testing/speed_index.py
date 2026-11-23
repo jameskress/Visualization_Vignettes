@@ -92,8 +92,13 @@ def _when(ts):
         return None
 
 
-def collect(histories, tool, retired, run_ok, measure):
-    """{(config, vignette, version): [(when, value)]} at each vignette's newest code."""
+def collect(histories, tool, retired, run_ok, measure, scope_before=None):
+    """{(config, vignette, version): [(when, value)]} at each vignette's newest code.
+
+    scope_before: take each machine's way of measuring from its latest record
+    before this time (when it has one), not its latest overall. The fixed
+    baseline uses this, so a machine changing method later cannot move it.
+    """
     newest = {}
     for (config, t), vignettes in histories.items():
         if t != tool or config in retired:
@@ -117,7 +122,13 @@ def collect(histories, tool, retired, run_ok, measure):
                 # One way of measuring per machine and vignette: its latest
                 # record's, so a change of method is never read as a change
                 # between versions (the run charts fade the others the same way).
-                latest = kept[-1][1].get(scope_field)
+                pool = kept
+                if scope_before is not None:
+                    early = [
+                        k for k in kept if (_when(k[0]) or scope_before) < scope_before
+                    ]
+                    pool = early or kept
+                latest = pool[-1][1].get(scope_field)
                 kept = [k for k in kept if k[1].get(scope_field) == latest]
             for ts, rec, version, value in kept:
                 out.setdefault((config, vignette, version), []).append(
@@ -126,13 +137,18 @@ def collect(histories, tool, retired, run_ok, measure):
     return out
 
 
-def references(samples, until=REFERENCE_UNTIL):
-    """({vignette: typical value}, {vignettes whose typical run is not frozen})."""
+def references(samples, until=REFERENCE_UNTIL, frozen_samples=None):
+    """({vignette: typical value}, {vignettes whose typical run is not frozen}).
+
+    frozen_samples: what the fixed part is computed from (collect with
+    scope_before=until), so nothing recorded after `until` can change it.
+    """
     frozen, every = {}, {}
-    for (config, vignette, version), runs in samples.items():
+    for (config, vignette, version), runs in (frozen_samples or samples).items():
         before = [v for when, v in runs if when is not None and when < until]
         if before:
             frozen.setdefault(vignette, []).append(statistics.median(before))
+    for (config, vignette, version), runs in samples.items():
         every.setdefault(vignette, []).append(statistics.median(v for _, v in runs))
     refs, moving = {}, set()
     for vignette, medians in every.items():
@@ -192,7 +208,12 @@ def build(histories, tool, retired, run_ok, version_key, order, until=REFERENCE_
         samples = collect(histories, tool, retired, run_ok, measure)
         if not samples:
             continue
-        refs, moving = references(samples, until)
+        frozen_samples = (
+            collect(histories, tool, retired, run_ok, measure, scope_before=until)
+            if measure in SCOPE_FIELDS
+            else samples
+        )
+        refs, moving = references(samples, until, frozen_samples)
         by_cell = {}
         for (config, vignette, version), runs in samples.items():
             by_cell.setdefault((config, version), {})[vignette] = [v for _, v in runs]
@@ -209,9 +230,9 @@ def build(histories, tool, retired, run_ok, version_key, order, until=REFERENCE_
         cells = []
         for (config, version), runs_by in sorted(by_cell.items()):
             mine = {v: r for v, r in runs_by.items() if v in row_set[config]}
-            if not mine:
-                continue
-            index, lo, hi = cell(mine, refs, rng)
+            # A version with none of the row's vignettes has no index, but its
+            # vignettes still show in the one-vignette view.
+            index, lo, hi = cell(mine, refs, rng) if mine else (None, None, None)
             per = {}
             for vignette, runs in sorted(runs_by.items()):
                 median, plo, phi = one(runs, rng)
@@ -231,10 +252,10 @@ def build(histories, tool, retired, run_ok, version_key, order, until=REFERENCE_
                 {
                     "c": config,
                     "v": version,
-                    "i": round(index, 4),
+                    "i": None if index is None else round(index, 4),
                     "lo": None if lo is None else round(lo, 4),
                     "hi": None if hi is None else round(hi, 4),
-                    "k": colour(index, lo, hi),
+                    "k": None if index is None else colour(index, lo, hi),
                     "used": sorted(mine),
                     "n": len(mine),
                     "of": len(row_set[config]),
@@ -336,7 +357,7 @@ BLOCK = """
 <h4 class='sub-h'>The same, as lines</h4>
 <p class='note si-lineintro'></p>
 <div class='card'><div class='legend si-legend'></div>
-<svg class='chart wide si-lines' role='img'></svg></div>
+<div class='scroll'><svg class='chart wide si-lines' role='img'></svg></div></div>
 <p class='note si-moving'></p>
 </div>
 """
@@ -390,6 +411,7 @@ document.querySelectorAll('.si').forEach(function(box){
   // {r: ratio to typical, lo, hi, text, tip} for one cell in the current view.
   var unit=m.unit,mine;
   if(V==='all'){
+   if(c.i===null){return null;}
    var per=c.used.map(function(v){return '  '+vname(v)+': '+
     num(c.per[v][0],unit)+' (typical '+num(m.refs[v],unit)+')';}).join('\n');
    var range=c.lo===null?'one run per vignette, so the noise is unknown':
@@ -418,9 +440,9 @@ document.querySelectorAll('.si').forEach(function(box){
    ', all vignettes':', '+vname(V));
   var cells={};m.cells.forEach(function(c){cells[c.c+'|'+c.v]=c;});
   var versions=D.versions.filter(function(v){return m.cells.some(function(c){
-   return c.v===v&&(V==='all'||c.per[V]);});});
+   return c.v===v&&(V==='all'?c.i!==null:c.per[V]);});});
   var configs=D.configs.filter(function(k){return m.cells.some(function(c){
-   return c.c===k&&(V==='all'||c.per[V]);});});
+   return c.c===k&&(V==='all'?c.i!==null:c.per[V]);});});
   var h='<thead><tr><td></td>'+versions.map(function(v){return "<th class='vh'>"+
    esc(tool)+' '+esc(v)+'</th>';}).join('')+'</tr></thead><tbody>';
   configs.forEach(function(k){

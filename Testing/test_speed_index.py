@@ -141,6 +141,38 @@ class RowsAndScopes(unittest.TestCase):
         cells = build(h)["measures"]["cpu_seconds"]["cells"]
         self.assertEqual([c["v"] for c in cells], ["6.2.1"])
 
+    def test_a_later_change_of_method_does_not_move_the_baseline(self):
+        """A and B at 2 s and 6 s CPU before the cut-off: typical 4 s. A
+        changing scope afterwards must not take its early runs out."""
+
+        def cpu(seconds, scope, day):
+            return (
+                ts(day),
+                rec(2, "6.2.1", cpu_seconds=seconds, cpu_measurement_scope=scope),
+            )
+
+        h = {
+            ("a", "ParaView"): {
+                "ex01_x": [cpu(2.0, "tree", 10), cpu(30.0, "slurm", 25)]
+            },
+            ("b", "ParaView"): {"ex01_x": [cpu(6.0, "tree", 10)]},
+        }
+        m = build(h)["measures"]["cpu_seconds"]
+        self.assertEqual(m["refs"]["ex01_x"], 4.0)
+        self.assertEqual(m["moving"], [])
+
+    def test_a_version_outside_the_rows_set_still_shows_per_vignette(self):
+        h = {
+            ("a", "ParaView"): {
+                "ex01_x": [(ts(10), rec(2.0, "6.1.0"))],
+                "ex02_y": [(ts(11), rec(3.0, "6.2.1"))],
+            }
+        }
+        cells = build(h)["measures"]["execution_time"]["cells"]
+        old = next(c for c in cells if c["v"] == "6.1.0")
+        self.assertIsNone(old["i"])
+        self.assertIn("ex01_x", old["per"])
+
     def test_the_page_gets_the_class(self):
         h = {
             ("a", "ParaView"): {
