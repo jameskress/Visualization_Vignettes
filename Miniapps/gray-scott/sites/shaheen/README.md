@@ -476,8 +476,10 @@ writes `reduce-<jobid>.out` and produces:
   `<results>/<id>_data_output.json`. A 3328-node Catalyst data run left
   213,025 files (one per rank), and the data runs of one sweep would fill
   the 2M-inode `/scratch` quota on their own (22 Nov 2026). The write cost
-  is in the timers; the output itself is not read afterwards. ADIOS2 output
-  (a few aggregated files) and render images are kept.
+  is in the timers; the output itself is not read afterwards. ADIOS2 data
+  runs get the same treatment: few files, but full fields (one 3072 + 192 in
+  transit run wrote 12 TB, nearly filling the 31 TiB quota, 23 Nov 2026).
+  Render images and the initialisations' checkpoints are kept.
 
 `large-runs/audit_runs.py --results-dir <results>` lists runs that are missing, failed
 (time limit, out of memory, crash) or still running. If a run's reduction
