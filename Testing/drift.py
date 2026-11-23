@@ -226,6 +226,8 @@ def scope_of(metric):
     """
     if metric in METRICS:
         return METRICS[metric][4]
+    if metric == "slurm_memory_mb":  # Slurm's figure beside an exact peak
+        return "slurm_memory_scope"
     if metric.startswith("cpu_"):
         return "cpu_measurement_scope"
     if metric.startswith("memory_"):

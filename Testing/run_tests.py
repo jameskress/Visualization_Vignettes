@@ -55,6 +55,8 @@ try:
 except ImportError:  # pragma: no cover - psutil is in the documented venv
     psutil = None
 
+from node_telemetry import NodeTelemetry  # noqa: E402 - beside this file
+
 
 # Helper scripts that live beside a vignette but are not the vignette.
 HELPER_SUFFIXES = ("_make_state.py", "_validate.py", "_common.py")
@@ -660,6 +662,7 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     returncode = None
 
     sampler = None
+    telemetry = None
     try:
         with open(stdout_path, "w") as stdout_file, open(
             stderr_path, "w"
@@ -671,14 +674,28 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
                 env=env,
             )
             sampler = _PeakRssSampler(process.pid).start()
+            # VV_NO_NODE_TELEMETRY=1 leaves the node telemetry out, to measure
+            # what it costs or to rule it out.
             try:
+                if os.environ.get("VV_NO_NODE_TELEMETRY") != "1":
+                    telemetry = NodeTelemetry(step_name=step_name, power=owns_nodes)
+                    try:
+                        telemetry.start()
+                    except RuntimeError as exc:  # no thread to be had
+                        # Optional: the vignette runs and is recorded without
+                        # it; the finally below stops whatever did start.
+                        print("Node telemetry not started: {0}".format(exc))
                 returncode = process.wait(timeout=timeout)
             finally:
                 sampler.stop()
+                if telemetry is not None:
+                    telemetry.stop()
     except subprocess.TimeoutExpired:
         process.kill()
         process.wait()
         sampler.stop()
+        if telemetry is not None:
+            telemetry.stop()
         timed_out = True
         returncode = 124  # conventional timeout status
         with open(stderr_path, "a") as stderr_file:
@@ -712,6 +729,11 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
         "succeeded": (returncode == 0),
         "job_owns_its_nodes": owns_nodes,
     }
+    # How many nodes the job has: with one, every srun rank ran here, where
+    # node_telemetry.py read the ranks' memory (metrics.STEP_PSS_SCOPE).
+    nodes = os.environ.get("SLURM_JOB_NUM_NODES") or os.environ.get("SLURM_NNODES")
+    if nodes and nodes.isdigit():
+        payload["job_nodes"] = int(nodes)
     if load_at_start is not None:
         payload["load_1m_at_start"] = load_at_start
     if load_at_end is not None:
@@ -721,6 +743,8 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     energy = pm_energy(pm_before, pm_after)
     if energy is not None:
         payload["pm_energy"] = energy
+    if telemetry is not None:
+        payload.update(telemetry.figures())
     # srun hands the ranks to slurmstepd, so they are not in the tree the
     # sampler walked: what it measured was the srun client. VisIt does the
     # same off a workstation, starting its compute engine with srun, and says
@@ -756,6 +780,9 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
             # real. Record no figures instead.
             print("Step count unknown (no results JSON); no step accounting")
         else:
+            # How many srun steps the vignette says it started: the PSS
+            # figure covers the run only if it sampled every one of them.
+            payload["srun_steps_expected"] = expected_steps
             asked = time.time()
             steps = slurm_step_usage(
                 started, ended, expected=expected_steps, step_name=step_name

@@ -52,7 +52,20 @@ except ImportError:  # pragma: no cover - psutil is in the documented venv
 # vignette in one invocation, --repeat), `load_1m_at_end`, and the host's OS
 # release, CPU governor and GPUs with their driver in machine_info. A figure
 # means what it did at 6.
-METRICS_SCHEMA = 7
+#
+# 8 adds fields once more (#140): the node's platform settings in
+# machine_info (boost, SMT, THP, huge pages, NUMA, microcode, a digest of
+# the kernel command line), and what the node did during the vignette
+# (node_telemetry.py): node, CPU and memory power and the peak CPU
+# temperature from pm_counters, per-GPU memory, utilisation and power from
+# nvidia-smi, and the memory of the vignette's processes read from /proc.
+# Figures mean what they did at 7, with one addition: a run whose ranks srun
+# launched on this one node takes its memory from the ranks' peak summed PSS
+# (STEP_PSS_SCOPE), the processes Slurm's step accounting covers, sampled up
+# to ten times a second where Slurm samples once at best and missed 22 to 57%
+# of a short step's peak on Shaheen (#140). Slurm's figure stays beside it.
+# The scope keeps the gate and drift from comparing the two kinds of figure.
+METRICS_SCHEMA = 8
 MIN_COMPARABLE_SCHEMA = 5
 
 
@@ -89,6 +102,14 @@ SLURM_SCOPE = "slurm-steps-plus-local-tree"
 SLURM_STEPS_ONLY_SCOPE = "slurm-steps-only"
 # The same, with the local tree's memory as RSS because PSS was unreadable.
 SLURM_LOCAL_RSS_SCOPE = "slurm-steps-plus-local-rss"
+
+# The largest summed PSS of the ranks of one srun step at one poll
+# (node_telemetry.py): the processes Slurm's step accounting covers, alive at
+# the same moment, shared pages counted once, polled up to ten times a
+# second. Only when the job has one node, so every rank is on the node the
+# poller reads. VisIt's CLI and viewer are not in it; they are in
+# tool_tree_pss_peak_mb.
+STEP_PSS_SCOPE = "srun-step-pss-single-node"
 
 # Summed PSS over the process tree. Replaces summed RSS, which counted shared
 # libraries once per rank (LOCAL_VALIDATION 4b.15).
@@ -147,6 +168,68 @@ def _local_tree_detail(run_result):
         detail["energy_memory_joules"] = float(energy.get("memory_joules") or 0.0)
         detail["energy_scope"] = ENERGY_PM_SCOPE
     return detail
+
+
+TELEMETRY_KEYS = (
+    "power_mean_node_w",
+    "power_peak_node_w",
+    "power_mean_cpu_w",
+    "power_peak_cpu_w",
+    "power_mean_memory_w",
+    "power_peak_memory_w",
+    "temp_peak_cpu_c",
+    "power_samples",
+    "gpu_telemetry",
+    "step_hwm_processes",
+    "step_hwm_steps",
+    "step_hwm_samples",
+    "step_hwm_mean_sample_s",
+    "step_pss_samples",
+    "step_pss_steps",
+    "step_pss_mean_sample_s",
+    "srun_steps_expected",
+)
+
+
+def node_telemetry_fields(run_result):
+    """Schema-8 detail from node_telemetry.py, as recorded fields.
+
+    Context and detail, not compared by the gate. For a single-node srun
+    run step_pss_peak_mb is also the run's memory figure (prefer_exact_peak).
+    Not memory_*: that prefix would tie these to the run's memory scope.
+    """
+    out = {key: run_result[key] for key in TELEMETRY_KEYS if key in run_result}
+    for key, field in (
+        # The ranks' peak summed PSS at one poll: the memory figure.
+        ("step_pss_peak_bytes", "step_pss_peak_mb"),
+        # The ranks' per-process VmHWM summed: an upper bound.
+        ("step_hwm_bytes", "step_hwm_mb"),
+        # Every process of the run, VisIt's CLI and viewer included.
+        ("tool_tree_pss_peak_bytes", "tool_tree_pss_peak_mb"),
+    ):
+        if run_result.get(key):
+            out[field] = run_result[key] / MB
+    gpus = run_result.get("gpu_telemetry") or []
+    for key, field in (
+        ("memory_peak_mib", "gpu_memory_peak_mib"),
+        ("power_peak_w", "gpu_power_peak_w"),
+    ):
+        values = [g[key] for g in gpus if g.get(key) is not None]
+        if values:
+            # The busiest GPU: a job can see idle ones too.
+            out[field] = max(values)
+    # The CPU and memory split of the node's energy, for srun runs too, whose
+    # total comes from Slurm's step accounting rather than pm_counters.
+    energy = run_result.get("pm_energy")
+    if run_result.get("ranks_outside_tree") and energy:
+        for key, name in (
+            ("node_joules", "energy_pm_node_joules"),
+            ("cpu_joules", "energy_cpu_joules"),
+            ("memory_joules", "energy_memory_joules"),
+        ):
+            if energy.get(key) is not None:
+                out[name] = float(energy[key])
+    return out
 
 
 def _resource_figures(run_result, after, before, rusage_cpu):
@@ -266,6 +349,44 @@ def _resource_figures(run_result, after, before, rusage_cpu):
     return figures
 
 
+def prefer_exact_peak(figures, run_result):
+    """Take a single-node srun run's memory from its ranks' PSS (STEP_PSS_SCOPE).
+
+    Every rank ran on this node, so node_telemetry.py's poller saw each one.
+    Slurm's figure stays beside it: slurm_memory_mb with its scope (the
+    largest step plus the harness's own tree, as recorded before), and
+    slurm_step_memory_mb, the ranks alone, the same processes the new figure
+    covers. Neither is there when a step was never sampled. Other runs are
+    left as they are: a local tree already has PSS, and a multi-node job has
+    ranks the poller cannot see.
+    """
+    if not (
+        run_result.get("ranks_outside_tree")
+        and run_result.get("job_nodes") == 1
+        and run_result.get("step_pss_peak_bytes")
+        # Every srun step the poller saw has a complete PSS sample: a VisIt
+        # engine that ended between PSS polls would leave the figure with
+        # only the steps that were sampled.
+        # How many steps the run started must be known: a step that started
+        # and ended between two scans is in neither count below.
+        and (run_result.get("srun_steps_expected") or 0) > 0
+        and run_result.get("step_pss_steps", 0)
+        >= max(
+            run_result.get("step_hwm_steps") or 1,
+            run_result["srun_steps_expected"],
+        )
+    ):
+        return
+    if figures.get("memory_mb") is not None:
+        figures["slurm_memory_mb"] = figures["memory_mb"]
+        figures["slurm_memory_scope"] = figures["memory_scope"]
+    steps = [s.get("total_mem_bytes") or 0 for s in run_result.get("slurm_steps") or []]
+    if steps and all(steps):
+        figures["slurm_step_memory_mb"] = max(steps) / MB
+    figures["memory_mb"] = run_result["step_pss_peak_bytes"] / MB
+    figures["memory_scope"] = STEP_PSS_SCOPE
+
+
 def gather_metrics(test_name, start_time, end_time, run_result=None, before=None):
     """Collect performance metrics for one vignette run.
 
@@ -308,6 +429,7 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
     # is a false baseline.
     run_result = run_result or {}
     figures = _resource_figures(run_result, after, before, child_utime + child_stime)
+    prefer_exact_peak(figures, run_result)
     cpu_seconds = figures.pop("cpu_seconds")
     child_maxrss_mb = figures.pop("memory_mb")
 
@@ -348,6 +470,7 @@ def gather_metrics(test_name, start_time, end_time, run_result=None, before=None
         ):
             if run_result.get(key) is not None:
                 metrics[key] = run_result[key]
+        metrics.update(node_telemetry_fields(run_result))
 
     if psutil is not None:
         try:

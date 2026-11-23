@@ -47,4 +47,4 @@ jobs:
       - name: Install test dependencies
         run: python -m pip install psutil 'pillow==11.2.1'
       - name: Run
-        run: python -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_dashboard_names.py Testing/test_docs_pins.py Testing/test_check_submission.py Testing/test_site_pages.py Testing/test_dashboard_redesign.py
+        run: python -m unittest -v Testing/test_io_sampler.py Testing/test_repeats.py Testing/test_dashboard_names.py Testing/test_docs_pins.py Testing/test_check_submission.py Testing/test_site_pages.py Testing/test_dashboard_redesign.py Testing/test_node_telemetry.py
