@@ -533,8 +533,12 @@ CATALYST_VOLUME_TEMPLATE = (
     + """
 # Volume of v over the full grid, comparable with ASCENT_VOLUME_TEMPLATE: the
 # same data (no resampling), image size and colour range (pinned to 0..1).
-# Rendered with OSPRay, the CPU ray tracer, as the slice and isosurface
-# templates are: like Ascent's VTK-m ray tracer, so the comparison is fair.
+# Rendered by VTK's volume ray caster, on the CPU through Mesa, not by OSPRay
+# as the slice and isosurface templates are: ParaView 6.2's OSPRay path does
+# not draw a volume of the partitioned image data Catalyst hands it, so with
+# OSPRay every frame showed only the background, axes and scalar bar
+# (sites/shaheen/README.md, "Catalyst volume images"). Drawing it with OSPRay
+# would need the data resampled to one image.
 # The producer is rendered directly: a GhostCells layer under a volume shows
 # as cracks (docs/in-situ-backends.md, Catalyst).
 from paraview import catalyst
@@ -550,8 +554,7 @@ renderView1.Set(
     CameraFocalPoint=[{center}, {center}, {center}],
     CameraViewUp=[{cam_up_x}, {cam_up_y}, {cam_up_z}],
     CameraParallelScale={parallel_scale},
-    EnableRayTracing=1,
-    BackEnd="OSPRay raycaster",
+    EnableRayTracing=0,
 )
 SetActiveView(None)
 layout1 = CreateLayout(name="Layout #1")
@@ -1080,7 +1083,7 @@ export GS_CATALYST_BACKEND=osmesa
 # here, where 64 simulation ranks share a node; the reader sets its own.
 export GALLIUM_DRIVER={gallium_driver}
 export LP_NUM_THREADS=1
-
+{mesa_cache_line}
 
 # --- Exascale Slingshot-11 OFI Tuning ---
 export FI_CXI_RX_MATCH_MODE=software
@@ -1584,12 +1587,12 @@ CMD_INLINE = """srun --exclusive --propagate=NOFILE --hint=nomultithread \\
 """
 
 CMD_INTRANSIT = """srun --exclusive --propagate=NOFILE --hint=nomultithread --kill-on-bad-exit=1 \\
-    --nodes={sim_nodes} --ntasks={sim_ranks} --ntasks-per-node={mpi_per_node} --cpus-per-task={omp_threads} --mem-bind=v,local --cpu-bind=threads \\
+    --nodes={sim_nodes}{sim_nodelist} --ntasks={sim_ranks} --ntasks-per-node={mpi_per_node} --cpus-per-task={omp_threads} --mem-bind=v,local --cpu-bind=threads \\
     $EXE_SIM \\
     --logging-level={logging_level} \\
     --settings-file=$OUTPUT_DIR/settings.json \\
     : \\
-    --exclusive --nodes={stage_nodes} --ntasks={stage_ranks} --ntasks-per-node=8 {reader_cpus} --mem-bind=v,local --cpu-bind=threads \\
+    --exclusive --nodes={stage_nodes}{stage_nodelist} --ntasks={stage_ranks} --ntasks-per-node=8 {reader_cpus} --mem-bind=v,local --cpu-bind=threads \\
     env {reader_env} \\
     $EXE_STAGE \\
     --settings $OUTPUT_DIR/settings-stage.json \\
@@ -1912,14 +1915,45 @@ def catalyst_stage(exp):
     }
 
 
+# llvmpipe's shader cache off. Mesa keeps it in ~/.cache, which in a Shaheen
+# job is /scratch/$USER/.cache on Lustre, and every rank on every node maps
+# its index file to write it. When the shaders a pipeline needs were not
+# cached yet, the ranks stopped in their first render, asleep on Lustre locks,
+# until the time limit: 20 of 21 Paper 2 inline Catalyst render, volume and
+# isosurface runs did (sites/shaheen/README.md, "Inline Catalyst hang"). The
+# cache only saves the next process its compile; each rank keeps its shaders
+# in memory anyway. Paper 1 jobs use softpipe, which compiles nothing, and
+# keep their environment as they were run.
+MESA_CACHE_LINE = """# llvmpipe's shader cache is on Lustre, where uncached ranks hung (README).
+export MESA_SHADER_CACHE_DISABLE=true
+"""
+
 # Runs before the run's PHASE run_start, so the copy is timed on its own
 # (PHASE stage_start / stage_end) and not as the run's start-up. One task per
-# reader node: the MPMD launch puts the readers on the job's last nodes.
+# reader node, on the nodes the MPMD launch then names for the readers.
 STAGE_SRUN = (
     "srun --overlap --network=no_vni --mpi=none --nodes={stage_nodes} "
-    "--relative={sim_nodes} --ntasks={stage_nodes} --ntasks-per-node=1 "
+    "--nodelist={nodelist} --ntasks={stage_nodes} --ntasks-per-node=1 "
     "--cpus-per-task=1 --mem=4G"
 )
+
+# The staged job names each program's nodes: the job's first nodes for the
+# simulation, its last for the readers. Without names, Slurm does not put an
+# MPMD launch's second program on the job's last nodes: in job 16139690 the
+# copy went to nid02813-02816 and the readers ran on nid02811-02812 and
+# nid02815-02816, so half of them loaded ParaView from Lustre and could not
+# find the staged AcceleratedAlgorithms plugin.
+STAGE_NODELISTS = """# --- Catalyst staging: the simulation's and the readers' nodes ---
+JOB_HOSTS=$(scontrol show hostnames "$SLURM_JOB_NODELIST")
+SIM_NODELIST=$(scontrol show hostlist "$(echo "$JOB_HOSTS" | head -n {sim_nodes} | paste -sd, -)")
+STAGE_NODELIST=$(scontrol show hostlist "$(echo "$JOB_HOSTS" | tail -n {stage_nodes} | paste -sd, -)")
+STAGE_NODE1=$(echo "$JOB_HOSTS" | tail -n {stage_nodes} | head -n 1)
+unset JOB_HOSTS
+if [ -z "$SIM_NODELIST" ] || [ -z "$STAGE_NODELIST" ] || [ -z "$STAGE_NODE1" ]; then
+    echo "JOB ABORTED: could not split the job's nodes ($SLURM_JOB_NODELIST)."
+    exit 1
+fi
+"""
 
 # Run on each reader node once the tarball is in the stage directory: check
 # its bytes against the recorded sha256 (the tarball could have changed since
@@ -1986,6 +2020,7 @@ STAGE_RECORD = """ST1=$(date +%s.%N); echo "PHASE stage_end $ST1"
     echo "catalyst_stage {method}: $CATALYST_STAGE_DIR from {tarball} (sha256 {sha256})"
     echo "stage_start $ST0"
     echo "stage_end $ST1"
+    echo "reader nodes $STAGE_NODELIST"
     echo "== ldd of the reader on a reader node, the stage first on LD_LIBRARY_PATH"
     {srun1} env LD_LIBRARY_PATH=$CATALYST_STAGE_DIR/lib:$LD_LIBRARY_PATH ldd $EXE_STAGE
 }} > "{results_dir}/{id}_stage.txt" 2>&1
@@ -2001,22 +2036,28 @@ def stage_scripts(exp, results_dir):
     stage = catalyst_stage(exp)
     if not stage["enabled"]:
         return "", ""
-    srun = STAGE_SRUN.format(stage_nodes=exp["stage_nodes"], sim_nodes=exp["sim_nodes"])
-    srun1 = STAGE_SRUN.format(stage_nodes=1, sim_nodes=exp["sim_nodes"])
+    srun = STAGE_SRUN.format(stage_nodes=exp["stage_nodes"], nodelist="$STAGE_NODELIST")
+    srun1 = STAGE_SRUN.format(stage_nodes=1, nodelist="$STAGE_NODE1")
     template = STAGE_SETUP_SBCAST if stage["method"] == "sbcast" else STAGE_SETUP_TAR
-    setup = template.format(
-        dir=stage["dir"],
-        tarball=stage["tarball"],
-        srun=srun,
-        mkdir=STAGE_MKDIR,
-        unpack=STAGE_UNPACK.format(sha256=stage["sha256"]),
-    ) + STAGE_RECORD.format(
-        method=stage["method"],
-        tarball=stage["tarball"],
-        sha256=stage["sha256"],
-        srun1=srun1,
-        results_dir=results_dir,
-        id=exp["id"],
+    setup = (
+        STAGE_NODELISTS.format(
+            sim_nodes=exp["sim_nodes"], stage_nodes=exp["stage_nodes"]
+        )
+        + template.format(
+            dir=stage["dir"],
+            tarball=stage["tarball"],
+            srun=srun,
+            mkdir=STAGE_MKDIR,
+            unpack=STAGE_UNPACK.format(sha256=stage["sha256"]),
+        )
+        + STAGE_RECORD.format(
+            method=stage["method"],
+            tarball=stage["tarball"],
+            sha256=stage["sha256"],
+            srun1=srun1,
+            results_dir=results_dir,
+            id=exp["id"],
+        )
     )
     return setup, STAGE_CLEANUP.format(srun=srun)
 
@@ -2888,8 +2929,12 @@ def generate_scripts(args):
             cmd_template = (
                 CMD_INTRANSIT_STEPS if exp.get("launch") == "steps" else CMD_INTRANSIT
             )
+        # A staged run names each program's nodes (STAGE_NODELISTS).
+        staged = catalyst_stage(exp)["enabled"]
         command = cmd_template.format(
             sim_nodes=exp["sim_nodes"],
+            sim_nodelist=" --nodelist=$SIM_NODELIST" if staged else "",
+            stage_nodelist=" --nodelist=$STAGE_NODELIST" if staged else "",
             sim_ranks=sim_ranks,
             stage_nodes=exp.get("stage_nodes", 0),
             stage_ranks=total_stage_ranks,
@@ -2954,6 +2999,7 @@ def generate_scripts(args):
             catalyst_lib_path=CATALYST_LIB_PATH,
             paraview_lib_path=os.path.dirname(CATALYST_LIB_PATH.rstrip("/")),
             gallium_driver="softpipe" if exp.get("paper") == "paper1" else "llvmpipe",
+            mesa_cache_line="" if exp.get("paper") == "paper1" else MESA_CACHE_LINE,
         )
 
         reduce_content = REDUCE_TEMPLATE.format(
