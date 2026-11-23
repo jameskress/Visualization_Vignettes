@@ -447,5 +447,350 @@
             ]
         },
         "run_id": "ibex-egl-v100-backfill-paraview-6.0.1-2026-11-17"
+    },
+    "2026-11-23T13:07:41.806058": {
+        "test_name": "ex06_pvLargeData",
+        "metrics_schema": 8,
+        "execution_time": 437.7631061077118,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 1528.78,
+        "cpu_usage_percent": 349.22540951266075,
+        "memory_rss_mb": 55121.539,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 9.48046875,
+        "io_write_mb": 10.66796875,
+        "io_rchar_mb": 25934.207535743713,
+        "io_wchar_mb": 6.629865646362305,
+        "peak_processes": 2,
+        "peak_threads": 15,
+        "cpu_user_seconds": 1476.59,
+        "cpu_system_seconds": 52.19,
+        "memory_usage_mb": 54467.057,
+        "memory_usage": 57112848760.832,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 436.291331,
+        "load_1m_at_start": 10.13,
+        "load_1m_at_end": 8.92,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 4560.0,
+                "power_mean_w": 44.9,
+                "power_peak_w": 222.02,
+                "samples": 436,
+                "util_mean_pct": 1.0,
+                "util_peak_pct": 100.0
+            }
+        ],
+        "step_hwm_processes": 2,
+        "step_hwm_steps": 0,
+        "step_hwm_samples": 4153,
+        "step_hwm_mean_sample_s": 0.01092,
+        "step_pss_samples": 1249,
+        "step_pss_mean_sample_s": 0.03027,
+        "tool_tree_pss_peak_mb": 54399.4736328125,
+        "gpu_memory_peak_mib": 4560.0,
+        "gpu_power_peak_w": 222.02,
+        "harness_rss_mb": 211.21875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "5833e22",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu507-04",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 32,
+            "cpu_model": "Intel(R) Xeon(R) Gold 6142 CPU @ 2.60GHz",
+            "memory_total_gb": 376.6,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "cpu_driver": "intel_cpufreq",
+            "cpu_max_mhz": 3700,
+            "cpu_boost": true,
+            "smt_active": false,
+            "numa_nodes": 2,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0x2000043",
+            "kernel_cmdline_digest": "64c94458d3c2",
+            "gpus": [
+                {
+                    "name": "Tesla V100-SXM2-32GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-egl-v100-2026-11-23"
+    },
+    "2026-11-23T13:18:33.524480": {
+        "test_name": "ex06_pvLargeData",
+        "metrics_schema": 8,
+        "execution_time": 415.6200625896454,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 1487.11,
+        "cpu_usage_percent": 357.8051527960694,
+        "memory_rss_mb": 55136.945,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.265625,
+        "io_write_mb": 9.7109375,
+        "io_rchar_mb": 25934.205634117126,
+        "io_wchar_mb": 5.668935775756836,
+        "peak_processes": 2,
+        "peak_threads": 15,
+        "cpu_user_seconds": 1444.62,
+        "cpu_system_seconds": 42.49,
+        "memory_usage_mb": 51549.873,
+        "memory_usage": 54053959630.848,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 415.370608,
+        "load_1m_at_start": 5.45,
+        "load_1m_at_end": 9.12,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 4560.0,
+                "power_mean_w": 45.0,
+                "power_peak_w": 196.3,
+                "samples": 415,
+                "util_mean_pct": 0.8,
+                "util_peak_pct": 100.0
+            }
+        ],
+        "step_hwm_processes": 2,
+        "step_hwm_steps": 0,
+        "step_hwm_samples": 3976,
+        "step_hwm_mean_sample_s": 0.0108,
+        "step_pss_samples": 1529,
+        "step_pss_mean_sample_s": 0.02332,
+        "tool_tree_pss_peak_mb": 51482.23828125,
+        "gpu_memory_peak_mib": 4560.0,
+        "gpu_power_peak_w": 196.3,
+        "harness_rss_mb": 195.6875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "5833e22",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu507-04",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 32,
+            "cpu_model": "Intel(R) Xeon(R) Gold 6142 CPU @ 2.60GHz",
+            "memory_total_gb": 376.6,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "cpu_driver": "intel_cpufreq",
+            "cpu_max_mhz": 3700,
+            "cpu_boost": true,
+            "smt_active": false,
+            "numa_nodes": 2,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0x2000043",
+            "kernel_cmdline_digest": "64c94458d3c2",
+            "gpus": [
+                {
+                    "name": "Tesla V100-SXM2-32GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-egl-v100-2026-11-23"
+    },
+    "2026-11-23T13:29:25.734756": {
+        "test_name": "ex06_pvLargeData",
+        "metrics_schema": 8,
+        "execution_time": 418.07741618156433,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 1509.64,
+        "cpu_usage_percent": 361.0910184501302,
+        "memory_rss_mb": 55124.285,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 12.265625,
+        "io_rchar_mb": 25934.20578289032,
+        "io_wchar_mb": 8.227521896362305,
+        "peak_processes": 2,
+        "peak_threads": 15,
+        "cpu_user_seconds": 1465.33,
+        "cpu_system_seconds": 44.31,
+        "memory_usage_mb": 49694.975,
+        "memory_usage": 52108958105.6,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 417.997067,
+        "load_1m_at_start": 6.21,
+        "load_1m_at_end": 9.75,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 4560.0,
+                "power_mean_w": 45.1,
+                "power_peak_w": 215.68,
+                "samples": 418,
+                "util_mean_pct": 0.6,
+                "util_peak_pct": 96.0
+            }
+        ],
+        "step_hwm_processes": 2,
+        "step_hwm_steps": 0,
+        "step_hwm_samples": 3999,
+        "step_hwm_mean_sample_s": 0.01085,
+        "step_pss_samples": 1515,
+        "step_pss_mean_sample_s": 0.02376,
+        "tool_tree_pss_peak_mb": 49359.544921875,
+        "gpu_memory_peak_mib": 4560.0,
+        "gpu_power_peak_w": 215.68,
+        "harness_rss_mb": 223.5703125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "pvbatch",
+            "ranks": 1,
+            "id": "643e0db83a47",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "5833e22",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu507-04",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 32,
+            "cpu_model": "Intel(R) Xeon(R) Gold 6142 CPU @ 2.60GHz",
+            "memory_total_gb": 376.6,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "cpu_governor": "performance",
+            "cpu_driver": "intel_cpufreq",
+            "cpu_max_mhz": 3700,
+            "cpu_boost": true,
+            "smt_active": false,
+            "numa_nodes": 2,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0x2000043",
+            "kernel_cmdline_digest": "64c94458d3c2",
+            "gpus": [
+                {
+                    "name": "Tesla V100-SXM2-32GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-egl-v100-2026-11-23"
     }
 }

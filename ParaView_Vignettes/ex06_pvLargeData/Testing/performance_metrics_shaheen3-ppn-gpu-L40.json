@@ -721,5 +721,404 @@
             ]
         },
         "run_id": "shaheen3-ppn-gpu-L40-backfill-paraview-6.1.0-2026-11-17"
+    },
+    "2026-11-23T13:10:07.211555": {
+        "test_name": "ex06_pvLargeData",
+        "metrics_schema": 8,
+        "execution_time": 212.4328265686035,
+        "memory_measurement_scope": "srun-step-pss-single-node",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 1596.797,
+        "cpu_usage_percent": 751.6714934282189,
+        "cpu_user_seconds": 1581.611,
+        "cpu_system_seconds": 15.185,
+        "memory_max_task_mb": 55314.41015625,
+        "disk_read_mb": 25906.150977134705,
+        "disk_write_mb": 4.5797882080078125,
+        "slurm_steps": [
+            "16157415.6"
+        ],
+        "slurm_memory_mb": 55324.416015625,
+        "slurm_memory_scope": "slurm-steps-plus-local-tree",
+        "slurm_step_memory_mb": 55314.41015625,
+        "memory_usage_mb": 55310.794921875,
+        "memory_usage": 57997572096.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 212.367741,
+        "load_1m_at_start": 0.41,
+        "load_1m_at_end": 12.3,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": true,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 0.0,
+                "power_mean_w": 26.8,
+                "power_peak_w": 28.82,
+                "samples": 213,
+                "util_mean_pct": 0.0,
+                "util_peak_pct": 0.0
+            },
+            {
+                "index": 1,
+                "memory_peak_mib": 4277.0,
+                "power_mean_w": 28.3,
+                "power_peak_w": 166.83,
+                "samples": 213,
+                "util_mean_pct": 0.5,
+                "util_peak_pct": 100.0
+            }
+        ],
+        "step_hwm_processes": 3,
+        "step_hwm_steps": 1,
+        "step_hwm_samples": 2122,
+        "step_hwm_mean_sample_s": 0.00968,
+        "step_pss_samples": 2074,
+        "step_pss_steps": 1,
+        "step_pss_mean_sample_s": 0.00494,
+        "srun_steps_expected": 1,
+        "step_pss_peak_mb": 55310.794921875,
+        "step_hwm_mb": 55317.98828125,
+        "tool_tree_pss_peak_mb": 55320.80078125,
+        "gpu_memory_peak_mib": 4277.0,
+        "gpu_power_peak_w": 166.83,
+        "harness_rss_mb": 181.56640625,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "srun",
+            "ranks": 1,
+            "id": "a6ce8012af70",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "5833e22",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn14",
+            "release": "6.4.0-150700.53.90-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Fri Oct 30 07:53:08 UTC 2026 (3be78c2)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 224,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 754.5,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance",
+            "cpu_driver": "acpi-cpufreq",
+            "cpu_max_mhz": 2450,
+            "cpu_boost": true,
+            "smt_active": true,
+            "numa_nodes": 8,
+            "thp": "always",
+            "hugepages_2m": 1,
+            "cpu_microcode": "0xa10113e",
+            "kernel_cmdline_digest": "c6fec3d1c68a",
+            "gpus": [
+                {
+                    "name": "NVIDIA L40",
+                    "driver": "580.65.06"
+                },
+                {
+                    "name": "NVIDIA L40",
+                    "driver": "580.65.06"
+                }
+            ]
+        },
+        "run_id": "shaheen3-ppn-gpu-L40-2026-11-23"
+    },
+    "2026-11-23T13:27:05.743964": {
+        "test_name": "ex06_pvLargeData",
+        "metrics_schema": 8,
+        "execution_time": 207.72953023910523,
+        "memory_measurement_scope": "srun-step-pss-single-node",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 1594.777,
+        "cpu_usage_percent": 767.7180024257245,
+        "cpu_user_seconds": 1579.211,
+        "cpu_system_seconds": 15.565999999999999,
+        "memory_max_task_mb": 55445.5234375,
+        "disk_read_mb": 25906.153937339783,
+        "disk_write_mb": 2.0797882080078125,
+        "slurm_steps": [
+            "16157415.19"
+        ],
+        "slurm_memory_mb": 55455.5185546875,
+        "slurm_memory_scope": "slurm-steps-plus-local-tree",
+        "slurm_step_memory_mb": 55445.5234375,
+        "memory_usage_mb": 55447.3115234375,
+        "memory_usage": 58140720128.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 207.662993,
+        "load_1m_at_start": 0.41,
+        "load_1m_at_end": 11.76,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": true,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 0.0,
+                "power_mean_w": 26.8,
+                "power_peak_w": 28.83,
+                "samples": 208,
+                "util_mean_pct": 0.0,
+                "util_peak_pct": 0.0
+            },
+            {
+                "index": 1,
+                "memory_peak_mib": 4386.0,
+                "power_mean_w": 28.8,
+                "power_peak_w": 135.99,
+                "samples": 208,
+                "util_mean_pct": 0.6,
+                "util_peak_pct": 100.0
+            }
+        ],
+        "step_hwm_processes": 3,
+        "step_hwm_steps": 1,
+        "step_hwm_samples": 2074,
+        "step_hwm_mean_sample_s": 0.01074,
+        "step_pss_samples": 2019,
+        "step_pss_steps": 1,
+        "step_pss_mean_sample_s": 0.00529,
+        "srun_steps_expected": 1,
+        "step_pss_peak_mb": 55447.3115234375,
+        "step_hwm_mb": 55454.49609375,
+        "tool_tree_pss_peak_mb": 55457.306640625,
+        "gpu_memory_peak_mib": 4386.0,
+        "gpu_power_peak_w": 135.99,
+        "harness_rss_mb": 222.17578125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "srun",
+            "ranks": 1,
+            "id": "a6ce8012af70",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "5833e22",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn14",
+            "release": "6.4.0-150700.53.90-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Fri Oct 30 07:53:08 UTC 2026 (3be78c2)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 224,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 754.5,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance",
+            "cpu_driver": "acpi-cpufreq",
+            "cpu_max_mhz": 2450,
+            "cpu_boost": true,
+            "smt_active": true,
+            "numa_nodes": 8,
+            "thp": "always",
+            "hugepages_2m": 1,
+            "cpu_microcode": "0xa10113e",
+            "kernel_cmdline_digest": "c6fec3d1c68a",
+            "gpus": [
+                {
+                    "name": "NVIDIA L40",
+                    "driver": "580.65.06"
+                },
+                {
+                    "name": "NVIDIA L40",
+                    "driver": "580.65.06"
+                }
+            ]
+        },
+        "run_id": "shaheen3-ppn-gpu-L40-2026-11-23"
+    },
+    "2026-11-23T13:44:03.957394": {
+        "test_name": "ex06_pvLargeData",
+        "metrics_schema": 8,
+        "execution_time": 209.56743183135987,
+        "memory_measurement_scope": "srun-step-pss-single-node",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 1597.156,
+        "cpu_usage_percent": 762.1203285466803,
+        "cpu_user_seconds": 1581.344,
+        "cpu_system_seconds": 15.812,
+        "memory_max_task_mb": 55099.76171875,
+        "disk_read_mb": 25906.15694999695,
+        "disk_write_mb": 3.2047882080078125,
+        "slurm_steps": [
+            "16157415.32"
+        ],
+        "slurm_memory_mb": 55109.77734375,
+        "slurm_memory_scope": "slurm-steps-plus-local-tree",
+        "slurm_step_memory_mb": 55099.76171875,
+        "memory_usage_mb": 55098.7900390625,
+        "memory_usage": 57775268864.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 209.502875,
+        "load_1m_at_start": 1.11,
+        "load_1m_at_end": 10.78,
+        "opengl_window": "vtkEGLRenderWindow",
+        "job_owns_its_nodes": true,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 0.0,
+                "power_mean_w": 26.8,
+                "power_peak_w": 28.7,
+                "samples": 210,
+                "util_mean_pct": 0.0,
+                "util_peak_pct": 0.0
+            },
+            {
+                "index": 1,
+                "memory_peak_mib": 4433.0,
+                "power_mean_w": 29.5,
+                "power_peak_w": 150.37,
+                "samples": 210,
+                "util_mean_pct": 0.2,
+                "util_peak_pct": 47.0
+            }
+        ],
+        "step_hwm_processes": 3,
+        "step_hwm_steps": 1,
+        "step_hwm_samples": 2093,
+        "step_hwm_mean_sample_s": 0.01087,
+        "step_pss_samples": 2036,
+        "step_pss_steps": 1,
+        "step_pss_mean_sample_s": 0.00536,
+        "srun_steps_expected": 1,
+        "step_pss_peak_mb": 55098.7900390625,
+        "step_hwm_mb": 55136.51171875,
+        "tool_tree_pss_peak_mb": 55108.8046875,
+        "gpu_memory_peak_mib": 4433.0,
+        "gpu_power_peak_w": 150.37,
+        "harness_rss_mb": 219.08203125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "ACCEPTABLE": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "paraview",
+            "version": "6.2.1",
+            "launcher": "srun",
+            "ranks": 1,
+            "id": "a6ce8012af70",
+            "opengl_window": "vtkEGLRenderWindow"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "5833e22",
+            "image_sources": {
+                "shared": 1
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn14",
+            "release": "6.4.0-150700.53.90-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Fri Oct 30 07:53:08 UTC 2026 (3be78c2)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": "6.2.1",
+            "visit_version": null,
+            "logical_cpus": 224,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 754.5,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance",
+            "cpu_driver": "acpi-cpufreq",
+            "cpu_max_mhz": 2450,
+            "cpu_boost": true,
+            "smt_active": true,
+            "numa_nodes": 8,
+            "thp": "always",
+            "hugepages_2m": 1,
+            "cpu_microcode": "0xa10113e",
+            "kernel_cmdline_digest": "c6fec3d1c68a",
+            "gpus": [
+                {
+                    "name": "NVIDIA L40",
+                    "driver": "580.65.06"
+                },
+                {
+                    "name": "NVIDIA L40",
+                    "driver": "580.65.06"
+                }
+            ]
+        },
+        "run_id": "shaheen3-ppn-gpu-L40-2026-11-23"
     }
 }

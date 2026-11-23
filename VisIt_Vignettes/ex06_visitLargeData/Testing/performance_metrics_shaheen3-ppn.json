@@ -414,5 +414,302 @@
             "cpu_governor": "performance"
         },
         "run_id": "shaheen3-ppn-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-23T15:24:07.506703": {
+        "test_name": "ex06_visitLargeData",
+        "metrics_schema": 8,
+        "execution_time": 58.13514172172546,
+        "memory_measurement_scope": "srun-step-pss-single-node",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 418.449,
+        "cpu_usage_percent": 719.7866687983372,
+        "cpu_user_seconds": 402.49,
+        "cpu_system_seconds": 15.959,
+        "memory_max_task_mb": 6234.41796875,
+        "disk_read_mb": 28406.12013053894,
+        "disk_write_mb": 9.1552734375e-05,
+        "slurm_steps": [
+            "16159659.6"
+        ],
+        "slurm_memory_mb": 44776.833984375,
+        "slurm_memory_scope": "slurm-steps-plus-local-tree",
+        "slurm_step_memory_mb": 42676.6015625,
+        "memory_usage_mb": 40082.7548828125,
+        "memory_usage": 42029814784.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 58.068851,
+        "load_1m_at_start": 2.07,
+        "load_1m_at_end": 6.53,
+        "job_owns_its_nodes": true,
+        "step_hwm_processes": 18,
+        "step_hwm_steps": 1,
+        "step_hwm_samples": 581,
+        "step_hwm_mean_sample_s": 0.01311,
+        "step_pss_samples": 239,
+        "step_pss_steps": 1,
+        "step_pss_mean_sample_s": 0.01764,
+        "srun_steps_expected": 1,
+        "step_pss_peak_mb": 40082.7548828125,
+        "step_hwm_mb": 45250.1484375,
+        "tool_tree_pss_peak_mb": 40355.9169921875,
+        "harness_rss_mb": 160.546875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "e10240fd5ab0"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "7d7f247",
+            "image_sources": {
+                "shaheen3-ppn": 1
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn12",
+            "release": "6.4.0-150700.53.90-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Fri Oct 30 07:53:08 UTC 2026 (3be78c2)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 256,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 3022.5,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance",
+            "cpu_driver": "acpi-cpufreq",
+            "cpu_max_mhz": 2450,
+            "cpu_boost": true,
+            "smt_active": true,
+            "numa_nodes": 2,
+            "thp": "always",
+            "hugepages_2m": 1,
+            "cpu_microcode": "0xa101135",
+            "kernel_cmdline_digest": "55d1ab90f4e2"
+        },
+        "run_id": "shaheen3-ppn-2026-11-23"
+    },
+    "2026-11-23T15:37:05.839473": {
+        "test_name": "ex06_visitLargeData",
+        "metrics_schema": 8,
+        "execution_time": 57.40585146522522,
+        "memory_measurement_scope": "srun-step-pss-single-node",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 416.89300000000003,
+        "cpu_usage_percent": 726.2203927983571,
+        "cpu_user_seconds": 401.864,
+        "cpu_system_seconds": 15.029,
+        "memory_max_task_mb": 6532.62109375,
+        "disk_read_mb": 28406.12013053894,
+        "disk_write_mb": 9.1552734375e-05,
+        "slurm_steps": [
+            "16159659.18"
+        ],
+        "slurm_memory_mb": 45071.779296875,
+        "slurm_memory_scope": "slurm-steps-plus-local-tree",
+        "slurm_step_memory_mb": 42951.08984375,
+        "memory_usage_mb": 40113.41796875,
+        "memory_usage": 42061967360.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 57.322634,
+        "load_1m_at_start": 1.93,
+        "load_1m_at_end": 5.73,
+        "job_owns_its_nodes": true,
+        "step_hwm_processes": 17,
+        "step_hwm_steps": 1,
+        "step_hwm_samples": 573,
+        "step_hwm_mean_sample_s": 0.01406,
+        "step_pss_samples": 222,
+        "step_pss_steps": 1,
+        "step_pss_mean_sample_s": 0.01942,
+        "srun_steps_expected": 1,
+        "step_pss_peak_mb": 40113.41796875,
+        "step_hwm_mb": 45285.2109375,
+        "tool_tree_pss_peak_mb": 40389.0869140625,
+        "harness_rss_mb": 162.2109375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "e10240fd5ab0"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "7d7f247",
+            "image_sources": {
+                "shaheen3-ppn": 1
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn12",
+            "release": "6.4.0-150700.53.90-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Fri Oct 30 07:53:08 UTC 2026 (3be78c2)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 256,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 3022.5,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance",
+            "cpu_driver": "acpi-cpufreq",
+            "cpu_max_mhz": 2450,
+            "cpu_boost": true,
+            "smt_active": true,
+            "numa_nodes": 2,
+            "thp": "always",
+            "hugepages_2m": 1,
+            "cpu_microcode": "0xa101135",
+            "kernel_cmdline_digest": "55d1ab90f4e2"
+        },
+        "run_id": "shaheen3-ppn-2026-11-23"
+    },
+    "2026-11-23T15:50:05.110194": {
+        "test_name": "ex06_visitLargeData",
+        "metrics_schema": 8,
+        "execution_time": 57.587393074035646,
+        "memory_measurement_scope": "srun-step-pss-single-node",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 418.18399999999997,
+        "cpu_usage_percent": 726.1728265114783,
+        "cpu_user_seconds": 402.809,
+        "cpu_system_seconds": 15.373999999999999,
+        "memory_max_task_mb": 6492.44921875,
+        "disk_read_mb": 28406.12013053894,
+        "disk_write_mb": 9.1552734375e-05,
+        "slurm_steps": [
+            "16159659.30"
+        ],
+        "slurm_memory_mb": 45271.701171875,
+        "slurm_memory_scope": "slurm-steps-plus-local-tree",
+        "slurm_step_memory_mb": 43152.5546875,
+        "memory_usage_mb": 39938.7880859375,
+        "memory_usage": 41878854656.0,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 57.506676,
+        "load_1m_at_start": 1.76,
+        "load_1m_at_end": 5.67,
+        "job_owns_its_nodes": true,
+        "step_hwm_processes": 18,
+        "step_hwm_steps": 1,
+        "step_hwm_samples": 575,
+        "step_hwm_mean_sample_s": 0.0146,
+        "step_pss_samples": 218,
+        "step_pss_steps": 1,
+        "step_pss_mean_sample_s": 0.02066,
+        "srun_steps_expected": 1,
+        "step_pss_peak_mb": 39938.7880859375,
+        "step_hwm_mb": 45282.81640625,
+        "tool_tree_pss_peak_mb": 40214.158203125,
+        "harness_rss_mb": 158.7734375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "e10240fd5ab0"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "7d7f247",
+            "image_sources": {
+                "shaheen3-ppn": 1
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "ppn12",
+            "release": "6.4.0-150700.53.90-default",
+            "version": "#1 SMP PREEMPT_DYNAMIC Fri Oct 30 07:53:08 UTC 2026 (3be78c2)",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 256,
+            "cpu_model": "AMD EPYC 9534 64-Core Processor",
+            "memory_total_gb": 3022.5,
+            "os_release": "SUSE Linux Enterprise Server 15 SP7",
+            "cpu_governor": "performance",
+            "cpu_driver": "acpi-cpufreq",
+            "cpu_max_mhz": 2450,
+            "cpu_boost": true,
+            "smt_active": true,
+            "numa_nodes": 2,
+            "thp": "always",
+            "hugepages_2m": 1,
+            "cpu_microcode": "0xa101135",
+            "kernel_cmdline_digest": "55d1ab90f4e2"
+        },
+        "run_id": "shaheen3-ppn-2026-11-23"
     }
 }

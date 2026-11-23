@@ -349,5 +349,362 @@
             "memory_total_gb": 251.5
         },
         "run_id": "KW61316-backfill-visit-3.4.2-2026-11-16"
+    },
+    "2026-11-23T13:28:39.624400": {
+        "test_name": "ex12_visitExtractRegression",
+        "metrics_schema": 8,
+        "execution_time": 3.909327983856201,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 11.57,
+        "cpu_usage_percent": 295.95879516323504,
+        "memory_rss_mb": 547.43,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 0.73046875,
+        "io_rchar_mb": 46.76430892944336,
+        "io_wchar_mb": 0.71881103515625,
+        "peak_processes": 8,
+        "peak_threads": 108,
+        "cpu_user_seconds": 3.13,
+        "cpu_system_seconds": 8.44,
+        "memory_usage_mb": 407.017,
+        "memory_usage": 426788257.792,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.79176,
+        "load_1m_at_start": 4.17,
+        "load_1m_at_end": 3.92,
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 1972.0,
+                "power_mean_w": 26.8,
+                "power_peak_w": 26.88,
+                "samples": 4,
+                "util_mean_pct": 4.0,
+                "util_peak_pct": 5.0
+            },
+            {
+                "index": 1,
+                "memory_peak_mib": 19.0,
+                "power_mean_w": 18.6,
+                "power_peak_w": 21.46,
+                "samples": 4,
+                "util_mean_pct": 0.0,
+                "util_peak_pct": 0.0
+            }
+        ],
+        "gpu_memory_peak_mib": 1972.0,
+        "gpu_power_peak_w": 26.88,
+        "harness_rss_mb": 159.109375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 3
+            },
+            "numeric": "PASS",
+            "csv": "PASS",
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 1,
+            "id": "844fcc70f92e"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 3
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 64,
+            "cpu_model": "AMD Ryzen Threadripper PRO 3975WX 32-Cores",
+            "memory_total_gb": 251.5,
+            "os_release": "Ubuntu 22.04.5 LTS",
+            "cpu_governor": "schedutil",
+            "cpu_driver": "acpi-cpufreq",
+            "cpu_max_mhz": 4369,
+            "cpu_boost": true,
+            "smt_active": true,
+            "numa_nodes": 1,
+            "thp": "madvise",
+            "hugepages_2m": 0,
+            "cpu_microcode": "0x830107c",
+            "kernel_cmdline_digest": "236f3bcbf4d6",
+            "gpus": [
+                {
+                    "name": "NVIDIA RTX A5000",
+                    "driver": "615.71.09"
+                },
+                {
+                    "name": "NVIDIA RTX A5000",
+                    "driver": "615.71.09"
+                }
+            ]
+        },
+        "run_id": "KW61316-2026-11-23"
+    },
+    "2026-11-23T13:35:59.211863": {
+        "test_name": "ex12_visitExtractRegression",
+        "metrics_schema": 8,
+        "execution_time": 3.870203733444214,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 11.55,
+        "cpu_usage_percent": 298.4339015590091,
+        "memory_rss_mb": 541.203,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 0.68359375,
+        "io_rchar_mb": 46.76376914978027,
+        "io_wchar_mb": 0.6745920181274414,
+        "peak_processes": 8,
+        "peak_threads": 108,
+        "cpu_user_seconds": 3.08,
+        "cpu_system_seconds": 8.47,
+        "memory_usage_mb": 400.029,
+        "memory_usage": 419460808.704,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.741173,
+        "load_1m_at_start": 7.63,
+        "load_1m_at_end": 7.26,
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 1974.0,
+                "power_mean_w": 27.1,
+                "power_peak_w": 27.14,
+                "samples": 4,
+                "util_mean_pct": 8.8,
+                "util_peak_pct": 10.0
+            },
+            {
+                "index": 1,
+                "memory_peak_mib": 19.0,
+                "power_mean_w": 17.4,
+                "power_peak_w": 17.45,
+                "samples": 4,
+                "util_mean_pct": 0.0,
+                "util_peak_pct": 0.0
+            }
+        ],
+        "gpu_memory_peak_mib": 1974.0,
+        "gpu_power_peak_w": 27.14,
+        "harness_rss_mb": 198.8515625,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 3
+            },
+            "numeric": "PASS",
+            "csv": "PASS",
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 1,
+            "id": "844fcc70f92e"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 3
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 64,
+            "cpu_model": "AMD Ryzen Threadripper PRO 3975WX 32-Cores",
+            "memory_total_gb": 251.5,
+            "os_release": "Ubuntu 22.04.5 LTS",
+            "cpu_governor": "schedutil",
+            "cpu_driver": "acpi-cpufreq",
+            "cpu_max_mhz": 4369,
+            "cpu_boost": true,
+            "smt_active": true,
+            "numa_nodes": 1,
+            "thp": "madvise",
+            "hugepages_2m": 0,
+            "cpu_microcode": "0x830107c",
+            "kernel_cmdline_digest": "236f3bcbf4d6",
+            "gpus": [
+                {
+                    "name": "NVIDIA RTX A5000",
+                    "driver": "615.71.09"
+                },
+                {
+                    "name": "NVIDIA RTX A5000",
+                    "driver": "615.71.09"
+                }
+            ]
+        },
+        "run_id": "KW61316-2026-11-23"
+    },
+    "2026-11-23T13:43:14.117808": {
+        "test_name": "ex12_visitExtractRegression",
+        "metrics_schema": 8,
+        "execution_time": 3.807279109954834,
+        "memory_measurement_scope": "child-tree-pss",
+        "cpu_measurement_scope": "child-tree-sampled",
+        "cpu_seconds": 11.52,
+        "cpu_usage_percent": 302.5782893058414,
+        "memory_rss_mb": 547.863,
+        "io_scope": "child-tree-proc-io",
+        "io_read_mb": 0.0,
+        "io_write_mb": 0.69140625,
+        "io_rchar_mb": 46.76376438140869,
+        "io_wchar_mb": 0.674626350402832,
+        "peak_processes": 8,
+        "peak_threads": 108,
+        "cpu_user_seconds": 3.05,
+        "cpu_system_seconds": 8.47,
+        "memory_usage_mb": 406.18,
+        "memory_usage": 425910599.68,
+        "returncode": 250,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 3.689289,
+        "load_1m_at_start": 2.06,
+        "load_1m_at_end": 1.98,
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "index": 0,
+                "memory_peak_mib": 1975.0,
+                "power_mean_w": 26.7,
+                "power_peak_w": 26.75,
+                "samples": 4,
+                "util_mean_pct": 1.2,
+                "util_peak_pct": 2.0
+            },
+            {
+                "index": 1,
+                "memory_peak_mib": 19.0,
+                "power_mean_w": 17.6,
+                "power_peak_w": 17.92,
+                "samples": 4,
+                "util_mean_pct": 0.0,
+                "util_peak_pct": 0.0
+            }
+        ],
+        "gpu_memory_peak_mib": 1975.0,
+        "gpu_power_peak_w": 26.75,
+        "harness_rss_mb": 206.06640625,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 3
+            },
+            "numeric": "PASS",
+            "csv": "PASS",
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 1,
+            "id": "844fcc70f92e"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 3
+            }
+        },
+        "repo": {
+            "commit": "a7517b30b865",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "KW61316.kaust.edu.sa",
+            "release": "5.15.0-190-generic",
+            "version": "#200-Ubuntu SMP Fri Aug 7 15:06:04 UTC 2026",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 64,
+            "cpu_model": "AMD Ryzen Threadripper PRO 3975WX 32-Cores",
+            "memory_total_gb": 251.5,
+            "os_release": "Ubuntu 22.04.5 LTS",
+            "cpu_governor": "schedutil",
+            "cpu_driver": "acpi-cpufreq",
+            "cpu_max_mhz": 4369,
+            "cpu_boost": true,
+            "smt_active": true,
+            "numa_nodes": 1,
+            "thp": "madvise",
+            "hugepages_2m": 0,
+            "cpu_microcode": "0x830107c",
+            "kernel_cmdline_digest": "236f3bcbf4d6",
+            "gpus": [
+                {
+                    "name": "NVIDIA RTX A5000",
+                    "driver": "615.71.09"
+                },
+                {
+                    "name": "NVIDIA RTX A5000",
+                    "driver": "615.71.09"
+                }
+            ]
+        },
+        "run_id": "KW61316-2026-11-23"
     }
 }

@@ -431,5 +431,290 @@
             "cpu_governor": "performance"
         },
         "run_id": "ibex-cpu-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-23T11:29:01.936716": {
+        "test_name": "ex01_visitScreenshot",
+        "metrics_schema": 8,
+        "execution_time": 2.470068180084229,
+        "memory_measurement_scope": "srun-step-pss-single-node",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 7.1610000000000005,
+        "cpu_usage_percent": 289.9110258468983,
+        "cpu_user_seconds": 4.417,
+        "cpu_system_seconds": 2.744,
+        "memory_max_task_mb": 306.2890625,
+        "disk_read_mb": 87.54587745666504,
+        "disk_write_mb": 0.02133941650390625,
+        "slurm_steps": [
+            "56181036.1"
+        ],
+        "slurm_memory_mb": 2052.7744140625,
+        "slurm_memory_scope": "slurm-steps-plus-local-tree",
+        "slurm_step_memory_mb": 1825.96484375,
+        "memory_usage_mb": 1688.3515625,
+        "memory_usage": 1770364928.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.42007,
+        "load_1m_at_start": 363.93,
+        "load_1m_at_end": 351.68,
+        "job_owns_its_nodes": false,
+        "step_hwm_processes": 16,
+        "step_hwm_steps": 1,
+        "step_hwm_samples": 25,
+        "step_hwm_mean_sample_s": 0.012,
+        "step_pss_samples": 21,
+        "step_pss_steps": 1,
+        "step_pss_mean_sample_s": 0.00545,
+        "srun_steps_expected": 1,
+        "step_pss_peak_mb": 1688.3515625,
+        "step_hwm_mb": 2415.046875,
+        "tool_tree_pss_peak_mb": 1878.80078125,
+        "harness_rss_mb": 131.55859375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "e6351a500560"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "c9b82d5",
+            "image_sources": {
+                "ibex-cpu": 1
+            }
+        },
+        "repo": {
+            "commit": "ff70689c9ffc",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn504-22",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 192,
+            "cpu_model": "AMD EPYC 9655 96-Core Processor",
+            "memory_total_gb": 755.5,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "smt_active": false,
+            "numa_nodes": 8,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0xb002162",
+            "kernel_cmdline_digest": "ea3e433f4e9d"
+        },
+        "run_id": "ibex-cpu-2026-11-23"
+    },
+    "2026-11-23T11:33:26.537399": {
+        "test_name": "ex01_visitScreenshot",
+        "metrics_schema": 8,
+        "execution_time": 2.336105808258057,
+        "memory_measurement_scope": "srun-step-pss-single-node",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 7.651000000000001,
+        "cpu_usage_percent": 327.5108504483816,
+        "cpu_user_seconds": 4.629,
+        "cpu_system_seconds": 3.022,
+        "memory_max_task_mb": 301.95703125,
+        "disk_read_mb": 87.54790115356445,
+        "disk_write_mb": 0.021529197692871094,
+        "slurm_steps": [
+            "56181036.13"
+        ],
+        "slurm_memory_mb": 2007.9931640625,
+        "slurm_memory_scope": "slurm-steps-plus-local-tree",
+        "slurm_step_memory_mb": 1814.3125,
+        "memory_usage_mb": 1659.4072265625,
+        "memory_usage": 1740014592.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.270952,
+        "load_1m_at_start": 410.39,
+        "load_1m_at_end": 413.8,
+        "job_owns_its_nodes": false,
+        "step_hwm_processes": 16,
+        "step_hwm_steps": 1,
+        "step_hwm_samples": 23,
+        "step_hwm_mean_sample_s": 0.0134,
+        "step_pss_samples": 21,
+        "step_pss_steps": 1,
+        "step_pss_mean_sample_s": 0.00452,
+        "srun_steps_expected": 1,
+        "step_pss_peak_mb": 1659.4072265625,
+        "step_hwm_mb": 2425.9140625,
+        "tool_tree_pss_peak_mb": 1852.9208984375,
+        "harness_rss_mb": 182.20703125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "e6351a500560"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "c9b82d5",
+            "image_sources": {
+                "ibex-cpu": 1
+            }
+        },
+        "repo": {
+            "commit": "ff70689c9ffc",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn504-22",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 192,
+            "cpu_model": "AMD EPYC 9655 96-Core Processor",
+            "memory_total_gb": 755.5,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "smt_active": false,
+            "numa_nodes": 8,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0xb002162",
+            "kernel_cmdline_digest": "ea3e433f4e9d"
+        },
+        "run_id": "ibex-cpu-2026-11-23"
+    },
+    "2026-11-23T11:37:39.197838": {
+        "test_name": "ex01_visitScreenshot",
+        "metrics_schema": 8,
+        "execution_time": 2.2454719390869142,
+        "memory_measurement_scope": "srun-step-pss-single-node",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 6.843999999999999,
+        "cpu_usage_percent": 304.79116130852225,
+        "cpu_user_seconds": 4.263,
+        "cpu_system_seconds": 2.581,
+        "memory_max_task_mb": 327.97265625,
+        "disk_read_mb": 87.54429054260254,
+        "disk_write_mb": 0.021529197692871094,
+        "slurm_steps": [
+            "56181036.25"
+        ],
+        "slurm_memory_mb": 2341.9150390625,
+        "slurm_memory_scope": "slurm-steps-plus-local-tree",
+        "slurm_step_memory_mb": 2114.71875,
+        "memory_usage_mb": 1909.443359375,
+        "memory_usage": 2002196480.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 2.171213,
+        "load_1m_at_start": 381.66,
+        "load_1m_at_end": 381.66,
+        "job_owns_its_nodes": false,
+        "step_hwm_processes": 17,
+        "step_hwm_steps": 1,
+        "step_hwm_samples": 22,
+        "step_hwm_mean_sample_s": 0.01151,
+        "step_pss_samples": 20,
+        "step_pss_steps": 1,
+        "step_pss_mean_sample_s": 0.00405,
+        "srun_steps_expected": 1,
+        "step_pss_peak_mb": 1909.443359375,
+        "step_hwm_mb": 2728.8046875,
+        "tool_tree_pss_peak_mb": 2100.31640625,
+        "harness_rss_mb": 188.1953125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 1
+            },
+            "numeric": "PASS",
+            "csv": null,
+            "text": true,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "e6351a500560"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "c9b82d5",
+            "image_sources": {
+                "ibex-cpu": 1
+            }
+        },
+        "repo": {
+            "commit": "ff70689c9ffc",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "cn504-22",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 192,
+            "cpu_model": "AMD EPYC 9655 96-Core Processor",
+            "memory_total_gb": 755.5,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "smt_active": false,
+            "numa_nodes": 8,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0xb002162",
+            "kernel_cmdline_digest": "ea3e433f4e9d"
+        },
+        "run_id": "ibex-cpu-2026-11-23"
     }
 }
