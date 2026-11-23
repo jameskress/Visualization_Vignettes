@@ -176,26 +176,31 @@ class SequentialSteps(unittest.TestCase):
 
         telemetry = node_telemetry.NodeTelemetry(step_name="vv-a", gpu=False)
         telemetry._own_step = "own"
-        began = time.time()
+        scans = []
 
         def scan(*args, **kwargs):
+            # By scan number, not by clock: the second step is there for
+            # scans 3 and 4 only, well inside the 2 s the pacing then waits.
+            scans.append(1)
             groups = kwargs["groups"]
             found = {1: 500}
             groups[1] = "0"
-            if 0.3 < time.time() - began < 0.45:  # one short engine step
+            if len(scans) in (3, 4):
                 found[2] = 400
                 groups[2] = "1"
             return found
 
         def slow_pss(pid, proc="/proc"):
-            time.sleep(0.05)
+            time.sleep(0.2)  # 0.2 s per read: the pacing waits 2 s
             return 1000
 
         with mock.patch.object(
             node_telemetry, "step_hwm_kb", side_effect=scan
         ), mock.patch.object(node_telemetry, "pss_kb", side_effect=slow_pss):
             telemetry.start()
-            time.sleep(0.9)
+            deadline = time.time() + 10
+            while len(scans) < 6 and time.time() < deadline:
+                time.sleep(0.05)
             telemetry.stop()
         figures = telemetry.figures()
         self.assertEqual(figures["step_hwm_steps"], 2)
@@ -392,6 +397,7 @@ class ExactPeakAsMemory(unittest.TestCase):
             "step_pss_peak_bytes": 541 * self.MB,
             "step_pss_steps": 1,
             "step_hwm_steps": 1,
+            "srun_steps_expected": 1,
             "step_hwm_bytes": 600 * self.MB,
             "succeeded": True,
             "returncode": 0,
@@ -477,6 +483,9 @@ class ExactPeakAsMemory(unittest.TestCase):
         record = self.gather(
             self.run_result(step_pss_steps=1, step_hwm_steps=1, srun_steps_expected=2)
         )
+        self.assertEqual(record["memory_measurement_scope"], metrics.SLURM_SCOPE)
+        # The number of steps started unknown (no results JSON): Slurm's.
+        record = self.gather(self.run_result(srun_steps_expected=None))
         self.assertEqual(record["memory_measurement_scope"], metrics.SLURM_SCOPE)
         # Every step the vignette started was sampled: the exact figure.
         record = self.gather(

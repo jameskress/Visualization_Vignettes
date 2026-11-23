@@ -679,7 +679,12 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
             try:
                 if os.environ.get("VV_NO_NODE_TELEMETRY") != "1":
                     telemetry = NodeTelemetry(step_name=step_name, power=owns_nodes)
-                    telemetry.start()
+                    try:
+                        telemetry.start()
+                    except RuntimeError as exc:  # no thread to be had
+                        # Optional: the vignette runs and is recorded without
+                        # it; the finally below stops whatever did start.
+                        print("Node telemetry not started: {0}".format(exc))
                 returncode = process.wait(timeout=timeout)
             finally:
                 sampler.stop()

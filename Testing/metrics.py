@@ -367,12 +367,13 @@ def prefer_exact_peak(figures, run_result):
         # Every srun step the poller saw has a complete PSS sample: a VisIt
         # engine that ended between PSS polls would leave the figure with
         # only the steps that were sampled.
+        # How many steps the run started must be known: a step that started
+        # and ended between two scans is in neither count below.
+        and (run_result.get("srun_steps_expected") or 0) > 0
         and run_result.get("step_pss_steps", 0)
         >= max(
             run_result.get("step_hwm_steps") or 1,
-            # A step that started and ended between two scans is in neither
-            # count; the vignette's own step count catches it.
-            run_result.get("srun_steps_expected") or 0,
+            run_result["srun_steps_expected"],
         )
     ):
         return
