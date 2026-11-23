@@ -222,8 +222,10 @@ def node_telemetry_fields(run_result):
     # idle GPU the job holds still draws power for it. Its own field, not
     # energy_joules: that is the node's (or Slurm's) figure, and GPU energy
     # is measured on every GPU machine, where the node's is not.
-    energies = [g["energy_j"] for g in gpus if g.get("energy_j") is not None]
-    if energies:
+    # Only when every GPU has a figure: a GPU without power readings would
+    # drop out of the sum and the total would look complete.
+    energies = [g.get("energy_j") for g in gpus]
+    if energies and None not in energies:
         out["gpu_energy_joules"] = round(sum(energies), 1)
     # The CPU and memory split of the node's energy, for srun runs too, whose
     # total comes from Slurm's step accounting rather than pm_counters.

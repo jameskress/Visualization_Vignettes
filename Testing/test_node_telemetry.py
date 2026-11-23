@@ -284,6 +284,20 @@ class PowerAndGpu(unittest.TestCase):
         fields = metrics.node_telemetry_fields(figures)
         self.assertAlmostEqual(fields["gpu_energy_joules"], 75 * length, delta=0.4)
 
+    def test_gpu_energy_total_needs_every_gpu(self):
+        import metrics
+
+        one = {"gpu_telemetry": [{"index": 0, "energy_j": 10.0}, {"index": 1}]}
+        self.assertNotIn("gpu_energy_joules", metrics.node_telemetry_fields(one))
+
+    def test_a_second_stop_keeps_the_first_end(self):
+        telemetry = node_telemetry.NodeTelemetry(gpu=False).start()
+        telemetry.stop()
+        ended = telemetry._ended
+        time.sleep(0.05)
+        telemetry.stop()
+        self.assertEqual(telemetry._ended, ended)
+
     def test_nothing_sampled_records_nothing(self):
         telemetry = node_telemetry.NodeTelemetry(power=False, gpu=False)
         self.assertEqual(telemetry.start().stop().figures(), {})

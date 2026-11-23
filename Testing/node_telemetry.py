@@ -417,6 +417,9 @@ class NodeTelemetry(object):
             for line in self._smi.stdout:
                 sample = parse_nvidia_line(line)
                 if sample is not None:
+                    # Timed on arrival: nvidia-smi writes each sample as it
+                    # takes it (checked on driver 580: one line per GPU per
+                    # second, not buffered), so arrival is sampling time.
                     self._gpu.setdefault(sample[0], []).append(
                         sample[1:] + (time.monotonic(),)
                     )
@@ -444,7 +447,10 @@ class NodeTelemetry(object):
         return self
 
     def stop(self):
-        self._ended = time.monotonic()
+        # The first stop ends the run: a timed-out vignette is stopped twice,
+        # and the kill and wait between are not the vignette's time.
+        if self._ended is None:
+            self._ended = time.monotonic()
         self._stop.set()
         if self._smi is not None:
             try:
