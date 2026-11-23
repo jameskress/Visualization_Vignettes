@@ -36,7 +36,8 @@
 #                             Reading smaps_rollup costs about 12 ms per GB
 #                             resident, so this poll paces itself to use at
 #                             most PSS_BUDGET of one core (0.1 s for small
-#                             runs, a few seconds for ex06's 45 GB).
+#                             runs, a few seconds for ex06's 45 GB); a
+#                             step not seen before is polled at once.
 #              step HWM sum   the sum of the step's processes' VmHWM: each
 #                             process's exact peak, but at different times
 #                             and with shared pages counted per process, so
@@ -315,6 +316,7 @@ class NodeTelemetry(object):
     def _memory_loop(self):
         cache = {}
         next_pss = 0.0
+        tried = set()  # steps the PSS poll has already looked at
         while not self._stop.is_set():
             began = time.time()
             groups = {}
@@ -323,7 +325,13 @@ class NodeTelemetry(object):
                 key = (pid, groups.get(pid, ""))
                 if kb > self._hwm.get(key, 0):
                     self._hwm[key] = kb
-            if found and began >= next_pss:
+            # A step not yet looked at is polled at once, whatever the pacing:
+            # a short VisIt engine step could otherwise end between two polls
+            # of a large run, and the run's figure fall back to Slurm's.
+            steps = {groups.get(pid, self._own_step) for pid in found}
+            new_step = bool(steps - tried - {self._own_step})
+            if found and (began >= next_pss or new_step):
+                tried |= steps
                 pss_began = time.time()
                 read = {pid: pss_kb(pid) for pid in found}
                 # A step counts at this poll only when every one of its

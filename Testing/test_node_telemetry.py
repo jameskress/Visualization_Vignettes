@@ -169,6 +169,38 @@ class SequentialSteps(unittest.TestCase):
         self.assertLessEqual(len(calls), 4)
         self.assertGreaterEqual(telemetry._memory_samples, 6)
 
+    def test_a_new_step_is_polled_at_once_despite_the_pacing(self):
+        """A short step that starts between two paced polls of a large run
+        still gets its PSS sample, so the run keeps the exact figure."""
+        from unittest import mock
+
+        telemetry = node_telemetry.NodeTelemetry(step_name="vv-a", gpu=False)
+        telemetry._own_step = "own"
+        began = time.time()
+
+        def scan(*args, **kwargs):
+            groups = kwargs["groups"]
+            found = {1: 500}
+            groups[1] = "0"
+            if 0.3 < time.time() - began < 0.45:  # one short engine step
+                found[2] = 400
+                groups[2] = "1"
+            return found
+
+        def slow_pss(pid, proc="/proc"):
+            time.sleep(0.05)
+            return 1000
+
+        with mock.patch.object(
+            node_telemetry, "step_hwm_kb", side_effect=scan
+        ), mock.patch.object(node_telemetry, "pss_kb", side_effect=slow_pss):
+            telemetry.start()
+            time.sleep(0.9)
+            telemetry.stop()
+        figures = telemetry.figures()
+        self.assertEqual(figures["step_hwm_steps"], 2)
+        self.assertEqual(figures["step_pss_steps"], 2)
+
 
 class PowerAndGpu(unittest.TestCase):
     def test_pm_power_reads_values_and_the_hotter_cpu(self):
@@ -296,6 +328,33 @@ class DashboardSystemSettings(unittest.TestCase):
                 (
                     "2026-03-01T00:00:00",
                     [("kernel", "5.14", "6.4"), ("boost", "on", "off")],
+                )
+            ],
+        )
+
+    def test_a_node_like_one_seen_before_is_not_a_change(self):
+        """A shared pool's nodes differ: alternating between two kinds of
+        node marks the second kind once, then nothing (ibex-cpu's microcode
+        and kernel command line vary by node)."""
+        import dashboard
+
+        def rec(run, microcode):
+            return {"run_id": run, "machine_info": {"cpu_microcode": microcode}}
+
+        rows = {
+            "ex00": [
+                ("2026-01-01T00:00:00", rec("a", "0xb002162")),
+                ("2026-01-02T00:00:00", rec("b", "0x830104d")),
+                ("2026-01-03T00:00:00", rec("c", "0xb002162")),
+                ("2026-01-04T00:00:00", rec("d", "0x830104d")),
+            ]
+        }
+        self.assertEqual(
+            dashboard.platform_changes(rows),
+            [
+                (
+                    "2026-01-02T00:00:00",
+                    [("CPU microcode", "0xb002162", "0x830104d")],
                 )
             ],
         )

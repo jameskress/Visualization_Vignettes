@@ -676,10 +676,10 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
             sampler = _PeakRssSampler(process.pid).start()
             # VV_NO_NODE_TELEMETRY=1 leaves the node telemetry out, to measure
             # what it costs or to rule it out.
-            if os.environ.get("VV_NO_NODE_TELEMETRY") != "1":
-                telemetry = NodeTelemetry(step_name=step_name, power=owns_nodes)
-                telemetry.start()
             try:
+                if os.environ.get("VV_NO_NODE_TELEMETRY") != "1":
+                    telemetry = NodeTelemetry(step_name=step_name, power=owns_nodes)
+                    telemetry.start()
                 returncode = process.wait(timeout=timeout)
             finally:
                 sampler.stop()

@@ -618,8 +618,8 @@ comparison the table above exists to produce.
 
 ### What a record holds (metrics schema 8)
 
-Schemas 6, 7 and 8 added fields and changed the meaning of none, so their CPU
-and memory compare with schema 5's. Schema 8 adds one memory scope: a run
+Schemas 6, 7 and 8 added fields, so their CPU and memory compare with
+schema 5's, with one exception. Schema 8 adds one memory scope: a run
 whose ranks srun launched on a single-node job records its ranks' peak
 summed PSS (`srun-step-pss-single-node`, below). The gate, drift and the
 dashboard compare memory only within one scope, so those runs start a new

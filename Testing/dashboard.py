@@ -1534,7 +1534,11 @@ def platform_changes(rows_by_vignette):
     change seen only in a later record of a run (the VisIt half of a run id
     shared with ParaView) still counts. A change is dated by its run's first
     record. A setting seen for the first time is not a change; a record that
-    does not carry a setting (an older schema) neither.
+    does not carry a setting (an older schema) neither; nor is a value this
+    configuration has had before. A shared pool's nodes differ (Ibex's
+    microcode and kernel command line vary from node to node), so a run
+    landing on a node like one used before is not a system change; a value
+    never seen before is, once (a maintenance, or a new kind of node).
     """
     # By time only: two records with one timestamp must not compare dicts.
     records = sorted(
@@ -1544,17 +1548,18 @@ def platform_changes(rows_by_vignette):
     run_start = {}
     for ts, record in records:
         run_start.setdefault(record.get("run_id") or ts, ts)
-    known, by_run = {}, {}
+    known, seen, by_run = {}, {}, {}
     for ts, record in records:
         values = platform_of(record)
         for field, label in PLATFORM_FIELDS:
             value = values.get(field)
             if value is None:
                 continue
-            if field in known and known[field] != value:
+            if field in known and value not in seen[field]:
                 run = run_start[record.get("run_id") or ts]
                 by_run.setdefault(run, []).append((label, known[field], value))
             known[field] = value
+            seen.setdefault(field, set()).add(value)
     return sorted(by_run.items())
 
 
