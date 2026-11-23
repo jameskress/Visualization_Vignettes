@@ -17,7 +17,11 @@
 #   gpu      nvidia-smi, run once for the vignette's whole duration with
 #            -lms, so there is one process and no start-up cost per sample:
 #            peak memory used, mean and peak utilisation and power, over the
-#            GPUs this job can see.
+#            GPUs this job can see, and each GPU's energy: its power samples
+#            integrated over the vignette's time (gpu_energy_j). The driver
+#            has no energy counter a user can read on every GPU we run
+#            (driver 580 on the L40 has none), so this is the one way that
+#            works everywhere.
 #   memory   the exact peak resident set (VmHWM, the kernel's high-water
 #            mark) of every process carrying this vignette's step name in
 #            its environment (VV_SLURM_STEP_NAME, set by run_tests.py and
@@ -195,6 +199,29 @@ def pss_kb(pid, proc="/proc"):
     return None
 
 
+def gpu_energy_j(samples, began=None, ended=None):
+    """Joules from (time s, power W) samples, over [began, ended].
+
+    Trapezoids between samples; before the first sample and after the last,
+    the nearest sample's power is held, so a vignette shorter than the 1 s
+    sampling period still gets its whole duration. Samples without a power
+    reading are skipped. None when there is no power reading at all.
+    """
+    points = sorted((t, w) for t, w in samples if w is not None)
+    if not points:
+        return None
+    began = points[0][0] if began is None else began
+    ended = points[-1][0] if ended is None else max(ended, began)
+    # A sample timed outside the run (one that reached the reader after
+    # stop()) is moved to the run's edge: the window is the run, never more.
+    points = [(min(max(t, began), ended), w) for t, w in points]
+    joules = points[0][1] * (points[0][0] - began)
+    joules += points[-1][1] * (ended - points[-1][0])
+    for (t0, w0), (t1, w1) in zip(points, points[1:]):
+        joules += 0.5 * (w0 + w1) * (t1 - t0)
+    return joules
+
+
 def _read_first_line(path):
     try:
         with open(path, "r") as handle:
@@ -300,7 +327,9 @@ class NodeTelemetry(object):
         self._threads = []
         self._smi = None
         self._power = []
-        self._gpu = {}
+        self._gpu = {}  # index -> [(memory MiB, util %, power W, time s)]
+        self._began = None  # time.monotonic() at start() and stop()
+        self._ended = None
         # (pid, step) -> peak kB: a pid the kernel reuses in another step is
         # another process.
         self._hwm = {}
@@ -391,7 +420,12 @@ class NodeTelemetry(object):
             for line in self._smi.stdout:
                 sample = parse_nvidia_line(line)
                 if sample is not None:
-                    self._gpu.setdefault(sample[0], []).append(sample[1:])
+                    # Timed on arrival: nvidia-smi writes each sample as it
+                    # takes it (checked on driver 580: one line per GPU per
+                    # second, not buffered), so arrival is sampling time.
+                    self._gpu.setdefault(sample[0], []).append(
+                        sample[1:] + (time.monotonic(),)
+                    )
             # Reap it as soon as it ends (at once on a node with no GPU), so
             # no zombie waits for stop().
             self._smi.wait()
@@ -400,6 +434,7 @@ class NodeTelemetry(object):
 
     # -- control -----------------------------------------------------------
     def start(self):
+        self._began = time.monotonic()
         loops = []
         if self.step_name:
             loops.append(self._memory_loop)
@@ -415,6 +450,10 @@ class NodeTelemetry(object):
         return self
 
     def stop(self):
+        # The first stop ends the run: a timed-out vignette is stopped twice,
+        # and the kill and wait between are not the vignette's time.
+        if self._ended is None:
+            self._ended = time.monotonic()
         self._stop.set()
         if self._smi is not None:
             try:
@@ -489,6 +528,11 @@ class NodeTelemetry(object):
                         one[peak_key] = max(values)
                         if mean_key:
                             one[mean_key] = round(sum(values) / len(values), 1)
+                energy = gpu_energy_j(
+                    [(s[3], s[2]) for s in samples], self._began, self._ended
+                )
+                if energy is not None:
+                    one["energy_j"] = round(energy, 1)
                 gpus.append(one)
             out["gpu_telemetry"] = gpus
         return out

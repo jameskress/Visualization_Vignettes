@@ -243,6 +243,64 @@ class PowerAndGpu(unittest.TestCase):
             self.assertNotIn("gpu_telemetry", figures)
             self.assertNotIn("step_hwm_bytes", figures)
 
+    def test_gpu_energy_integrates_power_over_the_run(self):
+        e = node_telemetry.gpu_energy_j
+        # Trapezoids between samples: 100 W then 200 W over 1 s is 150 J.
+        self.assertAlmostEqual(e([(0.0, 100.0), (1.0, 200.0)]), 150.0)
+        # The ends hold the nearest sample: 0.5 s before the first at 100 W,
+        # 0.5 s after the last at 200 W.
+        self.assertAlmostEqual(e([(1.0, 100.0), (2.0, 200.0)], 0.5, 2.5), 300.0)
+        # One sample in a run shorter than the sampling period still counts
+        # the whole run.
+        self.assertAlmostEqual(e([(0.2, 60.0)], 0.0, 0.7), 42.0)
+        # A missing power reading ([N/A]) is skipped; none at all is None.
+        self.assertAlmostEqual(e([(0.0, 10.0), (1.0, None), (2.0, 10.0)]), 20.0)
+        # A sample timed after the run ended does not stretch the run: 0 to
+        # 1 s at 50 W is 50 J, whatever arrives at 1.2 s.
+        self.assertAlmostEqual(e([(0.2, 50.0), (1.2, 50.0)], 0.0, 1.0), 50.0)
+        self.assertIsNone(e([(0.0, None)]))
+        self.assertIsNone(e([]))
+
+    def test_gpu_energy_from_a_sampled_run(self):
+        """A fake nvidia-smi at a steady 50 W: energy is 50 W times the run's
+        length, per GPU, and gpu_energy_joules sums the GPUs."""
+        from unittest import mock
+
+        import metrics
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = os.path.join(tmp, "nvidia-smi")
+            with open(fake, "w") as fh:
+                fh.write(
+                    "#!/bin/sh\nwhile true; do echo '0, 10, 5, 50'; "
+                    "echo '1, 0, 0, 25'; sleep 0.1; done\n"
+                )
+            os.chmod(fake, 0o755)
+            with mock.patch.object(node_telemetry.shutil, "which", return_value=fake):
+                telemetry = node_telemetry.NodeTelemetry(gpu=True).start()
+                time.sleep(1.0)
+                figures = telemetry.stop().figures()
+        length = telemetry._ended - telemetry._began
+        gpus = {g["index"]: g for g in figures["gpu_telemetry"]}
+        self.assertAlmostEqual(gpus[0]["energy_j"], 50 * length, delta=0.2)
+        self.assertAlmostEqual(gpus[1]["energy_j"], 25 * length, delta=0.2)
+        fields = metrics.node_telemetry_fields(figures)
+        self.assertAlmostEqual(fields["gpu_energy_joules"], 75 * length, delta=0.4)
+
+    def test_gpu_energy_total_needs_every_gpu(self):
+        import metrics
+
+        one = {"gpu_telemetry": [{"index": 0, "energy_j": 10.0}, {"index": 1}]}
+        self.assertNotIn("gpu_energy_joules", metrics.node_telemetry_fields(one))
+
+    def test_a_second_stop_keeps_the_first_end(self):
+        telemetry = node_telemetry.NodeTelemetry(gpu=False).start()
+        telemetry.stop()
+        ended = telemetry._ended
+        time.sleep(0.05)
+        telemetry.stop()
+        self.assertEqual(telemetry._ended, ended)
+
     def test_nothing_sampled_records_nothing(self):
         telemetry = node_telemetry.NodeTelemetry(power=False, gpu=False)
         self.assertEqual(telemetry.start().stop().figures(), {})

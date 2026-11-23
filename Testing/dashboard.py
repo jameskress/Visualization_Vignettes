@@ -109,6 +109,14 @@ CHARTS = [
     ("tool_tree_pss_peak_mb", "Peak memory, whole tool tree (PSS)", "MB", 1.0),
     ("power_mean_node_w", "Mean node power", "W", 1.0),
     ("gpu_memory_peak_mib", "Peak GPU memory", "MiB", 1.0),
+    # The GPUs alone; where the node's Energy is also charted, it already
+    # includes them, so the two are not to be added.
+    (
+        "gpu_energy_joules",
+        "GPU energy (the GPUs only, every one the job sees)",
+        "J",
+        1.0,
+    ),
 ]
 # Every compared or charted figure that has a scope: a chart fades points
 # measured another way than the latest run (slurm_memory_mb included).
