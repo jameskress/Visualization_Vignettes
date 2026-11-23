@@ -119,6 +119,43 @@ class Cells(unittest.TestCase):
         self.assertEqual((new["n"], new["of"]), (2, 2))
 
 
+class RowsAndScopes(unittest.TestCase):
+    def test_a_partial_run_at_a_new_version_does_not_shrink_the_row(self):
+        h = {
+            ("a", "ParaView"): {
+                "ex01_x": [(ts(10), rec(2.0, "6.2.1")), (ts(11), rec(2.0, "6.3.0"))],
+                "ex02_y": [(ts(10), rec(3.0, "6.2.1"))],
+            }
+        }
+        cells = build(h)["measures"]["execution_time"]["cells"]
+        new = next(c for c in cells if c["v"] == "6.3.0")
+        old = next(c for c in cells if c["v"] == "6.2.1")
+        self.assertEqual((old["n"], old["of"]), (2, 2))
+        self.assertEqual((new["n"], new["of"]), (1, 2))
+        self.assertEqual(new["used"], ["ex01_x"])
+
+    def test_cpu_keeps_to_the_latest_scope(self):
+        older = rec(2, "6.1.0", cpu_seconds=1.0, cpu_measurement_scope="tree")
+        newer = rec(2, "6.2.1", cpu_seconds=9.0, cpu_measurement_scope="slurm")
+        h = {("a", "ParaView"): {"ex01_x": [(ts(10), older), (ts(11), newer)]}}
+        cells = build(h)["measures"]["cpu_seconds"]["cells"]
+        self.assertEqual([c["v"] for c in cells], ["6.2.1"])
+
+    def test_the_page_gets_the_class(self):
+        h = {
+            ("a", "ParaView"): {
+                "ex01_x": [(ts(10, i), rec(2.0, "6.2.1")) for i in range(3)]
+            },
+            ("b", "ParaView"): {
+                "ex01_x": [(ts(10, i), rec(8.0, "6.2.1")) for i in range(3)]
+            },
+        }
+        cells = build(h)["measures"]["execution_time"]["cells"]
+        b = next(c for c in cells if c["c"] == "b")
+        self.assertEqual(b["k"], "slow2")
+        self.assertEqual(b["per"]["ex01_x"][4], "slow2")
+
+
 class Colour(unittest.TestCase):
     def test_coloured_only_beyond_the_noise(self):
         c = speed_index.colour

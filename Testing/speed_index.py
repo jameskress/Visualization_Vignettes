@@ -13,9 +13,11 @@ Three rules keep a cell honest (what Codespeed, ASV, Perfherder and LNT do):
 * Noise. A cell is coloured only when its 95% bootstrap interval, from
   resampling each vignette's repeated runs, leaves out 1x. With one run per
   vignette there is no interval, and the cell is shown but never coloured.
-* Like for like. A row (one machine) is averaged over the vignettes its
-  newest version ran; an older version that lacks one of them is marked, and
-  its cell covers only the ones it has.
+* Like for like. A row (one machine) is averaged over the vignettes of its
+  most complete version; a version that lacks one of them is marked, and its
+  cell covers only the ones it has. Each machine and vignette keeps to one
+  way of measuring (the latest record's scope), so a change of method never
+  reads as a change between versions.
 * A fixed baseline. The typical run comes from the records up to
   REFERENCE_UNTIL, so adding a machine or a run does not move every cell.
   It is moved on purpose (at a release), and the page states its date. A
@@ -51,6 +53,14 @@ MEASURES = (
 # proportional set size of the processes doing the work means the same thing
 # on every machine. Slurm-sampled figures are left out of the memory index.
 MEMORY_SCOPES = ("srun-step-pss-single-node", "child-tree-pss")
+
+# The record field that says how a measure was taken. Memory is also held
+# to PSS (MEMORY_SCOPES) so it means the same on every machine.
+SCOPE_FIELDS = {
+    "cpu_seconds": "cpu_measurement_scope",
+    "memory_usage_mb": "memory_measurement_scope",
+    "energy_joules": "energy_scope",
+}
 
 BOOTSTRAP = 300
 BAND = 0.05  # within 5% of typical is never coloured
@@ -91,23 +101,28 @@ def collect(histories, tool, retired, run_ok, measure):
         for vignette, rows in vignettes.items():
             for _, rec in rows:
                 newest[vignette] = max(newest.get(vignette, 0), rec.get("_rev", 0))
+    scope_field = SCOPE_FIELDS.get(measure)
     out = {}
     for (config, t), vignettes in histories.items():
         if t != tool or config in retired:
             continue
         for vignette, rows in vignettes.items():
-            for ts, rec in rows:
-                version = drift.tool_version(rec)
-                value = _value(measure, rec)
-                if (
-                    version
-                    and value is not None
-                    and run_ok(rec)
-                    and rec.get("_rev", 0) == newest[vignette]
-                ):
-                    out.setdefault((config, vignette, version), []).append(
-                        (_when(ts), value)
-                    )
+            kept = [
+                (ts, rec, drift.tool_version(rec), _value(measure, rec))
+                for ts, rec in rows
+                if rec.get("_rev", 0) == newest[vignette] and run_ok(rec)
+            ]
+            kept = [k for k in kept if k[2] and k[3] is not None]
+            if scope_field and kept:
+                # One way of measuring per machine and vignette: its latest
+                # record's, so a change of method is never read as a change
+                # between versions (the run charts fade the others the same way).
+                latest = kept[-1][1].get(scope_field)
+                kept = [k for k in kept if k[1].get(scope_field) == latest]
+            for ts, rec, version, value in kept:
+                out.setdefault((config, vignette, version), []).append(
+                    (_when(ts), value)
+                )
     return out
 
 
@@ -181,14 +196,15 @@ def build(histories, tool, retired, run_ok, version_key, order, until=REFERENCE_
         by_cell = {}
         for (config, vignette, version), runs in samples.items():
             by_cell.setdefault((config, version), {})[vignette] = [v for _, v in runs]
-        # A row is averaged over the vignettes its newest version ran.
-        newest = {}
+        # A row is averaged over the vignettes of its most complete version
+        # (the newest of those with the most vignettes), so a partial run at
+        # a new version, say ex08 alone, does not shrink the whole row.
+        best = {}
         for config, version in by_cell:
-            if config not in newest or version_key(version) > version_key(
-                newest[config]
-            ):
-                newest[config] = version
-        row_set = {c: set(by_cell[(c, v)]) for c, v in newest.items()}
+            key = (len(by_cell[(config, version)]), version_key(version))
+            if config not in best or key > best[config][0]:
+                best[config] = (key, version)
+        row_set = {c: set(by_cell[(c, v)]) for c, (_, v) in best.items()}
         rng = random.Random("{0}|{1}".format(tool, measure))
         cells = []
         for (config, version), runs_by in sorted(by_cell.items()):
@@ -199,11 +215,17 @@ def build(histories, tool, retired, run_ok, version_key, order, until=REFERENCE_
             per = {}
             for vignette, runs in sorted(runs_by.items()):
                 median, plo, phi = one(runs, rng)
+                ref = refs[vignette]
                 per[vignette] = [
                     round(median, 4),
                     None if plo is None else round(plo, 4),
                     None if phi is None else round(phi, 4),
                     len(runs),
+                    colour(
+                        median / ref,
+                        None if plo is None else plo / ref,
+                        None if phi is None else phi / ref,
+                    ),
                 ]
             cells.append(
                 {
@@ -212,6 +234,8 @@ def build(histories, tool, retired, run_ok, version_key, order, until=REFERENCE_
                     "i": round(index, 4),
                     "lo": None if lo is None else round(lo, 4),
                     "hi": None if hi is None else round(hi, 4),
+                    "k": colour(index, lo, hi),
+                    "used": sorted(mine),
                     "n": len(mine),
                     "of": len(row_set[config]),
                     "runs": sum(len(r) for r in mine.values()),
@@ -236,7 +260,7 @@ def build(histories, tool, retired, run_ok, version_key, order, until=REFERENCE_
 def colour(ratio, lo, hi):
     """The five-step class of a ratio, '' within the noise, 'one' untestable.
 
-    The same rule the page's script applies; kept here so tests can pin it.
+    The page shows the class computed here, so this is the one rule.
     """
     if lo is None:
         return "one"
@@ -274,9 +298,10 @@ every cell; it is moved on purpose, at a release. A measure or vignette with no
 records before that date uses all of them, and says so.</dd>
 <dt>Cell, all vignettes</dt><dd>The geometric mean, over the vignettes, of the
 machine's median divided by the typical run, so each vignette counts the same
-whatever its length. A row is averaged over the vignettes its newest version ran; an
-older version that lacks some is marked with a corner tick and covers only the ones
-it has.</dd>
+whatever its length. A row is averaged over the vignettes of its most complete
+version; a version that lacks some is marked with a corner tick and covers only the
+ones it has. Each machine keeps to one way of measuring (its latest record's), so a
+change of method is never read as a change between versions.</dd>
 <dt>Colour</dt><dd>Only when the change is beyond the noise: resampling each
 vignette's repeated runs 300 times gives a 95% range, and the cell is coloured when
 that range leaves out 1&times; and the cell is at least 5% from it. A dotted number
@@ -355,9 +380,6 @@ function pct(x){return x>=1?Math.round((x-1)*100)+'% above typical':
  Math.round((1-x)*100)+'% below typical';}
 function num(x,unit){var a=Math.abs(x);var t=a>=100?Math.round(x):a>=10?x.toFixed(1):
  x.toFixed(2);return t+' '+unit;}
-function cls(r,lo,hi){if(lo===null||lo===undefined){return 'one';}
- if((lo<=1&&1<=hi)||Math.abs(r-1)<0.05){return '';}
- return r<0.8?'fast2':r<1?'fast1':r<=1.25?'slow1':'slow2';}
 document.querySelectorAll('.si').forEach(function(box){
  var tool=box.dataset.si,D=ALL.tools[tool];if(!D){box.hidden=true;return;}
  var mSel=box.querySelector('.si-measure'),vSel=box.querySelector('.si-vig');
@@ -368,11 +390,11 @@ document.querySelectorAll('.si').forEach(function(box){
   // {r: ratio to typical, lo, hi, text, tip} for one cell in the current view.
   var unit=m.unit,mine;
   if(V==='all'){
-   var per=Object.keys(c.per).sort().map(function(v){return '  '+vname(v)+': '+
+   var per=c.used.map(function(v){return '  '+vname(v)+': '+
     num(c.per[v][0],unit)+' (typical '+num(m.refs[v],unit)+')';}).join('\n');
    var range=c.lo===null?'one run per vignette, so the noise is unknown':
     '95% range '+c.lo.toFixed(2)+' to '+c.hi.toFixed(2)+'×';
-   return {r:c.i,lo:c.lo,hi:c.hi,text:c.i.toFixed(2)+'×',part:c.n<c.of,
+   return {r:c.i,k:c.k,text:c.i.toFixed(2)+'×',part:c.n<c.of,
     tip:c.c+' · '+tool+' '+c.v+'\n'+m.label+': '+c.i.toFixed(2)+
      '× the typical run, '+pct(c.i)+'\n'+range+'\n'+c.n+' of the row\'s '+c.of+
      ' vignettes, '+c.runs+' runs\n'+per};}
@@ -380,8 +402,7 @@ document.querySelectorAll('.si').forEach(function(box){
   var ref=m.refs[V],r=p[0]/ref;
   var rng=p[1]===null?'one run, so the noise is unknown':'95% range '+
    num(p[1],unit)+' to '+num(p[2],unit);
-  return {r:r,lo:p[1]===null?null:p[1]/ref,hi:p[2]===null?null:p[2]/ref,
-   text:num(p[0],unit),part:false,
+  return {r:r,k:p[4],text:num(p[0],unit),part:false,
    tip:c.c+' · '+tool+' '+c.v+' · '+vname(V)+'\nMedian '+num(p[0],unit)+
     ' over '+p[3]+' runs ('+rng+')\nTypical run of this vignette: '+num(ref,unit)+
     ', so this is '+pct(r)};}
@@ -412,7 +433,7 @@ document.querySelectorAll('.si').forEach(function(box){
     if(!w){h+="<td class='c'><span class='none'>·</span></td>";return;}
     var href=V==='all'?D.links[k]:ALL.vlinks[tool][V];
     h+="<td class='c'><a href='"+esc(href)+"'"+(w.part?" class='part'":'')+
-     " data-tip='"+esc(w.tip)+"'><span class='"+cls(w.r,w.lo,w.hi)+"'>"+esc(w.text)+
+     " data-tip='"+esc(w.tip)+"'><span class='"+w.k+"'>"+esc(w.text)+
      '</span></a></td>';});
    h+='</tr>';});
   box.querySelector('.si-grid').innerHTML=h+'</tbody>';
