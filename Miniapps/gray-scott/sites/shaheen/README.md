@@ -5,7 +5,7 @@ Builds and runs here use one stack; `config.bash` and `MODULES.sh` point at it:
 - ParaView 6.2.1 (Catalyst 2.0), our own superbuild in `software/paraview-6.2.1-gcc13-build` (script `software/build-paraview-6.2.1-gcc13.sh`, the same options as the 6.0.1 build, Viskores off). Not the `paraview/6.2.1-egl` module: its VTK carries its own Viskores (64-bit IDs, TBB), which shares symbols with Ascent 0.9.6's Viskores (32-bit IDs) in the reader and breaks the build. Before 17 Nov the Catalyst numbers came from the 6.0.1 superbuild in `software/paraview-build`, so they are not comparable with later runs.
 - GCC 13.3.1 (`gcc-native/13.2`, the same compiler as the center's 6.2.1 module) and cray-mpich 8.1.32. Build on login5, which has the limits for long builds.
 - ADIOS2 `release_213` at 8d7270164, built with GCC 13 as a minimal transport build: MPI, SST and BP5, with curl, HDF5, OpenSSL and the compressors off. A ParaView superbuild bundles its own curl and HDF5. An ADIOS2 built against the system curl and OpenSSL shares the `libcurl.so.4` soname with ParaView's copy and binds to it at run time; that was the suspected cause of a crash at exit after `catalyst_finalize` with the module (under test). Build script: `software/build-adios2-r213-8d7270164-gcc13.sh`.
-- Ascent 0.9.6 (Conduit 0.9.9, Viskores, 32-bit IDs), built with GCC 13. Its build script brings HDF5 2.0.0 (`libhdf5.so.320`), while ParaView ships HDF5 1.14 (`libhdf5.so.310`). So a reader with Catalyst loaded holds both, with the same function names; with Ascent 0.9.5 both were `.310` and one copy loaded. It is the first suspect for any HDF5 error or crash at exit in a Catalyst run (under test, 17 Nov 2026).
+- Ascent 0.9.6 (Conduit 0.9.9, Viskores, 32-bit IDs), built with GCC 13 and our patch `patches/ascent-0.9.6-local-mesh-index.patch` (see "Building Ascent": without it inline Ascent runs out of memory above about 150,000 ranks). Its build script brings HDF5 2.0.0 (`libhdf5.so.320`), while ParaView ships HDF5 1.14 (`libhdf5.so.310`). So a reader with Catalyst loaded holds both, with the same function names; with Ascent 0.9.5 both were `.310` and one copy loaded. It is the first suspect for any HDF5 error or crash at exit in a Catalyst run (under test, 17 Nov 2026).
 - Darshan is still the GCC 12.3 build in `software/darshan-3.4.7-install`; it is only preloaded for `--telemetry`. `build-darshan.sh` now installs to `darshan-3.4.7-gcc<major>-install` and refuses to overwrite, so a GCC 13 rebuild cannot replace the install earlier telemetry ran with; pass the new prefix with `--darshan-prefix`.
 - `generate_experiments.py --bin-path` must be a Gray-Scott build against the same ParaView as `CATALYST_LIB_PATH`; the settings check refuses a results directory whose runs used another Catalyst.
 
@@ -59,31 +59,57 @@ All 17 tests passed this way on 22 Nov 2026 (ParaView 6.2.1 superbuild dev
 tree, 1 to 4 ranks).
 
 # Building Ascent
-Ascent was not properly passing the `cc` and `CC` compiler wrappers to all of its sub builds. Below is what worked on the last build.
-
-***!! NOTE !!*** Compiler paths will have to be updated as the cray environment changes.
+Ascent 0.9.6 from its tag, with our patch, in Release (`build_ascent.sh`
+defaults to Debug), GCC 13, MPI, OpenMP and 32-bit IDs. Build on login5.
+Ascent did not pass the `cc` and `CC` compiler wrappers to all of its sub
+builds, hence `CC`/`CXX` and the host config.
 
 ```bash
-git clone --recursive https://github.com/alpine-dav/ascent.git
+module load PrgEnv-gnu/8.6.0 gcc-native/13.2 cmake/3.28.3
+module unload cray-libsci cray-python
+export CRAYPE_LINK_TYPE=dynamic
+export CC=$(which cc) CXX=$(which CC)
+
+git clone --recursive -b v0.9.6 https://github.com/alpine-dav/ascent.git
 cd ascent
+git apply <repo>/Miniapps/gray-scott/sites/shaheen/patches/ascent-0.9.6-local-mesh-index.patch
 
 cat > shaheen-host-config.cmake << EOL
-# shaheen-host-config.cmake
-
 # Forcefully add the C++17 standard flag to the compiler flags.
 # This is more direct than CMAKE_CXX_STANDARD and harder for Umpire to ignore.
 set(CMAKE_CXX_FLAGS "\${CMAKE_CXX_FLAGS} -std=c++17" CACHE STRING "C++ Compiler Flags" FORCE)
-
 # Also add the filesystem library to the linker flags for good measure.
 set(CMAKE_EXE_LINKER_FLAGS "\${CMAKE_EXE_LINKER_FLAGS} -lstdc++fs" CACHE STRING "Linker Flags" FORCE)
 EOL
 
-export CC=/opt/cray/pe/craype/2.7.32/bin/cc
-export CXX=/opt/cray/pe/craype/2.7.32/bin/CC
-
-env prefix=build enable_mpi=ON enable_openmp=ON \
+env prefix=<build root> install_dir=<install dir> build_config=Release build_jobs=16 \
+    enable_mpi=ON enable_openmp=ON enable_64bit_ids=OFF \
     ./scripts/build_ascent/build_ascent.sh -H shaheen-host-config.cmake
 ```
+
+`build_ascent.sh` skips any dependency whose install directory already
+exists, so to rebuild only Ascent, point `install_dir` at a directory that
+links the existing dependency installs (`conduit-v0.9.9`, `viskores-1.2.0`
+and so on) and has no `ascent-checkout`.
+
+**The patch** (`patches/ascent-0.9.6-local-mesh-index.patch`, 23 Nov 2026).
+On every `Execute()`, Ascent's `AddPublishedMeshInfo()` calls Conduit's
+MPI `generate_index`. That gathers every rank's mesh index schema to every
+rank, as JSON (about 3.3 KB per rank here), and parses all of them, so each
+rank briefly holds about 34 KB per rank in the job. Nothing in a run uses
+the result; it only feeds `ascent.info()`, the `save_info` action and the
+web interface. Inline Ascent at 64 ranks per node peaked at 1.0 GB per rank
+with 16,384 ranks, 2.7 GB with 65,536, 6.95 GB with 196,608 (the job was
+killed) and 7.9 GB with 212,992, where the nodes ran out of memory at the
+first render. The patch builds the index from the rank's own domain with
+the global domain count, which is the same index when every rank publishes
+the same mesh, as Gray-Scott does. At 32,768 ranks (256 nodes, 128 ranks
+per node, 64^3 cells per rank, inline volume) it took the mean peak RSS
+per rank from 1410 to 515 MB and the time per rendered step from 1.30 to
+0.51 s; 4096 ranks: 188 to 164 ms. Frames are bit-identical at 512, 4096
+and 32,768 ranks. Ascent and Conduit `develop` still have the gather
+(checked 23 Nov 2026). Ascent timings from the patched build are not
+comparable with earlier ones.
 
 # ADIOS2
 The current build is the one in Stack above (release_213 at 8d7270164, minimal

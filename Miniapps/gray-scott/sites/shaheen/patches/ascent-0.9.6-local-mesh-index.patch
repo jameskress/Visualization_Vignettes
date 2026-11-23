@@ -1,0 +1,32 @@
+diff --git a/src/libs/ascent/runtimes/ascent_main_runtime.cpp b/src/libs/ascent/runtimes/ascent_main_runtime.cpp
+index 032fb0a..a013849 100644
+--- a/src/libs/ascent/runtimes/ascent_main_runtime.cpp
++++ b/src/libs/ascent/runtimes/ascent_main_runtime.cpp
+@@ -559,12 +559,22 @@ AscentRuntime::AddPublishedMeshInfo()
+     m_info["published_mesh_info/number_of_domains"] = num_domains;
+
+     // if we have domains, then also provde the index
+-    if(num_domains > 0)
++    //
++    // Patched (Visualization_Vignettes, Nov 2026): the MPI generate_index
++    // all-gathers every rank's index schema and parses all of them on every
++    // rank, on every Execute(): O(ranks) memory and time per rank (about
++    // 35 KB per rank in the job; 7.9 GB per rank at 212,992 ranks, which ran
++    // the nodes out of memory). The index only feeds ascent.info(), so build
++    // it from this rank's first domain with the global domain count. That
++    // is the same index when every rank publishes the same topologies and
++    // fields; ranks without a domain leave it empty.
++    if(num_domains > 0 &&
++       blueprint::mesh::number_of_domains(m_source) > 0)
+     {
+-      blueprint::mpi::mesh::generate_index(m_source,
+-                                           "",
+-                                           m_info["published_mesh_info/index"],
+-                                           mpi_comm);
++      blueprint::mesh::generate_index(m_source[0],
++                                      "",
++                                      num_domains,
++                                      m_info["published_mesh_info/index"]);
+     }
+
+ #else
