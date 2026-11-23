@@ -25,9 +25,9 @@
 #   round-tripping, not to be a showcase.
 #
 #   The session is written with SaveSession(), which records the absolute
-#   path of the database. ex11_visitStateVerification re-points that path at
-#   the local data directory when it restores, so a moved checkout still
-#   works.
+#   path of the database. ex11_visitStateVerification restores it with that
+#   path unchanged, so after moving the checkout regenerate the session with
+#   this script.
 #
 # Author: James Kress, <james@jameskress.com>
 #

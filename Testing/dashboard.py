@@ -67,6 +67,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import drift  # noqa: E402
+from vignette_about import ABOUT, PARTS, PIPELINE  # noqa: E402
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SUITES = (("ParaView", "ParaView_Vignettes"), ("VisIt", "VisIt_Vignettes"))
@@ -78,8 +79,11 @@ SITES = ("Workstation", "Ibex", "Shaheen", "Other")
 # configuration whose last run used an older version is marked stale. Move
 # these when the pinned builds move.
 CURRENT_PINS = {"ParaView": "6.2.1", "VisIt": "3.5.0"}
-# A configuration with no run for this long is marked stale too.
-STALE_DAYS = 30
+# A configuration with no run for this long is marked stale too. Six months:
+# HPC systems change rarely by design (stability is the point), so a quiet
+# configuration is not a forgotten one until it has missed a maintenance
+# cycle or two.
+STALE_DAYS = 183
 # Record timestamps are the sites' local clock, all in Saudi Arabia; commit
 # times are compared on the same clock, so a build anywhere agrees.
 SITE_TZ = datetime.timezone(datetime.timedelta(hours=3))
@@ -1041,6 +1045,11 @@ section{margin-top:40px}
 h3{font-size:1rem;font-weight:600;margin:0 0 4px}
 p.lede{font-size:1.05rem;color:var(--ink2);margin:4px 0 10px;max-width:68ch}
 .note{color:var(--ink2);font-size:13.5px;margin:2px 0 10px;max-width:72ch}
+.pipe{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 14px;
+margin:6px 0 12px;font-size:14px;max-width:80ch}
+.pipe dt{font:500 11px/1.9 var(--mono);letter-spacing:.06em;text-transform:uppercase;
+color:var(--muted)}
+.pipe dd{margin:0;color:var(--ink2)}
 h3 .unit,h4 .unit{color:var(--muted);font-weight:400;font-size:12px}
 .banner{background:var(--na);border-radius:8px;padding:8px 12px;color:var(--ink2)}
 .howto-box summary{color:var(--ink)}
@@ -1361,27 +1370,20 @@ def page(title, body, generated):
 # ---------------------------------------------------------------------------
 # What each vignette number shows, in words that fit both tools. A vignette
 # not listed here still appears, under its directory name.
-ABOUT = {
-    0: ("Query", "Loads a dataset and checks its mesh statistics and metadata."),
-    1: ("Screenshot", "The basic rendering pipeline, saved as an image."),
-    2: ("Camera animation", "A camera path around the data, frame by frame."),
-    3: ("Isosurface animation", "An isovalue swept through the field."),
-    4: ("Streamlines", "Flow visualization with seeded streamlines."),
-    5: ("Time series", "One rendering per time step of a multi-step file."),
-    6: ("Large data", "A large dataset rendered in parallel."),
-    7: (
-        "Scaling",
-        "Isosurface extraction across rank counts; geometry must not change.",
-    ),
-    8: ("Backend check", "Fails when a job that asked for a GPU renders in software."),
-    9: ("Mesh topologies", "One contour pipeline over several mesh types."),
-    10: (
-        "Colormap fidelity",
-        "One field through four transfer functions, each with a legend.",
-    ),
-    11: ("State verification", "A saved session reloaded headlessly and stepped."),
-    12: ("Extract regression", "Image, data and numeric extracts side by side."),
-}
+
+
+def pipeline_html(tool, n):
+    """Reads / Does / Writes / Checked for one tool's vignette; '' if none."""
+    entry = PIPELINE.get((tool, n))
+    if not entry:
+        return ""
+    return "<dl class='pipe'>{0}</dl>".format(
+        "".join(
+            "<dt>{0}</dt><dd>{1}</dd>".format(label, esc(entry[key]))
+            for key, label in PARTS
+            if entry.get(key)
+        )
+    )
 
 
 def vignette_title(vignette):
@@ -2401,7 +2403,7 @@ def render_vignette_page(tool, vignette, histories, states, generated, style=Non
             )
     body = (
         "<p class='crumbs'><a href='index.html'>Results</a> &rsaquo; {0}</p>"
-        "<h1>{0} {1}</h1><p class='lede'>{2}</p>"
+        "<h1>{0} {1}</h1><p class='lede'>{2}</p>{10}"
         "<p><a href='../gallery/#{6}'>Baseline images in the gallery</a> &middot; "
         "source: <a href='{7}/tree/master/{8}/{9}'>{9}</a></p>"
         "<h2>Latest result on each machine</h2><div class='chips'>{3}</div>"
@@ -2419,6 +2421,7 @@ def render_vignette_page(tool, vignette, histories, states, generated, style=Non
             "https://github.com/jameskress/Visualization_Vignettes",
             esc(dict(SUITES)[tool]),
             esc(vignette),
+            pipeline_html(tool, n),
         )
     )
     return page("{0} {1}".format(tool, vignette_title(vignette)), body, generated)

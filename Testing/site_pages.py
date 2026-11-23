@@ -445,7 +445,7 @@ def render_gallery(found, placed, with_results=None):
             cards.append(
                 "<section class='card vig' id='{0}'><h3>{1} ex{2:02d} {3}{4}</h3>"
                 "<p class='note'>{5} {6}"
-                "<a href='{7}/tree/master/{8}/{9}'>source</a></p>{10}</section>".format(
+                "<a href='{7}/tree/master/{8}/{9}'>source</a></p>{11}{10}</section>".format(
                     anchor(tool, n),
                     esc(tool),
                     n,
@@ -457,6 +457,7 @@ def render_gallery(found, placed, with_results=None):
                     esc(suite),
                     url(name),
                     _frames(entry["images"].get(tool, []), placed, tool, title),
+                    dashboard.pipeline_html(tool, n),
                 )
             )
         sections.append(

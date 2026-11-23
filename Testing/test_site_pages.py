@@ -15,6 +15,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dashboard  # noqa: E402
 import site_pages  # noqa: E402
 
 # The smallest valid PNG: one white pixel.
@@ -259,6 +260,29 @@ class Baselines(unittest.TestCase):
 
 
 class RealRepository(unittest.TestCase):
+    def test_docs_give_the_stale_threshold_in_days(self):
+        """README and ADD_YOUR_SITE state dashboard.STALE_DAYS, not an old value."""
+        for name in ("README.md", "ADD_YOUR_SITE.md"):
+            with open(
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), name),
+                encoding="utf-8",
+            ) as fh:
+                text = " ".join(fh.read().split())
+            self.assertIn("({0} days)".format(dashboard.STALE_DAYS), text, name)
+
+    def test_every_vignette_has_a_full_pipeline_description(self):
+        """Each tool's vignette says what it reads, does, writes and checks."""
+        for tool in ("ParaView", "VisIt"):
+            for n in site_pages.ABOUT:
+                entry = dashboard.PIPELINE.get((tool, n), {})
+                for key, _ in dashboard.PARTS:
+                    self.assertTrue(entry.get(key), (tool, n, key))
+                    # Written as shown: no automatic capitals, which
+                    # would change a path such as data/noise.silo.
+                    self.assertFalse(entry[key][:1].islower(), (tool, n, key))
+                html = dashboard.pipeline_html(tool, n)
+                self.assertEqual(html.count("<dt>"), len(dashboard.PARTS))
+
     def test_every_vignette_number_is_described(self):
         """A new vignette needs its line in ABOUT, or it shows a bare name."""
         found = site_pages.baselines()

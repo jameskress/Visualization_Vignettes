@@ -18,8 +18,8 @@
 #
 #   The ragged case is the one that earns its keep. A decomposition whose
 #   extents divide evenly is exactly the case that hides off-by-one errors in
-#   partitioned readers, writers and filters, so the blocks here have
-#   different spans in every axis on purpose.
+#   partitioned readers, writers and filters, so the three blocks here have
+#   unequal widths on purpose (split along x at uneven points).
 #
 # WHAT IT ASSERTS
 #
