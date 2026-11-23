@@ -836,8 +836,9 @@ run time. Without it every reader rank segfaults in OpenGL setup
 (`glad_gl_get_extensions`) before the first image (#72 step 1). The
 generator's jobs set both.
 
-**Catalyst renders with OSPRay.** The Paper 2 Catalyst templates (slices,
-isosurface, volume) use OSPRay, the CPU ray tracer: it is faster than
+**Catalyst renders with OSPRay.** The Paper 2 Catalyst slice and isosurface
+templates use OSPRay, the CPU ray tracer (the volume template does not: see
+"Catalyst volume images"): it is faster than
 OSMesa's software rasteriser and is the like-for-like comparison with
 Ascent's VTK-m ray tracer. Paper 1's template is unchanged. Measured at
 64 + 4 nodes with the fixes below (two runs each): slices 1.60 s per step
@@ -896,7 +897,8 @@ changes 68,000 to 86,000 of the 4.2 million pixels of a slice frame, almost
 all by one level (OSPRay's image as Mesa blits it); the 236 pixels that
 change by more than 32 levels are the orientation axes' lines and the
 scalar bar's labels, the same 236 at 64 + 4, 256 + 16 and 512 + 32. A
-volume frame changes in 674 pixels, all on those overlays. Each arm's frames
+volume frame changes in 674 pixels, all on those overlays (those volume
+frames drew no volume; see "Catalyst volume images"). Each arm's frames
 were identical from run to run. The same 4096^3 data rendered on different
 reader counts differs only at slab seams: 102 to 108 pixels between 256 + 16
 and 512 + 32, before and after alike, and 44 to 48 between 512 + 32 and
@@ -1129,3 +1131,42 @@ spares a later process the compile; each rank keeps its shaders in memory
 for the run either way. `generate_experiments.py` therefore exports
 `MESA_SHADER_CACHE_DISABLE=true` in every Paper 2 job, inline and in
 transit. Paper 1 jobs are unchanged: softpipe compiles nothing.
+
+## Catalyst volume images
+
+Every Catalyst volume frame from the Paper 2 template, inline and in
+transit, showed only the background, the orientation axes and the scalar
+bar: the same 40374-byte PNG at every step of every run. ParaView 6.2 does
+not volume-render, with OSPRay, the partitioned image data Catalyst hands the
+script (one image block per rank), and its volume representation has no
+OSPRay mode (`VolumeRenderingMode` offers Smart, Ray Cast Only and GPU
+Based). The same script with ray tracing off draws the volume. Merging the
+blocks into one dataset ran out of memory at 1024^3 on one node, and
+resampling to one image would break the template's like-for-like match with
+Ascent (same data, no resampling).
+
+The volume template therefore renders with VTK's volume ray caster
+(`EnableRayTracing=0`), on the CPU through Mesa's llvmpipe; the slice and
+isosurface templates keep OSPRay. At 1024^3 (the 8-node checkpoint, step
+65000), against a serial `pvbatch` reference that resamples the same data to
+one image and renders it with OSPRay:
+
+| Image | Mean difference | Pixels > 32 levels apart (of 4.2 M) |
+|---|---|---|
+| Inline, 8 nodes, against in transit, 8 + 2 | 0.65 | 0 |
+| Inline, 8 nodes, against inline, 1 node | 0.37 | 0 (none > 8) |
+| Inline, 8 nodes, against the OSPRay reference | 5.3 | 133,213 |
+| In transit, 8 + 2, against the OSPRay reference | 5.5 | 137,992 |
+
+The Catalyst frames agree with each other at any rank count. The reference
+differs evenly, by about 5 levels inside the cube, and more at its silhouette,
+where VTK's ray caster accumulates less opacity over the short paths near
+the edges. A serial `pvbatch` render of the 64 blocks with VTK's mapper is
+not a reference: it ran out of texture units and dropped blocks.
+
+**Timings of the earlier volume runs measure no volume.** The old template,
+rerun at 8 + 2, wrote the same blank frame at all 6 steps, with 0.030 s of
+IceT render time and 0.21 s of Catalyst execute time per step. The fixed
+template took 1.02 s and 1.65 s. Catalyst volume times from runs made before
+this change are the cost of drawing an empty frame, the axes and the scalar
+bar, and writing the PNG, not of volume rendering, and need rerunning.

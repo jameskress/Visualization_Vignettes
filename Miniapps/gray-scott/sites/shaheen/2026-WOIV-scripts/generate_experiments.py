@@ -533,8 +533,12 @@ CATALYST_VOLUME_TEMPLATE = (
     + """
 # Volume of v over the full grid, comparable with ASCENT_VOLUME_TEMPLATE: the
 # same data (no resampling), image size and colour range (pinned to 0..1).
-# Rendered with OSPRay, the CPU ray tracer, as the slice and isosurface
-# templates are: like Ascent's VTK-m ray tracer, so the comparison is fair.
+# Rendered by VTK's volume ray caster, on the CPU through Mesa, not by OSPRay
+# as the slice and isosurface templates are: ParaView 6.2's OSPRay path does
+# not draw a volume of the partitioned image data Catalyst hands it, so with
+# OSPRay every frame showed only the background, axes and scalar bar
+# (sites/shaheen/README.md, "Catalyst volume images"). Drawing it with OSPRay
+# would need the data resampled to one image.
 # The producer is rendered directly: a GhostCells layer under a volume shows
 # as cracks (docs/in-situ-backends.md, Catalyst).
 from paraview import catalyst
@@ -550,8 +554,7 @@ renderView1.Set(
     CameraFocalPoint=[{center}, {center}, {center}],
     CameraViewUp=[{cam_up_x}, {cam_up_y}, {cam_up_z}],
     CameraParallelScale={parallel_scale},
-    EnableRayTracing=1,
-    BackEnd="OSPRay raycaster",
+    EnableRayTracing=0,
 )
 SetActiveView(None)
 layout1 = CreateLayout(name="Layout #1")
