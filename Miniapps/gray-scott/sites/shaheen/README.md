@@ -90,7 +90,9 @@ env prefix=<build root> install_dir=<install dir> build_config=Release build_job
 `build_ascent.sh` skips any dependency whose install directory already
 exists, so to rebuild only Ascent, point `install_dir` at a directory that
 links the existing dependency installs (`conduit-v0.9.9`, `viskores-1.2.0`
-and so on) and has no `ascent-checkout`.
+and so on) and has no `ascent-checkout`, and use a new `prefix`: an old
+build tree keeps its cached install prefix and would install over the
+previous Ascent.
 
 **The patch** (`patches/ascent-0.9.6-local-mesh-index.patch`, 23 Nov 2026).
 On every `Execute()`, Ascent's `AddPublishedMeshInfo()` calls Conduit's
