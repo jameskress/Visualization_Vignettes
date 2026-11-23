@@ -1080,7 +1080,7 @@ export GS_CATALYST_BACKEND=osmesa
 # here, where 64 simulation ranks share a node; the reader sets its own.
 export GALLIUM_DRIVER={gallium_driver}
 export LP_NUM_THREADS=1
-
+{mesa_cache_line}
 
 # --- Exascale Slingshot-11 OFI Tuning ---
 export FI_CXI_RX_MATCH_MODE=software
@@ -1911,6 +1911,19 @@ def catalyst_stage(exp):
         "sha256": sha256,
     }
 
+
+# llvmpipe's shader cache off. Mesa keeps it in ~/.cache, which in a Shaheen
+# job is /scratch/$USER/.cache on Lustre, and every rank on every node maps
+# its index file to write it. When the shaders a pipeline needs were not
+# cached yet, the ranks stopped in their first render, asleep on Lustre locks,
+# until the time limit: 20 of 21 Paper 2 inline Catalyst render, volume and
+# isosurface runs did (sites/shaheen/README.md, "Inline Catalyst hang"). The
+# cache only saves the next process its compile; each rank keeps its shaders
+# in memory anyway. Paper 1 jobs use softpipe, which compiles nothing, and
+# keep their environment as they were run.
+MESA_CACHE_LINE = """# llvmpipe's shader cache is on Lustre, where uncached ranks hung (README).
+export MESA_SHADER_CACHE_DISABLE=true
+"""
 
 # Runs before the run's PHASE run_start, so the copy is timed on its own
 # (PHASE stage_start / stage_end) and not as the run's start-up. One task per
@@ -2983,6 +2996,7 @@ def generate_scripts(args):
             catalyst_lib_path=CATALYST_LIB_PATH,
             paraview_lib_path=os.path.dirname(CATALYST_LIB_PATH.rstrip("/")),
             gallium_driver="softpipe" if exp.get("paper") == "paper1" else "llvmpipe",
+            mesa_cache_line="" if exp.get("paper") == "paper1" else MESA_CACHE_LINE,
         )
 
         reduce_content = REDUCE_TEMPLATE.format(

@@ -1098,3 +1098,34 @@ state is unchanged, and the isosurface's first step still costs 6 to 7 s
 more than its later ones. At 64 + 4 nodes the slices' step 0 went from 21.4 s
 to 6.5 to 7.8 s with an earlier, partial stage (46 libraries still from
 Lustre); the fully staged isosurface's step 0 was 20.3 to 20.5 s.
+
+## Inline Catalyst hang
+
+In the first Paper 2 sweep (22 to 23 Nov 2026), 20 of 21 inline Catalyst
+render, volume and isosurface runs stopped in their first render and slept
+until the 2 h limit, from 8 to 3072 nodes. The one that ended (64 nodes)
+wrote 0-byte images. Inline `catalyst_io` runs, with no rendering, were
+fine. Node telemetry showed every rank go idle about a minute into the run,
+and a probe of the stuck ranks found their main threads waiting on Lustre
+locks (`ldlm_completion_ast`, in a page fault, not a system call) next to
+Mesa's shader cache thread (`disk$0`).
+
+llvmpipe, which the Paper 2 jobs use (Paper 1 keeps softpipe), caches its
+compiled shaders in `~/.cache/mesa_shader_cache`. In a Shaheen job `~` is
+`/scratch/$USER`, so the cache is on Lustre, and every rank on every node
+maps its index file to write it. The jobs that hung all wrote to it (its
+directories and index carry the sweep's times). At 8 nodes (512 ranks), the
+same job:
+
+| Mesa shader cache | Runs | Result |
+|---|---|---|
+| Default, already holding the job's shaders | 2 | ended in 104 s |
+| New, empty directory (`MESA_SHADER_CACHE_DIR`) | 3 | all hung |
+| Off (`MESA_SHADER_CACHE_DISABLE=true`) | 5 | ended in 33 to 80 s |
+
+The cache-off runs covered the render, volume and isosurface scripts,
+once with ParaView's libraries staged to node-local `/tmp`. The cache only
+spares a later process the compile; each rank keeps its shaders in memory
+for the run either way. `generate_experiments.py` therefore exports
+`MESA_SHADER_CACHE_DISABLE=true` in every Paper 2 job, inline and in
+transit. Paper 1 jobs are unchanged: softpipe compiles nothing.
