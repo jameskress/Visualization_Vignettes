@@ -218,7 +218,18 @@ document.addEventListener('keydown',function(e){
   else if(e.key==='Home'){show(0);e.preventDefault();}
   else if(e.key==='End'){show(set.length-1);e.preventDefault();}
 });
-d.addEventListener('click',function(e){if(e.target===d||e.target.id==='vw-stage')d.close();});
+// Close on a background click only when the press also started on the
+// background and did not drag: a press on the image that ends outside it
+// is not a dismissal.
+function bg(t){return t===d||t.id==='vw-stage';}
+var down=null;
+d.addEventListener('pointerdown',function(e){
+  down=bg(e.target)?{x:e.clientX,y:e.clientY}:null;
+});
+d.addEventListener('click',function(e){
+  var p=down;down=null;
+  if(p&&bg(e.target)&&Math.abs(e.clientX-p.x)<10&&Math.abs(e.clientY-p.y)<10)d.close();
+});
 d.addEventListener('close',function(){
   img.removeAttribute('src');
   if(history.state&&history.state.viewer)history.back();
