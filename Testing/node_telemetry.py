@@ -418,7 +418,12 @@ class NodeTelemetry(object):
         self._stop.set()
         if self._smi is not None:
             try:
-                self._smi.terminate()
+                # SIGKILL, not SIGTERM: nvidia-smi takes about 0.56 s to act
+                # on SIGTERM, and with the thread joins that added about 1 s
+                # to every vignette on a GPU machine (workstation, 23 Nov
+                # 2026: ex01 5.2 s off, 6.2 s on; 5.2 and 5.3 s with SIGKILL).
+                # It only reads, so there is nothing to clean up.
+                self._smi.kill()
                 self._smi.wait(timeout=5)
             except (OSError, subprocess.SubprocessError):
                 pass
