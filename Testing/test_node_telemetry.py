@@ -384,6 +384,29 @@ class NvidiaSmiLifetime(unittest.TestCase):
             self.assertIsNotNone(telemetry._smi.poll(), "nvidia-smi still running")
             telemetry.figures()  # no error after an instant stop
 
+    def test_stop_does_not_wait_for_nvidia_smi_to_exit(self):
+        """stop() kills nvidia-smi rather than asking it to exit: the real one
+        takes about 0.56 s to act on SIGTERM, and that time landed on every
+        vignette of a GPU machine. This fake ignores SIGTERM altogether."""
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = os.path.join(tmp, "nvidia-smi")
+            with open(fake, "w") as fh:
+                fh.write(
+                    "#!/bin/sh\ntrap '' TERM\n"
+                    "while true; do echo '0, 10, 5, 50'; sleep 0.05; done\n"
+                )
+            os.chmod(fake, 0o755)
+            with mock.patch.object(node_telemetry.shutil, "which", return_value=fake):
+                telemetry = node_telemetry.NodeTelemetry(gpu=True).start()
+                time.sleep(0.2)
+                began = time.time()
+                telemetry.stop()
+                took = time.time() - began
+            self.assertLess(took, 1.0)
+            self.assertIsNotNone(telemetry._smi.poll(), "nvidia-smi still running")
+
 
 class ExactPeakAsMemory(unittest.TestCase):
     """metrics.prefer_exact_peak: which runs take their memory from the ranks' PSS."""
