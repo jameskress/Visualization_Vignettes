@@ -151,6 +151,6 @@ gates did when you ran them, and what review of the pull request is for.
 Record again after each change that matters: a new ParaView or VisIt
 version ([RUNBOOK.md section 12](RUNBOOK.md#12-testing-a-new-paraview-or-visit-build)),
 and just before and after a system maintenance, so the dashboard can tell
-a system change from a tool change. A configuration with no run for 30
-days is marked stale; one whose hardware is gone can be retired in
+a system change from a tool change. A configuration with no run for six
+months (183 days) is marked stale; one whose hardware is gone can be retired in
 `Testing/retired_configurations.json`, which keeps its history and its page.

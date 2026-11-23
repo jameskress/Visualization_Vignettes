@@ -753,7 +753,7 @@ How to read the results:
 | ran OK, run failed | an older record: it says only whether the vignette's own run succeeded |
 | unknown | the oldest records, which say neither |
 | drift n/a | no vignette there has the three earlier comparable runs the drift rule needs |
-| stale | no run for 30 days, or the last run used an older version than the suite pins (`CURRENT_PINS` in `dashboard.py`; move it with the pinned builds) |
+| stale | no run for six months (183 days), or the last run used an older version than the suite pins (`CURRENT_PINS` in `dashboard.py`; move it with the pinned builds) |
 | &middot; in the upgrade table | no runs of the same vignette code at both versions on that machine: not compared |
 | retired | listed in `Testing/retired_configurations.json`: never stale, left out of the summary charts, history and page kept |
 

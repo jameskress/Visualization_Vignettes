@@ -15,6 +15,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dashboard  # noqa: E402
 import site_pages  # noqa: E402
 
 # The smallest valid PNG: one white pixel.
@@ -239,6 +240,16 @@ class Baselines(unittest.TestCase):
 
 
 class RealRepository(unittest.TestCase):
+    def test_every_vignette_has_a_full_pipeline_description(self):
+        """Each tool's vignette says what it reads, does, writes and checks."""
+        for tool in ("ParaView", "VisIt"):
+            for n in site_pages.ABOUT:
+                entry = dashboard.PIPELINE.get((tool, n), {})
+                for key, _ in dashboard.PARTS:
+                    self.assertTrue(entry.get(key), (tool, n, key))
+                html = dashboard.pipeline_html(tool, n)
+                self.assertEqual(html.count("<dt>"), len(dashboard.PARTS))
+
     def test_every_vignette_number_is_described(self):
         """A new vignette needs its line in ABOUT, or it shows a bare name."""
         found = site_pages.baselines()
