@@ -1198,3 +1198,55 @@ IceT render time and 0.21 s of Catalyst execute time per step. The fixed
 template took 1.02 s and 1.65 s. Catalyst volume times from runs made before
 this change are the cost of drawing an empty frame, the axes and the scalar
 bar, and writing the PNG, not of volume rendering, and need rerunning.
+
+## Reader overwrite (`--transit-data-overwrite`)
+
+The 8192^3 in transit hero data runs write 25 TB or more each, more than
+`/scratch` holds. `generate_experiments.py --transit-data-overwrite` (off by
+default) sets `overwrite_last_step` in the reader's settings for in transit
+Catalyst (`catalyst_io`) and Ascent data runs, so the reader replaces its
+last output instead of writing one per step (analysis/README.md). The
+simulation's SST output and ADIOS2 data runs are unchanged.
+
+A/B at 64 + 4 nodes (2048^3 checkpoint, 3 output steps, 24 Nov 2026), 3 runs
+per mode, interleaved. Each cell is the median of the runs, with the
+smallest and largest run in brackets; each run's value is its median over
+output steps 1 and 2 (step 0 writes no existing file in either mode).
+
+| Catalyst data | No overwrite | Overwrite | Change |
+|---|---|---|---|
+| Reader write (`Vis_Time`), steps 1+ | 6.15 s [6.01, 6.29] | 10.04 s [9.77, 10.06] | +63% |
+| Reader write, step 0 | 5.82 s [5.71, 5.98] | 5.81 s [5.77, 5.86] | 0% |
+| Reader `ADIOS_Wait`, steps 1+ | 0.19 s [0.17, 0.25] | 0.005 s [0.005, 0.006] | -97% |
+| Reader step (`total_step`), steps 1+ | 8.31 s [8.17, 8.49] | 12.07 s [11.78, 12.22] | +45% |
+| Reader `Step_Latency`, steps 1+ | 11.06 s [11.00, 11.31] | 12.76 s [12.47, 12.79] | +15% |
+| Simulation SST write, outputs 2+ | 4.69 s [4.69, 4.84] | 4.63 s [4.59, 4.73] | -1% |
+| Simulation loop | 11.9 s [11.9, 12.3] | 11.8 s [11.8, 12.1] | -1% |
+| Output written | 440 GB, 99 files | 147 GB, 33 files | |
+
+| Ascent data | No overwrite | Overwrite | Change |
+|---|---|---|---|
+| Reader write (`Vis_Time`), steps 1+ | 97.2 s [96.7, 97.6] | 99.5 s [99.3, 100.4] | +2.4% |
+| Reader write, step 0 | 98.1 s [97.8, 99.2] | 97.8 s [97.6, 99.5] | 0% |
+| Reader `ADIOS_Wait`, steps 1+ | 0.006 s | 0.006 s | 0% |
+| Reader step (`total_step`), steps 1+ | 99.4 s [98.7, 99.8] | 101.8 s [101.6, 102.7] | +2.4% |
+| Reader `Step_Latency`, steps 1+ | 148.3 s [147.6, 149.4] | 149.6 s [149.4, 151.1] | +1% |
+| Simulation SST write, outputs 2+ | 51.0 s [50.6, 51.5] | 50.8 s [50.6, 51.6] | 0% |
+| Simulation loop | 104.6 s [103.9, 105.6] | 104.3 s [103.7, 105.7] | 0% |
+| Output written | 337 GB, 99 files | 112 GB, 33 files | |
+
+**Overwrite changes the reader's write.** Writing over the files of the
+previous step costs Catalyst 3.9 s more per step (+63%) and Ascent 2.3 s
+(+2.4%); the first write, with no file to replace, costs the same in both
+modes, so the extra time is the replacement of existing Lustre files. The
+Catalyst reader, now slower than the simulation, no longer waits for data
+(`ADIOS_Wait` near zero). The simulation was unaffected here: with 3
+outputs, SST's queue absorbed the slower reader. With more outputs, a
+reader that falls behind would hold the simulation once the queue fills.
+
+**The last step's data is the same in both modes.** Catalyst: the piece
+files are the same size and differ in 3 bytes (the time value, 2 against
+0); `u`, `v` and `vtkGhostType` are byte-identical. Ascent: all 23 datasets
+of the sampled domains match except `state/cycle` (2 against 0); runs of
+one mode differ only in HDF5 file metadata. Runs of one mode wrote
+identical Catalyst files.
