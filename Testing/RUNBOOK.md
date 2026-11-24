@@ -282,6 +282,27 @@ mean with a constraint, or you will not know which one you measured:
 srun --gres=gpu:1 --constraint=a100 ...
 ```
 
+**Pin the node kind too, not only the GPU, for a recorded run.** One GPU type
+can sit in different kinds of node, and they time differently. Ibex's A100s
+come in two kinds:
+
+| Kind | Nodes | CPU | Slurm feature |
+| :--- | :--- | :--- | :--- |
+| 4 GPUs | `gpu101`, `gpu108`, `gpu109`, `gpu202` | one EPYC 7713P | `cpu_amd_epyc_7713p` |
+| 8 GPUs | `gpu102`, `gpu110` | two EPYC 7713 | `cpu_amd_epyc_7713` |
+
+VisIt on an 8-GPU node took 3 to 4 s longer per short vignette, with twice
+the CPU time, than on a 4-GPU node (23 and 24 Nov 2026). A configuration that
+mixes the two shows that as a regression. So each configuration keeps one
+kind: `ibex-gpu` (VisIt) the 4-GPU nodes, `ibex-egl-a100` (ParaView) the
+8-GPU nodes, where its recent history is. Ask for both features at once,
+`--constraint="a100&cpu_amd_epyc_7713p"`. Check the record's
+`machine_info.node` and `cpu_model` against the configuration's history before
+reading a change in time. When a node kind retires, give its successor a new
+configuration name rather than mixing kinds in one history (list the features
+with `sinfo -N -o "%N %f %G"`). The other GPU types may span node kinds as
+well; check before their next recorded run.
+
 VisIt on a GPU node records `ibex-gpu`, with `--hw-accel` passed to the
 vignettes so ex08 demands a hardware offscreen context (the others ignore it),
 at the default image tolerance. Use 8 ranks (8 tasks of 2 CPUs fits an A100's
@@ -294,8 +315,8 @@ so one Ibex VisIt baseline serves both. Add `EXTRA="--run-id ibex-gpu-<date> --r
 the one recorded run (section 9):
 
 ```bash
-sbatch --gres=gpu:1 --constraint=a100 --ntasks=8 --cpus-per-task=2 --mem=90G \
-  --export=ALL,VARIANT=gpu ibex_visit_suite.sbat
+sbatch --gres=gpu:1 --constraint="a100&cpu_amd_epyc_7713p" --ntasks=8 --cpus-per-task=2 \
+  --mem=90G --export=ALL,VARIANT=gpu ibex_visit_suite.sbat
 ```
 
 The VisIt suite reads two fixtures that pvbatch builds (`data/topologies`, the
@@ -311,7 +332,7 @@ exactly what you want to hear about.
 `Testing/ibex_pv_suite.sbat` and `Testing/ibex_visit_suite.sbat`, submitted from
 `Testing/`, with the same `TESTS`, `RANKS` and `EXTRA` knobs as the Shaheen ones
 (default `--no-metrics`; `EXTRA="--run-id ibex-cpu-<date> --repeat 3"` for the one recorded
-run). GPU: `sbatch --gres=gpu:1 --constraint=a100 --ntasks=4 --cpus-per-task=4
+run). GPU: `sbatch --gres=gpu:1 --constraint="a100&cpu_amd_epyc_7713" --ntasks=4 --cpus-per-task=4
 --export=ALL,VARIANT=egl,GPU=a100 ibex_pv_suite.sbat`. Never pass `--partition`
 for a GPU job (Ibex refuses it) and stay within the per-GPU CPU limit (16 on
 A100, 6 on V100). Account `pi-ghanis`.
@@ -952,7 +973,7 @@ On Ibex, the A100 EGL line (section 5: no `--partition` for a GPU job, and
 at most 16 CPUs per A100):
 
 ```bash
-sbatch --gres=gpu:1 --constraint=a100 --ntasks=4 --cpus-per-task=4 \
+sbatch --gres=gpu:1 --constraint="a100&cpu_amd_epyc_7713" --ntasks=4 --cpus-per-task=4 \
   --export=ALL,VARIANT=egl,GPU=a100,TESTS=8,VV_PARAVIEW_MODULE=paraview/6.2.1-gnu-egl ibex_pv_suite.sbat
 ```
 
