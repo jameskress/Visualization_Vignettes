@@ -193,6 +193,9 @@ TELEMETRY_KEYS = (
     "step_pss_steps",
     "step_pss_mean_sample_s",
     "srun_steps_expected",
+    "rapl_package_joules",
+    "rapl_dram_joules",
+    "rapl_samples",
 )
 
 

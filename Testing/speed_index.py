@@ -47,6 +47,7 @@ MEASURES = (
     ("memory_usage_mb", "Peak memory (PSS)", "MB"),
     ("energy_joules", "Node energy", "J"),
     ("gpu_energy_joules", "GPU energy", "J"),
+    ("rapl_package_joules", "CPU package energy", "J"),
 )
 
 # Memory is measured several ways (memory_measurement_scope); only the
@@ -331,7 +332,9 @@ had one run per vignette, so its noise is unknown.</dd>
 the work hold, which means the same on every machine. Slurm-sampled memory is left
 out.</dd>
 <dt>Energy</dt><dd>Node energy where the node's own counters are readable (Shaheen
-CPU nodes); GPU energy, the GPUs alone, wherever nvidia-smi is.</dd>
+CPU nodes); GPU energy, the GPUs alone, wherever nvidia-smi is; CPU package energy
+(RAPL), the CPU packages of the whole machine, where the run has the machine to itself
+and the counters are readable. Three different things: never added together.</dd>
 </dl></details>
 </section>
 """

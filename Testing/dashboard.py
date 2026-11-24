@@ -117,6 +117,8 @@ CHARTS = [
         "J",
         1.0,
     ),
+    # RAPL: the CPU packages of the whole machine, no GPUs or rest of node.
+    ("rapl_package_joules", "CPU package energy (RAPL, whole machine)", "J", 1.0),
 ]
 # Every compared or charted figure that has a scope: a chart fades points
 # measured another way than the latest run (slurm_memory_mb included).

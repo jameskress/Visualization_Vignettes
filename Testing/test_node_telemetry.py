@@ -638,6 +638,66 @@ class PmEnergyGuard(unittest.TestCase):
         self.assertEqual(fields["energy_pm_node_joules"], 5935.0)
         self.assertNotIn("energy_cpu_joules", fields)
 
+class Rapl(unittest.TestCase):
+    """RAPL CPU energy: packages and DRAM only, wrap-safe, silent when unreadable."""
+
+    def zone(self, root, name, kind, uj, wrap=1000, readable=True):
+        path = os.path.join(root, name)
+        os.makedirs(path)
+        write(os.path.join(path, "name"), kind + "\n")
+        write(os.path.join(path, "max_energy_range_uj"), "{0}\n".format(wrap))
+        write(os.path.join(path, "energy_uj"), "{0}\n".format(uj))
+        if not readable:
+            os.chmod(os.path.join(path, "energy_uj"), 0)
+        return path
+
+    def test_only_readable_package_and_dram_zones(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.zone(root, "intel-rapl:0", "package-0", 5)
+            self.zone(root, "intel-rapl:0:0", "core", 5)
+            self.zone(root, "intel-rapl:0:1", "dram", 5)
+            self.zone(root, "intel-rapl:1", "package-1", 5, readable=os.getuid() == 0)
+            zones = node_telemetry.rapl_zones(root)
+            kinds = sorted(k for k, _ in zones.values())
+            if os.getuid() != 0:
+                self.assertEqual(kinds, ["dram", "package"])
+            self.assertNotIn(os.path.join(root, "intel-rapl:0:0"), zones)
+
+    def test_no_powercap_records_nothing(self):
+        telemetry = node_telemetry.NodeTelemetry(
+            gpu=False, rapl=True, powercap_dir="/nonexistent"
+        )
+        self.assertEqual(telemetry.start().stop().figures(), {})
+
+    def test_a_wrap_is_counted_once(self):
+        self.assertEqual(node_telemetry.rapl_delta(900, 100, 1000), 200)
+        self.assertEqual(node_telemetry.rapl_delta(100, 900, 1000), 800)
+
+    def test_energy_across_a_wrap(self):
+        """A counter that wraps at 65532.6 J (the workstation's), read at
+        65000 J and then at 500 J: 1032.6 J used, not a negative number."""
+        wrap = 65532610987
+        with tempfile.TemporaryDirectory() as root:
+            zone = self.zone(root, "intel-rapl:0", "package-0", 65000000000, wrap)
+            telemetry = node_telemetry.NodeTelemetry(
+                gpu=False, rapl=True, powercap_dir=root
+            ).start()
+            write(os.path.join(zone, "energy_uj"), "500000000\n")
+            figures = telemetry.stop().figures()
+        self.assertEqual(figures["rapl_package_joules"], 1032.6)
+        self.assertEqual(figures["rapl_samples"], 2)
+
+    def test_the_site_energy_interval_is_kept(self):
+        import run_tests
+
+        shaheen = "JobAcctGatherFrequency  = task=600,energy=600\n"
+        ibex = "JobAcctGatherFrequency  = task=30,network=30,energy=30\n"
+        none = "JobAcctGatherFrequency  = 30\n"
+        self.assertEqual(run_tests.site_energy_interval(shaheen), 600)
+        self.assertEqual(run_tests.site_energy_interval(ibex), 30)
+        self.assertIsNone(run_tests.site_energy_interval(none))
+        self.assertIsNone(run_tests.site_energy_interval(""))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -51,6 +51,24 @@ Use the builds the suite pins, ParaView 6.2.1 and VisIt 3.5.0. Runs of
 other versions are recorded and shown too, but the dashboard marks a
 configuration whose latest run is not on the pinned builds as stale.
 
+**Energy, optional.** The suite records what energy it can read and skips
+the rest without an error: GPU energy wherever `nvidia-smi` runs, node energy
+on Cray nodes a job owns, and CPU package energy from RAPL
+(`/sys/class/powercap/intel-rapl:*/energy_uj`) when the run has the machine
+to itself (outside Slurm, or a whole-node job). Linux makes RAPL root-only by
+default, because its fine-grained readings can leak information between
+users (the PLATYPUS side channel). On a single-user workstation you may make
+the package and DRAM counters readable, for example with a systemd-tmpfiles
+rule that runs at every boot:
+
+```bash
+echo 'z /sys/class/powercap/intel-rapl:*/energy_uj 0444 - - -' | \
+  sudo tee /etc/tmpfiles.d/rapl-read.conf
+sudo systemd-tmpfiles --create /etc/tmpfiles.d/rapl-read.conf
+```
+
+Do not do this on a shared machine. Nothing else in the suite needs it.
+
 ## 2. Run without recording until it is clean
 
 ```bash
