@@ -515,7 +515,10 @@ writes `reduce-<jobid>.out` and produces:
   it) has Ascent's leftover output added to it before that is deleted. A
   run's `reduce.sbat` holds the cleanup it was generated with: regenerate
   the results directory before resubmitting the reduction of a run made
-  earlier, or its Ascent output stays.
+  earlier, or its Ascent output stays. Resubmit it with the run's own job
+  ID (not a reduction's), `sbatch --export=ALL,RUN_JOB_ID=<run job>
+  <run>/reduce.sbat`: without it, a run that already has a record keeps
+  its output.
 
 `large-runs/audit_runs.py --results-dir <results>` lists runs that are missing, failed
 (time limit, out of memory, crash) or still running. If a run's reduction
