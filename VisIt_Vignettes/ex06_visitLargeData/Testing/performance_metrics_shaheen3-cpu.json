@@ -490,8 +490,6 @@
         "step_hwm_mb": 44969.6796875,
         "tool_tree_pss_peak_mb": 39971.2333984375,
         "energy_pm_node_joules": 23588.0,
-        "energy_cpu_joules": 147200.0,
-        "energy_memory_joules": 6658.0,
         "harness_rss_mb": 158.95703125,
         "verdicts": {
             "run": true,
