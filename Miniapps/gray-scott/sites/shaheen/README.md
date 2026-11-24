@@ -513,6 +513,11 @@ writes `reduce-<jobid>.out` and produces:
   Catalyst runs; see "Catalyst reader performance");
 * `perf/`, `reader_timers/` and `catalyst_timers/` are then compressed to
   `.tar.gz`, to save inodes.
+* every Paper 2 data run writes every output step, inline and in transit
+  (only Paper 1's inline data runs keep `overwrite_last_step`, as that paper
+  did). Overwriting replaces the previous step's files, which made the
+  Catalyst write 63% slower per step in a 64+4 A/B (Ascent +2.4%, 24 Nov
+  2026), so inline and in transit data runs must not differ in it;
 * for runs whose output is one file per simulation rank (Catalyst and
   Ascent data runs, inline and in transit, and the baselines), the run's
   `data/` is deleted first, after its file count and bytes are written to
