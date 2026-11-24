@@ -607,6 +607,20 @@ class PmEnergyGuard(unittest.TestCase):
             run_tests.pm_energy(self.reading(5, 5, 5), self.reading(5, 5, 5))
         )
 
+    def test_a_stale_node_counter_is_no_reading(self):
+        import run_tests
+
+        self.assertIsNone(
+            run_tests.pm_energy(self.reading(5, 5, 5), self.reading(5, 5, 9))
+        )
+
+    def test_parts_a_little_past_the_node_are_kept(self):
+        import run_tests
+
+        # Read a few milliseconds apart on a short run: within 2% or 5 J.
+        used = run_tests.pm_energy(self.reading(0, 0, 0), self.reading(586, 420, 170))
+        self.assertEqual(used["cpu_joules"], 420)
+
     def test_a_part_larger_than_the_node_drops_the_split(self):
         import metrics
         import run_tests
