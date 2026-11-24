@@ -196,6 +196,7 @@ TELEMETRY_KEYS = (
     "rapl_package_joules",
     "rapl_dram_joules",
     "rapl_samples",
+    "rapl_source",
 )
 
 

@@ -719,6 +719,51 @@ class Rapl(unittest.TestCase):
             figures = telemetry.stop().figures()
         self.assertEqual(figures, {})
 
+    def hwmon(self, root, name, sensors):
+        path = os.path.join(root, name)
+        os.makedirs(path)
+        write(os.path.join(path, "name"), "amd_energy\n")
+        for i, (label, uj) in enumerate(sensors, start=1):
+            write(os.path.join(path, "energy{0}_label".format(i)), label + "\n")
+            write(os.path.join(path, "energy{0}_input".format(i)), "{0}\n".format(uj))
+        return path
+
+    def test_amd_energy_sockets_only(self):
+        """Shaheen ppn (24 Nov): amd_energy gives Esocket* and per-core
+        counters; only the sockets count, as package energy."""
+        with tempfile.TemporaryDirectory() as root:
+            self.hwmon(
+                root, "hwmon3", [("Ecore000", 5), ("Esocket0", 7), ("Esocket1", 9)]
+            )
+            zones = node_telemetry.amd_energy_zones(root)
+            labels = sorted(os.path.basename(z) for z in zones)
+            self.assertEqual(labels, ["energy2_input", "energy3_input"])
+            self.assertEqual({k for k, _ in zones.values()}, {"package"})
+
+    def test_powercap_wins_over_amd_energy(self):
+        with tempfile.TemporaryDirectory() as caps, tempfile.TemporaryDirectory() as mons:
+            self.zone(caps, "intel-rapl:0", "package-0", 5)
+            self.hwmon(mons, "hwmon3", [("Esocket0", 7)])
+            zones, source = node_telemetry.cpu_energy_zones(caps, mons)
+            self.assertEqual(source, "powercap")
+            self.assertEqual(len(zones), 1)
+            _, source = node_telemetry.cpu_energy_zones("/nonexistent", mons)
+            self.assertEqual(source, "amd_energy")
+
+    def test_two_sockets_are_summed(self):
+        with tempfile.TemporaryDirectory() as mons:
+            path = self.hwmon(
+                mons, "hwmon3", [("Esocket0", 1000000), ("Esocket1", 2000000)]
+            )
+            telemetry = node_telemetry.NodeTelemetry(
+                gpu=False, rapl=True, powercap_dir="/nonexistent", hwmon_dir=mons
+            ).start()
+            write(os.path.join(path, "energy1_input"), "3000000\n")
+            write(os.path.join(path, "energy2_input"), "5000000\n")
+            figures = telemetry.stop().figures()
+        self.assertEqual(figures["rapl_package_joules"], 5.0)  # 2 J + 3 J
+        self.assertEqual(figures["rapl_source"], "amd_energy")
+
     def test_the_site_energy_interval_is_kept(self):
         import run_tests
 

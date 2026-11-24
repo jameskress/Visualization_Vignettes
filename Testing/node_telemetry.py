@@ -68,6 +68,10 @@ PM_POWER_FILES = {
 }
 PM_TEMP_FILES = ("cpu0_temp", "cpu1_temp")
 POWERCAP_DIR = "/sys/class/powercap"
+HWMON_DIR = "/sys/class/hwmon"
+# The amd_energy hwmon driver keeps its counters as 64-bit totals in
+# microjoules (it folds the hardware's 32-bit counter in itself).
+AMD_ENERGY_WRAP = 2**64
 NVIDIA_FIELDS = "index,memory.used,utilization.gpu,power.draw"
 
 
@@ -327,15 +331,62 @@ def rapl_zones(directory=POWERCAP_DIR):
         if kind not in ("package", "dram"):
             continue
         wrap = _read_first_line(os.path.join(zone, "max_energy_range_uj"))
-        if not (wrap and wrap.isdigit()) or read_uj(zone) is None:
+        counter = os.path.join(zone, "energy_uj")
+        if not (wrap and wrap.isdigit()) or read_uj(counter) is None:
             continue
-        out[zone] = (kind, int(wrap))
+        out[counter] = (kind, int(wrap))
     return out
 
 
-def read_uj(zone):
-    """A RAPL zone's energy counter in microjoules, or None."""
-    value = _read_first_line(os.path.join(zone, "energy_uj"))
+def amd_energy_zones(directory=HWMON_DIR):
+    """{counter path: ("package", wrap uJ)} for the AMD socket counters.
+
+    The amd_energy hwmon driver gives one cumulative energy counter per CPU
+    socket (label "Esocket<n>", in microjoules) and one per core (left out:
+    the sockets already hold them). On Shaheen's ppn nodes KSL opens them to
+    the job owner during an allocation (24 Nov 2026). Unreadable: absent.
+    """
+    out = {}
+    try:
+        names = sorted(os.listdir(directory))
+    except OSError:
+        return out
+    for name in names:
+        hwmon = os.path.join(directory, name)
+        if _read_first_line(os.path.join(hwmon, "name")) != "amd_energy":
+            continue
+        try:
+            files = sorted(os.listdir(hwmon))
+        except OSError:
+            continue
+        for label_file in files:
+            if not (label_file.startswith("energy") and label_file.endswith("_label")):
+                continue
+            label = _read_first_line(os.path.join(hwmon, label_file)) or ""
+            if not label.startswith("Esocket"):
+                continue
+            counter = os.path.join(hwmon, label_file[: -len("_label")] + "_input")
+            if read_uj(counter) is not None:
+                out[counter] = ("package", AMD_ENERGY_WRAP)
+    return out
+
+
+def cpu_energy_zones(powercap_dir=POWERCAP_DIR, hwmon_dir=HWMON_DIR):
+    """(zones, source): the CPU energy counters this user can read.
+
+    RAPL powercap first; the amd_energy sockets only where powercap gives
+    nothing, so a package is never counted twice on a machine with both.
+    """
+    zones = rapl_zones(powercap_dir)
+    if zones:
+        return zones, "powercap"
+    zones = amd_energy_zones(hwmon_dir)
+    return zones, ("amd_energy" if zones else None)
+
+
+def read_uj(counter):
+    """An energy counter file in microjoules, or None."""
+    value = _read_first_line(counter)
     return int(value) if value and value.isdigit() else None
 
 
@@ -375,12 +426,15 @@ class NodeTelemetry(object):
         pm_dir=PM_COUNTERS_DIR,
         rapl=False,
         powercap_dir=POWERCAP_DIR,
+        hwmon_dir=HWMON_DIR,
     ):
         self.step_name = step_name
         self.power = power and os.path.isdir(pm_dir)
         # RAPL only when this run has the machine to itself (the workstation,
         # or a whole-node job): the counters cover the whole package.
-        self._rapl_zones = rapl_zones(powercap_dir) if rapl else {}
+        self._rapl_zones, self._rapl_source = (
+            cpu_energy_zones(powercap_dir, hwmon_dir) if rapl else ({}, None)
+        )
         self._rapl_last = {}
         self._rapl_uj = {}  # zone -> microjoules so far
         self._rapl_samples = 0
@@ -609,6 +663,7 @@ class NodeTelemetry(object):
                 out["rapl_{0}_joules".format(kind)] = round(uj / 1e6, 1)
             if totals:
                 out["rapl_samples"] = self._rapl_samples
+                out["rapl_source"] = self._rapl_source
         if self._power:
             for key in ("node_w", "cpu_w", "memory_w"):
                 values = [r[key] for r in self._power if key in r]
