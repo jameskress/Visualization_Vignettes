@@ -492,11 +492,19 @@ apart. Thread settings are not in that file because each `srun` sets its
 own (the in transit reader has 24 cores per rank, bound for Ascent and
 unbound for Catalyst; the simulation 3); read them from the saved script.
 
-When a run ends, its job submits a one-node job, `reduce.sbat` in the run
-directory, and exits, so the run's nodes are released at once (reducing
-tens of thousands of per-rank files on a 1088-node allocation used to keep
-it idle for minutes, once for over half an hour, #72). The reduction job
-writes `reduce-<jobid>.out` and produces:
+Before the run starts, its job submits a one-node job, `reduce.sbat` in the
+run directory, held until the run's job ends however it ends (Slurm
+`--dependency=afterany`); the run's nodes are released as soon as it ends
+(reducing tens of thousands of per-rank files on a 1088-node allocation
+used to keep it idle for minutes, once for over half an hour, #72). Until
+24 Nov 2026 the job submitted the reduction as its last step, so a job that
+was killed (node failure, time limit, cancel) never did, and its output
+stayed on disk: a 3072-node ADIOS2 data run lost a node 12 minutes in and
+left 3 TB. Now the reduction, and with it the data cleanup below, runs for
+those too; its summary of a killed run is partial, and the run's Slurm log
+(no `Run exit status` line) still marks it as failed. If the early
+submission fails, the job tries again at its end. The reduction job writes
+`reduce-<jobid>.out` and produces:
 
 * `<results>/<id>_writer.csv`, from the newest run directory under `perf/`,
   with that run's `metadata.json` and `summary.json` copied beside it as
