@@ -3,6 +3,7 @@
 #include "analysis_backend_interface.h"
 #include "adios_reader.h"
 #include "common/perf_logger.hpp"
+#include "common/ascent_overwrite.hpp"
 #include <ascent.hpp>
 #include <cstdint>
 #include <memory>
@@ -26,4 +27,11 @@ private:
     // is allocated in the step loop (AGENTS.md, zero-copy invariant).
     std::vector<double> m_u_buf, m_v_buf;
     conduit::Node m_mesh;
+    // overwrite_last_step: the relay extracts taken out of the actions file,
+    // saved by hand as cycle 0 each step (common/ascent_overwrite.hpp), and
+    // the actions left (none allowed beside relay extracts: Ascent reloads
+    // its file on every execute). Unused otherwise: Ascent then runs its
+    // actions file as it is, relay extracts included.
+    conduit::Node m_actions;
+    std::vector<gs_ascent::RelayExtract> m_relay_extracts;
 };

@@ -96,6 +96,10 @@ struct BackendOptions
     std::string catalyst_lib_path;
     std::string catalyst_output_file;
     std::string output_type;
+    // Replace the last output instead of adding one per step, as the
+    // simulation's writers do: catalyst_io and ascent only (adios_writer
+    // ignores it).
+    bool overwrite_last_step = false;
     std::string adios_output_file = "staged_output.bp"; // adios_writer: output_file_name + ".bp"
     MPI_Comm comm = MPI_COMM_WORLD;
     // Seconds allowed for teardown once the reader has finished (#75).
@@ -140,6 +144,8 @@ struct BackendOptions
             opts.catalyst_output_file = js["output_file_name"];
             opts.adios_output_file = opts.catalyst_output_file + ".bp";
         }
+        if (js.contains("overwrite_last_step"))
+            opts.overwrite_last_step = js["overwrite_last_step"];
         if (js.contains("teardown_timeout_s"))
             opts.teardown_timeout_s = js["teardown_timeout_s"];
         if (js.contains("sst_open_timeout_s"))
@@ -148,6 +154,13 @@ struct BackendOptions
         return opts;
     }
 };
+
+// Whether the backend really overwrites: only catalyst_io and ascent
+// implement overwrite_last_step.
+inline bool OverwritesLastStep(const BackendOptions &opts)
+{
+    return opts.overwrite_last_step && (opts.output_type == "catalyst_io" || opts.output_type == "ascent");
+}
 
 // Abstract base class for all backends
 class AnalysisBackend
