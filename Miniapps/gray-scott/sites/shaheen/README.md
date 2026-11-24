@@ -135,6 +135,20 @@ Kombyne jobs on 32 nodes (1,024 ranks, the footnote in
 64 ranks. Running Kombyne at scale here needs a build of the full Kombyne
 from source against Cray MPICH.
 
+So `generate_experiments.py` writes no Kombyne jobs by default, and Paper 1
+on Shaheen has no Kombyne points. Before this, it always wrote
+`paper1_func_N0064_inline_kombyne_data` and `_render`, and with a build
+without Kombyne every rank stopped at once with
+`Invalid output_type: kombyne` (srun then reports the remaining tasks as
+`Killed`; it is not an out-of-memory kill). `--with-kombyne` adds the two
+jobs back for a build configured with `ENABLE_KOMBYNELITE=ON`; the
+generator then checks that the `gray-scott` in `--bin-path` records
+`kombynelite` among its enabled backends and stops if it does not (a
+binary built before the run metadata recorded its backends also stops).
+Without the flag, the generator also deletes those two scripts from
+`--output-dir` if an earlier generation left them, since `orchestrate.py`
+submits every `*.sbat` it finds there.
+
 # ParaView
 The superbuild configuration used on Shaheen III:
 
@@ -174,6 +188,7 @@ python3 reduce_timers.py paper1_func_N0064_inline_catalyst_data/writer_timers su
 python3 reduce_timers.py paper1_func_N0064_inline_catalyst_render/writer_timers summary_catalyst_render.csv
 python3 reduce_timers.py paper1_func_N0064_transit_catalyst_render/writer_timers summary_catalyst_intransit_render.csv
 python3 reduce_timers.py paper1_func_N0064_transit_ascent_render/writer_timers summary_ascent_intransit_render.csv
+# Kombyne: only the 2026 WOIV runs have these (made on Ibex; see Kombyne above).
 python3 reduce_timers.py paper1_func_N0064_inline_kombyne_data/writer_timers summary_kombyne_data.csv
 python3 reduce_timers.py paper1_func_N0064_inline_kombyne_render/writer_timers summary_kombyne_render.csv
 python3 plot_performance.py

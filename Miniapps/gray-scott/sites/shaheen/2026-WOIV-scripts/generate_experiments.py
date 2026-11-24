@@ -1,4 +1,5 @@
 import math
+import mmap
 import os
 import re
 import xml.etree.ElementTree as ET
@@ -2608,7 +2609,27 @@ def generate_scripts(args):
         }
     )
 
-    for backend in ["ascent", "catalyst", "kombyne"]:
+    # Kombyne-lite is a prebuilt Open MPI binary and does not link with Cray
+    # MPICH, so the Shaheen build has no Kombyne and a Kombyne job only dies
+    # with "Invalid output_type: kombyne". Paper 1's Kombyne points were run
+    # on Ibex. Generate them only on request, for a build that has Kombyne
+    # (sites/shaheen/README.md, Kombyne).
+    p1_backends = ["ascent", "catalyst"]
+    if getattr(args, "with_kombyne", False):
+        p1_backends.append("kombyne")
+    else:
+        print("Paper 1: no Kombyne jobs (pass --with-kombyne for a build with Kombyne)")
+        # A script left by an earlier generation would still be found by
+        # orchestrate.py (it submits every *.sbat here), so remove it.
+        for workload in ("data", "render"):
+            stale = os.path.join(
+                args.output_dir,
+                f"paper1_func_N{p1_nodes:04d}_inline_kombyne_{workload}.sbat",
+            )
+            if os.path.exists(stale):
+                os.remove(stale)
+                print(f"Paper 1: removed {stale} from an earlier generation")
+    for backend in p1_backends:
         EXPERIMENTS.append(
             {
                 "id": f"paper1_func_N{p1_nodes:04d}_inline_{backend}_data",
@@ -3217,6 +3238,13 @@ if __name__ == "__main__":
         help="Give measured runs the _r01 suffix even with --repeats 1, so a later generation with more repeats extends the same IDs",
     )
     parser.add_argument(
+        "--with-kombyne",
+        action="store_true",
+        help="Generate Paper 1's two Kombyne inline jobs. Needs a gray-scott built with "
+        "ENABLE_KOMBYNELITE=ON, which Kombyne-lite's Open MPI binary cannot give on Shaheen "
+        "(default off: Paper 1 has no Kombyne points here)",
+    )
+    parser.add_argument(
         "--perf-env",
         default=f"/scratch/{os.environ.get('USER', 'user')}/perf_env",
         help="Python venv with pandas, activated after each run to reduce its timings",
@@ -3256,4 +3284,23 @@ if __name__ == "__main__":
     READER_BIN_PATH = args.bin_path
     if args.repeats < 1 or args.repeats > 99:
         parser.error("--repeats must be between 1 and 99")
+    if args.with_kombyne:
+        # The binary records its enabled backends as "pvti,catalyst,...,kombynelite"
+        # (CMakeLists.txt, gs_build_info); refuse rather than write jobs that fail.
+        gs_exe = os.path.join(args.bin_path, "gray-scott")
+        try:
+            with open(gs_exe, "rb") as f, mmap.mmap(
+                f.fileno(), 0, access=mmap.ACCESS_READ
+            ) as m:
+                has_kombyne = (
+                    re.search(rb"pvti(,[a-z0-9]+)*,kombynelite(?![a-z0-9_])", m)
+                    is not None
+                )
+        except (OSError, ValueError) as e:
+            parser.error(f"--with-kombyne: cannot read {gs_exe}: {e}")
+        if not has_kombyne:
+            parser.error(
+                f"--with-kombyne: {gs_exe} does not list kombynelite among its enabled backends "
+                "(built with ENABLE_KOMBYNELITE=OFF, or too old to record its backends)"
+            )
     generate_scripts(args)

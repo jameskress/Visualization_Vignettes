@@ -145,6 +145,8 @@ def generate(results, ranks):
         output_dir=str(results.parent / "scripts"),
         account="local",
         perf_env="/nonexistent",
+        # Paper 1's Kombyne jobs only when there is a Kombyne build to run them.
+        with_kombyne=bool(args.akc),
     )
     cwd = os.getcwd()
     os.chdir(results.parent)
