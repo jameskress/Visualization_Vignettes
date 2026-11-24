@@ -565,6 +565,21 @@ PM_COUNTER_FILES = {
 }
 
 
+def rapl_is_the_runs(owns_nodes, environ=None):
+    """True when this node's RAPL counters measure this run and nothing else.
+
+    RAPL covers the whole CPU package, and the poller reads only the node it
+    runs on. So: outside Slurm (the machine is taken to be the user's own, as
+    record_local_run.sh asks), or a job that owns its one node. A multi-node
+    job would record one node's energy as the run's.
+    """
+    environ = os.environ if environ is None else environ
+    if not environ.get("SLURM_JOB_ID"):
+        return True
+    nodes = environ.get("SLURM_JOB_NUM_NODES") or environ.get("SLURM_NNODES")
+    return bool(owns_nodes) and nodes == "1"
+
+
 _SITE_ENERGY = []
 
 
@@ -743,9 +758,7 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
                     telemetry = NodeTelemetry(
                         step_name=step_name,
                         power=owns_nodes,
-                        # RAPL covers the whole CPU package: only when this
-                        # run has the machine (outside Slurm, or a whole node).
-                        rapl=owns_nodes or not os.environ.get("SLURM_JOB_ID"),
+                        rapl=rapl_is_the_runs(owns_nodes),
                     )
                     try:
                         telemetry.start()

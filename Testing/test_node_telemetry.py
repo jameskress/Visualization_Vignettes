@@ -687,6 +687,26 @@ class Rapl(unittest.TestCase):
         self.assertEqual(figures["rapl_package_joules"], 1032.6)
         self.assertEqual(figures["rapl_samples"], 2)
 
+    def test_which_runs_get_rapl(self):
+        import run_tests
+
+        f = run_tests.rapl_is_the_runs
+        self.assertTrue(f(False, {}))  # outside Slurm: the user's own machine
+        one = {"SLURM_JOB_ID": "1", "SLURM_JOB_NUM_NODES": "1"}
+        self.assertTrue(f(True, one))  # owns its one node
+        self.assertFalse(f(False, one))  # a shared node
+        two = {"SLURM_JOB_ID": "1", "SLURM_JOB_NUM_NODES": "2"}
+        self.assertFalse(f(True, two))  # RAPL would see one node of two
+
+    def test_a_counter_that_did_not_move_records_nothing(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.zone(root, "intel-rapl:0", "package-0", 5000000)
+            telemetry = node_telemetry.NodeTelemetry(
+                gpu=False, rapl=True, powercap_dir=root
+            ).start()
+            figures = telemetry.stop().figures()
+        self.assertEqual(figures, {})
+
     def test_the_site_energy_interval_is_kept(self):
         import run_tests
 

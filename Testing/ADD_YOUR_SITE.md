@@ -55,7 +55,7 @@ configuration whose latest run is not on the pinned builds as stale.
 the rest without an error: GPU energy wherever `nvidia-smi` runs, node energy
 on Cray nodes a job owns, and CPU package energy from RAPL
 (`/sys/class/powercap/intel-rapl:*/energy_uj`) when the run has the machine
-to itself (outside Slurm, or a whole-node job). Linux makes RAPL root-only by
+to itself (outside Slurm, or a job that owns its one node). Linux makes RAPL root-only by
 default, because its fine-grained readings can leak information between
 users (the PLATYPUS side channel). On a single-user workstation you may make
 the package and DRAM counters readable, for example with a systemd-tmpfiles

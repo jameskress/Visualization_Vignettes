@@ -595,9 +595,13 @@ class NodeTelemetry(object):
                 for zone, uj in self._rapl_uj.items():
                     kind = self._rapl_zones[zone][0]
                     totals[kind] = totals.get(kind, 0) + uj
+            # A counter that did not move is a stalled zone, not a run that
+            # used nothing: left out, as pm_energy does for pm_counters.
+            totals = {kind: uj for kind, uj in totals.items() if uj > 0}
             for kind, uj in totals.items():
                 out["rapl_{0}_joules".format(kind)] = round(uj / 1e6, 1)
-            out["rapl_samples"] = self._rapl_samples
+            if totals:
+                out["rapl_samples"] = self._rapl_samples
         if self._power:
             for key in ("node_w", "cpu_w", "memory_w"):
                 values = [r[key] for r in self._power if key in r]
