@@ -192,6 +192,24 @@ measurements in `Testing/LOCAL_VALIDATION.md` §4 and §4b.
   Most of this file exists because someone later will reasonably think "that
   defensive branch is pointless" and delete it.
 * No em dashes in prose.
+* **Every page or chart change gets a design and language review** before it
+  ships: the dashboard (`Testing/dashboard.py`, `Testing/speed_index.py`), the
+  landing page and gallery (`Testing/site_pages.py`), and mock-ups. A reader
+  who has not seen the code must be able to read the page. Check that:
+  - every term is defined where it first appears ("typical run", "scope",
+    "revision"; never an internal name like "pinned" without a gloss);
+  - every ratio, percentage and colour says what it is compared against, in
+    the key and in the tooltip;
+  - every axis has a title with units, and its ticks say what they mean
+    ("1.25x · 25% above");
+  - every legend item reads on its own, without the methods section;
+  - every number has a unit;
+  - colours come from the one shared palette (ColorBrewer RdBu for change,
+    the site slots, the version ramp), checked for colour blindness, and a
+    number is printed where colour carries meaning;
+  - it works in light and dark themes and at phone width, with no sideways
+    scroll of the page.
+  Render the page and look at it; the PR says what was checked.
 
 ---
 

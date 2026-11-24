@@ -697,12 +697,37 @@ Then:
   from its median is not coloured, since the t-test compares means. Below it,
   the **biggest changes**: the real ones, largest first, as in ASV, each
   linking to the vignette's page.
-* *Speed by version.* The whole suite's time at each version against the
-  same machine's current one, the geometric mean over vignettes of the
-  median-time ratio. One chart puts every machine on a shared axis, coloured
-  by site and labelled directly; then one panel per machine on its own scale,
-  never narrower than 0.8&times; to 1.25&times; so noise does not look like a
-  cliff, with the 1&times; line always drawn.
+* *Every machine, every version* (`Testing/speed_index.py`). A grid per tool,
+  one row per machine and one column per tool version, and the same as lines.
+  Every cell is against one baseline, **the typical run**: for each vignette,
+  the median over every machine and version of that pair's median, from runs
+  of the vignette's newest code. A cell is the geometric mean over vignettes of
+  the machine's median divided by the typical run (the SPEC and LNT summary),
+  so each vignette counts the same whatever its length; 1&times; is typical,
+  1.25&times; is 25% more. A **Measure** selector switches between time, CPU
+  time, peak memory (PSS runs only: the one memory figure that means the same
+  on every machine), node energy and GPU energy, where recorded; a
+  **Vignettes** selector shows one vignette's median instead. Three rules keep
+  a cell honest:
+  - *Fixed baseline.* The typical run comes from the records up to
+    `REFERENCE_UNTIL` (23 Nov 2026), so a new machine or run does not move
+    every cell; a configuration retired later stays in it for the same reason. Move it on purpose, at a release. A measure or vignette with
+    no records before then uses every record, and the page says so.
+  - *Like for like.* A row is averaged over the vignettes of its most
+    complete version (so a partial run at a new version does not shrink it);
+    a version lacking some of them is marked with a corner tick and covers
+    only the ones it has. Rows with fewer than all vignettes say "(12 of 13)".
+    Each machine and vignette keeps to its latest record's way of measuring
+    CPU, memory or energy (the scope fields), so a change of method is never
+    read as a change between versions.
+  - *Noise.* Resampling each vignette's repeated runs 300 times gives a 95%
+    range; a cell is coloured only when that range leaves out 1&times; and the
+    cell is at least 5% away. One run per vignette: dotted, never coloured.
+
+  Colours are ColorBrewer RdBu, five classes, the same in both themes, shared
+  with the upgrade table: blue below the typical run, red above, darker past
+  20% (below) or 25% (above). A cell links to the machine's page, or with one
+  vignette selected to that vignette's page.
 * *Did everything pass?* A heatmap per tool of vignette by configuration,
   grouped by site: the latest result of each vignette there.
 * *System changes.* The 20 most recent OS, kernel, GPU driver and CPU
