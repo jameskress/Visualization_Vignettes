@@ -258,8 +258,10 @@ not. Passing the flag would downgrade a real ex08 failure to a warning.
 ### Ibex, GPU
 
 ```bash
-srun --gres=gpu:1 --cpus-per-task=12 --ntasks=1 --time=00:40:00 \
-     --mem=90G --pty /bin/bash
+# --constraint names the GPU, and for the A100 the node kind too (below):
+# "a100&cpu_amd_epyc_7713" for ibex-egl-a100
+srun --gres=gpu:1 --constraint=<gpu> --cpus-per-task=12 --ntasks=1 \
+     --time=00:40:00 --mem=90G --pty /bin/bash
 
 source ParaView_Vignettes/MODULES.sh egl          # note the argument
 source $SCRATCH/testing_paraview_env/bin/activate
