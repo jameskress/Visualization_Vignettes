@@ -208,10 +208,10 @@ def build(histories, tool, retired, run_ok, version_key, order, until=REFERENCE_
         samples = collect(histories, tool, retired, run_ok, measure)
         if not samples:
             continue
-        frozen_samples = (
-            collect(histories, tool, retired, run_ok, measure, scope_before=until)
-            if measure in SCOPE_FIELDS
-            else samples
+        # Retired configurations stay in the fixed baseline: it is fixed at
+        # the records up to `until`, so retiring one later must not move it.
+        frozen_samples = collect(
+            histories, tool, set(), run_ok, measure, scope_before=until
         )
         refs, moving = references(samples, until, frozen_samples)
         by_cell = {}

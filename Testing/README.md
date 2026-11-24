@@ -711,7 +711,7 @@ Then:
   a cell honest:
   - *Fixed baseline.* The typical run comes from the records up to
     `REFERENCE_UNTIL` (23 Nov 2026), so a new machine or run does not move
-    every cell. Move it on purpose, at a release. A measure or vignette with
+    every cell; a configuration retired later stays in it for the same reason. Move it on purpose, at a release. A measure or vignette with
     no records before then uses every record, and the page says so.
   - *Like for like.* A row is averaged over the vignettes of its most
     complete version (so a partial run at a new version does not shrink it);

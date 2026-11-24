@@ -63,6 +63,24 @@ class TypicalRun(unittest.TestCase):
         self.assertEqual(m["moving"], [])
         self.assertEqual(data["until"], "23 Nov 2026")
 
+    def test_retiring_a_configuration_does_not_move_the_baseline(self):
+        h = {
+            (c, "ParaView"): {"ex01_x": [(ts(10), rec(s, "6.2.1"))]}
+            for c, s in (("a", 2.0), ("b", 4.0), ("c", 6.0))
+        }
+        data = speed_index.build(
+            h,
+            "ParaView",
+            {"c"},
+            lambda r: True,
+            lambda v: tuple(int(p) for p in v.split(".")),
+            lambda c: c,
+            datetime.datetime(2026, 11, 24),
+        )
+        m = data["measures"]["execution_time"]
+        self.assertEqual(m["refs"]["ex01_x"], 4.0)
+        self.assertNotIn("c", data["configs"])
+
     def test_a_vignette_with_no_record_before_the_cutoff_is_flagged(self):
         h = {("a", "ParaView"): {"ex01_x": [(ts(25), rec(3, "6.2.1"))]}}
         m = build(h)["measures"]["execution_time"]
