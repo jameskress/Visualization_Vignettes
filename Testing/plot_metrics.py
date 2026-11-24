@@ -170,16 +170,40 @@ def load_history(testing_dir):
     return history
 
 
+_REVISIONS = []
+
+
+def _revisions():
+    """One VignetteRevisions per process: its git history reads are cached
+    there, and test_suite.py plots after every vignette of a suite."""
+    if not _REVISIONS:
+        found = None
+        if dashboard is not None:
+            try:
+                found = dashboard.VignetteRevisions(dashboard.REPO_ROOT)
+            except Exception:  # pragma: no cover - no git, no revisions
+                found = None
+        _REVISIONS.append(found)
+    return _REVISIONS[0]
+
+
+def drop_retired(history):
+    """The history without retired configurations, which the site leaves
+    out of every summary too."""
+    if dashboard is None:
+        return history
+    try:
+        retired = set(dashboard.load_retired(dashboard.REPO_ROOT))
+    except Exception:  # pragma: no cover - an unreadable file is the site's to report
+        retired = set()
+    return {c: rows for c, rows in history.items() if c not in retired}
+
+
 def tag_revisions(history, test_directory):
     """Write each record's vignette revision into it as `rev` (newest code
     is the largest), using the dashboard's git-history rule; every record
     gets 0 when that is unavailable, so nothing is excluded."""
-    revisions = None
-    if dashboard is not None:
-        try:
-            revisions = dashboard.VignetteRevisions(dashboard.REPO_ROOT)
-        except Exception:  # pragma: no cover - no git, no revisions
-            revisions = None
+    revisions = _revisions()
     vignette_dir = os.path.relpath(
         os.path.abspath(test_directory), dashboard.REPO_ROOT if dashboard else "."
     )
@@ -549,6 +573,7 @@ def generate_individual_graphs(test_directory, current_sub_test):
         print("\tNo performance data found for {0}.".format(testing_dir))
         return
 
+    history = drop_retired(history)
     tag_revisions(history, test_directory)
     marker_map = _marker_map(history)
     written = 0
@@ -591,6 +616,7 @@ def generate_combination_execution_time_plot(base_directory):
         history = load_history(testing_dir)
         if not history:
             continue
+        history = drop_retired(history)
         tag_revisions(history, os.path.join(base_directory, name))
         latest = {}
         for config, rows in history.items():

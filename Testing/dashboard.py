@@ -2136,7 +2136,7 @@ def svg_latest_bars(runs, unit="s"):
         tick += step
     out.append(
         "<text class='atitle' x='{0}' y='{1}' text-anchor='middle'>Time, s "
-        "(each machine's latest run)</text>".format(
+        "(median of each machine's latest run)</text>".format(
             left + (width - left - right) / 2.0, height - 4
         )
     )
@@ -2192,8 +2192,9 @@ def render_latest_bars(tool, vignette, histories, states):
     sites = sorted({site_of(c) for c, _, _ in runs}, key=SITES.index)
     return (
         "<h2>Which machine is fastest at this vignette?</h2><p class='note'>Each "
-        "active machine's latest time at {0} {1} (the version the suite tests by "
-        "default), from runs of the same vignette code, fastest at the top. Bars "
+        "active machine's latest run at {0} {1} (the version the suite tests by "
+        "default): the median of that run's repeats, from runs of the same "
+        "vignette code, fastest at the top. Bars "
         "start at zero; colour is the site.</p><div class='card'>{2}"
         "<div class='scroll'>{3}</div></div>".format(
             esc(tool),
@@ -2653,7 +2654,9 @@ def fastest_runs(tool, vignette, histories, configs):
     """[(config, seconds, timestamp)]: each configuration's latest run of
     `vignette` at the version the suite tests by default, from one revision
     of the vignette's code (the newest known; uncertain ones never take
-    part), so machines that ran different code are not set side by side."""
+    part), so machines that ran different code are not set side by side.
+    seconds is the median over that run's repeats (records sharing its
+    run_id), so one disturbed repeat does not stand for the run."""
     pin = CURRENT_PINS[tool]
     runs = []
     for c in configs:
@@ -2661,12 +2664,24 @@ def fastest_runs(tool, vignette, histories, configs):
         if not hist:
             continue
         ts, rec = latest_at(hist, pin)
-        if (
+        if not (
             drift.tool_version(rec) == pin
             and run_ok(rec)
             and is_number(rec.get("execution_time"))
         ):
-            runs.append((c, float(rec["execution_time"]), ts, rec.get("_rev", 0)))
+            continue
+        run_id = rec.get("run_id")
+        repeats = [
+            float(r["execution_time"])
+            for _, r in hist
+            if run_id
+            and r.get("run_id") == run_id
+            and drift.tool_version(r) == pin
+            and r.get("_rev", 0) == rec.get("_rev", 0)
+            and run_ok(r)
+            and is_number(r.get("execution_time"))
+        ] or [float(rec["execution_time"])]
+        runs.append((c, statistics.median(repeats), ts, rec.get("_rev", 0)))
     known = [r for _, _, _, r in runs if r >= 0]
     rev = max(known) if known else None
     return [(c, t, ts) for c, t, ts, r in runs if r == rev]
