@@ -253,6 +253,15 @@ class FastestRuns(unittest.TestCase):
         self.assertIn(">0<", svg)
 
 
+try:
+    import matplotlib  # noqa: F401 - plot_metrics needs it
+
+    HAVE_MATPLOTLIB = True
+except ImportError:  # pragma: no cover - the harness CI installs it
+    HAVE_MATPLOTLIB = False
+
+
+@unittest.skipUnless(HAVE_MATPLOTLIB, "plot_metrics needs matplotlib")
 class PlotMetricsRules(unittest.TestCase):
     """plot_metrics.py compares only runs of the newest vignette code."""
 
