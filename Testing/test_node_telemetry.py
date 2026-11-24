@@ -583,3 +583,47 @@ class ExactPeakAsMemory(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PmEnergyGuard(unittest.TestCase):
+    """run_tests.pm_energy: readings that cannot be right are not recorded."""
+
+    def reading(self, node, cpu, memory):
+        return {
+            "node_joules": node,
+            "cpu_joules": cpu,
+            "memory_joules": memory,
+            "generation": 7,
+        }
+
+    def test_a_normal_reading(self):
+        import run_tests
+
+        used = run_tests.pm_energy(self.reading(0, 0, 0), self.reading(600, 300, 170))
+        self.assertEqual(
+            used, {"node_joules": 600, "cpu_joules": 300, "memory_joules": 170}
+        )
+
+    def test_unchanged_counters_are_no_reading(self):
+        import run_tests
+
+        self.assertIsNone(
+            run_tests.pm_energy(self.reading(5, 5, 5), self.reading(5, 5, 5))
+        )
+
+    def test_a_part_larger_than_the_node_drops_the_split(self):
+        import metrics
+        import run_tests
+
+        # Shaheen, 24 Nov: CPU 206003 J against 5935 J for the node.
+        used = run_tests.pm_energy(
+            self.reading(0, 0, 0), self.reading(5935, 206003, 1785)
+        )
+        self.assertEqual(used["node_joules"], 5935)
+        self.assertIsNone(used["cpu_joules"])
+        self.assertIsNone(used["memory_joules"])
+        fields = metrics.node_telemetry_fields(
+            {"ranks_outside_tree": True, "pm_energy": used}
+        )
+        self.assertEqual(fields["energy_pm_node_joules"], 5935.0)
+        self.assertNotIn("energy_cpu_joules", fields)
