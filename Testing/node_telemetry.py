@@ -596,8 +596,15 @@ class NodeTelemetry(object):
                     kind = self._rapl_zones[zone][0]
                     totals[kind] = totals.get(kind, 0) + uj
             # A counter that did not move is a stalled zone, not a run that
-            # used nothing: left out, as pm_energy does for pm_counters.
-            totals = {kind: uj for kind, uj in totals.items() if uj > 0}
+            # used nothing; a kind with one is left out whole (as pm_energy
+            # does for pm_counters), rather than summed as if complete.
+            with self._rapl_lock:
+                stalled = {
+                    self._rapl_zones[zone][0]
+                    for zone in self._rapl_zones
+                    if not self._rapl_uj.get(zone)
+                }
+            totals = {k: uj for k, uj in totals.items() if k not in stalled}
             for kind, uj in totals.items():
                 out["rapl_{0}_joules".format(kind)] = round(uj / 1e6, 1)
             if totals:

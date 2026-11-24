@@ -698,6 +698,17 @@ class Rapl(unittest.TestCase):
         two = {"SLURM_JOB_ID": "1", "SLURM_JOB_NUM_NODES": "2"}
         self.assertFalse(f(True, two))  # RAPL would see one node of two
 
+    def test_one_stalled_package_of_two_drops_the_package_figure(self):
+        with tempfile.TemporaryDirectory() as root:
+            moving = self.zone(root, "intel-rapl:0", "package-0", 1000000, 10**12)
+            self.zone(root, "intel-rapl:1", "package-1", 1000000, 10**12)
+            telemetry = node_telemetry.NodeTelemetry(
+                gpu=False, rapl=True, powercap_dir=root
+            ).start()
+            write(os.path.join(moving, "energy_uj"), "9000000\n")
+            figures = telemetry.stop().figures()
+        self.assertNotIn("rapl_package_joules", figures)
+
     def test_a_counter_that_did_not_move_records_nothing(self):
         with tempfile.TemporaryDirectory() as root:
             self.zone(root, "intel-rapl:0", "package-0", 5000000)
