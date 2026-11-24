@@ -61,6 +61,7 @@ inline conduit::Node LoadActionsFile(std::string &error)
     if (!std::ifstream(options_file).good())
         options_file = "ascent_options.yaml";
     std::string actions_file;
+    bool named = false; // the options name an actions file, possibly ""
     if (std::ifstream(options_file).good())
     {
         try
@@ -72,13 +73,19 @@ inline conduit::Node LoadActionsFile(std::string &error)
             if (HasInclude(options))
                 error = options_file + " uses include, which is not read here";
             if (options.has_path("actions_file"))
+            {
                 actions_file = options["actions_file"].as_string();
+                named = true;
+            }
         }
         catch (const conduit::Error &e)
         {
             error = "cannot read " + options_file + ": " + e.message();
         }
     }
+    // An empty actions_file turns Ascent's file-based actions off.
+    if (named && actions_file.empty())
+        return loaded;
     if (actions_file.empty())
         actions_file = std::ifstream("ascent_actions.json").good() ? "ascent_actions.json" : "ascent_actions.yaml";
     try
