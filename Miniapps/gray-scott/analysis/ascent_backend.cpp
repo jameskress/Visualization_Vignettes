@@ -107,7 +107,18 @@ AscentBackend::AscentBackend(const BackendOptions &opts)
         MPI_Comm_rank(m_reader.GetComm(), &rank);
         if (!error.empty() && rank == 0)
             std::cerr << "analysis-reader: Ascent: " << error << std::endl;
-        gs_ascent::SplitRelayExtracts(loaded, true, m_actions, m_relay_extracts);
+        std::vector<std::string> unsupported;
+        gs_ascent::SplitRelayExtracts(loaded, true, m_actions, m_relay_extracts, unsupported);
+        // Every rank reads the same files, so every rank stops here alike.
+        if (!unsupported.empty())
+            throw std::runtime_error("overwrite_last_step: relay parameter " + unsupported.front() +
+                                     " is not supported (only path and protocol)");
+        // Ascent 0.9.6 replaces the actions passed to execute() with its
+        // actions file whenever that file exists, so actions left beside the
+        // relay extracts would bring the extracts back, written every step.
+        if (!m_relay_extracts.empty() && m_actions.number_of_children() > 0)
+            throw std::runtime_error("overwrite_last_step needs an Ascent actions file with relay extracts only: "
+                                     "Ascent reloads the file on every execute, extracts included");
     }
 }
 
@@ -151,13 +162,15 @@ void AscentBackend::Run()
             m_ascent.execute(conduit::Node()); // Ascent runs its actions file
         else
         {
-            // An empty list would make Ascent load its actions file again.
-            if (m_actions.number_of_children() > 0)
-                m_ascent.execute(m_actions);
+            // No relay extracts: the actions run as they are (Ascent loads its
+            // actions file in execute()). With relay extracts there are no
+            // other actions (constructor), so Ascent is not executed.
+            if (m_relay_extracts.empty())
+                m_ascent.execute(conduit::Node());
             for (const auto &rx : m_relay_extracts)
             {
                 const std::string error =
-                    gs_ascent::SaveMeshAsCycleZero(mesh_blueprint, rx.first, m_reader.GetComm());
+                    gs_ascent::SaveMeshAsCycleZero(mesh_blueprint, rx.first, rx.second, m_reader.GetComm());
                 if (!error.empty())
                     std::cerr << "analysis-reader: Ascent overwrite save failed: " << error << std::endl;
             }

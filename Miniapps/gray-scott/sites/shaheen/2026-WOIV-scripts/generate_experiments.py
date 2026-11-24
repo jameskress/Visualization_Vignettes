@@ -1655,6 +1655,17 @@ def _minutes(limit):
     return (int(days) if days else 0) * 1440 + h * 60 + m + sec / 60
 
 
+def reader_overwrites(exp):
+    """True when the in transit reader overwrites its last output
+    (--transit-data-overwrite): Catalyst and Ascent data runs only."""
+    return (
+        TRANSIT_DATA_OVERWRITE
+        and exp["type"] == "intransit"
+        and exp["workload"] == "data_save"
+        and exp.get("stage_pipeline", "").split("_")[0] in ("catalyst", "ascent")
+    )
+
+
 def check_settings_unchanged(output_dir, exp):
     """Refuse to regenerate a run with different recorded settings.
 
@@ -1692,6 +1703,10 @@ def check_settings_unchanged(output_dir, exp):
         with open(path) as f:
             settings = json.load(f)
         file_checks = list(checks)
+        # The reader's overwrite_last_step, in settings-stage.json; a file
+        # without it was written before the option, without overwrite.
+        if name == "settings-stage.json":
+            file_checks.append(("overwrite_last_step", False, reader_overwrites(exp)))
         if name == tiled_file and ascent_renders(exp):
             file_checks.append(
                 ("ascent_tiled_rendering", "Ascent default", ASCENT_TILED_RENDERING)
@@ -2151,13 +2166,8 @@ def generate_settings_json(exp, output_dir, copied_files, args):
         else:
             config_stage["output_type"] = stage_backend
 
-        # The reader overwrites its last output (TRANSIT_DATA_OVERWRITE):
-        # Catalyst and Ascent data runs only.
-        if (
-            TRANSIT_DATA_OVERWRITE
-            and exp["workload"] == "data_save"
-            and stage_backend in ("catalyst", "ascent")
-        ):
+        # The reader overwrites its last output (reader_overwrites).
+        if reader_overwrites(exp):
             config_stage["overwrite_last_step"] = True
 
         if stage_backend == "ascent":

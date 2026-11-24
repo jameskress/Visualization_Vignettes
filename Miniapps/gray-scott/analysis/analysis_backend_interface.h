@@ -155,7 +155,6 @@ struct BackendOptions
     }
 };
 
-// Abstract base class for all backends
 // Whether the backend really overwrites: only catalyst_io and ascent
 // implement overwrite_last_step.
 inline bool OverwritesLastStep(const BackendOptions &opts)
@@ -163,6 +162,7 @@ inline bool OverwritesLastStep(const BackendOptions &opts)
     return opts.overwrite_last_step && (opts.output_type == "catalyst_io" || opts.output_type == "ascent");
 }
 
+// Abstract base class for all backends
 class AnalysisBackend
 {
 public:

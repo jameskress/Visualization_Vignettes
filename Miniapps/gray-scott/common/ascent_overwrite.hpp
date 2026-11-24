@@ -23,31 +23,47 @@ namespace gs_ascent
 // params/protocol.
 using RelayExtract = std::pair<std::string, std::string>;
 
-// Loads the actions file Ascent would load: the one ascent_options.yaml in
-// the working directory names (actions_file), or ascent_actions.yaml. A
-// missing options file is normal; problems reading either file are
-// returned in error (empty when none), and leave loaded empty.
+// The protocol Ascent 0.9.6 reads a settings file with: yaml when the name
+// ends in .yaml, json otherwise.
+inline std::string SettingsFileProtocol(const std::string &file)
+{
+    const std::string ext = ".yaml";
+    return file.size() >= ext.size() && file.compare(file.size() - ext.size(), ext.size(), ext) == 0 ? "yaml"
+                                                                                                        : "json";
+}
+
+// Loads the actions file Ascent 0.9.6 would load, by its rules: the options
+// file is ascent_options.json, or ascent_options.yaml when there is no JSON
+// one, and names the actions file (actions_file); without one, Ascent takes
+// ascent_actions.json, or ascent_actions.yaml. A missing options file is
+// normal; problems reading either file are returned in error (empty when
+// none), and leave loaded empty.
 inline conduit::Node LoadActionsFile(std::string &error)
 {
     conduit::Node loaded;
-    std::string actions_file = "ascent_actions.yaml"; // Ascent's default
-    if (std::ifstream("ascent_options.yaml").good())
+    std::string options_file = "ascent_options.json";
+    if (!std::ifstream(options_file).good())
+        options_file = "ascent_options.yaml";
+    std::string actions_file;
+    if (std::ifstream(options_file).good())
     {
         try
         {
             conduit::Node options;
-            conduit::relay::io::load("ascent_options.yaml", "yaml", options);
+            conduit::relay::io::load(options_file, SettingsFileProtocol(options_file), options);
             if (options.has_path("actions_file"))
                 actions_file = options["actions_file"].as_string();
         }
         catch (const conduit::Error &e)
         {
-            error = "cannot read ascent_options.yaml: " + e.message();
+            error = "cannot read " + options_file + ": " + e.message();
         }
     }
+    if (actions_file.empty())
+        actions_file = std::ifstream("ascent_actions.json").good() ? "ascent_actions.json" : "ascent_actions.yaml";
     try
     {
-        conduit::relay::io::load(actions_file, "yaml", loaded);
+        conduit::relay::io::load(actions_file, SettingsFileProtocol(actions_file), loaded);
     }
     catch (const conduit::Error &e)
     {
@@ -59,9 +75,11 @@ inline conduit::Node LoadActionsFile(std::string &error)
 
 // Copies the actions in loaded to actions (a list). With overwrite, relay
 // extracts are left out and listed in relay, and an add_extracts action
-// left with no extract is dropped.
+// left with no extract is dropped. Relay parameters the cycle-0 save does not
+// honour (anything but path and protocol, e.g. fields) are listed in
+// unsupported.
 inline void SplitRelayExtracts(const conduit::Node &loaded, bool overwrite, conduit::Node &actions,
-                               std::vector<RelayExtract> &relay)
+                               std::vector<RelayExtract> &relay, std::vector<std::string> &unsupported)
 {
     actions.set(conduit::DataType::list());
     conduit::NodeConstIterator itr = loaded.children();
@@ -82,6 +100,19 @@ inline void SplitRelayExtracts(const conduit::Node &loaded, bool overwrite, cond
                 const std::string type = extract.has_path("type") ? extract["type"].as_string() : "";
                 if (type == "relay")
                 {
+                    // Only path and protocol are honoured by the save that
+                    // replaces the extract (SaveMeshAsCycleZero).
+                    if (extract.has_path("params"))
+                    {
+                        conduit::NodeConstIterator p_itr = extract["params"].children();
+                        while (p_itr.has_next())
+                        {
+                            p_itr.next();
+                            const std::string param = p_itr.name();
+                            if (param != "path" && param != "protocol")
+                                unsupported.push_back(name + "/params/" + param);
+                        }
+                    }
                     relay.emplace_back(
                         extract.has_path("params/path") ? extract["params/path"].as_string() : "ascent_data",
                         extract.has_path("params/protocol") ? extract["params/protocol"].as_string()
@@ -102,12 +133,23 @@ inline void SplitRelayExtracts(const conduit::Node &loaded, bool overwrite, cond
     }
 }
 
-// Saves mesh (one domain, or a list of domains) as Blueprint HDF5 under
-// base_path as cycle 0, so every save writes the same files. The mesh's
-// state/cycle is restored afterwards (each domain's, for a list). Returns an
-// error message, empty on success.
-inline std::string SaveMeshAsCycleZero(conduit::Node &mesh, const std::string &base_path, MPI_Comm comm)
+// Saves mesh (one domain, or a list of domains) under base_path as cycle 0,
+// so every save writes the same files, in the relay extract's protocol
+// (blueprint/mesh/hdf5, the default, or hdf5, yaml, json, with or without
+// the blueprint/mesh/ prefix). The mesh's state/cycle is restored afterwards
+// (each domain's, for a list). Returns an error message, empty on success.
+inline std::string SaveMeshAsCycleZero(conduit::Node &mesh, const std::string &base_path, const std::string &protocol,
+                                       MPI_Comm comm)
 {
+    std::string file_protocol = protocol;
+    const std::string prefix = "blueprint/mesh/";
+    if (file_protocol.compare(0, prefix.size(), prefix) == 0)
+        file_protocol = file_protocol.substr(prefix.size());
+    if (file_protocol.empty())
+        file_protocol = "hdf5";
+    if (file_protocol != "hdf5" && file_protocol != "yaml" && file_protocol != "json")
+        return "unsupported relay protocol '" + protocol + "'";
+
     std::string file_root = base_path;
     const size_t ext_pos = file_root.find(".hdf5");
     if (ext_pos != std::string::npos)
@@ -134,7 +176,7 @@ inline std::string SaveMeshAsCycleZero(conduit::Node &mesh, const std::string &b
     std::string error;
     try
     {
-        conduit::relay::mpi::io::blueprint::save_mesh(mesh, file_root, "hdf5", comm);
+        conduit::relay::mpi::io::blueprint::save_mesh(mesh, file_root, file_protocol, comm);
     }
     catch (const conduit::Error &e)
     {

@@ -41,7 +41,11 @@ void WriterAscent::load_actions()
     // exists but does not parse is an error worth reporting.
     if (!error.empty() && rank == 0)
         vtkLog(ERROR, "Ascent: " << error);
-    gs_ascent::SplitRelayExtracts(loaded, settings.overwrite_last_step, actions, relay_extracts);
+    std::vector<std::string> unsupported;
+    gs_ascent::SplitRelayExtracts(loaded, settings.overwrite_last_step, actions, relay_extracts, unsupported);
+    if (rank == 0)
+        for (const auto &param : unsupported)
+            vtkLog(ERROR, "Ascent: overwrite_last_step ignores relay parameter " << param);
 }
 
 void WriterAscent::open(const std::string &fname, bool append, int rank)
@@ -119,7 +123,7 @@ void WriterAscent::ManualOverwrite(conduit::Node &mesh,
 {
     // Every save is written as cycle 0, so it replaces the last one
     // (common/ascent_overwrite.hpp).
-    const std::string error = gs_ascent::SaveMeshAsCycleZero(mesh, base_path, comm);
+    const std::string error = gs_ascent::SaveMeshAsCycleZero(mesh, base_path, protocol, comm);
     if (!error.empty())
         std::cerr << "[WriterAscent] Error executing manual overwrite: " << error << std::endl;
 }
