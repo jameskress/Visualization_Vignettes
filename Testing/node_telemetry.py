@@ -67,6 +67,7 @@ PM_POWER_FILES = {
     "memory_w": "memory_power",
 }
 PM_TEMP_FILES = ("cpu0_temp", "cpu1_temp")
+POWERCAP_DIR = "/sys/class/powercap"
 NVIDIA_FIELDS = "index,memory.used,utilization.gpu,power.draw"
 
 
@@ -304,6 +305,50 @@ def host_platform(root="/"):
     return out
 
 
+def rapl_zones(directory=POWERCAP_DIR):
+    """{zone path: (kind, wrap uJ)} for the RAPL zones this user can read.
+
+    kind is "package" (a CPU package, its cores and uncore together) or
+    "dram"; other zones (core, uncore, psys) are left out, so no energy is
+    counted twice. A zone that is unreadable (root-only, as on Ibex and
+    Shaheen) is simply absent: no error, nothing recorded.
+    """
+    out = {}
+    try:
+        names = sorted(os.listdir(directory))
+    except OSError:
+        return out
+    for name in names:
+        if not name.startswith("intel-rapl:"):
+            continue
+        zone = os.path.join(directory, name)
+        kind = (_read_first_line(os.path.join(zone, "name")) or "").lower()
+        kind = "package" if kind.startswith("package") else kind
+        if kind not in ("package", "dram"):
+            continue
+        wrap = _read_first_line(os.path.join(zone, "max_energy_range_uj"))
+        if not (wrap and wrap.isdigit()) or read_uj(zone) is None:
+            continue
+        out[zone] = (kind, int(wrap))
+    return out
+
+
+def read_uj(zone):
+    """A RAPL zone's energy counter in microjoules, or None."""
+    value = _read_first_line(os.path.join(zone, "energy_uj"))
+    return int(value) if value and value.isdigit() else None
+
+
+def rapl_delta(before, after, wrap):
+    """Microjoules between two readings of a counter that wraps at `wrap`.
+
+    The counter wraps after max_energy_range_uj (about 65.5 kJ on the
+    workstation: ten minutes at 107 W), so it is read every RAPL_PERIOD_S,
+    often enough that it can wrap at most once between two readings.
+    """
+    return after - before if after >= before else wrap - before + after
+
+
 class NodeTelemetry(object):
     """Sample power, GPU and step memory while one vignette runs.
 
@@ -317,10 +362,29 @@ class NodeTelemetry(object):
     # between polls of large processes, whose smaps_rollup costs more.
     PSS_BUDGET = 0.10
     POWER_PERIOD_S = 1.0
+    # RAPL counters wrap after about ten minutes at full load on the
+    # workstation; read them every 5 s, so a wrap is never missed below about
+    # 13 kW per package.
+    RAPL_PERIOD_S = 5.0
 
-    def __init__(self, step_name=None, power=False, gpu=True, pm_dir=PM_COUNTERS_DIR):
+    def __init__(
+        self,
+        step_name=None,
+        power=False,
+        gpu=True,
+        pm_dir=PM_COUNTERS_DIR,
+        rapl=False,
+        powercap_dir=POWERCAP_DIR,
+    ):
         self.step_name = step_name
         self.power = power and os.path.isdir(pm_dir)
+        # RAPL only when this run has the machine to itself (the workstation,
+        # or a whole-node job): the counters cover the whole package.
+        self._rapl_zones = rapl_zones(powercap_dir) if rapl else {}
+        self._rapl_last = {}
+        self._rapl_uj = {}  # zone -> microjoules so far
+        self._rapl_samples = 0
+        self._rapl_lock = threading.Lock()
         self.pm_dir = pm_dir
         self.gpu = gpu and shutil.which("nvidia-smi") is not None
         self._stop = threading.Event()
@@ -385,6 +449,24 @@ class NodeTelemetry(object):
             self._memory_cost_s += spent
             self._stop.wait(max(0.0, self.MEMORY_PERIOD_S - spent))
 
+    def _rapl_read(self):
+        with self._rapl_lock:
+            for zone, (_, wrap) in self._rapl_zones.items():
+                now = read_uj(zone)
+                if now is None:
+                    continue
+                last = self._rapl_last.get(zone)
+                if last is not None:
+                    self._rapl_uj[zone] = self._rapl_uj.get(zone, 0) + rapl_delta(
+                        last, now, wrap
+                    )
+                self._rapl_last[zone] = now
+            self._rapl_samples += 1
+
+    def _rapl_loop(self):
+        while not self._stop.wait(self.RAPL_PERIOD_S):
+            self._rapl_read()
+
     def _power_loop(self):
         while not self._stop.is_set():
             reading = read_pm_power(self.pm_dir)
@@ -436,6 +518,9 @@ class NodeTelemetry(object):
     def start(self):
         self._began = time.monotonic()
         loops = []
+        if self._rapl_zones:
+            self._rapl_read()  # the starting values
+            loops.append(self._rapl_loop)
         if self.step_name:
             loops.append(self._memory_loop)
         if self.power:
@@ -468,6 +553,8 @@ class NodeTelemetry(object):
                 pass
         for thread in self._threads:
             thread.join(timeout=5.0)
+        if self._rapl_zones and self._rapl_samples:
+            self._rapl_read()  # the end values
         return self
 
     # -- results -----------------------------------------------------------
@@ -502,6 +589,26 @@ class NodeTelemetry(object):
                 out["step_pss_mean_sample_s"] = round(
                     self._pss_cost_s / self._pss_samples, 5
                 )
+        if self._rapl_uj:
+            with self._rapl_lock:
+                totals = {}
+                for zone, uj in self._rapl_uj.items():
+                    kind = self._rapl_zones[zone][0]
+                    totals[kind] = totals.get(kind, 0) + uj
+            # A counter that did not move is a stalled zone, not a run that
+            # used nothing; a kind with one is left out whole (as pm_energy
+            # does for pm_counters), rather than summed as if complete.
+            with self._rapl_lock:
+                stalled = {
+                    self._rapl_zones[zone][0]
+                    for zone in self._rapl_zones
+                    if not self._rapl_uj.get(zone)
+                }
+            totals = {k: uj for k, uj in totals.items() if k not in stalled}
+            for kind, uj in totals.items():
+                out["rapl_{0}_joules".format(kind)] = round(uj / 1e6, 1)
+            if totals:
+                out["rapl_samples"] = self._rapl_samples
         if self._power:
             for key in ("node_w", "cpu_w", "memory_w"):
                 values = [r[key] for r in self._power if key in r]

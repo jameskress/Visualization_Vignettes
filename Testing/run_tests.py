@@ -43,6 +43,7 @@ import argparse
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -564,6 +565,60 @@ PM_COUNTER_FILES = {
 }
 
 
+def rapl_is_the_runs(owns_nodes, environ=None):
+    """True when this node's RAPL counters measure this run and nothing else.
+
+    RAPL covers the whole CPU package, and the poller reads only the node it
+    runs on. So: outside Slurm (the machine is taken to be the user's own, as
+    record_local_run.sh asks), or a job that owns its one node. A multi-node
+    job would record one node's energy as the run's.
+    """
+    environ = os.environ if environ is None else environ
+    if not environ.get("SLURM_JOB_ID"):
+        return True
+    nodes = environ.get("SLURM_JOB_NUM_NODES") or environ.get("SLURM_NNODES")
+    return bool(owns_nodes) and nodes == "1"
+
+
+_SITE_ENERGY = []
+
+
+def site_energy_interval(config_text=None):
+    """The site's JobAcctGatherFrequency energy interval in seconds, or None.
+
+    Read once from `scontrol show config` (or config_text, for tests). None
+    when scontrol is missing or the site samples no energy.
+    """
+    if config_text is None and _SITE_ENERGY:
+        return _SITE_ENERGY[0]
+    text = config_text
+    if text is None:
+        scontrol = shutil.which("scontrol")
+        try:
+            text = (
+                subprocess.run(
+                    [scontrol, "show", "config"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    universal_newlines=True,
+                    timeout=20,
+                ).stdout
+                if scontrol
+                else ""
+            )
+        except (OSError, subprocess.SubprocessError):
+            text = ""
+    value = None
+    for line in text.splitlines():
+        if line.strip().startswith("JobAcctGatherFrequency"):
+            match = re.search(r"energy=(\d+)", line)
+            if match and int(match.group(1)) > 0:
+                value = int(match.group(1))
+    if config_text is None:
+        _SITE_ENERGY.append(value)
+    return value
+
+
 def job_owns_its_nodes(environ=None, cpus_on_node=None):
     """True when this Slurm job holds every CPU of every node it was given.
 
@@ -640,9 +695,16 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
     # Shaheen's default is every 600 s, so a step shorter than ten minutes
     # recorded no memory at all. srun reads this from the environment, which
     # also reaches the srun VisIt runs for its compute engine.
+    # Setting it replaces the site's whole JobAcctGatherFrequency, and every
+    # interval it leaves out drops to 0 (srun(1)), so the site's energy
+    # interval is carried over: a sampled energy plugin would otherwise be
+    # switched off for every vignette.
     if os.environ.get("SLURM_JOB_ID") and not env.get("SLURM_ACCTG_FREQ"):
         env = dict(env)
-        env["SLURM_ACCTG_FREQ"] = "task=1"
+        energy = site_energy_interval()
+        env["SLURM_ACCTG_FREQ"] = "task=1" + (
+            ",energy={0}".format(energy) if energy else ""
+        )
 
     # Name this run's job steps, so its Slurm accounting can be told from any
     # other step in the allocation by name, not only by time and count.
@@ -693,7 +755,11 @@ def _execute(cmd, output_dir, env, timeout, announce_verdict=True):
             # what it costs or to rule it out.
             try:
                 if os.environ.get("VV_NO_NODE_TELEMETRY") != "1":
-                    telemetry = NodeTelemetry(step_name=step_name, power=owns_nodes)
+                    telemetry = NodeTelemetry(
+                        step_name=step_name,
+                        power=owns_nodes,
+                        rapl=rapl_is_the_runs(owns_nodes),
+                    )
                     try:
                         telemetry.start()
                     except RuntimeError as exc:  # no thread to be had
