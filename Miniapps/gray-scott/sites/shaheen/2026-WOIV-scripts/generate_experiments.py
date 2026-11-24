@@ -1203,22 +1203,45 @@ DATA_CLEANUP = """
 DATA_RECORD="{results_dir}/{id}_data_output.json"
 # data/, and Ascent's data output: its relay extract writes
 # ascent_data.cycle_* and their .root files in the run directory itself,
-# outside data/.
-DATA_TARGETS=()
-[ -d $OUTPUT_DIR/data ] && DATA_TARGETS+=("$OUTPUT_DIR/data")
+# outside data/. A record that covers both says so ("scope"); one written
+# before Ascent's output was included lacks it.
+ASCENT_TARGETS=()
 for f in $OUTPUT_DIR/ascent_data.cycle_*; do
-    [ -e "$f" ] && DATA_TARGETS+=("$f")
+    if [ -e "$f" ]; then ASCENT_TARGETS+=("$f"); fi
 done
+DATA_TARGETS=("${{ASCENT_TARGETS[@]}}")
+if [ -d $OUTPUT_DIR/data ]; then DATA_TARGETS+=("$OUTPUT_DIR/data"); fi
+SCOPE='"scope": "data+ascent"'
 if [ ${{#DATA_TARGETS[@]}} -gt 0 ]; then
+    RECORDED=0
     if [ -n "${{RUN_JOB_ID:-}}" ] && grep -q "\\"job\\": \\"${{RUN_JOB_ID}}\\"" "$DATA_RECORD" 2>/dev/null; then
-        echo "Output of job $RUN_JOB_ID already recorded; finishing its deletion."
-        RECORDED=1
+        if grep -q "$SCOPE" "$DATA_RECORD" || [ ${{#ASCENT_TARGETS[@]}} -eq 0 ]; then
+            echo "Output of job $RUN_JOB_ID already recorded; finishing its deletion."
+            RECORDED=1
+        else
+            # Recorded before Ascent's output was counted: add it now.
+            echo "Adding Ascent's output to job $RUN_JOB_ID's record..."
+            if find "${{ASCENT_TARGETS[@]}}" -type f -printf '%s\\n' > $OUTPUT_DIR/data_sizes.txt \\
+                && awk -v rec="$(cat "$DATA_RECORD")" '{{n++; b+=$1}} END {{
+                    match(rec, /"files": [0-9]+/); f = substr(rec, RSTART + 9, RLENGTH - 9) + n
+                    match(rec, /"bytes": [0-9]+/); by = substr(rec, RSTART + 9, RLENGTH - 9) + b
+                    sub(/"files": [0-9]+/, "\\"files\\": " f, rec); sub(/"bytes": [0-9]+/, sprintf("\\"bytes\\": %.0f", by), rec)
+                    sub(/}}$/, ", \\"scope\\": \\"data+ascent\\"}}", rec); print rec }}' \\
+                    $OUTPUT_DIR/data_sizes.txt > "$DATA_RECORD.tmp" \\
+                && mv "$DATA_RECORD.tmp" "$DATA_RECORD"; then
+                RECORDED=1
+                cat "$DATA_RECORD"
+            else
+                echo "Could not add Ascent's output to the record; keeping it."
+                rm -f "$DATA_RECORD.tmp"
+            fi
+            rm -f $OUTPUT_DIR/data_sizes.txt
+        fi
     else
         echo "Counting the run's output: ${{DATA_TARGETS[*]}}..."
-        RECORDED=0
         if find "${{DATA_TARGETS[@]}}" -type f -printf '%s\\n' > $OUTPUT_DIR/data_sizes.txt \\
             && awk -v job="${{RUN_JOB_ID:-}}" -v when="$(date +%FT%T)" \\
-                '{{n++; b+=$1}} END {{printf "{{\\"job\\": \\"%s\\", \\"files\\": %d, \\"bytes\\": %.0f, \\"deleted\\": \\"%s\\"}}\\n", job, n, b, when}}' \\
+                '{{n++; b+=$1}} END {{printf "{{\\"job\\": \\"%s\\", \\"files\\": %d, \\"bytes\\": %.0f, \\"deleted\\": \\"%s\\", \\"scope\\": \\"data+ascent\\"}}\\n", job, n, b, when}}' \\
                 $OUTPUT_DIR/data_sizes.txt > "$DATA_RECORD.tmp" \\
             && mv "$DATA_RECORD.tmp" "$DATA_RECORD"; then
             RECORDED=1

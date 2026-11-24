@@ -510,7 +510,9 @@ writes `reduce-<jobid>.out` and produces:
   Render images and the initialisations' checkpoints are kept. Ascent's data
   output is written in the run directory itself (`ascent_data.cycle_*` and
   its `.root`), outside `data/`, so until 24 Nov 2026 this cleanup missed it
-  (about 5 TB of the sweep). It now records and deletes those as well.
+  (about 5 TB of the sweep). It now records and deletes those as well; the
+  record says `"scope": "data+ascent"`, and a record written before (without
+  it) has Ascent's leftover output added to it before that is deleted.
 
 `large-runs/audit_runs.py --results-dir <results>` lists runs that are missing, failed
 (time limit, out of memory, crash) or still running. If a run's reduction
