@@ -16,7 +16,8 @@
 # ignore the flag). Request the GPU on the command line, never --partition, and keep
 # ntasks x cpus-per-task within the GPU's CPU limit (16 on an A100). Use 8 ranks: ex06's
 # baseline is blessed at 8 and it disables its own image gate at any other count.
-#   sbatch --gres=gpu:1 --constraint=a100 --ntasks=8 --cpus-per-task=2 --mem=90G \
+#   (pin the node kind: ibex-gpu runs on the 4-GPU A100 nodes, RUNBOOK section 5)
+#   sbatch --gres=gpu:1 --constraint="a100&cpu_amd_epyc_7713p" --ntasks=8 --cpus-per-task=2 --mem=90G \
 #     --export=ALL,VARIANT=gpu,EXTRA="--run-id ibex-gpu-$(date +%F) --repeat 3" ibex_visit_suite.sbat
 # The clone needs data/topologies and data/varying_series_xml, which pvbatch builds: run the
 # ParaView suite in it first, or copy them from a clone that did (RUNBOOK section 5).
