@@ -286,19 +286,25 @@ srun --gres=gpu:1 --constraint="a100&cpu_amd_epyc_7713p" ...        # VisIt, ibe
 
 **Pin the node kind too, not only the GPU, for a recorded run.** One GPU type
 can sit in different kinds of node, and they time differently. Ibex's A100s
-come in two kinds:
+come in three kinds (`sinfo`, 24 Nov 2026):
 
 | Kind | Nodes | CPU | Slurm feature |
 | :--- | :--- | :--- | :--- |
-| 4 GPUs | `gpu101`, `gpu108`, `gpu109`, `gpu202` | one EPYC 7713P | `cpu_amd_epyc_7713p` |
-| 8 GPUs | `gpu102`, `gpu110` | two EPYC 7713 | `cpu_amd_epyc_7713` |
+| 4 GPUs, AMD | `gpu101`, `gpu108`, `gpu109`, `gpu201`, `gpu202`, `gpu203` | one EPYC 7713P | `cpu_amd_epyc_7713p` |
+| 8 GPUs, AMD | `gpu102`, `gpu110` | two EPYC 7713 | `cpu_amd_epyc_7713` |
+| 4 GPUs, Intel | `gpu510-02` | Xeon Gold 6142 | `cpu_intel_gold_6142` |
 
 VisIt on an 8-GPU node took 3 to 4 s longer per short vignette, with twice
 the CPU time, than on a 4-GPU node (23 and 24 Nov 2026). A configuration that
 mixes the two shows that as a regression. So each configuration keeps one
 kind: `ibex-gpu` (VisIt) the 4-GPU nodes, `ibex-egl-a100` (ParaView) the
-8-GPU nodes, where its recent history is. Ask for both features at once,
-`--constraint="a100&cpu_amd_epyc_7713p"`. Check the record's
+8-GPU nodes, where its recent history is. Ask for the GPU and the CPU
+feature together: `--constraint="a100&cpu_amd_epyc_7713p"` for `ibex-gpu`,
+`--constraint="a100&cpu_amd_epyc_7713"` for `ibex-egl-a100`. The histories
+before this rule are mixed: `ibex-egl-a100` ran on the 4-GPU nodes until
+14 Nov 2026 and on the 8-GPU nodes from 15 Nov; `ibex-gpu` ran on a 4-GPU
+node on 15 Nov and on an 8-GPU node for the 18 Nov backfill of VisIt 3.4.2.
+Check the record's
 `machine_info.node` and `cpu_model` against the configuration's history before
 reading a change in time. When a node kind retires, give its successor a new
 configuration name rather than mixing kinds in one history (list the features
