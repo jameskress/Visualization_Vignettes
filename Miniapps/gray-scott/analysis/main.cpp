@@ -207,7 +207,9 @@ int main(int argc, char **argv)
                       << std::setw(24) << "  Block Mode" << ": " << opts.block_mode << "\n"
                       << std::setw(24) << "  Decomposition" << ": " << opts.read_decomposition << "\n"
                       << std::setw(24) << "  ADIOS2 Config" << ": "
-                      << (opts.adios_config.empty() ? std::string("(none)") : opts.adios_config) << "\n";
+                      << (opts.adios_config.empty() ? std::string("(none)") : opts.adios_config) << "\n"
+                      << std::setw(24) << "  Overwrite Last Step" << ": "
+                      << (OverwritesLastStep(opts) ? "yes" : "no") << "\n";
             if (opts.output_type.find("catalyst") != std::string::npos)
             {
                 std::cout << "\n"
@@ -272,7 +274,9 @@ int main(int argc, char **argv)
                                    {"reader_shared_planes", AdiosReader::EffectiveSharedPlanes().empty()
                                                                 ? opts.reader_shared_planes
                                                                 : AdiosReader::EffectiveSharedPlanes()},
-                                   {"sst_wait_mode", opts.sst_wait_mode}};
+                                   {"sst_wait_mode", opts.sst_wait_mode},
+                                   // the setting in effect (adios_writer ignores it)
+                                   {"overwrite_last_step", OverwritesLastStep(opts)}};
                 meta["command_line"] = std::vector<std::string>(argv, argv + argc);
                 std::error_code ec;
                 std::filesystem::create_directories("reader_timers", ec);

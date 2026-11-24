@@ -231,6 +231,14 @@ CATALYST_LIB_PATH = "/scratch/kressjm/Visualization_Vignettes/software/paraview-
 # sbcast fans it out in a tree, so sbcast should win at some larger count.
 # The threshold is an estimate until it is timed at 64 to 208 reader nodes.
 CATALYST_STAGE = "off"
+# --transit-data-overwrite: in transit Catalyst (catalyst_io) and Ascent data
+# runs have the reader overwrite its last output instead of writing one per
+# step, as the simulation's own writers do with overwrite_last_step. The
+# 8192^3 hero data runs write 25 TB or more per run otherwise, more than
+# /scratch holds. The simulation's ADIOS2 SST output and the reader's
+# adios_writer backend are unchanged: their overwrite closes and reopens the
+# engine each step. Off by default.
+TRANSIT_DATA_OVERWRITE = False
 CATALYST_STAGE_SBCAST_MIN_NODES = 128
 # One directory per job, so a copy left behind by a job that was killed is
 # never taken for this job's.
@@ -2068,8 +2076,9 @@ def generate_settings_json(exp, output_dir, copied_files, args):
     run_noise_level = 0.00001
     steps = exp["total_steps"]
 
-    # SST must not reopen per step, so in transit never overwrites. Paper 2 also
-    # writes every inline ADIOS2 step; Paper 1 keeps its overwrite (#71).
+    # SST must not reopen per step, so the in transit simulation never
+    # overwrites (the reader can: --transit-data-overwrite, below). Paper 2
+    # also writes every inline ADIOS2 step; Paper 1 keeps its overwrite (#71).
     uses_adios = exp["type"] == "intransit" or (
         exp["backend"] == "adios" and exp.get("paper") != "paper1"
     )
@@ -2141,6 +2150,15 @@ def generate_settings_json(exp, output_dir, copied_files, args):
             ] = "adios_writer"  # Map "adios" to "adios_writer" for the C++ factory
         else:
             config_stage["output_type"] = stage_backend
+
+        # The reader overwrites its last output (TRANSIT_DATA_OVERWRITE):
+        # Catalyst and Ascent data runs only.
+        if (
+            TRANSIT_DATA_OVERWRITE
+            and exp["workload"] == "data_save"
+            and stage_backend in ("catalyst", "ascent")
+        ):
+            config_stage["overwrite_last_step"] = True
 
         if stage_backend == "ascent":
             config_stage["ascent_options"] = f"{output_dir}/ascent_options.yaml"
@@ -3125,6 +3143,14 @@ if __name__ == "__main__":
         "GS_READER_RUNPATH=ON and the tarball from build-catalyst-stage.sh (default off)",
     )
     parser.add_argument(
+        "--transit-data-overwrite",
+        action="store_true",
+        default=TRANSIT_DATA_OVERWRITE,
+        help="In transit Catalyst and Ascent data runs: the reader overwrites its last output instead of "
+        "writing one per step (overwrite_last_step in settings-stage.json). ADIOS2 data runs and the "
+        "simulation are unchanged (default off)",
+    )
+    parser.add_argument(
         "--repeats",
         type=int,
         default=REPEATS,
@@ -3171,6 +3197,7 @@ if __name__ == "__main__":
     ASCENT_TILED_RENDERING = args.ascent_tiled_rendering
     READER_SMT = args.reader_smt
     CATALYST_STAGE = args.catalyst_stage
+    TRANSIT_DATA_OVERWRITE = args.transit_data_overwrite
     READER_BIN_PATH = args.bin_path
     if args.repeats < 1 or args.repeats > 99:
         parser.error("--repeats must be between 1 and 99")

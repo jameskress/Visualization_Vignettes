@@ -147,6 +147,11 @@ CatalystBackend::CatalystBackend(const BackendOptions &opts)
         init_params["catalyst/pipelines/0/type"].set("io");
         init_params["catalyst/pipelines/0/filename"].set(current_opts.catalyst_output_file);
         init_params["catalyst/pipelines/0/channel"].set("grid");
+        // overwrite_last_step, as the simulation's Catalyst writer does it:
+        // every step is passed as timestep 0 (Run), so the file name's
+        // timestep stays 0 and each extract replaces the last one.
+        if (current_opts.overwrite_last_step)
+            init_params["catalyst/pipelines/0/mode"].set("update");
     }
     else if (current_opts.output_type == "catalyst_insitu")
     {
@@ -184,8 +189,19 @@ void CatalystBackend::Run()
         const auto &current_opts = m_reader.GetOptions();
 
         conduit_cpp::Node exec_params;
-        exec_params["catalyst/state/timestep"].set_int64(static_cast<long long>(step));
-        exec_params["catalyst/state/time"].set_float64(static_cast<double>(step));
+        // With overwrite_last_step in catalyst_io mode the step is passed as 0
+        // and the real step as a parameter, as the simulation does it.
+        if (current_opts.overwrite_last_step && current_opts.output_type == "catalyst_io")
+        {
+            exec_params["catalyst/state/timestep"].set_int64(0);
+            exec_params["catalyst/state/time"].set_float64(0.0);
+            exec_params["catalyst/state/parameters"].append().set_string("real_step=" + std::to_string(step));
+        }
+        else
+        {
+            exec_params["catalyst/state/timestep"].set_int64(static_cast<long long>(step));
+            exec_params["catalyst/state/time"].set_float64(static_cast<double>(step));
+        }
         exec_params["catalyst/channels/grid/type"].set_string("mesh");
 
         // Members, kept across steps (catalyst_backend.h).

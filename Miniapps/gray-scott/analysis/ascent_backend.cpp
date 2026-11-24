@@ -99,6 +99,16 @@ AscentBackend::AscentBackend(const BackendOptions &opts)
     conduit::Node open_opts;
     open_opts["mpi_comm"] = MPI_Comm_c2f(m_reader.GetComm());
     m_ascent.open(open_opts);
+    if (opts.overwrite_last_step)
+    {
+        std::string error;
+        const conduit::Node loaded = gs_ascent::LoadActionsFile(error);
+        int rank = 0;
+        MPI_Comm_rank(m_reader.GetComm(), &rank);
+        if (!error.empty() && rank == 0)
+            std::cerr << "analysis-reader: Ascent: " << error << std::endl;
+        gs_ascent::SplitRelayExtracts(loaded, true, m_actions, m_relay_extracts);
+    }
 }
 
 void AscentBackend::Run()
@@ -137,7 +147,21 @@ void AscentBackend::Run()
         m_perf_logger.start("Vis_Time");
         faults = ProcessMinorFaults();
         m_ascent.publish(mesh_blueprint);
-        m_ascent.execute(conduit::Node());
+        if (!m_opts.overwrite_last_step)
+            m_ascent.execute(conduit::Node()); // Ascent runs its actions file
+        else
+        {
+            // An empty list would make Ascent load its actions file again.
+            if (m_actions.number_of_children() > 0)
+                m_ascent.execute(m_actions);
+            for (const auto &rx : m_relay_extracts)
+            {
+                const std::string error =
+                    gs_ascent::SaveMeshAsCycleZero(mesh_blueprint, rx.first, m_reader.GetComm());
+                if (!error.empty())
+                    std::cerr << "analysis-reader: Ascent overwrite save failed: " << error << std::endl;
+            }
+        }
         m_perf_logger.setCounter("minflt_vis", ProcessMinorFaults() - faults);
         m_perf_logger.stop("Vis_Time");
         m_perf_logger.stop("total_step");
