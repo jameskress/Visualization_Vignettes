@@ -236,7 +236,7 @@ runs ex11 under Xvfb where the node has it.
 | Configuration (`--machine_name`) | ParaView | VisIt |
 | :--- | :--- | :--- |
 | Ibex CPU (`ibex-cpu`) | `sbatch ibex_pv_suite.sbat` | `sbatch ibex_visit_suite.sbat` |
-| Ibex GPU (`ibex-egl-<gpu>`; VisIt `ibex-gpu`) | `sbatch --gres=gpu:1 --constraint=<gpu> --ntasks=4 --cpus-per-task=4 --export=ALL,VARIANT=egl,GPU=<gpu> ibex_pv_suite.sbat` | `sbatch --gres=gpu:1 --constraint="a100&cpu_amd_epyc_7713p" --ntasks=8 --cpus-per-task=2 --mem=90G --export=ALL,VARIANT=gpu ibex_visit_suite.sbat` (one node kind per configuration: RUNBOOK section 5) |
+| Ibex GPU (`ibex-egl-<gpu>`; VisIt `ibex-gpu`) | `sbatch --gres=gpu:1 --constraint=<gpu> --ntasks=4 --cpus-per-task=4 --export=ALL,VARIANT=egl,GPU=<gpu> ibex_pv_suite.sbat`; for the A100, `--constraint="a100&cpu_amd_epyc_7713"` (the node kind of `ibex-egl-a100`'s history, RUNBOOK section 5) | `sbatch --gres=gpu:1 --constraint="a100&cpu_amd_epyc_7713p" --ntasks=8 --cpus-per-task=2 --mem=90G --export=ALL,VARIANT=gpu ibex_visit_suite.sbat` (one node kind per configuration: RUNBOOK section 5) |
 | Shaheen `workq` (`shaheen3-cpu`) | `sbatch shaheen_pv_suite.sbat` | `sbatch shaheen_visit_suite.sbat` |
 | Shaheen `ppn`, Mesa (`shaheen3-mesa-ppn`) | `sbatch --export=ALL,VARIANT=mesa shaheen_ppn_pv_suite.sbat` | |
 | Shaheen `ppn`, GPU (`shaheen3-ppn-gpu-L40`; VisIt `shaheen3-ppn`) | `sbatch shaheen_ppn_pv_suite.sbat` | `sbatch shaheen_ppn_visit_suite.sbat` |

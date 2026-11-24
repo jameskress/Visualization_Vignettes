@@ -279,7 +279,9 @@ that configuration cannot be run until they return, if they do. Pin the GPU you
 mean with a constraint, or you will not know which one you measured:
 
 ```bash
-srun --gres=gpu:1 --constraint=a100 ...
+srun --gres=gpu:1 --constraint=a100 ...                              # a look around
+srun --gres=gpu:1 --constraint="a100&cpu_amd_epyc_7713" ...         # ParaView, ibex-egl-a100
+srun --gres=gpu:1 --constraint="a100&cpu_amd_epyc_7713p" ...        # VisIt, ibex-gpu
 ```
 
 **Pin the node kind too, not only the GPU, for a recorded run.** One GPU type
