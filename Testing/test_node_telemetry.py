@@ -764,6 +764,11 @@ class Rapl(unittest.TestCase):
         self.assertEqual(figures["rapl_package_joules"], 5.0)  # 2 J + 3 J
         self.assertEqual(figures["rapl_source"], "amd_energy")
 
+    def test_the_counter_source_is_a_scope(self):
+        import drift
+
+        self.assertEqual(drift.scope_of("rapl_package_joules"), "rapl_source")
+
     def test_the_site_energy_interval_is_kept(self):
         import run_tests
 

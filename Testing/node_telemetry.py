@@ -310,7 +310,7 @@ def host_platform(root="/"):
 
 
 def rapl_zones(directory=POWERCAP_DIR):
-    """{zone path: (kind, wrap uJ)} for the RAPL zones this user can read.
+    """{counter path: (kind, wrap uJ)} for the RAPL zones this user can read.
 
     kind is "package" (a CPU package, its cores and uncore together) or
     "dram"; other zones (core, uncore, psys) are left out, so no energy is
