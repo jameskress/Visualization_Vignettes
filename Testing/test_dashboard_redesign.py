@@ -219,5 +219,60 @@ class RunNumbers(unittest.TestCase):
         self.assertIn("System changed before run 2", svg)
 
 
+class FastestRuns(unittest.TestCase):
+    """dashboard.fastest_runs: the vignette page's bars and the index dots."""
+
+    def test_median_of_the_latest_runs_repeats_and_one_revision(self):
+        pin = dashboard.CURRENT_PINS["ParaView"]
+
+        def rec(run, seconds, rev):
+            r = record(run, "6.4", version=pin, seconds=seconds)
+            r["_rev"] = rev
+            return r
+
+        histories = {
+            ("a", "ParaView"): {
+                "ex01_x": [
+                    ("2026-11-20T01:00:00", rec("old", 99.0, 2)),
+                    ("2026-11-23T01:00:00", rec("new", 10.0, 3)),
+                    ("2026-11-23T01:01:00", rec("new", 30.0, 3)),
+                    ("2026-11-23T01:02:00", rec("new", 11.0, 3)),
+                ]
+            },
+            # Only an older revision of the code: not set beside "a".
+            ("b", "ParaView"): {"ex01_x": [("2026-11-23T02:00:00", rec("x", 5.0, 2))]},
+        }
+        runs = dashboard.fastest_runs("ParaView", "ex01_x", histories, ["a", "b"])
+        self.assertEqual([(c, t) for c, t, _ in runs], [("a", 11.0)])
+
+    def test_the_bars_start_at_zero_and_sort_fastest_first(self):
+        svg = dashboard.svg_latest_bars(
+            [("b", 20.0, "2026-11-23T01:00:00"), ("a", 10.0, "2026-11-23T01:00:00")]
+        )
+        self.assertLess(svg.index(">a<"), svg.index(">b<"))
+        self.assertIn(">0<", svg)
+
+
+try:
+    import matplotlib  # noqa: F401 - plot_metrics needs it
+
+    HAVE_MATPLOTLIB = True
+except ImportError:  # pragma: no cover - the harness CI installs it
+    HAVE_MATPLOTLIB = False
+
+
+@unittest.skipUnless(HAVE_MATPLOTLIB, "plot_metrics needs matplotlib")
+class PlotMetricsRules(unittest.TestCase):
+    """plot_metrics.py compares only runs of the newest vignette code."""
+
+    def test_older_code_is_not_comparable_for_any_metric(self):
+        import plot_metrics
+
+        record = {"legacy": False, "old_code": True}
+        self.assertTrue(plot_metrics._not_comparable(record, "execution_time"))
+        record["old_code"] = False
+        self.assertFalse(plot_metrics._not_comparable(record, "execution_time"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -45,6 +45,19 @@
 #
 # Marker shape still encodes the tool version, which was worth keeping.
 #
+# The same rules as the dashboard (Testing/dashboard.py), so the local PNGs
+# and the site agree (24 Nov 2026):
+#
+#   * Only runs of the vignette's newest code are compared. A run of an older
+#     revision of the vignette measured a different test: hollow and shaded on
+#     the trend, left out of the bars, for every metric.
+#   * Colour is the site (Workstation, Ibex, Shaheen) from the dashboard's
+#     validated palette, not a rainbow; marker shape is still the version.
+#   * A trend panel's y range is never narrower than 25% of its median, so
+#     run-to-run noise does not look like a cliff.
+#   * "Latest" in the suite-wide chart is the latest run at the version the
+#     suite tests by default, not whichever record was written last.
+#
 # Author: James Kress, <james@jameskress.com>
 #
 import collections
@@ -66,6 +79,14 @@ try:
 except ImportError:  # pragma: no cover - plotting standalone
     METRICS_SCHEMA = 6
     MIN_COMPARABLE_SCHEMA = 5
+
+try:
+    import dashboard  # the site's rules: revisions, site colours, pins
+except ImportError:  # pragma: no cover - plotting without the harness
+    dashboard = None
+
+# A trend panel's y span is at least this share of its median.
+MIN_SPAN = 0.25
 
 
 MARKER_SHAPES = ["o", "s", "^", "D", "P", "X", "*", "v", "<", ">"]
@@ -149,6 +170,71 @@ def load_history(testing_dir):
     return history
 
 
+_REVISIONS = []
+
+
+def _revisions():
+    """One VignetteRevisions per process: its git history reads are cached
+    there, and test_suite.py plots after every vignette of a suite."""
+    if not _REVISIONS:
+        found = None
+        if dashboard is not None:
+            try:
+                found = dashboard.VignetteRevisions(dashboard.REPO_ROOT)
+            except Exception:  # pragma: no cover - no git, no revisions
+                found = None
+        _REVISIONS.append(found)
+    return _REVISIONS[0]
+
+
+def drop_retired(history):
+    """The history without retired configurations, which the site leaves
+    out of every summary too."""
+    if dashboard is None:
+        return history
+    try:
+        retired = set(dashboard.load_retired(dashboard.REPO_ROOT))
+    except Exception:  # pragma: no cover - an unreadable file is the site's to report
+        retired = set()
+    return {c: rows for c, rows in history.items() if c not in retired}
+
+
+def tag_revisions(history, test_directory):
+    """Write each record's vignette revision into it as `rev` (newest code
+    is the largest), using the dashboard's git-history rule; every record
+    gets 0 when that is unavailable, so nothing is excluded."""
+    revisions = _revisions()
+    vignette_dir = os.path.relpath(
+        os.path.abspath(test_directory), dashboard.REPO_ROOT if dashboard else "."
+    )
+    for config, rows in history.items():
+        path = os.path.join(
+            vignette_dir, "Testing", "performance_metrics_{0}.json".format(config)
+        )
+        for record in rows:
+            rev = 0
+            if revisions is not None and revisions.available:
+                try:
+                    rev = revisions.of(vignette_dir, path, record["timestamp"], record)[
+                        0
+                    ]
+                except Exception:  # pragma: no cover - a record git cannot place
+                    rev = 0
+            record["rev"] = rev
+    known = [r["rev"] for rows in history.values() for r in rows if r["rev"] >= 0]
+    newest = max(known) if known else 0
+    for rows in history.values():
+        for record in rows:
+            record["old_code"] = record["rev"] != newest
+
+
+def _site_colour(config):
+    """The dashboard's colour for this configuration's site."""
+    if dashboard is None:
+        return "0.35"
+    return dashboard.SLOTS_LIGHT[dashboard.SITE_SLOT[dashboard.site_of(config)]]
+
+
 def _stretches(marked, xs):
     """(first, last) x of each run of consecutive points in `marked`, where
     consecutive means adjacent in `xs`."""
@@ -165,8 +251,11 @@ def _stretches(marked, xs):
 
 
 def _not_comparable(record, metric):
-    """True when this run measured `metric` differently from the current
-    runs: before the schema change, or under another measurement scope."""
+    """True when this run cannot be compared with the current runs: it ran
+    older vignette code (any metric), or it measured `metric` differently,
+    before the schema change or under another measurement scope."""
+    if record.get("old_code"):
+        return True
     if metric not in SCHEMA_SENSITIVE:
         return False
     return record["legacy"] or metric in record.get("other_scope", ())
@@ -238,8 +327,6 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
         # a bar chart does it better than eleven sparklines ever did.
         sharey=False,
     )
-    colors = plt.cm.turbo(np.linspace(0.05, 0.95, len(configs)))
-
     drew_legacy = False
     seen_versions = {}
     any_data = False
@@ -265,7 +352,7 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
             continue
 
         any_data = True
-        colour = colors[position]
+        colour = _site_colour(config)
         xs = [p[0] for p in points]
         ys = [p[1] for p in points]
         axis.plot(xs, ys, "-", color=colour, linewidth=1.6, alpha=0.6, zorder=2)
@@ -276,7 +363,7 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
         # Each contiguous stretch is shaded on its own: scopes can alternate
         # (A, B, A), and shading from the first run would mark comparable
         # runs as measuring something else.
-        if metric in SCHEMA_SENSITIVE:
+        if any(_not_comparable(p[2], metric) for p in points):
             for first, last in _stretches(
                 [p[0] for p in points if _not_comparable(p[2], metric)], xs
             ):
@@ -307,6 +394,14 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
             )
             seen_versions[record["version"]] = shape
 
+        # Never narrower than MIN_SPAN of the median, centred on the data.
+        low, high = min(ys), max(ys)
+        middle = float(np.median(ys))
+        want = MIN_SPAN * abs(middle)
+        if high - low < want:
+            centre = (high + low) / 2.0
+            axis.set_ylim(max(0.0, centre - want / 2.0), centre + want / 2.0)
+
         ticks, labels = _thin_labels(rows)
         axis.set_xticks(ticks)
         axis.set_xticklabels(labels, rotation=45, ha="right", fontsize=8)
@@ -324,14 +419,15 @@ def _trend_figure(history, marker_map, metric, ylabel, vignette, path):
         return False
 
     subtitle = (
-        "each panel is one configuration, x is its own run number, "
-        "y is autoscaled per panel"
+        "each panel is one configuration, x is its own run number, y is "
+        "its own scale (never narrower than {0:.0%} of its median); colour is "
+        "the site".format(MIN_SPAN)
     )
     if drew_legacy:
         subtitle += (
-            "\nshaded: recorded before metrics_schema {0} or under another "
-            "measurement scope, so the number measured something "
-            "else".format(MIN_COMPARABLE_SCHEMA)
+            "\nshaded, hollow: older vignette code, or recorded before "
+            "metrics_schema {0} or under another measurement scope, so the "
+            "number measured something else".format(MIN_COMPARABLE_SCHEMA)
         )
     fig.suptitle(
         "{0} - {1}\n{2}".format(ylabel, vignette, subtitle),
@@ -416,7 +512,7 @@ def _latest_figure(history, metric, ylabel, vignette, path):
         for e in entries
     ]
     values = [e[1] for e in entries]
-    colors = plt.cm.turbo(np.linspace(0.05, 0.95, len(entries)))
+    colors = [_site_colour(e[0]) for e in entries]
 
     fig, axis = plt.subplots(figsize=(11, 0.55 * len(entries) + 2.4))
     positions = np.arange(len(entries))
@@ -441,12 +537,12 @@ def _latest_figure(history, metric, ylabel, vignette, path):
         )
     axis.set_xlim(0, span * 1.38)
 
-    note = ""
+    note = "\nruns of older vignette code are omitted; colour is the site"
     if metric in SCHEMA_SENSITIVE:
         # Short lines rather than one long one: this subtitle is drawn at
         # the figure's width, and a single line of it was being clipped on the
         # narrow figures that a two-configuration chart produces.
-        note = (
+        note += (
             "\nruns older than metrics_schema {0} or under another"
             "\nmeasurement scope are omitted"
             "\n(that number measured something else)".format(MIN_COMPARABLE_SCHEMA)
@@ -477,6 +573,8 @@ def generate_individual_graphs(test_directory, current_sub_test):
         print("\tNo performance data found for {0}.".format(testing_dir))
         return
 
+    history = drop_retired(history)
+    tag_revisions(history, test_directory)
     marker_map = _marker_map(history)
     written = 0
     for metric, ylabel in METRICS:
@@ -518,13 +616,22 @@ def generate_combination_execution_time_plot(base_directory):
         history = load_history(testing_dir)
         if not history:
             continue
+        history = drop_retired(history)
+        tag_revisions(history, os.path.join(base_directory, name))
         latest = {}
         for config, rows in history.items():
+            # The latest run at the version the suite tests by default, of
+            # the newest vignette code: a backfill of an old version recorded
+            # later is not "latest".
+            pins = set(dashboard.CURRENT_PINS.values()) if dashboard else set()
             for record in reversed(rows):
-                if record.get("execution_time") is not None:
-                    latest[config] = float(record["execution_time"])
-                    configs.add(config)
-                    break
+                if record.get("execution_time") is None or record.get("old_code"):
+                    continue
+                if pins and record["version"] not in pins:
+                    continue
+                latest[config] = float(record["execution_time"])
+                configs.add(config)
+                break
         if latest:
             per_vignette[name] = latest
 
@@ -533,8 +640,15 @@ def generate_combination_execution_time_plot(base_directory):
         return
 
     vignettes = sorted(per_vignette)
-    configs = sorted(configs)
-    colors = plt.cm.turbo(np.linspace(0.05, 0.95, len(configs)))
+    configs = sorted(configs, key=dashboard.site_order if dashboard else None)
+    # Colour is the site; configurations of one site are told apart by hatch.
+    hatches = ["", "//", "..", "xx", "\\\\", "--", "++", "oo"]
+    per_site = collections.Counter()
+    styles = []
+    for config in configs:
+        site = dashboard.site_of(config) if dashboard else config
+        styles.append((_site_colour(config), hatches[per_site[site] % len(hatches)]))
+        per_site[site] += 1
 
     fig, axis = plt.subplots(figsize=(max(12, 1.5 * len(vignettes)), 8))
     width = 0.8 / max(1, len(configs))
@@ -547,7 +661,9 @@ def generate_combination_execution_time_plot(base_directory):
             values,
             width=width,
             label=config,
-            color=colors[index],
+            color=styles[index][0],
+            hatch=styles[index][1],
+            edgecolor="white",
         )
 
     axis.set_xticks(base)
@@ -555,8 +671,9 @@ def generate_combination_execution_time_plot(base_directory):
     axis.set_yscale("log")
     axis.set_ylabel("Execution time (s), log scale", fontsize=11)
     axis.set_title(
-        "Most recent execution time per vignette and configuration\n"
-        "{0}".format(os.path.basename(os.path.abspath(base_directory))),
+        "Latest execution time per vignette and configuration, at the version "
+        "the suite tests by default\n{0} (colour is the site, hatch the "
+        "machine)".format(os.path.basename(os.path.abspath(base_directory))),
         fontsize=13,
     )
     axis.grid(True, axis="y", alpha=0.25)

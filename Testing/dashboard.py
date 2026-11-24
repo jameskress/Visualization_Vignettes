@@ -2104,6 +2104,109 @@ def vignette_label_html(vignette):
     return "<span class='n'>ex{0:02d}</span>{1}".format(n, esc(ABOUT[n][0]))
 
 
+def svg_latest_bars(runs, unit="s"):
+    """Horizontal bars, fastest first, one per configuration, coloured by
+    site, each labelled with its value and the date of its run. The axis
+    starts at zero: a bar's length is the quantity."""
+    if not runs:
+        return ""
+    runs = sorted(runs, key=lambda r: r[1])
+    row_h, left, right, top = 26, 190, 190, 8
+    width = 1000
+    height = top + row_h * len(runs) + 44
+    top_value = max(t for _, t, _ in runs)
+    scale = (width - left - right) / top_value if top_value > 0 else 1.0
+    out = [
+        "<svg class='chart wide' viewBox='0 0 {0} {1}' role='img' "
+        "aria-label='Latest time on each machine, fastest first'>".format(width, height)
+    ]
+    # Five gridlines at round values, labelled, from zero.
+    step = nice_step(top_value / 4.0)
+    tick = 0.0
+    while tick <= top_value * 1.001:
+        x = left + tick * scale
+        out.append(
+            "<line class='grid' x1='{0:.1f}' x2='{0:.1f}' y1='{1}' y2='{2}'/>"
+            "<text x='{0:.1f}' y='{3}' text-anchor='middle'>{4}</text>".format(
+                x,
+                top,
+                top + row_h * len(runs),
+                top + row_h * len(runs) + 16,
+                fmt_tick(tick),
+            )
+        )
+        tick += step
+    out.append(
+        "<text class='atitle' x='{0}' y='{1}' text-anchor='middle'>Time, s "
+        "(median of each machine's latest run)</text>".format(
+            left + (width - left - right) / 2.0, height - 4
+        )
+    )
+    for i, (config, seconds, ts) in enumerate(runs):
+        y = top + i * row_h
+        slot = SITE_SLOT[site_of(config)]
+        tip = "{0}: {1} {2}, run {3}".format(
+            config, fmt(seconds, 2), unit, long_date(ts)
+        )
+        out.append(
+            "<text x='{0}' y='{1}' text-anchor='end' class='dlabel'>{2}</text>"
+            "<rect class='s{3}' x='{0}' y='{4}' width='{5:.1f}' height='{6}' rx='3'>"
+            "<title>{7}</title></rect>"
+            "<text x='{8:.1f}' y='{1}' class='dlabel'>{9} {10} &middot; {11}</text>".format(
+                left - 8,
+                y + row_h / 2.0 + 4,
+                esc(config),
+                slot,
+                y + 4,
+                max(1.0, seconds * scale),
+                row_h - 8,
+                esc(tip),
+                left + seconds * scale + 6,
+                fmt(seconds, 2),
+                esc(unit),
+                esc(long_date(ts)),
+            )
+        )
+    out.append("</svg>")
+    return "".join(out)
+
+
+def nice_step(raw):
+    """A round step (1, 2 or 5 times a power of ten) at least `raw`."""
+    if raw <= 0:
+        return 1.0
+    power = 10 ** math.floor(math.log10(raw))
+    for m in (1, 2, 5, 10):
+        if m * power >= raw:
+            return m * power
+    return 10 * power
+
+
+def fmt_tick(value):
+    return "{0:g}".format(round(value, 6))
+
+
+def render_latest_bars(tool, vignette, histories, states):
+    """The vignette page's "which machine is fastest" bars, or ''."""
+    runs = fastest_runs(tool, vignette, histories, fastest_configs(tool, states))
+    if not runs:
+        return ""
+    sites = sorted({site_of(c) for c, _, _ in runs}, key=SITES.index)
+    return (
+        "<h2>Which machine is fastest at this vignette?</h2><p class='note'>Each "
+        "active machine's latest run at {0} {1} (the version the suite tests by "
+        "default): the median of that run's repeats, from runs of the same "
+        "vignette code, fastest at the top. Bars "
+        "start at zero; colour is the site.</p><div class='card'>{2}"
+        "<div class='scroll'>{3}</div></div>".format(
+            esc(tool),
+            esc(CURRENT_PINS[tool]),
+            legend([(SITE_SLOT[s], s) for s in sites]),
+            svg_latest_bars(runs),
+        )
+    )
+
+
 def render_vignette_page(tool, vignette, histories, states, generated, style=None):
     """One vignette on every active machine. style: the tool's VersionStyle
     (build_site's), so a version has the same marker on every page."""
@@ -2205,7 +2308,8 @@ def render_vignette_page(tool, vignette, histories, states, generated, style=Non
         "<h1>{0} {1}</h1><p class='lede'>{2}</p>{10}"
         "<p><a href='../gallery/#{6}'>Baseline images in the gallery</a> &middot; "
         "source: <a href='{7}/tree/master/{8}/{9}'>{9}</a></p>"
-        "<h2>Latest result on each machine</h2><div class='chips'>{3}</div>"
+        "<h2>Latest result on each machine</h2><div class='chips'>{3}</div>{11}"
+        "<h2>Every run on each machine</h2>"
         "<p class='note'>One panel per machine, x its own run number, so months "
         "without runs leave no gaps. Colour and shape are the tool version. Hollow: "
         "not comparable with the latest run. A dashed amber line is a system change "
@@ -2221,6 +2325,7 @@ def render_vignette_page(tool, vignette, histories, states, generated, style=Non
             esc(dict(SUITES)[tool]),
             esc(vignette),
             pipeline_html(tool, n),
+            render_latest_bars(tool, vignette, histories, states),
         )
     )
     return page("{0} {1}".format(tool, vignette_title(vignette)), body, generated)
@@ -2535,9 +2640,9 @@ def render_retired_table(states, configs):
     return "".join(out)
 
 
-def render_dot_plot(tool, histories, states):
-    pin = CURRENT_PINS[tool]
-    configs = sorted(
+def fastest_configs(tool, states):
+    """The active, current configurations of a tool, in site order."""
+    return sorted(
         (
             c
             for (c, t), s in states.items()
@@ -2545,29 +2650,54 @@ def render_dot_plot(tool, histories, states):
         ),
         key=site_order,
     )
+
+
+def fastest_runs(tool, vignette, histories, configs):
+    """[(config, seconds, timestamp)]: each configuration's latest run of
+    `vignette` at the version the suite tests by default, from one revision
+    of the vignette's code (the newest known; uncertain ones never take
+    part), so machines that ran different code are not set side by side.
+    seconds is the median over that run's repeats (records sharing its
+    run_id), so one disturbed repeat does not stand for the run."""
+    pin = CURRENT_PINS[tool]
+    runs = []
+    for c in configs:
+        hist = histories[(c, tool)].get(vignette)
+        if not hist:
+            continue
+        ts, rec = latest_at(hist, pin)
+        if not (
+            drift.tool_version(rec) == pin
+            and run_ok(rec)
+            and is_number(rec.get("execution_time"))
+        ):
+            continue
+        run_id = rec.get("run_id")
+        repeats = [
+            float(r["execution_time"])
+            for _, r in hist
+            if run_id
+            and r.get("run_id") == run_id
+            and drift.tool_version(r) == pin
+            and r.get("_rev", 0) == rec.get("_rev", 0)
+            and run_ok(r)
+            and is_number(r.get("execution_time"))
+        ] or [float(rec["execution_time"])]
+        runs.append((c, statistics.median(repeats), ts, rec.get("_rev", 0)))
+    known = [r for _, _, _, r in runs if r >= 0]
+    rev = max(known) if known else None
+    return [(c, t, ts) for c, t, ts, r in runs if r == rev]
+
+
+def render_dot_plot(tool, histories, states):
+    pin = CURRENT_PINS[tool]
+    configs = fastest_configs(tool, states)
     vignettes = sorted(
         {v for c in configs for v in histories[(c, tool)]}, key=vignette_number
     )
     rows, table = [], []
     for v in vignettes:
-        dots = []
-        for c in configs:
-            hist = histories[(c, tool)].get(v)
-            if not hist:
-                continue
-            rec = latest_at(hist, pin)[1]
-            if (
-                drift.tool_version(rec) == pin
-                and run_ok(rec)
-                and is_number(rec.get("execution_time"))
-            ):
-                dots.append((c, float(rec["execution_time"]), rec.get("_rev", 0)))
-        # One revision per vignette: machines that ran different code are
-        # not set side by side. The newest known revision wins; uncertain
-        # ones (negative) never take part.
-        known = [r for _, _, r in dots if r >= 0]
-        rev = max(known) if known else None
-        dots = [(c, t) for c, t, r in dots if r == rev]
+        dots = [(c, t) for c, t, _ in fastest_runs(tool, v, histories, configs)]
         table.extend((v, c, t) for c, t in dots)
         rows.append((v, dots))
     svg = svg_dot_plot(tool, rows)
