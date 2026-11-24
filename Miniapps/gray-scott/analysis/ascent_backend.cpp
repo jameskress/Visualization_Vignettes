@@ -6,9 +6,22 @@
 #include <numeric>
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 namespace
 {
+    // Stops the whole job at once, as the Catalyst backend does: throwing
+    // would unwind through the ADIOS2 reader, whose Close() can wait for the
+    // other ranks before main's MPI_Abort is reached.
+    [[noreturn]] void AbortOnAscentError(const std::string &what)
+    {
+        int rank = 0;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        std::cerr << "[analysis-reader rank " << rank << "] Fatal error: " << what << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
+        std::abort(); // MPI_Abort does not return; this keeps [[noreturn]] honest
+    }
+
     // Builds the domain in place in multi_mesh: u, v and the ghosts are
     // external (no copy), so the buffers must stay valid through
     // publish() and execute().
@@ -103,22 +116,23 @@ AscentBackend::AscentBackend(const BackendOptions &opts)
     {
         std::string error;
         const conduit::Node loaded = gs_ascent::LoadActionsFile(error);
-        int rank = 0;
-        MPI_Comm_rank(m_reader.GetComm(), &rank);
-        if (!error.empty() && rank == 0)
-            std::cerr << "analysis-reader: Ascent: " << error << std::endl;
+        // Every rank reads the same files, so every rank stops here alike.
+        // Overwrite needs the actions read exactly as Ascent would read them.
+        if (!error.empty())
+            AbortOnAscentError("overwrite_last_step: " + error);
         std::vector<std::string> unsupported;
         gs_ascent::SplitRelayExtracts(loaded, true, m_actions, m_relay_extracts, unsupported);
-        // Every rank reads the same files, so every rank stops here alike.
         if (!unsupported.empty())
-            throw std::runtime_error("overwrite_last_step: " + unsupported.front() +
-                                     " is not supported (relay extracts with path and protocol only)");
+            AbortOnAscentError("overwrite_last_step: " + unsupported.front() +
+                               " is not supported (relay extracts with path and protocol only)");
         // Ascent 0.9.6 replaces the actions passed to execute() with its
-        // actions file whenever that file exists, so actions left beside the
-        // relay extracts would bring the extracts back, written every step.
-        if (!m_relay_extracts.empty() && m_actions.number_of_children() > 0)
-            throw std::runtime_error("overwrite_last_step needs an Ascent actions file with relay extracts only: "
-                                     "Ascent reloads the file on every execute, extracts included");
+        // actions file whenever that file exists, so any action besides the
+        // relay extracts would run as the file has it, every step: with
+        // relay extracts, those would be written again; without, the run
+        // would report overwrite while overwriting nothing.
+        if (m_actions.number_of_children() > 0)
+            AbortOnAscentError("overwrite_last_step needs an Ascent actions file with relay extracts only: "
+                               "Ascent reloads the file on every execute");
     }
 }
 
@@ -162,11 +176,7 @@ void AscentBackend::Run()
             m_ascent.execute(conduit::Node()); // Ascent runs its actions file
         else
         {
-            // No relay extracts: the actions run as they are (Ascent loads its
-            // actions file in execute()). With relay extracts there are no
-            // other actions (constructor), so Ascent is not executed.
-            if (m_relay_extracts.empty())
-                m_ascent.execute(conduit::Node());
+            // Relay extracts only (constructor): Ascent is not executed.
             for (const auto &rx : m_relay_extracts)
             {
                 const std::string error =
@@ -174,7 +184,7 @@ void AscentBackend::Run()
                 // A failed save would leave the last output missing or partly
                 // replaced: stop the run, as a failed Ascent execute does.
                 if (!error.empty())
-                    throw std::runtime_error("Ascent overwrite save of '" + rx.first + "' failed: " + error);
+                    AbortOnAscentError("Ascent overwrite save of '" + rx.first + "' failed: " + error);
             }
         }
         m_perf_logger.setCounter("minflt_vis", ProcessMinorFaults() - faults);

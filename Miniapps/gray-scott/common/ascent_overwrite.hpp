@@ -32,6 +32,22 @@ inline std::string SettingsFileProtocol(const std::string &file)
                                                                                                         : "json";
 }
 
+// True when node or any node below it has a child named "include": Ascent
+// expands those from other files, which this split does not read.
+inline bool HasInclude(const conduit::Node &node)
+{
+    if (!node.dtype().is_object() && !node.dtype().is_list())
+        return false;
+    conduit::NodeConstIterator itr = node.children();
+    while (itr.has_next())
+    {
+        const conduit::Node &child = itr.next();
+        if ((node.dtype().is_object() && itr.name() == "include") || HasInclude(child))
+            return true;
+    }
+    return false;
+}
+
 // Loads the actions file Ascent 0.9.6 would load, by its rules: the options
 // file is ascent_options.json, or ascent_options.yaml when there is no JSON
 // one, and names the actions file (actions_file); without one, Ascent takes
@@ -51,6 +67,10 @@ inline conduit::Node LoadActionsFile(std::string &error)
         {
             conduit::Node options;
             conduit::relay::io::load(options_file, SettingsFileProtocol(options_file), options);
+            // Ascent expands includes in the options file; one could name
+            // another actions file than the one read here.
+            if (HasInclude(options))
+                error = options_file + " uses include, which is not read here";
             if (options.has_path("actions_file"))
                 actions_file = options["actions_file"].as_string();
         }
@@ -78,22 +98,6 @@ inline conduit::Node LoadActionsFile(std::string &error)
 // left with no extract is dropped. Relay parameters the cycle-0 save does not
 // honour (anything but path and protocol, e.g. fields), and include nodes,
 // are listed in unsupported.
-// True when node or any node below it has a child named "include": Ascent
-// expands those from other files, which this split does not read.
-inline bool HasInclude(const conduit::Node &node)
-{
-    if (!node.dtype().is_object() && !node.dtype().is_list())
-        return false;
-    conduit::NodeConstIterator itr = node.children();
-    while (itr.has_next())
-    {
-        const conduit::Node &child = itr.next();
-        if ((node.dtype().is_object() && itr.name() == "include") || HasInclude(child))
-            return true;
-    }
-    return false;
-}
-
 inline void SplitRelayExtracts(const conduit::Node &loaded, bool overwrite, conduit::Node &actions,
                                std::vector<RelayExtract> &relay, std::vector<std::string> &unsupported)
 {
@@ -155,7 +159,7 @@ inline void SplitRelayExtracts(const conduit::Node &loaded, bool overwrite, cond
 // Saves mesh (one domain, or a list of domains) under base_path as cycle 0,
 // so every save writes the same files, in the relay extract's protocol
 // (blueprint/mesh/hdf5, the default, or hdf5, yaml, json, with or without
-// the blueprint/mesh/ prefix). The mesh's state/cycle is restored afterwards
+// the blueprint/mesh/ prefix; bare blueprint is HDF5). The mesh's state/cycle is restored afterwards
 // (each domain's, for a list). Returns an error message, empty on success.
 inline std::string SaveMeshAsCycleZero(conduit::Node &mesh, const std::string &base_path, const std::string &protocol,
                                        MPI_Comm comm)
@@ -164,7 +168,8 @@ inline std::string SaveMeshAsCycleZero(conduit::Node &mesh, const std::string &b
     const std::string prefix = "blueprint/mesh/";
     if (file_protocol.compare(0, prefix.size(), prefix) == 0)
         file_protocol = file_protocol.substr(prefix.size());
-    if (file_protocol.empty())
+    // An empty protocol and bare "blueprint" are HDF5, as before.
+    if (file_protocol.empty() || file_protocol == "blueprint")
         file_protocol = "hdf5";
     if (file_protocol != "hdf5" && file_protocol != "yaml" && file_protocol != "json")
         return "unsupported relay protocol '" + protocol + "'";
