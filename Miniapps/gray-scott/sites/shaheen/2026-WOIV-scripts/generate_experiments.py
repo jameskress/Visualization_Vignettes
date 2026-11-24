@@ -1173,6 +1173,25 @@ cp "$0" "{results_dir}/{id}_job.sbat" || exit 1
 # disk, since the job submitted the reduction as its last step (a 3072-node
 # ADIOS2 data run lost a node and left 3 TB, 24 Nov 2026). If this cannot be
 # submitted, the end of the job tries again.
+# This run directory is now this job's (run_job.txt): a reduction still queued
+# for an earlier, killed job of this run finds another job here and does
+# nothing (REDUCE_TEMPLATE). One already running holds reduce.lock; wait for
+# it, so its data cleanup cannot delete this run's output. A lock whose job
+# has left the queue was left by a killed reduction and is ignored.
+echo "$SLURM_JOB_ID" > $OUTPUT_DIR/run_job.txt || exit 1
+for i in $(seq 121); do
+    [ -d $OUTPUT_DIR/reduce.lock ] || break
+    LOCK_JOB=$(cat $OUTPUT_DIR/reduce.lock/job 2>/dev/null)
+    # The lock directory is made just before its job file is written.
+    [ -n "$LOCK_JOB" ] || {{ sleep 5; LOCK_JOB=$(cat $OUTPUT_DIR/reduce.lock/job 2>/dev/null); }}
+    if [ -z "$LOCK_JOB" ] || [ -z "$(squeue -h -j "$LOCK_JOB" -o %i 2>/dev/null)" ]; then break; fi
+    if [ "$i" -eq 121 ]; then
+        echo "Reduction job $LOCK_JOB of an earlier run still holds $OUTPUT_DIR/reduce.lock after an hour; not running."
+        exit 1
+    fi
+    echo "Waiting for reduction job $LOCK_JOB of an earlier run to finish ($i)"
+    sleep 30
+done
 REDUCE_JOB=""
 for attempt in 1 2 3; do
     if REDUCE_JOB=$(sbatch --parsable --dependency=afterany:$SLURM_JOB_ID --export=ALL,RUN_JOB_ID=$SLURM_JOB_ID {output_dir}/reduce.sbat); then
@@ -1353,6 +1372,14 @@ if ! mkdir $LOCK 2>/dev/null; then
 fi
 echo "$SLURM_JOB_ID" > $LOCK/job
 trap 'rm -rf $LOCK' EXIT
+# A later job of this run owns the directory (run_job.txt, written when a run
+# starts): this reduction was queued for an earlier job that was killed, and
+# its data cleanup would delete the later run's output. Do nothing.
+OWNER_RUN=$(cat $OUTPUT_DIR/run_job.txt 2>/dev/null)
+if [ -n "${{RUN_JOB_ID:-}}" ] && [ -n "$OWNER_RUN" ] && [ "$OWNER_RUN" != "$RUN_JOB_ID" ]; then
+    echo "Job $OWNER_RUN, a later run, owns $OUTPUT_DIR; this reduction (for job $RUN_JOB_ID) does nothing."
+    exit 0
+fi
 {data_cleanup}
 # Archive a directory atomically: write the archive under a temporary name,
 # rename it, then remove the directory.

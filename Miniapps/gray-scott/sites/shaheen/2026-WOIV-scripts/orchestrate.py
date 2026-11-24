@@ -266,6 +266,22 @@ def main():
         if args.clean:
             if os.path.exists(result_path):
                 print(f"  [CLEAN] Cleaning artifacts in: {result_path}")
+                # A reduction still queued or running for an earlier job of this
+                # run would delete the next run's output: cancel it first.
+                if not args.dry_run:
+                    try:
+                        subprocess.run(
+                            [
+                                "scancel",
+                                "--user",
+                                os.environ.get("USER", ""),
+                                "--name",
+                                f"reduce_{basename}",
+                            ],
+                            check=False,
+                        )
+                    except FileNotFoundError:
+                        pass
 
                 dirs_to_remove = [
                     "data",

@@ -503,7 +503,13 @@ stayed on disk: a 3072-node ADIOS2 data run lost a node 12 minutes in and
 left 3 TB. Now the reduction, and with it the data cleanup below, runs for
 those too; its summary of a killed run is partial, and the run's Slurm log
 (no `Run exit status` line) still marks it as failed. If the early
-submission fails, the job tries again at its end. The reduction job writes
+submission fails, the job tries again at its end. A run that is resubmitted
+before an earlier, killed job's reduction has run must not lose its output
+to that reduction's cleanup: each run job writes its ID to
+`<run>/run_job.txt` when it starts, and a reduction for any other job finds
+that and does nothing; a reduction already running holds `reduce.lock`, and
+the new run waits for it (at most an hour). `orchestrate.py --clean` also
+cancels the run's queued reductions. The reduction job writes
 `reduce-<jobid>.out` and produces:
 
 * `<results>/<id>_writer.csv`, from the newest run directory under `perf/`,
