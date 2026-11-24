@@ -1214,16 +1214,26 @@ if [ -d $OUTPUT_DIR/data ]; then DATA_TARGETS+=("$OUTPUT_DIR/data"); fi
 SCOPE='"scope": "data+ascent"'
 if [ ${{#DATA_TARGETS[@]}} -gt 0 ]; then
     RECORDED=0
-    if [ -n "${{RUN_JOB_ID:-}}" ] && grep -q "\\"job\\": \\"${{RUN_JOB_ID}}\\"" "$DATA_RECORD" 2>/dev/null; then
-        if grep -q "$SCOPE" "$DATA_RECORD" || [ ${{#ASCENT_TARGETS[@]}} -eq 0 ]; then
+    # An existing record is read first; one that cannot be read, or that
+    # cannot be matched to a job (RUN_JOB_ID unset), is never replaced, and
+    # the output is kept.
+    REC=""
+    REC_OK=1
+    if [ -e "$DATA_RECORD" ]; then
+        REC=$(cat "$DATA_RECORD") || REC_OK=0
+    fi
+    if [ "$REC_OK" = 0 ]; then
+        echo "Cannot read $DATA_RECORD; keeping it and the run's output."
+    elif [ -e "$DATA_RECORD" ] && [ -z "${{RUN_JOB_ID:-}}" ]; then
+        echo "$DATA_RECORD exists and RUN_JOB_ID is unset; keeping it and the run's output."
+        echo "Resubmit with: sbatch --export=ALL,RUN_JOB_ID=<run job> $OUTPUT_DIR/reduce.sbat"
+    elif [ -n "${{RUN_JOB_ID:-}}" ] && printf '%s' "$REC" | grep -q "\\"job\\": \\"${{RUN_JOB_ID}}\\""; then
+        if printf '%s' "$REC" | grep -q "$SCOPE" || [ ${{#ASCENT_TARGETS[@]}} -eq 0 ]; then
             echo "Output of job $RUN_JOB_ID already recorded; finishing its deletion."
             RECORDED=1
         else
             # Recorded before Ascent's output was counted: add it now.
             echo "Adding Ascent's output to job $RUN_JOB_ID's record..."
-            # Read the record on its own, so a failed read keeps both the
-            # record and the output.
-            REC=$(cat "$DATA_RECORD") || REC=""
             if printf '%s' "$REC" | grep -q '"files": [0-9]*.*"bytes": [0-9]' \\
                 && find "${{ASCENT_TARGETS[@]}}" -type f -printf '%s\\n' > $OUTPUT_DIR/data_sizes.txt \\
                 && awk -v rec="$REC" '{{n++; b+=$1}} END {{
