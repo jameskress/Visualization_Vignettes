@@ -612,6 +612,21 @@ def pm_energy(before, after):
     used = {key: after[key] - before[key] for key in PM_COUNTER_FILES}
     if any(value < 0 for value in used.values()):
         return None
+    # The node counter unchanged: it was not updated during the run (seen on
+    # Shaheen for a 1.8 s vignette, every counter at zero), not a run that
+    # used nothing. Without the node figure the parts mean nothing either.
+    if not used["node_joules"]:
+        return None
+    # The CPU and memory counters are parts of the node's. A part larger
+    # than the whole is a bad read of that part (Shaheen, 23 and 24 Nov
+    # 2026: CPU 6 and 35 times the node); keep the node figure, drop the
+    # split.
+    # The counters are read one after another, so on a short run the parts
+    # may run a little past the node: 2% or 5 J is allowed for that.
+    parts = used["cpu_joules"] + used["memory_joules"]
+    if parts > used["node_joules"] * 1.02 + 5:
+        used["cpu_joules"] = None
+        used["memory_joules"] = None
     return used
 
 

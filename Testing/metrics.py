@@ -164,8 +164,13 @@ def _local_tree_detail(run_result):
     energy = run_result.get("pm_energy")
     if energy and energy.get("node_joules") is not None:
         detail["energy_joules"] = float(energy["node_joules"])
-        detail["energy_cpu_joules"] = float(energy.get("cpu_joules") or 0.0)
-        detail["energy_memory_joules"] = float(energy.get("memory_joules") or 0.0)
+        # A split pm_energy rejected (None) stays out rather than reading 0.
+        for key, field in (
+            ("cpu_joules", "energy_cpu_joules"),
+            ("memory_joules", "energy_memory_joules"),
+        ):
+            if energy.get(key) is not None:
+                detail[field] = float(energy[key])
         detail["energy_scope"] = ENERGY_PM_SCOPE
     return detail
 
