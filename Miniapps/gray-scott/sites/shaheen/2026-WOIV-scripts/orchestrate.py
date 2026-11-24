@@ -1,4 +1,5 @@
 import os
+import getpass
 import argparse
 import subprocess
 import glob
@@ -274,7 +275,7 @@ def main():
                             [
                                 "scancel",
                                 "--user",
-                                os.environ.get("USER", ""),
+                                getpass.getuser(),
                                 "--name",
                                 f"reduce_{basename}",
                             ],

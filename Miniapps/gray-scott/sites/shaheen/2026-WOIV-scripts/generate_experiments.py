@@ -1167,12 +1167,6 @@ mkdir -p "{results_dir}" || exit 1
 cp "$0" "{results_dir}/{id}_job.sbat" || exit 1
 # pipefail in a subshell, so a failure anywhere in the pipeline stops the job.
 (set -o pipefail; env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_|GALLIUM_|LP_)' | sort) > "{results_dir}/{id}_env.txt" || exit 1
-# Submit the reduction now, held until this job ends however it ends
-# (afterany), so the run's output is recorded and deleted even when the job
-# is killed: a node failure, the time limit or a cancel used to leave it on
-# disk, since the job submitted the reduction as its last step (a 3072-node
-# ADIOS2 data run lost a node and left 3 TB, 24 Nov 2026). If this cannot be
-# submitted, the end of the job tries again.
 # This run directory is now this job's (run_job.txt): a reduction still queued
 # for an earlier, killed job of this run finds another job here and does
 # nothing (REDUCE_TEMPLATE). One already running holds reduce.lock; wait for
@@ -1192,6 +1186,12 @@ for i in $(seq 121); do
     echo "Waiting for reduction job $LOCK_JOB of an earlier run to finish ($i)"
     sleep 30
 done
+# Submit the reduction now, held until this job ends however it ends
+# (afterany), so the run's output is recorded and deleted even when the job
+# is killed: a node failure, the time limit or a cancel used to leave it on
+# disk, since the job submitted the reduction as its last step (a 3072-node
+# ADIOS2 data run lost a node and left 3 TB, 24 Nov 2026). If this cannot be
+# submitted, the end of the job tries again.
 REDUCE_JOB=""
 for attempt in 1 2 3; do
     if REDUCE_JOB=$(sbatch --parsable --dependency=afterany:$SLURM_JOB_ID --export=ALL,RUN_JOB_ID=$SLURM_JOB_ID {output_dir}/reduce.sbat); then
