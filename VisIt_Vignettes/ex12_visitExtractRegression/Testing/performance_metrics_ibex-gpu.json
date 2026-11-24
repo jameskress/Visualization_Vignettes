@@ -313,5 +313,353 @@
             ]
         },
         "run_id": "ibex-gpu-backfill-visit-3.4.2-2026-11-17"
+    },
+    "2026-11-24T06:24:49.889886": {
+        "test_name": "ex12_visitExtractRegression",
+        "metrics_schema": 8,
+        "execution_time": 5.208227735519409,
+        "memory_measurement_scope": "srun-step-pss-single-node",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 25.151999999999997,
+        "cpu_usage_percent": 482.9281912629657,
+        "cpu_user_seconds": 11.776,
+        "cpu_system_seconds": 13.376,
+        "memory_max_task_mb": 122.31640625,
+        "disk_read_mb": 156.6004285812378,
+        "disk_write_mb": 0.3570594787597656,
+        "slurm_steps": [
+            "56249102.11"
+        ],
+        "slurm_memory_mb": 1003.732421875,
+        "slurm_memory_scope": "slurm-steps-plus-local-tree",
+        "slurm_step_memory_mb": 782.609375,
+        "memory_usage_mb": 821.77734375,
+        "memory_usage": 861696000.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.134472,
+        "load_1m_at_start": 7.63,
+        "load_1m_at_end": 7.82,
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "energy_j": 303.9,
+                "index": 0,
+                "memory_peak_mib": 1.0,
+                "power_mean_w": 59.2,
+                "power_peak_w": 59.44,
+                "samples": 6,
+                "util_mean_pct": 0.0,
+                "util_peak_pct": 0.0
+            }
+        ],
+        "step_hwm_processes": 20,
+        "step_hwm_steps": 1,
+        "step_hwm_samples": 52,
+        "step_hwm_mean_sample_s": 0.00804,
+        "step_pss_samples": 43,
+        "step_pss_steps": 1,
+        "step_pss_mean_sample_s": 0.00646,
+        "srun_steps_expected": 1,
+        "step_pss_peak_mb": 821.77734375,
+        "step_hwm_mb": 1317.17578125,
+        "tool_tree_pss_peak_mb": 1042.900390625,
+        "gpu_memory_peak_mib": 1.0,
+        "gpu_power_peak_w": 59.44,
+        "gpu_energy_joules": 303.9,
+        "harness_rss_mb": 225.3203125,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 3
+            },
+            "numeric": "PASS",
+            "csv": "PASS",
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "e6351a500560"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 3
+            }
+        },
+        "repo": {
+            "commit": "26c4f61797a0",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 1,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu202-09-r",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 64,
+            "cpu_model": "AMD EPYC 7713P 64-Core Processor",
+            "memory_total_gb": 503.7,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "smt_active": false,
+            "numa_nodes": 4,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0xa0011d5",
+            "kernel_cmdline_digest": "00997369cc47",
+            "gpus": [
+                {
+                    "name": "NVIDIA A100-SXM4-80GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-gpu-2026-11-24"
+    },
+    "2026-11-24T06:30:41.424824": {
+        "test_name": "ex12_visitExtractRegression",
+        "metrics_schema": 8,
+        "execution_time": 7.946187213897705,
+        "memory_measurement_scope": "srun-step-pss-single-node",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 31.444,
+        "cpu_usage_percent": 395.71179426788666,
+        "cpu_user_seconds": 16.364,
+        "cpu_system_seconds": 15.079,
+        "memory_max_task_mb": 126.7578125,
+        "disk_read_mb": 155.27484226226807,
+        "disk_write_mb": 0.15568065643310547,
+        "slurm_steps": [
+            "56249102.23"
+        ],
+        "slurm_memory_mb": 1007.2783203125,
+        "slurm_memory_scope": "slurm-steps-plus-local-tree",
+        "slurm_step_memory_mb": 786.15234375,
+        "memory_usage_mb": 817.544921875,
+        "memory_usage": 857257984.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 7.832068,
+        "load_1m_at_start": 8.0,
+        "load_1m_at_end": 8.02,
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "energy_j": 472.0,
+                "index": 0,
+                "memory_peak_mib": 1.0,
+                "power_mean_w": 60.3,
+                "power_peak_w": 68.16,
+                "samples": 8,
+                "util_mean_pct": 0.0,
+                "util_peak_pct": 0.0
+            }
+        ],
+        "step_hwm_processes": 21,
+        "step_hwm_steps": 1,
+        "step_hwm_samples": 79,
+        "step_hwm_mean_sample_s": 0.00782,
+        "step_pss_samples": 69,
+        "step_pss_steps": 1,
+        "step_pss_mean_sample_s": 0.0058,
+        "srun_steps_expected": 1,
+        "step_pss_peak_mb": 817.544921875,
+        "step_hwm_mb": 1315.8671875,
+        "tool_tree_pss_peak_mb": 1038.6708984375,
+        "gpu_memory_peak_mib": 1.0,
+        "gpu_power_peak_w": 68.16,
+        "gpu_energy_joules": 472.0,
+        "harness_rss_mb": 219.421875,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 3
+            },
+            "numeric": "PASS",
+            "csv": "PASS",
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "e6351a500560"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 3
+            }
+        },
+        "repo": {
+            "commit": "26c4f61797a0",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 2,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu202-09-r",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 64,
+            "cpu_model": "AMD EPYC 7713P 64-Core Processor",
+            "memory_total_gb": 503.7,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "smt_active": false,
+            "numa_nodes": 4,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0xa0011d5",
+            "kernel_cmdline_digest": "00997369cc47",
+            "gpus": [
+                {
+                    "name": "NVIDIA A100-SXM4-80GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-gpu-2026-11-24"
+    },
+    "2026-11-24T06:36:29.549778": {
+        "test_name": "ex12_visitExtractRegression",
+        "metrics_schema": 8,
+        "execution_time": 5.132635000228881,
+        "memory_measurement_scope": "srun-step-pss-single-node",
+        "cpu_measurement_scope": "slurm-steps-plus-local-tree",
+        "cpu_seconds": 25.379,
+        "cpu_usage_percent": 494.46337015720513,
+        "cpu_user_seconds": 11.953000000000001,
+        "cpu_system_seconds": 13.424999999999999,
+        "memory_max_task_mb": 125.3515625,
+        "disk_read_mb": 156.6004285812378,
+        "disk_write_mb": 0.3570594787597656,
+        "slurm_steps": [
+            "56249102.35"
+        ],
+        "slurm_memory_mb": 1001.8037109375,
+        "slurm_memory_scope": "slurm-steps-plus-local-tree",
+        "slurm_step_memory_mb": 780.3984375,
+        "memory_usage_mb": 813.2744140625,
+        "memory_usage": 852780032.0,
+        "returncode": 0,
+        "timed_out": false,
+        "run_succeeded": true,
+        "subprocess_time": 5.059531,
+        "load_1m_at_start": 8.65,
+        "load_1m_at_end": 8.76,
+        "job_owns_its_nodes": false,
+        "gpu_telemetry": [
+            {
+                "energy_j": 299.0,
+                "index": 0,
+                "memory_peak_mib": 1.0,
+                "power_mean_w": 59.2,
+                "power_peak_w": 59.17,
+                "samples": 6,
+                "util_mean_pct": 0.0,
+                "util_peak_pct": 0.0
+            }
+        ],
+        "step_hwm_processes": 20,
+        "step_hwm_steps": 1,
+        "step_hwm_samples": 51,
+        "step_hwm_mean_sample_s": 0.00857,
+        "step_pss_samples": 40,
+        "step_pss_steps": 1,
+        "step_pss_mean_sample_s": 0.0077,
+        "srun_steps_expected": 1,
+        "step_pss_peak_mb": 813.2744140625,
+        "step_hwm_mb": 1314.2578125,
+        "tool_tree_pss_peak_mb": 1034.6796875,
+        "gpu_memory_peak_mib": 1.0,
+        "gpu_power_peak_w": 59.17,
+        "gpu_energy_joules": 299.0,
+        "harness_rss_mb": 204.83984375,
+        "verdicts": {
+            "run": true,
+            "image": "PASS",
+            "image_statuses": {
+                "SAME": 3
+            },
+            "numeric": "PASS",
+            "csv": "PASS",
+            "text": null,
+            "passed": true
+        },
+        "build": {
+            "tool": "visit",
+            "version": "3.5.0",
+            "launcher": "visit",
+            "ranks": 8,
+            "id": "e6351a500560"
+        },
+        "baseline": {
+            "ref": null,
+            "commit": "a4fdc7c",
+            "image_sources": {
+                "shared": 3
+            }
+        },
+        "repo": {
+            "commit": "26c4f61797a0",
+            "dirty": false
+        },
+        "repeat": {
+            "index": 3,
+            "of": 3
+        },
+        "machine_info": {
+            "system": "Linux",
+            "node": "gpu202-09-r",
+            "release": "5.14.0-427.20.1.el9_4.0.1.x86_64",
+            "version": "#1 SMP PREEMPT_DYNAMIC Tue Jun 18 17:27:46 UTC 2024",
+            "machine": "x86_64",
+            "processor": "x86_64",
+            "paraview_version": null,
+            "visit_version": "3.5.0",
+            "logical_cpus": 64,
+            "cpu_model": "AMD EPYC 7713P 64-Core Processor",
+            "memory_total_gb": 503.7,
+            "os_release": "Rocky Linux 9.4 (Blue Onyx)",
+            "smt_active": false,
+            "numa_nodes": 4,
+            "thp": "always",
+            "hugepages_2m": 1412,
+            "cpu_microcode": "0xa0011d5",
+            "kernel_cmdline_digest": "00997369cc47",
+            "gpus": [
+                {
+                    "name": "NVIDIA A100-SXM4-80GB",
+                    "driver": "570.86.15"
+                }
+            ]
+        },
+        "run_id": "ibex-gpu-2026-11-24"
     }
 }
