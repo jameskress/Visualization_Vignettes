@@ -1008,6 +1008,9 @@ SBATCH_TEMPLATE = """#!/bin/bash
 #SBATCH --time={time_limit}
 {hint_line}
 #SBATCH --exclusive
+# Never requeued: its reduction is already queued (afterany, below) and would
+# delete the output of the requeued run. Shaheen sets JobRequeue=0 anyway.
+#SBATCH --no-requeue
 #SBATCH --output={output_dir}/slurm-%j.out
 #SBATCH --error={output_dir}/slurm-%j.err
 
