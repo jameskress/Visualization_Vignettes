@@ -1008,6 +1008,9 @@ SBATCH_TEMPLATE = """#!/bin/bash
 #SBATCH --time={time_limit}
 {hint_line}
 #SBATCH --exclusive
+# Never requeued: its reduction is already queued (afterany, below) and would
+# delete the output of the requeued run. Shaheen sets JobRequeue=0 anyway.
+#SBATCH --no-requeue
 #SBATCH --output={output_dir}/slurm-%j.out
 #SBATCH --error={output_dir}/slurm-%j.err
 
@@ -1164,6 +1167,42 @@ mkdir -p "{results_dir}" || exit 1
 cp "$0" "{results_dir}/{id}_job.sbat" || exit 1
 # pipefail in a subshell, so a failure anywhere in the pipeline stops the job.
 (set -o pipefail; env | grep -E '^(MALLOC_|FI_|CM_|MPICH_|Sst_|ADIOS2_|GALLIUM_|LP_)' | sort) > "{results_dir}/{id}_env.txt" || exit 1
+# This run directory is now this job's (run_job.txt): a reduction still queued
+# for an earlier, killed job of this run finds another job here and does
+# nothing (REDUCE_TEMPLATE). One already running holds reduce.lock; wait for
+# it, so its data cleanup cannot delete this run's output. A lock whose job
+# has left the queue was left by a killed reduction and is ignored.
+echo "$SLURM_JOB_ID" > $OUTPUT_DIR/run_job.txt || exit 1
+for i in $(seq 121); do
+    [ -d $OUTPUT_DIR/reduce.lock ] || break
+    LOCK_JOB=$(cat $OUTPUT_DIR/reduce.lock/job 2>/dev/null)
+    # The lock directory is made just before its job file is written.
+    [ -n "$LOCK_JOB" ] || {{ sleep 5; LOCK_JOB=$(cat $OUTPUT_DIR/reduce.lock/job 2>/dev/null); }}
+    if [ -z "$LOCK_JOB" ] || [ -z "$(squeue -h -j "$LOCK_JOB" -o %i 2>/dev/null)" ]; then break; fi
+    if [ "$i" -eq 121 ]; then
+        echo "Reduction job $LOCK_JOB of an earlier run still holds $OUTPUT_DIR/reduce.lock after an hour; not running."
+        exit 1
+    fi
+    echo "Waiting for reduction job $LOCK_JOB of an earlier run to finish ($i)"
+    sleep 30
+done
+# Submit the reduction now, held until this job ends however it ends
+# (afterany), so the run's output is recorded and deleted even when the job
+# is killed: a node failure, the time limit or a cancel used to leave it on
+# disk, since the job submitted the reduction as its last step (a 3072-node
+# ADIOS2 data run lost a node and left 3 TB, 24 Nov 2026). If this cannot be
+# submitted, the end of the job tries again.
+REDUCE_JOB=""
+for attempt in 1 2 3; do
+    if REDUCE_JOB=$(sbatch --parsable --dependency=afterany:$SLURM_JOB_ID --export=ALL,RUN_JOB_ID=$SLURM_JOB_ID {output_dir}/reduce.sbat); then
+        REDUCE_JOB=${{REDUCE_JOB%%;*}}
+        echo "Reduction job $REDUCE_JOB submitted; it starts when this job ends."
+        break
+    fi
+    REDUCE_JOB=""
+    echo "Early sbatch of the reduction job failed (attempt $attempt of 3)"
+    if [ "$attempt" -lt 3 ]; then sleep 10; fi
+done
 {stage_setup}{telemetry_start}echo "PHASE run_start $(date +%s.%N)"
 
 {command}
@@ -1176,7 +1215,12 @@ echo "PHASE run_end $(date +%s.%N)"
 # =============================================================================
 # Reducing tens of thousands of per-rank timing files took minutes (once over
 # half an hour) while every node of this job sat idle. Submit the reduction
-# as a one-node job and end this one, so its nodes are released now.
+# as a one-node job and end this one, so its nodes are released now. It was
+# submitted before the run (above) and starts once this job ends; only if
+# that failed is it submitted here.
+if [ -n "$REDUCE_JOB" ]; then
+    echo "Run complete. Reduction job $REDUCE_JOB starts when this job ends."
+else
 echo "Run complete. Submitting the reduction job ({output_dir}/reduce.sbat)..."
 # Retry a transient controller error or submit limit; if it still fails,
 # print a marker that can be grepped for, since the job's state stays the run's.
@@ -1191,6 +1235,7 @@ for attempt in 1 2 3; do
         sleep 10
     fi
 done
+fi
 echo "PHASE post_end $(date +%s.%N)"
 # The job's status is the run's.
 exit $RUN_RC
@@ -1327,6 +1372,14 @@ if ! mkdir $LOCK 2>/dev/null; then
 fi
 echo "$SLURM_JOB_ID" > $LOCK/job
 trap 'rm -rf $LOCK' EXIT
+# A later job of this run owns the directory (run_job.txt, written when a run
+# starts): this reduction was queued for an earlier job that was killed, and
+# its data cleanup would delete the later run's output. Do nothing.
+OWNER_RUN=$(cat $OUTPUT_DIR/run_job.txt 2>/dev/null)
+if [ -n "${{RUN_JOB_ID:-}}" ] && [ -n "$OWNER_RUN" ] && [ "$OWNER_RUN" != "$RUN_JOB_ID" ]; then
+    echo "Job $OWNER_RUN, a later run, owns $OUTPUT_DIR; this reduction (for job $RUN_JOB_ID) does nothing."
+    exit 0
+fi
 {data_cleanup}
 # Archive a directory atomically: write the archive under a temporary name,
 # rename it, then remove the directory.

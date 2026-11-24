@@ -57,7 +57,9 @@ def audit_runs(results_dir):
         m = re.search(r"Run exit status: (\d+)", content)
         run_failed = m is not None and m.group(1) != "0"
 
-        if has_writer and has_reader and not run_failed:
+        # Success needs the status line too: a killed job prints none, and its
+        # reduction (held until the job ends) still writes partial CSVs.
+        if has_writer and has_reader and m is not None and m.group(1) == "0":
             success_count += 1
             continue  # Data is there, move on!
 

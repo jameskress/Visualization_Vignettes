@@ -1,0 +1,44 @@
+name: Shaheen generator tests
+
+# Tests for the Shaheen experiment generator and its job and reduction
+# scripts (Miniapps/gray-scott/sites/shaheen/tests). Each pins down a failure
+# the November 2026 Paper 2 sweep hit: output left by killed jobs, a held
+# reduction deleting a later run's output, Ascent output outside data/,
+# overwrite differing between inline and in transit, killed runs counted as
+# successful. They generate every job with stub binaries and stub Slurm
+# commands, need only Python and bash, take a few seconds, and run on a
+# GitHub-hosted runner, so they put no load on the shared self-hosted one.
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'Miniapps/gray-scott/sites/shaheen/**'
+      - '.github/workflows/shaheen-generator-tests.yml'
+  pull_request:
+    branches: [ '**' ]
+    paths:
+      - 'Miniapps/gray-scott/sites/shaheen/**'
+      - '.github/workflows/shaheen-generator-tests.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Shaheen generator tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Run
+        run: python -m unittest -v Miniapps/gray-scott/sites/shaheen/tests/test_generated_scripts.py

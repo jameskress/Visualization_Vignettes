@@ -174,6 +174,40 @@ measurements in `Testing/LOCAL_VALIDATION.md` §4 and §4b.
   disables its own image gate at any other rank count, loudly. Everything else
   is bit-identical at 1 and 8 ranks.
 
+**Runs at scale (Shaheen III, Paper 2 sweep, November 2026)**
+
+The same few mistakes caused most of the sweep's lost days. Each rule below
+is pinned by `Miniapps/gray-scott/sites/shaheen/tests/test_generated_scripts.py`
+where it can be; `sites/shaheen/README.md` has the measurements.
+
+* **Cleanup must not depend on the job finishing.** Anything that frees
+  disk or files has to run when the job is killed (node failure, time
+  limit, cancel), not only at its last line. Until #167 the reduction, which
+  deletes the output, was submitted as the job's last step, and one node
+  failure left 3 TB behind.
+* **Check who owns it before deleting it.** A delayed or repeated cleanup
+  must check that what it deletes belongs to its own job (`run_job.txt`,
+  `RUN_JOB_ID`) before the first `rm`, not after.
+* **Know every place a backend writes.** Ascent writes its data output
+  beside `data/`, not in it, and the cleanup missed about 5 TB (#162).
+  When adding a backend or output, list the paths it writes and test them.
+* **An empty or failed reading is unknown, not zero.** The sweep's feeder
+  read a failed `lfs quota` as a full disk and stopped submitting. Retry, or
+  stop with an error; never let a missing value pick a default that acts.
+* **No status line is not success.** A killed job prints no `Run exit
+  status`; count a run as done only on an explicit 0.
+* **Compare like with like.** A setting that differs between the modes
+  being compared (overwrite on inline but not in transit cost Catalyst +63%
+  per step) is a confound. Before a sweep, diff the generated settings of
+  the modes under comparison.
+* **A run that dies mid-way is often the machine.** Check
+  `sacctmgr show event` for the job's nodes before debugging the code; three
+  failures on 24 Nov 2026 were two faulty boards just returned to service.
+* **Size the quota before the run, from the generated scripts.** Output
+  bytes and file counts per run are known before submission (one file per
+  rank per step for Catalyst and Ascent); 2M files and 30 TiB went faster
+  than expected twice.
+
 ---
 
 ## Conventions
