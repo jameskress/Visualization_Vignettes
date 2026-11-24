@@ -581,10 +581,6 @@ class ExactPeakAsMemory(unittest.TestCase):
         self.assertEqual(drift.scope_of("step_hwm_mb"), None)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class PmEnergyGuard(unittest.TestCase):
     """run_tests.pm_energy: readings that cannot be right are not recorded."""
 
@@ -627,3 +623,7 @@ class PmEnergyGuard(unittest.TestCase):
         )
         self.assertEqual(fields["energy_pm_node_joules"], 5935.0)
         self.assertNotIn("energy_cpu_joules", fields)
+
+
+if __name__ == "__main__":
+    unittest.main()
