@@ -2,13 +2,17 @@
 #SBATCH --account=k01
 #SBATCH --job-name=vv-visit-ppn
 #SBATCH --partition=ppn
+#SBATCH --gres=gpu:1
 #SBATCH --nodes=1
 #SBATCH --ntasks=8
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=200G
 #SBATCH --time=02:00:00
 #SBATCH --output=vv-visit-ppn.%j.out
-# VisIt regression suite on a Shaheen workq node as a batch job (RUNBOOK.md section 6).
+# VisIt regression suite on a Shaheen ppn GPU node as a batch job (RUNBOOK.md section 7).
+# --gres=gpu:1 keeps it off ppn's GPU-less highmem nodes (ppn9-ppn12): the ppn
+# configurations run on the GPU nodes (James, 24 Nov 2026). Before 29 Nov 2026
+# shaheen3-ppn ran on the highmem nodes, so its history changes node kind there.
 #   cd /scratch/$USER/<clone>/Testing && sbatch shaheen_ppn_visit_suite.sbat
 #   TESTS="5 6" sbatch ...                           # a subset (default: all but 11, then 11 under Xvfb)
 #   EXTRA="--run-id shaheen-2026-10 --repeat 3" sbatch ...       # the one recorded run; default is --no-metrics
