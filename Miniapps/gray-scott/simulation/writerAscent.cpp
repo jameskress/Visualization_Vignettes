@@ -45,7 +45,7 @@ void WriterAscent::load_actions()
     gs_ascent::SplitRelayExtracts(loaded, settings.overwrite_last_step, actions, relay_extracts, unsupported);
     if (rank == 0)
         for (const auto &param : unsupported)
-            vtkLog(ERROR, "Ascent: overwrite_last_step ignores relay parameter " << param);
+            vtkLog(ERROR, "Ascent: overwrite_last_step does not support " << param);
 }
 
 void WriterAscent::open(const std::string &fname, bool append, int rank)

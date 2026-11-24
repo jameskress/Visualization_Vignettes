@@ -76,11 +76,30 @@ inline conduit::Node LoadActionsFile(std::string &error)
 // Copies the actions in loaded to actions (a list). With overwrite, relay
 // extracts are left out and listed in relay, and an add_extracts action
 // left with no extract is dropped. Relay parameters the cycle-0 save does not
-// honour (anything but path and protocol, e.g. fields) are listed in
-// unsupported.
+// honour (anything but path and protocol, e.g. fields), and include nodes,
+// are listed in unsupported.
+// True when node or any node below it has a child named "include": Ascent
+// expands those from other files, which this split does not read.
+inline bool HasInclude(const conduit::Node &node)
+{
+    if (!node.dtype().is_object() && !node.dtype().is_list())
+        return false;
+    conduit::NodeConstIterator itr = node.children();
+    while (itr.has_next())
+    {
+        const conduit::Node &child = itr.next();
+        if ((node.dtype().is_object() && itr.name() == "include") || HasInclude(child))
+            return true;
+    }
+    return false;
+}
+
 inline void SplitRelayExtracts(const conduit::Node &loaded, bool overwrite, conduit::Node &actions,
                                std::vector<RelayExtract> &relay, std::vector<std::string> &unsupported)
 {
+    // An included file could define a relay extract the split cannot see.
+    if (overwrite && HasInclude(loaded))
+        unsupported.push_back("include (actions from another file)");
     actions.set(conduit::DataType::list());
     conduit::NodeConstIterator itr = loaded.children();
     while (itr.has_next())
@@ -151,9 +170,10 @@ inline std::string SaveMeshAsCycleZero(conduit::Node &mesh, const std::string &b
         return "unsupported relay protocol '" + protocol + "'";
 
     std::string file_root = base_path;
-    const size_t ext_pos = file_root.find(".hdf5");
-    if (ext_pos != std::string::npos)
-        file_root = file_root.substr(0, ext_pos);
+    // Only a terminal .hdf5, never one inside a directory name.
+    const std::string ext = ".hdf5";
+    if (file_root.size() >= ext.size() && file_root.compare(file_root.size() - ext.size(), ext.size(), ext) == 0)
+        file_root.resize(file_root.size() - ext.size());
 
     // The domains whose cycle is forced: the mesh itself, or each domain.
     std::vector<conduit::Node *> domains;

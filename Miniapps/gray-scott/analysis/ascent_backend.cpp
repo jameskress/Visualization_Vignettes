@@ -111,8 +111,8 @@ AscentBackend::AscentBackend(const BackendOptions &opts)
         gs_ascent::SplitRelayExtracts(loaded, true, m_actions, m_relay_extracts, unsupported);
         // Every rank reads the same files, so every rank stops here alike.
         if (!unsupported.empty())
-            throw std::runtime_error("overwrite_last_step: relay parameter " + unsupported.front() +
-                                     " is not supported (only path and protocol)");
+            throw std::runtime_error("overwrite_last_step: " + unsupported.front() +
+                                     " is not supported (relay extracts with path and protocol only)");
         // Ascent 0.9.6 replaces the actions passed to execute() with its
         // actions file whenever that file exists, so actions left beside the
         // relay extracts would bring the extracts back, written every step.
@@ -171,8 +171,10 @@ void AscentBackend::Run()
             {
                 const std::string error =
                     gs_ascent::SaveMeshAsCycleZero(mesh_blueprint, rx.first, rx.second, m_reader.GetComm());
+                // A failed save would leave the last output missing or partly
+                // replaced: stop the run, as a failed Ascent execute does.
                 if (!error.empty())
-                    std::cerr << "analysis-reader: Ascent overwrite save failed: " << error << std::endl;
+                    throw std::runtime_error("Ascent overwrite save of '" + rx.first + "' failed: " + error);
             }
         }
         m_perf_logger.setCounter("minflt_vis", ProcessMinorFaults() - faults);
