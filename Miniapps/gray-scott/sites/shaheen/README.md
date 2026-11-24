@@ -513,6 +513,11 @@ writes `reduce-<jobid>.out` and produces:
   Catalyst runs; see "Catalyst reader performance");
 * `perf/`, `reader_timers/` and `catalyst_timers/` are then compressed to
   `.tar.gz`, to save inodes.
+* every Paper 2 data run writes every output step, inline and in transit
+  (only Paper 1's inline data runs keep `overwrite_last_step`, as that paper
+  did). Overwriting replaces the previous step's files, which made the
+  Catalyst write 63% slower per step in a 64+4 A/B (Ascent +2.4%, 24 Nov
+  2026), so inline and in transit data runs must not differ in it;
 * for runs whose output is one file per simulation rank (Catalyst and
   Ascent data runs, inline and in transit, and the baselines), the run's
   `data/` is deleted first, after its file count and bytes are written to
@@ -1276,3 +1281,31 @@ files are the same size and differ in 3 bytes (the time value, 2 against
 of the sampled domains match except `state/cycle` (2 against 0); runs of
 one mode differ only in HDF5 file metadata. Runs of one mode wrote
 identical Catalyst files.
+
+## Flash storage (the `bandwidth` pool)
+
+Shaheen III's `/scratch` has a flash pool (`bandwidth`) beside the default
+disk pool (`capacity`); a directory is put on it with `lfs setstripe --pool
+bandwidth`. Each user may keep 1 TiB there. We tested whether it speeds up
+the data runs' writes (24 Nov 2026): inline ADIOS2 data, weak scaling,
+write time per output step (the median of each run's 3 output steps), 3
+runs per pool, made one at a time.
+
+| Simulation | Data per step | `capacity` (default) | `bandwidth` (flash) |
+|---|---|---|---|
+| 8 nodes, 1024^3 | 17 GB | 1.34, 1.44, 1.45 s | 1.74, 1.75, 1.76 s |
+| 64 nodes, 2048^3 | 137 GB | 1.36, 1.38, 1.41 s | 1.77, 1.77, 1.83 s |
+
+**Flash was about 25% slower** (0.35 s more per step), at both sizes, and
+the groups do not overlap. The write time stays flat from 8 to 64 nodes on
+both pools while the data per step grows 8 times, so neither pool's
+bandwidth is the limit at these sizes: the time is per-node work in ADIOS2
+and the Lustre client, and flash adds a fixed cost there. Larger runs could
+not be tested: one 4096^3 step (1.1 TB) is more than the flash quota.
+
+Reading the restart checkpoint from flash was not tested. That read is not
+in the timed loop (2048^3 about 3 s, 4096^3 11 to 48 s, 8192^3 127 to 151 s
+from the default pool), and only the 2048^3 checkpoint fits the quota.
+
+So the sweep writes to the default pool only, and we did not ask KSL for
+flash space.

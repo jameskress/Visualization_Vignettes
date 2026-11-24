@@ -2137,14 +2137,17 @@ def generate_settings_json(exp, output_dir, copied_files, args):
     run_noise_level = 0.00001
     steps = exp["total_steps"]
 
-    # SST must not reopen per step, so the in transit simulation never
-    # overwrites (the reader can: --transit-data-overwrite, below). Paper 2
-    # also writes every inline ADIOS2 step; Paper 1 keeps its overwrite (#71).
-    uses_adios = exp["type"] == "intransit" or (
-        exp["backend"] == "adios" and exp.get("paper") != "paper1"
-    )
+    # Only Paper 1's inline data runs overwrite the last step, as that paper did
+    # (#71). Everything else writes every output step: SST cannot reopen per
+    # step, so the in transit simulation never overwrote (its reader can:
+    # --transit-data-overwrite, below), and Paper 2's inline data runs now
+    # match it. Overwriting replaces the previous step's files, which made the
+    # Catalyst write 63% slower per step in a 64+4 A/B (24 Nov 2026), so mixing
+    # the two would confound inline against in transit (#72).
     overwrite = (
-        False if uses_adios else (True if exp.get("workload") == "data_save" else False)
+        exp.get("paper") == "paper1"
+        and exp["type"] != "intransit"
+        and exp.get("workload") == "data_save"
     )
 
     config = {
