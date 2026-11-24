@@ -1201,14 +1201,22 @@ DATA_CLEANUP = """
 #     written to a temporary file and renamed before anything is deleted; a
 #     retry for the same job keeps the first, complete record.
 DATA_RECORD="{results_dir}/{id}_data_output.json"
-if [ -d $OUTPUT_DIR/data ]; then
+# data/, and Ascent's data output: its relay extract writes
+# ascent_data.cycle_* and their .root files in the run directory itself,
+# outside data/.
+DATA_TARGETS=()
+[ -d $OUTPUT_DIR/data ] && DATA_TARGETS+=("$OUTPUT_DIR/data")
+for f in $OUTPUT_DIR/ascent_data.cycle_*; do
+    [ -e "$f" ] && DATA_TARGETS+=("$f")
+done
+if [ ${{#DATA_TARGETS[@]}} -gt 0 ]; then
     if [ -n "${{RUN_JOB_ID:-}}" ] && grep -q "\\"job\\": \\"${{RUN_JOB_ID}}\\"" "$DATA_RECORD" 2>/dev/null; then
         echo "Output of job $RUN_JOB_ID already recorded; finishing its deletion."
         RECORDED=1
     else
-        echo "Counting the run's output in $OUTPUT_DIR/data..."
+        echo "Counting the run's output: ${{DATA_TARGETS[*]}}..."
         RECORDED=0
-        if find $OUTPUT_DIR/data -type f -printf '%s\\n' > $OUTPUT_DIR/data_sizes.txt \\
+        if find "${{DATA_TARGETS[@]}}" -type f -printf '%s\\n' > $OUTPUT_DIR/data_sizes.txt \\
             && awk -v job="${{RUN_JOB_ID:-}}" -v when="$(date +%FT%T)" \\
                 '{{n++; b+=$1}} END {{printf "{{\\"job\\": \\"%s\\", \\"files\\": %d, \\"bytes\\": %.0f, \\"deleted\\": \\"%s\\"}}\\n", job, n, b, when}}' \\
                 $OUTPUT_DIR/data_sizes.txt > "$DATA_RECORD.tmp" \\
@@ -1216,15 +1224,15 @@ if [ -d $OUTPUT_DIR/data ]; then
             RECORDED=1
             cat "$DATA_RECORD"
         else
-            echo "Could not record $OUTPUT_DIR/data; keeping it."
+            echo "Could not record the run's output; keeping it."
             rm -f "$DATA_RECORD.tmp"
         fi
         rm -f $OUTPUT_DIR/data_sizes.txt
     fi
     if [ "$RECORDED" = 1 ]; then
-        echo "Deleting $OUTPUT_DIR/data..."
-        find $OUTPUT_DIR/data -type f -print0 | xargs -0 -r -n 2000 -P 16 rm -f
-        rm -rf $OUTPUT_DIR/data
+        echo "Deleting ${{DATA_TARGETS[*]}}..."
+        find "${{DATA_TARGETS[@]}}" -type f -print0 | xargs -0 -r -n 2000 -P 16 rm -f
+        rm -rf "${{DATA_TARGETS[@]}}"
     fi
 fi
 """
