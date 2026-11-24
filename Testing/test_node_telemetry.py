@@ -638,6 +638,7 @@ class PmEnergyGuard(unittest.TestCase):
         self.assertEqual(fields["energy_pm_node_joules"], 5935.0)
         self.assertNotIn("energy_cpu_joules", fields)
 
+
 class Rapl(unittest.TestCase):
     """RAPL CPU energy: packages and DRAM only, wrap-safe, silent when unreadable."""
 
