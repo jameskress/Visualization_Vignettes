@@ -1221,8 +1221,12 @@ if [ ${{#DATA_TARGETS[@]}} -gt 0 ]; then
         else
             # Recorded before Ascent's output was counted: add it now.
             echo "Adding Ascent's output to job $RUN_JOB_ID's record..."
-            if find "${{ASCENT_TARGETS[@]}}" -type f -printf '%s\\n' > $OUTPUT_DIR/data_sizes.txt \\
-                && awk -v rec="$(cat "$DATA_RECORD")" '{{n++; b+=$1}} END {{
+            # Read the record on its own, so a failed read keeps both the
+            # record and the output.
+            REC=$(cat "$DATA_RECORD") || REC=""
+            if printf '%s' "$REC" | grep -q '"files": [0-9]*.*"bytes": [0-9]' \\
+                && find "${{ASCENT_TARGETS[@]}}" -type f -printf '%s\\n' > $OUTPUT_DIR/data_sizes.txt \\
+                && awk -v rec="$REC" '{{n++; b+=$1}} END {{
                     match(rec, /"files": [0-9]+/); f = substr(rec, RSTART + 9, RLENGTH - 9) + n
                     match(rec, /"bytes": [0-9]+/); by = substr(rec, RSTART + 9, RLENGTH - 9) + b
                     sub(/"files": [0-9]+/, "\\"files\\": " f, rec); sub(/"bytes": [0-9]+/, sprintf("\\"bytes\\": %.0f", by), rec)

@@ -512,7 +512,10 @@ writes `reduce-<jobid>.out` and produces:
   its `.root`), outside `data/`, so until 24 Nov 2026 this cleanup missed it
   (about 5 TB of the sweep). It now records and deletes those as well; the
   record says `"scope": "data+ascent"`, and a record written before (without
-  it) has Ascent's leftover output added to it before that is deleted.
+  it) has Ascent's leftover output added to it before that is deleted. A
+  run's `reduce.sbat` holds the cleanup it was generated with: regenerate
+  the results directory before resubmitting the reduction of a run made
+  earlier, or its Ascent output stays.
 
 `large-runs/audit_runs.py --results-dir <results>` lists runs that are missing, failed
 (time limit, out of memory, crash) or still running. If a run's reduction
