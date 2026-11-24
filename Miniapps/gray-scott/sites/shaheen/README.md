@@ -507,7 +507,18 @@ writes `reduce-<jobid>.out` and produces:
   is in the timers; the output itself is not read afterwards. ADIOS2 data
   runs get the same treatment: few files, but full fields (one 3072 + 192 in
   transit run wrote 12 TB, nearly filling the 31 TiB quota, 23 Nov 2026).
-  Render images and the initialisations' checkpoints are kept.
+  Render images and the initialisations' checkpoints are kept. Ascent's data
+  output is written in the run directory itself (`ascent_data.cycle_*` and
+  its `.root`), outside `data/`, so until 24 Nov 2026 this cleanup missed it
+  (about 5 TB of the sweep). It now records and deletes those as well; the
+  record says `"scope": "data+ascent"`, and a record written before (without
+  it) has Ascent's leftover output added to it before that is deleted. A
+  run's `reduce.sbat` holds the cleanup it was generated with: regenerate
+  the results directory before resubmitting the reduction of a run made
+  earlier, or its Ascent output stays. Resubmit it with the run's own job
+  ID (not a reduction's), `sbatch --export=ALL,RUN_JOB_ID=<run job>
+  <run>/reduce.sbat`: without it, a run that already has a record keeps
+  its output.
 
 `large-runs/audit_runs.py --results-dir <results>` lists runs that are missing, failed
 (time limit, out of memory, crash) or still running. If a run's reduction
