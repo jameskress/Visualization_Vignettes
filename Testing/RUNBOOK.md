@@ -648,7 +648,10 @@ refused, that group is the first thing to ask help@hpc.kaust.edu.sa for.
 
 As batch jobs: `Testing/shaheen_ppn_pv_suite.sbat` (EGL module, `--gres=gpu:1`,
 machine `shaheen3-ppn-gpu-L40`, GPU baselines at the default tolerance) and
-`Testing/shaheen_ppn_visit_suite.sbat` (machine `shaheen3-ppn`), submitted
+`Testing/shaheen_ppn_visit_suite.sbat` (machine `shaheen3-ppn`, also `--gres=gpu:1`
+since 29 Nov 2026: before that it ran on the highmem nodes `ppn1`, then `ppn9`
+to `ppn11`, so read its history across that date as a change of node, not of
+VisIt), submitted
 from `Testing/` with the same `TESTS`, `RANKS` and `EXTRA` knobs as the workq
 ones. Run `TESTS="8"` first, for the reason below.
 
