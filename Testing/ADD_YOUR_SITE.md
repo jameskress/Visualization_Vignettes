@@ -54,7 +54,8 @@ configuration whose latest run is not on the pinned builds as stale.
 **Energy, optional.** The suite records what energy it can read and skips
 the rest without an error: GPU energy wherever `nvidia-smi` runs, node energy
 on Cray nodes a job owns, and CPU package energy from RAPL
-(`/sys/class/powercap/intel-rapl:*/energy_uj`) when the run has the machine
+(`/sys/class/powercap/intel-rapl:*/energy_uj`, or the `amd_energy` hwmon
+socket counters on AMD nodes) when the run has the machine
 to itself (outside Slurm, or a job that owns its one node). Linux makes RAPL root-only by
 default, because its fine-grained readings can leak information between
 users (the PLATYPUS side channel). On a single-user workstation you may make

@@ -228,6 +228,8 @@ def scope_of(metric):
         return METRICS[metric][4]
     if metric == "slurm_memory_mb":  # Slurm's figure beside an exact peak
         return "slurm_memory_scope"
+    if metric.startswith("rapl_"):  # powercap or the amd_energy sockets
+        return "rapl_source"
     if metric.startswith("cpu_"):
         return "cpu_measurement_scope"
     if metric.startswith("memory_"):

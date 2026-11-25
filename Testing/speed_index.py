@@ -61,6 +61,7 @@ SCOPE_FIELDS = {
     "cpu_seconds": "cpu_measurement_scope",
     "memory_usage_mb": "memory_measurement_scope",
     "energy_joules": "energy_scope",
+    "rapl_package_joules": "rapl_source",
 }
 
 BOOTSTRAP = 300
